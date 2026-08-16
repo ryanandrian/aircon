@@ -1,0 +1,17 @@
+{
+  "name": "ac-wa-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WhatsApp worker (whatsapp-web.js) untuk AC Service Growth OS. Long-running, satu sesi WA per tenant.",
+  "main": "src/worker.js",
+  "scripts": {
+    "start": "node src/worker.js",
+    "dev": "node --watch src/worker.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

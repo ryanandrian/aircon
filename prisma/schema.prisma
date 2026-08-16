@@ -152,6 +152,11 @@ enum MessageStatus {
   LOGGED
 }
 
+enum WaDriver {
+  WEB
+  META
+}
+
 enum DeviceProvision {
   UNPROVISIONED
   PROVISIONED
@@ -203,6 +208,7 @@ model Tenant {
   reminderLeadDays        Int          @default(7)
   plan                    TenantPlan   @default(STARTER)
   status                  TenantStatus @default(TRIAL)
+  waDriver                WaDriver     @default(WEB)
   publicProfile           Json?
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
@@ -478,13 +484,16 @@ model MessageLog {
   customerId  String?
   jobId       String?
   channel     MessageChannel
+  driver      WaDriver       @default(WEB)
   templateKey String?
   direction   MessageDir     @default(OUTBOUND)
   status      MessageStatus  @default(LOGGED)
+  toPhone     String?
   body        String?
   at          DateTime       @default(now())
 
   @@index([tenantId, customerId, at])
+  @@index([driver, status])
 }
 
 // ================= IoT =================

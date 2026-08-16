@@ -43,3 +43,7 @@ next-env.d.ts
 /src/generated/prisma
 .env
 *:Zone.Identifier
+
+# wa-worker
+apps/wa-worker/.wwebjs_auth/
+apps/wa-worker/node_modules/
