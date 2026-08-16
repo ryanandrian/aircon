@@ -1,0 +1,566 @@
+// AC Service Growth OS — Prisma schema
+// Sumber: docs/BuildSpecPack_Part1_DataSchema_and_API.md + Auth_Decision v2
+// Catatan: Postgres = Supabase. RLS diterapkan via migrasi SQL terpisah (tenant_id scoping).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ================= ENUMS =================
+enum Role {
+  OWNER
+  ADMIN
+  TECHNICIAN
+}
+
+enum AuthProvider {
+  GOOGLE
+  PIN
+}
+
+enum TenantPlan {
+  STARTER
+  GROWTH
+  PRO
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum CustomerSource {
+  REFERRAL
+  WHATSAPP
+  WALK_IN
+  MARKETING
+  WEBSITE
+  IOT_ALERT
+  REPEAT
+  OTHER
+}
+
+enum AssetType {
+  SPLIT
+  CASSETTE
+  STANDING
+  WINDOW
+  CENTRAL
+  OTHER
+}
+
+enum ServiceType {
+  CLEANING
+  REFILL_FREON
+  REPAIR
+  INSTALL
+  DISMANTLE
+  INSPECTION
+  OTHER
+}
+
+enum JobStatus {
+  DRAFT
+  ASSIGNED
+  ACCEPTED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  WAITING
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+enum JobSource {
+  MANUAL
+  REPEAT
+  IOT
+  LEAD
+  WEBSITE
+}
+
+enum FeasibilityStatus {
+  FEASIBLE
+  RISK
+  CONFLICT
+  UNKNOWN
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUOTED
+  WON
+  LOST
+}
+
+enum ReminderStatus {
+  QUEUED
+  SENT
+  CONVERTED
+  DISMISSED
+  EXPIRED
+}
+
+enum ReviewStatus {
+  REQUESTED
+  SENT
+  RECEIVED
+  DECLINED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  DONE
+}
+
+enum RecipientStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum MessageChannel {
+  WA
+  PUSH
+}
+
+enum MessageDir {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  LOGGED
+}
+
+enum DeviceProvision {
+  UNPROVISIONED
+  PROVISIONED
+}
+
+enum RentalStatus {
+  NONE
+  ACTIVE
+  RETURNED
+}
+
+enum CommandState {
+  COMMAND_SENT
+  ACKNOWLEDGED
+  STATE_CONFIRMED
+  FAILED
+}
+
+enum AlertType {
+  OVERCURRENT
+  NO_COOLING
+  OFFLINE
+  SENSOR_FAULT
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACK
+  RESOLVED
+  DISMISSED
+}
+
+// ================= CORE =================
+model Tenant {
+  id                      String       @id @default(cuid())
+  name                    String
+  slug                    String       @unique
+  phone                   String       @unique
+  workingHoursDefault     Json
+  serviceArea             Json
+  bufferMinutes           Int          @default(15)
+  maintenanceIntervalDays Int          @default(90)
+  reminderLeadDays        Int          @default(7)
+  plan                    TenantPlan   @default(STARTER)
+  status                  TenantStatus @default(TRIAL)
+  publicProfile           Json?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  users        User[]
+  customers    Customer[]
+  assets       Asset[]
+  technicians  Technician[]
+  jobs         JobOrder[]
+  subscription Subscription?
+}
+
+model User {
+  id           String       @id @default(cuid())
+  tenantId     String
+  name         String
+  phone        String
+  email        String?
+  role         Role
+  authProvider AuthProvider @default(PIN)
+  pinHash      String?
+  status       UserStatus   @default(INVITED)
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  technician Technician?
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, role])
+}
+
+model Customer {
+  id           String         @id @default(cuid())
+  tenantId     String
+  name         String
+  phone        String
+  address      String?
+  geoLat       Float?
+  geoLng       Float?
+  source       CustomerSource @default(OTHER)
+  referredById String?
+  notes        String?
+  deletedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  assets Asset[]
+  jobs   JobOrder[]
+
+  @@index([tenantId, phone])
+  @@index([tenantId, source])
+}
+
+model Asset {
+  id                      String    @id @default(cuid())
+  tenantId                String
+  customerId              String
+  brand                   String?
+  model                   String?
+  type                    AssetType @default(SPLIT)
+  capacityPk              Float?
+  roomLocation            String?
+  serial                  String?
+  installedAt             DateTime?
+  maintenanceIntervalDays Int?
+  nextServiceDate         DateTime?
+  deviceId                String?   @unique
+  deletedAt               DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  customer Customer   @relation(fields: [customerId], references: [id])
+  jobs     JobOrder[]
+  device   Device?    @relation(fields: [deviceId], references: [id])
+
+  @@index([tenantId, customerId])
+  @@index([tenantId, nextServiceDate])
+}
+
+model Technician {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String   @unique
+  skills       String[]
+  workingHours Json?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  user   User       @relation(fields: [userId], references: [id])
+  jobs   JobOrder[]
+
+  @@index([tenantId, active])
+}
+
+model JobOrder {
+  id              String      @id @default(cuid())
+  tenantId        String
+  customerId      String
+  assetId         String?
+  technicianId    String?
+  serviceType     ServiceType
+  status          JobStatus   @default(DRAFT)
+  source          JobSource   @default(MANUAL)
+  scheduledDate   DateTime?
+  windowStart     DateTime?
+  windowEnd       DateTime?
+  estDurationMin  Int         @default(60)
+  addressSnapshot String?
+  geoLat          Float?
+  geoLng          Float?
+  price           Decimal?    @db.Decimal(12, 2)
+  notes           String?
+  nextServiceDate DateTime?
+  parentJobId     String?
+  createdById     String
+  completedAt     DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  customer   Customer           @relation(fields: [customerId], references: [id])
+  asset      Asset?             @relation(fields: [assetId], references: [id])
+  technician Technician?        @relation(fields: [technicianId], references: [id])
+  events     JobProgressEvent[]
+  photos     JobPhoto[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, technicianId, scheduledDate])
+  @@index([tenantId, customerId])
+}
+
+model JobProgressEvent {
+  id            String     @id @default(cuid())
+  tenantId      String
+  jobId         String
+  fromStatus    JobStatus?
+  toStatus      JobStatus
+  actorId       String
+  at            DateTime   @default(now())
+  clientEventId String?
+  meta          Json?
+
+  job JobOrder @relation(fields: [jobId], references: [id])
+
+  @@unique([tenantId, clientEventId])
+  @@index([tenantId, jobId, at])
+}
+
+model ChecklistTemplate {
+  id          String      @id @default(cuid())
+  tenantId    String
+  serviceType ServiceType
+  items       Json
+
+  @@unique([tenantId, serviceType])
+}
+
+model ChecklistResult {
+  id       String  @id @default(cuid())
+  tenantId String
+  jobId    String
+  itemKey  String
+  checked  Boolean @default(false)
+  value    String?
+
+  @@unique([tenantId, jobId, itemKey])
+}
+
+model JobPhoto {
+  id       String   @id @default(cuid())
+  tenantId String
+  jobId    String
+  kind     String
+  url      String
+  at       DateTime @default(now())
+
+  job JobOrder @relation(fields: [jobId], references: [id])
+
+  @@index([tenantId, jobId])
+}
+
+// ================= GROWTH =================
+model Lead {
+  id                  String         @id @default(cuid())
+  tenantId            String
+  name                String
+  phone               String
+  source              CustomerSource @default(OTHER)
+  status              LeadStatus     @default(NEW)
+  notes               String?
+  followUpAt          DateTime?
+  convertedCustomerId String?
+  convertedJobId      String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, followUpAt])
+}
+
+model Referral {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  referrerCustomerId String
+  referredCustomerId String
+  at                 DateTime @default(now())
+}
+
+model ReviewRequest {
+  id       String         @id @default(cuid())
+  tenantId String
+  jobId    String
+  channel  MessageChannel @default(WA)
+  status   ReviewStatus   @default(REQUESTED)
+  at       DateTime       @default(now())
+}
+
+model RepeatReminder {
+  id           String         @id @default(cuid())
+  tenantId     String
+  assetId      String
+  dueDate      DateTime
+  leadTimeDays Int
+  status       ReminderStatus @default(QUEUED)
+  jobId        String?
+  sentAt       DateTime?
+
+  @@unique([tenantId, assetId, dueDate])
+  @@index([tenantId, status, dueDate])
+}
+
+model Campaign {
+  id         String         @id @default(cuid())
+  tenantId   String
+  name       String
+  segment    Json
+  templateId String
+  status     CampaignStatus @default(DRAFT)
+  createdAt  DateTime       @default(now())
+}
+
+model CampaignRecipient {
+  id         String          @id @default(cuid())
+  tenantId   String
+  campaignId String
+  customerId String
+  status     RecipientStatus @default(PENDING)
+  sentAt     DateTime?
+
+  @@unique([tenantId, campaignId, customerId])
+}
+
+// ================= MESSAGING =================
+model MessageTemplate {
+  id       String @id @default(cuid())
+  tenantId String
+  key      String
+  body     String
+
+  @@unique([tenantId, key])
+}
+
+model MessageLog {
+  id          String         @id @default(cuid())
+  tenantId    String
+  customerId  String?
+  jobId       String?
+  channel     MessageChannel
+  templateKey String?
+  direction   MessageDir     @default(OUTBOUND)
+  status      MessageStatus  @default(LOGGED)
+  body        String?
+  at          DateTime       @default(now())
+
+  @@index([tenantId, customerId, at])
+}
+
+// ================= IoT =================
+model Device {
+  id              String          @id
+  tenantId        String?
+  assetId         String?         @unique
+  provisionStatus DeviceProvision @default(UNPROVISIONED)
+  rentalStatus    RentalStatus    @default(NONE)
+  fwVersion       String?
+  lastSeenAt      DateTime?
+  health          Json?
+  createdAt       DateTime        @default(now())
+
+  asset     Asset?
+  telemetry Telemetry[]
+  commands  CommandLog[]
+
+  @@index([tenantId, provisionStatus])
+}
+
+model Telemetry {
+  id       BigInt   @id @default(autoincrement())
+  deviceId String
+  tenantId String?
+  ts       DateTime
+  tempC    Float?
+  humidity Float?
+  currentA Float?
+  powerW   Float?
+  online   Boolean  @default(true)
+
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([deviceId, ts])
+}
+
+model CommandLog {
+  id          String       @id @default(cuid())
+  tenantId    String
+  deviceId    String
+  command     Json
+  state       CommandState @default(COMMAND_SENT)
+  evidence    Json?
+  sentAt      DateTime     @default(now())
+  ackAt       DateTime?
+  confirmedAt DateTime?
+
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([tenantId, deviceId, sentAt])
+}
+
+model Alert {
+  id           String        @id @default(cuid())
+  tenantId     String
+  deviceId     String
+  assetId      String?
+  type         AlertType
+  severity     AlertSeverity @default(WARNING)
+  status       AlertStatus   @default(OPEN)
+  createdJobId String?
+  at           DateTime      @default(now())
+
+  @@index([tenantId, status])
+}
+
+// ================= BILLING =================
+model Subscription {
+  id         String       @id @default(cuid())
+  tenantId   String       @unique
+  plan       TenantPlan
+  iotDevices Int          @default(0)
+  status     TenantStatus @default(TRIAL)
+  validUntil DateTime?
+  notes      String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
