@@ -23,9 +23,9 @@ enum AuthProvider {
 }
 
 enum TenantPlan {
-  STARTER
-  GROWTH
-  PRO
+  TRIAL
+  PROFESSIONAL
+  BUSINESS
 }
 
 enum TenantStatus {
@@ -222,10 +222,14 @@ model Tenant {
   bufferMinutes           Int          @default(15)
   maintenanceIntervalDays Int          @default(90)
   reminderLeadDays        Int          @default(7)
-  plan                    TenantPlan   @default(STARTER)
+  plan                    TenantPlan   @default(TRIAL)
   status                  TenantStatus @default(TRIAL)
   trialEndsAt             DateTime?
   currentPeriodEnd        DateTime?
+  nextDueDate             DateTime?
+  suspendedAt             DateTime?
+  markedForDeletionAt     DateTime?
+  lastDunningReminderAt   DateTime?
   onboardingCompleted     Boolean      @default(false)
   waDriver                WaDriver     @default(WEB)
   publicProfile           Json?
@@ -240,6 +244,7 @@ model Tenant {
   subscription Subscription?
   payments     Payment[]
   invites      Invite[]
+  iotOrders    IotOrder[]
 }
 
 model User {
@@ -650,4 +655,108 @@ model PlatformAdmin {
   name      String
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
+}
+
+// ================= CONFIG (DB-DRIVEN, EDITABLE ADMIN — NO HARDCODE) =================
+
+// Definisi paket langganan yang DAPAT DIUBAH lewat admin panel.
+// Kuota null = UNLIMITED. Perubahan berlaku untuk tagihan berikutnya
+// (Tenant menyimpan snapshot kuota saat aktivasi bila diperlukan).
+model PlanConfig {
+  id              String     @id @default(cuid())
+  plan            TenantPlan @unique
+  displayName     String
+  priceMonthly    Int        @default(0) // IDR, belum termasuk pajak
+  taxable         Boolean    @default(true)
+  active          Boolean    @default(true)
+  sortOrder       Int        @default(0)
+  tagline         String?
+  // Kuota (null = unlimited)
+  maxAdmins       Int? // null = unlimited
+  maxTechnicians  Int? // TERMASUK akun admin (sesuai aturan bisnis)
+  maxCustomers    Int?
+  maxAcUnits      Int?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+// Kebijakan billing global (satu baris), DAPAT DIUBAH admin.
+// Semua durasi/pajak/jadwal reminder tidak boleh hardcode.
+model BillingPolicy {
+  id                    String   @id @default("singleton")
+  taxPercent            Float    @default(11) // PPN %
+  trialDays             Int      @default(14)
+  graceDaysBeforeSuspend Int     @default(1) // telat > N hari -> suspend (blok login)
+  daysBeforeDelete      Int      @default(7) // telat > N hari -> hapus data tenant
+  // Jadwal reminder WA (hari keterlambatan saat reminder dikirim), mis "0,1,3"
+  dunningReminderDays   String   @default("0,1,3")
+  deleteWarningDay      Int      @default(3) // reminder khusus peringatan hapus di hari ke-N
+  updatedAt             DateTime @updatedAt
+  updatedBy             String?
+}
+
+// ================= IoT PRODUK & PEMESANAN (jual putus) =================
+enum IotOrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  INSTALLED
+  CANCELLED
+}
+
+// Produk device IoT — harga & garansi DAPAT DIUBAH admin.
+model IotProduct {
+  id            String   @id @default(cuid())
+  sku           String   @unique
+  name          String
+  description   String?
+  priceUnit     Int // IDR per device (jual putus)
+  warrantyDays  Int      @default(90)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orders IotOrderItem[]
+}
+
+// Pesanan device IoT oleh tenant (jual putus) + progress + pembayaran.
+model IotOrder {
+  id            String         @id @default(cuid())
+  tenantId      String
+  orderNo       String         @unique
+  status        IotOrderStatus @default(PENDING_PAYMENT)
+  quantity      Int
+  unitPrice     Int // snapshot harga saat order
+  subtotal      Int
+  taxPercent    Float          @default(0)
+  taxAmount     Int            @default(0)
+  total         Int
+  // pembayaran (reuse pola Midtrans)
+  paymentOrderId String?       @unique
+  snapToken     String?
+  snapRedirect  String?
+  paidAt        DateTime?
+  shippingAddress String?
+  trackingNote  String?
+  createdById   String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id])
+  items  IotOrderItem[]
+
+  @@index([tenantId, status])
+}
+
+model IotOrderItem {
+  id         String     @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Int
+
+  order   IotOrder   @relation(fields: [orderId], references: [id])
+  product IotProduct @relation(fields: [productId], references: [id])
 }

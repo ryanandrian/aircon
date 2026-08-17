@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
-import { PLANS, formatIDR } from "@/lib/billing/plans";
+import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
+import { formatIDR } from "@/lib/billing/plans";
 import { isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import { PlanCards } from "./plan-cards";
 import Link from "next/link";
@@ -20,16 +21,44 @@ export default async function LanggananPage() {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/langganan");
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
+  const [tenant, plans, policy] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
+    getActivePlans(),
+    getBillingPolicy(),
+  ]);
   if (!tenant) redirect("/login");
 
   const configured = isMidtransConfigured();
   const isOwner = ctx.role === "OWNER";
+  const currentPlanName =
+    plans.find((p) => p.plan === tenant.plan)?.displayName ?? tenant.plan;
 
   const trialInfo =
     tenant.status === "TRIAL" && tenant.trialEndsAt
       ? `Masa coba gratis berakhir ${tenant.trialEndsAt.toLocaleDateString("id-ID")}.`
-      : null;
+      : tenant.nextDueDate
+        ? `Jatuh tempo berikutnya ${tenant.nextDueDate.toLocaleDateString("id-ID")}.`
+        : null;
+
+  const planViews = plans.map((p) => {
+    const taxPercent = p.taxable ? policy.taxPercent : 0;
+    const { total } = withTax(p.priceMonthly, taxPercent);
+    return {
+      id: p.plan,
+      name: p.displayName,
+      price: p.priceMonthly === 0 ? "Gratis" : formatIDR(p.priceMonthly),
+      priceWithTax: p.priceMonthly === 0 ? "Gratis" : formatIDR(total),
+      taxNote: p.taxable && p.priceMonthly > 0 ? `Termasuk pajak ${policy.taxPercent}%` : "",
+      tagline: p.tagline ?? "",
+      quotas: [
+        p.maxAdmins === null ? "Admin tanpa batas" : `${p.maxAdmins} admin`,
+        p.maxTechnicians === null ? "Teknisi tanpa batas" : `${p.maxTechnicians} teknisi (termasuk admin)`,
+        p.maxCustomers === null ? "Pelanggan tanpa batas" : `${p.maxCustomers} pelanggan`,
+        p.maxAcUnits === null ? "Unit AC tanpa batas" : `${p.maxAcUnits} unit AC`,
+      ],
+      isFree: p.priceMonthly === 0,
+    };
+  });
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -45,7 +74,7 @@ export default async function LanggananPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-slate-500">Paket saat ini</div>
-              <div className="text-xl font-bold">{PLANS[tenant.plan].name}</div>
+              <div className="text-xl font-bold">{currentPlanName}</div>
             </div>
             <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700">
               {STATUS_LABEL[tenant.status] ?? tenant.status}
@@ -69,13 +98,7 @@ export default async function LanggananPage() {
         <PlanCards
           currentPlan={tenant.plan}
           canPay={configured && isOwner}
-          plans={Object.values(PLANS).map((p) => ({
-            id: p.id,
-            name: p.name,
-            price: formatIDR(p.priceMonthly),
-            tagline: p.tagline,
-            highlights: p.highlights,
-          }))}
+          plans={planViews}
         />
       </div>
     </main>

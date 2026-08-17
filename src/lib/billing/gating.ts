@@ -1,44 +1,75 @@
 /**
- * Feature gating & tenant lifecycle rules — best-practice SaaS multi-tenant.
- * Pure logic (teruji). Enforcement dilakukan di service/middleware.
+ * Feature gating & kuota — enforcement terhadap DATABASE (PlanConfig).
+ * Fungsi murni ada di gating-pure.ts (bebas DB, teruji unit).
+ * Semua paket FITUR PENUH; pembeda = kuota (admin/teknisi/pelanggan/unit AC).
  */
-import type { TenantPlan, TenantStatus } from "@prisma/client";
-import { PLANS, TRIAL_DAYS, type PlanFeatures } from "./plans";
+import type { TenantPlan } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getPlanConfig, getBillingPolicy } from "@/lib/billing/config";
+import {
+  quotaLimit,
+  withinQuota,
+  type QuotaKind,
+} from "@/lib/billing/gating-pure";
 
-/** Status yang masih boleh memakai aplikasi (baca/tulis). */
-export function isTenantUsable(status: TenantStatus): boolean {
-  return status === "TRIAL" || status === "ACTIVE" || status === "PAST_DUE";
+// Re-export fungsi murni agar pemakai lama tetap jalan.
+export {
+  isTenantUsable,
+  computeTrialEnd,
+  isTrialExpired,
+  quotaLimit,
+  withinQuota,
+  QUOTA_LABEL,
+  type QuotaKind,
+} from "@/lib/billing/gating-pure";
+
+export interface QuotaCheck {
+  allowed: boolean;
+  limit: number | null;
+  current: number;
+  kind: QuotaKind;
 }
 
 /**
- * Plan efektif untuk gating. Saat TRIAL, beri akses fitur tertinggi (PRO)
- * agar calon pelanggan mencoba semuanya. Setelah bayar, pakai plan asli.
+ * Cek kuota terhadap DB untuk sebuah tenant.
+ * Menghitung pemakaian aktual (tenant-scoped) lalu bandingkan PlanConfig.
+ * SECURITY: tenantId dari pemanggil ber-auth.
  */
-export function effectivePlan(status: TenantStatus, plan: TenantPlan): TenantPlan {
-  if (status === "TRIAL") return "PRO";
-  return plan;
+export async function checkQuota(
+  tenantId: string,
+  plan: TenantPlan,
+  kind: QuotaKind,
+): Promise<QuotaCheck> {
+  const cfg = await getPlanConfig(plan);
+  const limit = cfg ? quotaLimit(cfg, kind) : null;
+
+  let current = 0;
+  switch (kind) {
+    case "admins":
+      // SECURITY: tenant-scoped. OWNER dihitung admin (pemilik = admin utama).
+      current = await prisma.user.count({
+        where: { tenantId, role: { in: ["OWNER", "ADMIN"] }, status: { not: "DISABLED" } },
+      });
+      break;
+    case "technicians":
+      // "Maksimum Teknisi termasuk akun admin" → hitung semua user aktif tenant.
+      current = await prisma.user.count({
+        where: { tenantId, status: { not: "DISABLED" } },
+      });
+      break;
+    case "customers":
+      current = await prisma.customer.count({ where: { tenantId, deletedAt: null } });
+      break;
+    case "acUnits":
+      current = await prisma.asset.count({ where: { tenantId, deletedAt: null } });
+      break;
+  }
+
+  return { allowed: withinQuota(limit, current), limit, current, kind };
 }
 
-/** Apakah fitur tertentu aktif untuk plan ini. */
-export function hasFeature(plan: TenantPlan, feature: keyof PlanFeatures): boolean {
-  const v = PLANS[plan].features[feature];
-  return typeof v === "boolean" ? v : Boolean(v);
-}
-
-/** Boleh menambah teknisi bila jumlah saat ini < batas plan. */
-export function canAddTechnician(plan: TenantPlan, currentCount: number): boolean {
-  return currentCount < PLANS[plan].features.maxTechnicians;
-}
-
-/** Akhir masa trial. */
-export function computeTrialEnd(start: Date, days: number = TRIAL_DAYS): Date {
-  const d = new Date(start);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-/** Apakah trial sudah lewat. */
-export function isTrialExpired(trialEndsAt: Date | null, now = new Date()): boolean {
-  if (!trialEndsAt) return false;
-  return now.getTime() > trialEndsAt.getTime();
+/** Ambil trialDays terkini dari policy. */
+export async function trialDays(): Promise<number> {
+  const policy = await getBillingPolicy();
+  return policy.trialDays;
 }

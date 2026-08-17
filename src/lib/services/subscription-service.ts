@@ -5,7 +5,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import type { TenantPlan, PaymentStatus } from "@prisma/client";
-import { PLANS } from "@/lib/billing/plans";
+import { getPlanConfig, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { createSnapTransaction, isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import {
   makeOrderId,
@@ -24,6 +24,7 @@ export class BillingError extends Error {
 
 /**
  * Mulai pembayaran langganan: buat Payment(PENDING) + Snap token.
+ * Harga & pajak DIBACA DARI DATABASE (PlanConfig + BillingPolicy) — no hardcode.
  * SECURITY: tenantId dari session (dipanggil oleh action ber-auth).
  */
 export async function startSubscriptionPayment(params: {
@@ -36,11 +37,15 @@ export async function startSubscriptionPayment(params: {
   if (!isMidtransConfigured()) {
     throw new BillingError("NOT_CONFIGURED", "Pembayaran belum dikonfigurasi. Hubungi admin.");
   }
-  const planDef = PLANS[params.plan];
-  if (!planDef) throw new BillingError("INVALID", "Paket tidak dikenal");
+  const planCfg = await getPlanConfig(params.plan);
+  if (!planCfg || !planCfg.active) throw new BillingError("INVALID", "Paket tidak tersedia");
+  if (planCfg.priceMonthly <= 0) throw new BillingError("INVALID", "Paket ini gratis, tak perlu bayar");
 
+  const policy = await getBillingPolicy();
   const months = params.periodMonths ?? 1;
-  const amount = planDef.priceMonthly * months;
+  const base = planCfg.priceMonthly * months;
+  const taxPercent = planCfg.taxable ? policy.taxPercent : 0;
+  const { total: amount } = withTax(base, taxPercent);
   const orderId = makeOrderId(params.tenantId);
 
   // Catat Payment PENDING dulu (idempoten via orderId unik).
@@ -60,7 +65,7 @@ export async function startSubscriptionPayment(params: {
     amount,
     customerName: params.customerName,
     customerEmail: params.customerEmail,
-    itemName: `Langganan ${planDef.name} (${months} bulan)`,
+    itemName: `Langganan ${planCfg.displayName} (${months} bulan)`,
   });
 
   await prisma.payment.update({
@@ -139,7 +144,16 @@ export async function activateSubscription(
   await prisma.$transaction([
     prisma.tenant.update({
       where: { id: tenantId },
-      data: { plan, status: "ACTIVE", currentPeriodEnd: periodEnd },
+      data: {
+        plan,
+        status: "ACTIVE",
+        currentPeriodEnd: periodEnd,
+        nextDueDate: periodEnd,
+        // Reset dunning: pembayaran menyembuhkan keterlambatan.
+        suspendedAt: null,
+        markedForDeletionAt: null,
+        lastDunningReminderAt: null,
+      },
     }),
     prisma.subscription.upsert({
       where: { tenantId },

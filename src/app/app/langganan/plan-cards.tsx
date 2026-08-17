@@ -8,8 +8,11 @@ interface PlanView {
   id: TenantPlan;
   name: string;
   price: string;
+  priceWithTax: string;
+  taxNote: string;
   tagline: string;
-  highlights: string[];
+  quotas: string[];
+  isFree: boolean;
 }
 
 // Muat Snap.js dari Midtrans saat dibutuhkan (client-key publik).
@@ -65,7 +68,6 @@ export function PlanCards({
           onClose: () => setMsg("Pembayaran dibatalkan."),
         });
       } catch {
-        // fallback: redirect ke halaman pembayaran Midtrans
         window.location.href = res.redirectUrl;
       }
     });
@@ -97,21 +99,25 @@ export function PlanCards({
               <p className="mt-1 text-sm text-slate-500">{p.tagline}</p>
               <div className="mt-3 text-2xl font-extrabold text-slate-900">
                 {p.price}
-                <span className="text-sm font-normal text-slate-500">/bln</span>
+                {!p.isFree && <span className="text-sm font-normal text-slate-500">/bln</span>}
               </div>
+              {p.taxNote && <p className="text-xs text-slate-400">{p.taxNote} · {p.priceWithTax}/bln</p>}
               <ul className="mt-4 flex-1 space-y-2 text-sm text-slate-600">
-                {p.highlights.map((h) => (
-                  <li key={h} className="flex gap-2">
-                    <span className="text-emerald-500">✓</span> {h}
+                {p.quotas.map((q) => (
+                  <li key={q} className="flex gap-2">
+                    <span className="text-emerald-500">✓</span> {q}
                   </li>
                 ))}
+                <li className="flex gap-2">
+                  <span className="text-emerald-500">✓</span> Semua fitur
+                </li>
               </ul>
               <button
-                disabled={!canPay || pending}
+                disabled={!canPay || pending || p.isFree}
                 onClick={() => subscribe(p.id)}
                 className="mt-5 min-h-[44px] rounded-xl bg-sky-500 px-4 py-2.5 font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
               >
-                {isCurrent ? "Perpanjang" : "Pilih Paket"}
+                {p.isFree ? "Paket Coba" : isCurrent ? "Perpanjang" : "Pilih Paket"}
               </button>
             </div>
           );

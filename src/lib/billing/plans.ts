@@ -1,101 +1,71 @@
 /**
- * Definisi paket langganan (plans) — sumber tunggal untuk pricing & feature gating.
- * Harga = hipotesis pilot (Rupiah/bulan). Gating ditegakkan di server.
+ * Default paket — HANYA dipakai untuk SEED awal ke database (PlanConfig).
+ * Setelah di-seed, sumber kebenaran = tabel PlanConfig (editable admin).
+ * Jangan baca file ini untuk pricing runtime; pakai src/lib/billing/config.ts.
  */
 import type { TenantPlan } from "@prisma/client";
 
-export interface PlanFeatures {
-  maxTechnicians: number;
-  smartScheduling: boolean;
-  dynamicReplanning: boolean;
-  growthTools: boolean; // calon pelanggan, referral, review, kampanye
-  reports: "basic" | "full";
-  publicPage: boolean;
-  iotAddon: boolean;
-}
-
-export interface PlanDef {
-  id: TenantPlan;
-  name: string;
-  priceMonthly: number; // IDR
+export interface PlanSeed {
+  plan: TenantPlan;
+  displayName: string;
+  priceMonthly: number; // IDR, belum termasuk pajak
+  taxable: boolean;
   tagline: string;
-  highlights: string[];
-  features: PlanFeatures;
+  sortOrder: number;
+  maxAdmins: number | null; // null = unlimited
+  maxTechnicians: number | null; // termasuk akun admin
+  maxCustomers: number | null;
+  maxAcUnits: number | null;
 }
 
-export const PLANS: Record<TenantPlan, PlanDef> = {
-  STARTER: {
-    id: "STARTER",
-    name: "Pemula",
-    priceMonthly: 199_000,
-    tagline: "Untuk usaha AC yang baru mulai rapi",
-    highlights: [
-      "Kelola pelanggan & unit AC",
-      "Atur pekerjaan teknisi harian",
-      "Pengingat servis otomatis (pelanggan datang lagi)",
-      "Sampai 3 teknisi",
-    ],
-    features: {
-      maxTechnicians: 3,
-      smartScheduling: false,
-      dynamicReplanning: false,
-      growthTools: false,
-      reports: "basic",
-      publicPage: true,
-      iotAddon: true,
-    },
+/** Nilai default sesuai keputusan bisnis (dapat diubah admin setelah seed). */
+export const PLAN_SEEDS: PlanSeed[] = [
+  {
+    plan: "TRIAL",
+    displayName: "Trial",
+    priceMonthly: 0,
+    taxable: false,
+    tagline: "Coba semua fitur gratis",
+    sortOrder: 0,
+    maxAdmins: 1,
+    maxTechnicians: 2, // termasuk akun admin
+    maxCustomers: 5,
+    maxAcUnits: 10,
   },
-  GROWTH: {
-    id: "GROWTH",
-    name: "Berkembang",
-    priceMonthly: 399_000,
-    tagline: "Untuk usaha yang mau dapat lebih banyak pelanggan",
-    highlights: [
-      "Semua fitur Pemula",
-      "Penjadwalan pintar (anti bentrok)",
-      "Alat cari pelanggan: calon, rekomendasi, ulasan",
-      "Laporan lengkap",
-      "Sampai 8 teknisi",
-    ],
-    features: {
-      maxTechnicians: 8,
-      smartScheduling: true,
-      dynamicReplanning: true,
-      growthTools: true,
-      reports: "full",
-      publicPage: true,
-      iotAddon: true,
-    },
+  {
+    plan: "PROFESSIONAL",
+    displayName: "Professional",
+    priceMonthly: 149_000,
+    taxable: true,
+    tagline: "Untuk usaha AC yang sedang berkembang",
+    sortOrder: 1,
+    maxAdmins: 1,
+    maxTechnicians: 5, // termasuk akun admin
+    maxCustomers: 200,
+    maxAcUnits: 500,
   },
-  PRO: {
-    id: "PRO",
-    name: "Profesional",
-    priceMonthly: 699_000,
-    tagline: "Untuk usaha AC yang sudah besar",
-    highlights: [
-      "Semua fitur Berkembang",
-      "Penjadwalan ulang otomatis saat lapangan berubah",
-      "Teknisi tanpa batas (wajar)",
-      "Prioritas dukungan",
-    ],
-    features: {
-      maxTechnicians: 999,
-      smartScheduling: true,
-      dynamicReplanning: true,
-      growthTools: true,
-      reports: "full",
-      publicPage: true,
-      iotAddon: true,
-    },
+  {
+    plan: "BUSINESS",
+    displayName: "Business",
+    priceMonthly: 499_000,
+    taxable: true,
+    tagline: "Untuk usaha AC skala besar, tanpa batas",
+    sortOrder: 2,
+    maxAdmins: 1,
+    maxTechnicians: null, // unlimited
+    maxCustomers: null,
+    maxAcUnits: null,
   },
+];
+
+/** Default produk IoT (jual putus) untuk seed. */
+export const IOT_PRODUCT_SEED = {
+  sku: "AIRCON-IOT-V1",
+  name: "Aircon Smart HVAC Device V1",
+  description: "Alat monitor & kontrol AC (pasang sendiri, non-invasif).",
+  priceUnit: 750_000, // IDR jual putus (dapat diubah admin)
+  warrantyDays: 90,
 };
-
-export const IOT_ADDON_PRICE_PER_DEVICE = 100_000; // IDR/device/bulan (hipotesis)
-export const TRIAL_DAYS = 14;
-
-export function planFeatures(plan: TenantPlan): PlanFeatures {
-  return PLANS[plan].features;
-}
 
 export function formatIDR(n: number): string {
   return "Rp" + n.toLocaleString("id-ID");

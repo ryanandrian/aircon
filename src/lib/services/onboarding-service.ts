@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { seedTenantDefaults } from "@/lib/domain/provision";
 import { DEFAULT_WA_TEMPLATES } from "@/lib/domain/defaults";
 import { computeTrialEnd } from "@/lib/billing/gating";
+import { getBillingPolicy } from "@/lib/billing/config";
 import type { User } from "@prisma/client";
 
 /** Identitas dari sesi Supabase untuk mencari/membuat user domain. */
@@ -100,6 +101,9 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
   // Nomor WhatsApp usaha (sudah ternormalisasi 62) = phone Tenant (unik).
   const ownerPhone = phone ?? whatsappPhone;
   const now = new Date();
+  // Durasi trial DIBACA DARI kebijakan billing (editable admin), bukan hardcode.
+  const policy = await getBillingPolicy();
+  const trialEnd = computeTrialEnd(now, policy.trialDays);
 
   const { userId, tenantId } = await prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({
@@ -107,8 +111,10 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
         name: businessName,
         slug,
         phone: whatsappPhone,
+        plan: "TRIAL",
         status: "TRIAL",
-        trialEndsAt: computeTrialEnd(now),
+        trialEndsAt: trialEnd,
+        nextDueDate: trialEnd,
         onboardingCompleted: true,
         workingHoursDefault: { mon: { start: "08:00", end: "17:00" } },
         serviceArea: { cities: [city] },
