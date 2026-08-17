@@ -1,6 +1,6 @@
 {
   "crons": [
     { "path": "/api/cron/dunning", "schedule": "0 1 * * *" },
-    { "path": "/api/cron/reconcile", "schedule": "*/30 * * * *" }
+    { "path": "/api/cron/reconcile", "schedule": "0 2 * * *" }
   ]
 }
