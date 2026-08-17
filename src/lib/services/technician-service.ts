@@ -76,6 +76,25 @@ export async function acceptInvite(token: string, pin: string): Promise<{ userId
   const invite = await getInviteByToken(token);
 
   const result = await prisma.$transaction(async (tx) => {
+    // KLAIM ATOMIK: tandai ACCEPTED hanya bila masih PENDING. 0 baris = sudah diklaim
+    // proses lain (double-submit) → tolak, cegah duplikat User+Technician (fix TOCTOU).
+    const claim = await tx.invite.updateMany({
+      where: { id: invite.id, status: "PENDING" },
+      data: { status: "ACCEPTED", acceptedAt: new Date() },
+    });
+    if (claim.count === 0) {
+      throw new TechAuthError("USED", "Undangan sudah diproses. Silakan masuk dengan PIN Anda.");
+    }
+
+    // Guard tambahan: bila user dgn phone ini sudah ada (balapan), batalkan.
+    const dup = await tx.user.findFirst({
+      where: { tenantId: invite.tenantId, phone: invite.phone },
+      select: { id: true },
+    });
+    if (dup) {
+      throw new TechAuthError("USED", "Nomor HP ini sudah terdaftar.");
+    }
+
     const user = await tx.user.create({
       data: {
         tenantId: invite.tenantId,
@@ -89,10 +108,6 @@ export async function acceptInvite(token: string, pin: string): Promise<{ userId
     });
     await tx.technician.create({
       data: { tenantId: invite.tenantId, userId: user.id, skills: [], active: true },
-    });
-    await tx.invite.update({
-      where: { id: invite.id },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
     });
     return { userId: user.id, tenantId: invite.tenantId };
   });
@@ -108,15 +123,40 @@ export async function loginTechnician(phone: string, pin: string): Promise<{ use
   const norm = normalizePhone(phone);
   if (!isValidPin(pin)) throw new TechAuthError("INVALID_PIN", "PIN harus 6 angka");
 
+  // Rate-limit brute-force: kunci 15 menit setelah 5 gagal beruntun.
+  const MAX_FAILS = 5;
+  const LOCK_MIN = 15;
+  const throttle = await prisma.loginThrottle.findUnique({ where: { key: norm } });
+  if (throttle?.lockedUntil && throttle.lockedUntil > new Date()) {
+    throw new TechAuthError("LOCKED", "Terlalu banyak percobaan. Coba lagi dalam beberapa menit.");
+  }
+
   const candidates = await prisma.user.findMany({
     where: { phone: norm, role: "TECHNICIAN", authProvider: "PIN", status: "ACTIVE" },
     select: { id: true, tenantId: true, pinHash: true },
   });
   for (const c of candidates) {
     if (verifyPin(pin, c.pinHash)) {
+      // sukses → reset throttle
+      if (throttle) await prisma.loginThrottle.delete({ where: { key: norm } }).catch(() => {});
       return { userId: c.id, tenantId: c.tenantId };
     }
   }
+
+  // gagal → catat & mungkin kunci
+  const failed = (throttle?.failedCount ?? 0) + 1;
+  await prisma.loginThrottle.upsert({
+    where: { key: norm },
+    create: {
+      key: norm,
+      failedCount: failed,
+      lockedUntil: failed >= MAX_FAILS ? new Date(Date.now() + LOCK_MIN * 60_000) : null,
+    },
+    update: {
+      failedCount: failed,
+      lockedUntil: failed >= MAX_FAILS ? new Date(Date.now() + LOCK_MIN * 60_000) : null,
+    },
+  });
   throw new TechAuthError("INVALID_PIN", "Nomor HP atau PIN salah");
 }
 

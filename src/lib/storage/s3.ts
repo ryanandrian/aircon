@@ -48,6 +48,16 @@ export function publicUrl(key: string): string {
   return `${base}/${key}`;
 }
 
+/**
+ * Verifikasi URL foto benar-benar berada di folder S3 milik tenant+job ini.
+ * Mencegah teknisi menyimpan URL eksternal/tenant lain sebagai bukti.
+ */
+export function isOwnedPhotoUrl(tenantId: string, jobId: string, url: string): boolean {
+  if (!isStorageConfigured()) return false;
+  const prefix = publicUrl(`jobs/${tenantId}/${jobId}/`);
+  return url.startsWith(prefix);
+}
+
 /** Sanitasi ekstensi file (whitelist gambar). */
 function safeExt(filename: string): string {
   const ext = (filename.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");

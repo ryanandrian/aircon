@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { transitionJob, TransitionError } from "@/lib/services/job-service";
 import { setChecklistItem, addJobPhoto } from "@/lib/services/job-work-service";
 import { JobError } from "@/lib/services/job-management-service";
-import { createPhotoUploadUrl, isStorageConfigured } from "@/lib/storage/s3";
+import { createPhotoUploadUrl, isStorageConfigured, isOwnedPhotoUrl } from "@/lib/storage/s3";
 import { clearTechSession } from "@/lib/auth/tech-session";
 import type { JobStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -133,6 +133,10 @@ export async function techAddPhoto(
       where: { id: jobId, tenantId, technicianId }, select: { id: true },
     });
     if (!job) return { ok: false, error: "Bukan tugas Anda" };
+    // SECURITY: URL foto WAJIB dari folder S3 milik tenant+job ini (bukan URL eksternal).
+    if (!isOwnedPhotoUrl(tenantId, jobId, url)) {
+      return { ok: false, error: "URL foto tidak sah." };
+    }
     await addJobPhoto(tenantId, jobId, kind, url);
     revalidatePath(`/t/pekerjaan/${jobId}`);
     return { ok: true };

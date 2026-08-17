@@ -657,6 +657,14 @@ model PlatformAdmin {
   createdAt DateTime @default(now())
 }
 
+// Throttle brute-force login PIN teknisi (per nomor HP).
+model LoginThrottle {
+  key         String   @id // mis. phone ternormalisasi
+  failedCount Int      @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime @updatedAt
+}
+
 // Profil perusahaan penyedia (Lumite) — untuk invoice/kwitansi & data merchant.
 // Singleton (id="singleton"). EDITABLE admin, NO HARDCODE.
 model CompanyProfile {
