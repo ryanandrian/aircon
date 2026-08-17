@@ -74,6 +74,9 @@ export default async function AppDashboard() {
             <Link href="/app/pekerjaan" className="inline-flex min-h-[44px] items-center rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">
               Pekerjaan
             </Link>
+            <Link href="/app/teknisi" className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              Teknisi
+            </Link>
             <Link href="/app/perangkat" className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Pemantauan Perangkat
             </Link>

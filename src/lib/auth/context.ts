@@ -6,6 +6,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "@/lib/auth/guard";
+import { getTechSessionUserId } from "@/lib/auth/tech-session";
 import type { Role } from "@prisma/client";
 
 export interface ServerContext {
@@ -26,24 +27,34 @@ export async function getServerContext(): Promise<ServerContext> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    throw new AuthError("UNAUTHORIZED", "Sesi tidak ditemukan. Silakan masuk.");
+  let domainUser = null;
+
+  if (user) {
+    // Petakan user Supabase (by email/phone) ke User domain kita.
+    // SECURITY: tenantId berasal dari record server-side, bukan input klien.
+    const email = user.email ?? null;
+    const phone = user.phone ?? null;
+    domainUser = await prisma.user.findFirst({
+      where: {
+        status: "ACTIVE",
+        OR: [
+          ...(email ? [{ email }] : []),
+          ...(phone ? [{ phone }] : []),
+        ],
+      },
+    });
   }
 
-  // Petakan user Supabase (by email/phone) ke User domain kita.
-  // SECURITY: tenantId berasal dari record server-side, bukan input klien.
-  const email = user.email ?? null;
-  const phone = user.phone ?? null;
-
-  const domainUser = await prisma.user.findFirst({
-    where: {
-      status: "ACTIVE",
-      OR: [
-        ...(email ? [{ email }] : []),
-        ...(phone ? [{ phone }] : []),
-      ],
-    },
-  });
+  // Jalur teknisi (phone+PIN): sesi cookie tertanda. Cookie hanya berisi userId;
+  // tenantId/role tetap dibaca dari DB (tak dipercayai dari klien).
+  if (!domainUser) {
+    const techUserId = await getTechSessionUserId();
+    if (techUserId) {
+      domainUser = await prisma.user.findFirst({
+        where: { id: techUserId, status: "ACTIVE" },
+      });
+    }
+  }
 
   if (!domainUser) {
     throw new AuthError("UNAUTHORIZED", "Akun belum terhubung ke usaha manapun.");

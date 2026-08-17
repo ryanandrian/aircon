@@ -32,16 +32,22 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  // Route yang wajib login: /app, /onboarding, /admin.
+  // Route yang wajib login: /app, /onboarding, /admin, /t.
   const isProtected =
     path.startsWith("/app") ||
     path.startsWith("/onboarding") ||
     path.startsWith("/t") ||
     path.startsWith("/admin");
 
-  if (isProtected && !user) {
+  // Teknisi login via phone+PIN (cookie tertanda), bukan Supabase.
+  // /t & /login-teknisi cukup cek keberadaan cookie; validasi penuh di getServerContext.
+  const hasTechCookie = Boolean(request.cookies.get("aircon_tech")?.value);
+  const techAllowed = path.startsWith("/t") && hasTechCookie;
+
+  if (isProtected && !user && !techAllowed) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    // Teknisi diarahkan ke login teknisi; lainnya ke login owner (Google).
+    url.pathname = path.startsWith("/t") ? "/masuk-teknisi" : "/login";
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
   }

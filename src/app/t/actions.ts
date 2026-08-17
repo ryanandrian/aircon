@@ -6,10 +6,16 @@ import { transitionJob, TransitionError } from "@/lib/services/job-service";
 import { setChecklistItem, addJobPhoto } from "@/lib/services/job-work-service";
 import { JobError } from "@/lib/services/job-management-service";
 import { createPhotoUploadUrl, isStorageConfigured } from "@/lib/storage/s3";
+import { clearTechSession } from "@/lib/auth/tech-session";
 import type { JobStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export type TechActionResult = { ok: true } | { ok: false; error: string };
+
+/** Logout teknisi (hapus sesi cookie). */
+export async function techLogout(): Promise<void> {
+  await clearTechSession();
+}
 
 /** Ambil technicianId milik user yang login (tenant-scoped). */
 async function requireTechnician(): Promise<{ tenantId: string; userId: string; technicianId: string }> {

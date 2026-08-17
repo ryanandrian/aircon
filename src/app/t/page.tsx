@@ -39,7 +39,6 @@ export default async function TechnicianHome() {
           <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700">{jobs.length}</span>
         </div>
       </header>
-
       <div className="mx-auto max-w-md space-y-3 p-4">
         {jobs.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
