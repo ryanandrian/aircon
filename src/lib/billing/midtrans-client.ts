@@ -1,20 +1,34 @@
 /**
- * Midtrans Snap client — pembayaran langganan.
- * Sandbox/production via MIDTRANS_IS_PRODUCTION. Server key WAJIB dari env (server-only).
+ * Midtrans Snap client (server-only).
+ * Pola ENV mengikuti mesinviral (akun Midtrans berbagi, konsisten lintas-app):
+ *   MIDTRANS_ENV = sandbox | production  (SATU saklar)
+ *   MIDTRANS_SANDBOX_SERVER_KEY / MIDTRANS_PRODUCTION_SERVER_KEY  (keduanya permanen)
+ * Ganti lingkungan = ubah MIDTRANS_ENV saja (nol tukar kunci, nol risiko env≠key).
  * Verifikasi signature webhook: sha512(order_id+status_code+gross_amount+ServerKey).
  */
 import crypto from "crypto";
 
-const IS_PROD = process.env.MIDTRANS_IS_PRODUCTION === "true";
-const SERVER_KEY = process.env.MIDTRANS_SERVER_KEY ?? "";
+function isProduction(): boolean {
+  return (process.env.MIDTRANS_ENV ?? "sandbox").toLowerCase() === "production";
+}
 
-const SNAP_BASE = IS_PROD
-  ? "https://app.midtrans.com/snap/v1"
-  : "https://app.sandbox.midtrans.com/snap/v1";
+/** Server key sesuai MIDTRANS_ENV. */
+function serverKey(): string {
+  const env = isProduction() ? "PRODUCTION" : "SANDBOX";
+  return process.env[`MIDTRANS_${env}_SERVER_KEY`] ?? "";
+}
 
-const STATUS_BASE = IS_PROD
-  ? "https://api.midtrans.com/v2"
-  : "https://api.sandbox.midtrans.com/v2";
+function snapBase(): string {
+  return isProduction()
+    ? "https://app.midtrans.com/snap/v1"
+    : "https://app.sandbox.midtrans.com/snap/v1";
+}
+
+function statusBase(): string {
+  return isProduction()
+    ? "https://api.midtrans.com/v2"
+    : "https://api.sandbox.midtrans.com/v2";
+}
 
 /**
  * URL webhook aircon. Akun Midtrans dipakai bersama beberapa aplikasi
@@ -28,11 +42,11 @@ function airconWebhookUrl(): string {
 }
 
 export function isMidtransConfigured(): boolean {
-  return SERVER_KEY.length > 0;
+  return serverKey().length > 0;
 }
 
 function authHeader(): string {
-  return "Basic " + Buffer.from(SERVER_KEY + ":").toString("base64");
+  return "Basic " + Buffer.from(serverKey() + ":").toString("base64");
 }
 
 export interface SnapCreateParams {
@@ -51,7 +65,7 @@ export interface SnapResult {
 /** Buat transaksi Snap → token + redirect url. */
 export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapResult> {
   if (!isMidtransConfigured()) {
-    throw new Error("MIDTRANS_SERVER_KEY belum diset");
+    throw new Error("Midtrans server key belum diset (cek MIDTRANS_ENV + MIDTRANS_*_SERVER_KEY)");
   }
   const body = {
     transaction_details: { order_id: p.orderId, gross_amount: p.amount },
@@ -64,7 +78,7 @@ export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapRe
   };
 
   const overrideUrl = airconWebhookUrl();
-  const res = await fetch(`${SNAP_BASE}/transactions`, {
+  const res = await fetch(`${snapBase()}/transactions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -92,8 +106,8 @@ export function verifySignature(params: {
   grossAmount: string;
   signatureKey: string;
 }): boolean {
-  if (!SERVER_KEY) return false;
-  const raw = params.orderId + params.statusCode + params.grossAmount + SERVER_KEY;
+  if (!serverKey()) return false;
+  const raw = params.orderId + params.statusCode + params.grossAmount + serverKey();
   const expected = crypto.createHash("sha512").update(raw).digest("hex");
   const a = Buffer.from(expected, "utf8");
   const b = Buffer.from(params.signatureKey ?? "", "utf8");
@@ -118,8 +132,8 @@ export interface MidtransStatus {
  * Melempar { status: 404 } bila transaksi belum ada (user belum bayar).
  */
 export async function getTransactionStatus(orderId: string): Promise<MidtransStatus> {
-  if (!isMidtransConfigured()) throw new Error("MIDTRANS_SERVER_KEY belum diset");
-  const res = await fetch(`${STATUS_BASE}/${encodeURIComponent(orderId)}/status`, {
+  if (!isMidtransConfigured()) throw new Error("Midtrans server key belum diset (cek MIDTRANS_ENV + MIDTRANS_*_SERVER_KEY)");
+  const res = await fetch(`${statusBase()}/${encodeURIComponent(orderId)}/status`, {
     method: "GET",
     headers: { Authorization: authHeader(), Accept: "application/json" },
   });

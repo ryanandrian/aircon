@@ -21,8 +21,10 @@ function loadSnap(): Promise<void> {
     if (typeof window === "undefined") return reject();
     const w = window as unknown as { snap?: unknown };
     if (w.snap) return resolve();
-    const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
-    const isProd = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true";
+    const isProd = (process.env.NEXT_PUBLIC_MIDTRANS_ENV ?? "sandbox") === "production";
+    const clientKey = isProd
+      ? process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION_CLIENT_KEY
+      : process.env.NEXT_PUBLIC_MIDTRANS_SANDBOX_CLIENT_KEY;
     const src = isProd
       ? "https://app.midtrans.com/snap/snap.js"
       : "https://app.sandbox.midtrans.com/snap/snap.js";
