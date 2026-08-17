@@ -12,6 +12,10 @@ const SNAP_BASE = IS_PROD
   ? "https://app.midtrans.com/snap/v1"
   : "https://app.sandbox.midtrans.com/snap/v1";
 
+const STATUS_BASE = IS_PROD
+  ? "https://api.midtrans.com/v2"
+  : "https://api.sandbox.midtrans.com/v2";
+
 /**
  * URL webhook aircon. Akun Midtrans dipakai bersama beberapa aplikasi
  * (aiwa, mesinviral, aircon), jadi kita TIDAK bergantung pada Notification URL
@@ -96,4 +100,33 @@ export function verifySignature(params: {
   // Panjang harus sama sebelum timingSafeEqual (hindari throw & bocor panjang).
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
+}
+
+export interface MidtransStatus {
+  order_id?: string;
+  transaction_status?: string;
+  fraud_status?: string;
+  gross_amount?: string;
+  transaction_id?: string;
+  payment_type?: string;
+  status_code?: string;
+}
+
+/**
+ * Ambil status transaksi dari API Midtrans (terautentikasi server key = tepercaya).
+ * Dipakai RECONCILER (PULL) — penjamin bila webhook meleset di akun Midtrans bersama.
+ * Melempar { status: 404 } bila transaksi belum ada (user belum bayar).
+ */
+export async function getTransactionStatus(orderId: string): Promise<MidtransStatus> {
+  if (!isMidtransConfigured()) throw new Error("MIDTRANS_SERVER_KEY belum diset");
+  const res = await fetch(`${STATUS_BASE}/${encodeURIComponent(orderId)}/status`, {
+    method: "GET",
+    headers: { Authorization: authHeader(), Accept: "application/json" },
+  });
+  if (!res.ok) {
+    const err = new Error(`Midtrans status ${res.status}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
+  }
+  return (await res.json()) as MidtransStatus;
 }
