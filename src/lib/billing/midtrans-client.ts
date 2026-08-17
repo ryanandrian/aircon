@@ -94,12 +94,11 @@ function splitName(full: string): { first: string; last?: string } {
   return { first: parts[0].slice(0, 20), last: parts.slice(1).join(" ").slice(0, 20) };
 }
 
-/** Buat transaksi Snap → token + redirect url. Mengisi customer/item/shipping lengkap. */
-export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapResult> {
-  if (!isMidtransConfigured()) {
-    throw new Error("Midtrans server key belum diset (cek MIDTRANS_ENV + MIDTRANS_*_SERVER_KEY)");
-  }
-
+/**
+ * Bangun body request Snap (MURNI, tanpa I/O — teruji).
+ * Memastikan customer_details, item_details, dan shipping/billing terisi lengkap.
+ */
+export function buildSnapBody(p: SnapCreateParams): Record<string, unknown> {
   const cust: Record<string, unknown> = {
     first_name: (p.customer.firstName || "Pelanggan").slice(0, 20),
   };
@@ -124,7 +123,7 @@ export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapRe
     cust.billing_address = { ...shipAddr };
   }
 
-  const body = {
+  return {
     transaction_details: { order_id: p.orderId, gross_amount: p.amount },
     item_details: p.items.map((it) => ({
       id: it.id,
@@ -136,6 +135,15 @@ export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapRe
     customer_details: cust,
     credit_card: { secure: true },
   };
+}
+
+/** Buat transaksi Snap → token + redirect url. Mengisi customer/item/shipping lengkap. */
+export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapResult> {
+  if (!isMidtransConfigured()) {
+    throw new Error("Midtrans server key belum diset (cek MIDTRANS_ENV + MIDTRANS_*_SERVER_KEY)");
+  }
+
+  const body = buildSnapBody(p);
 
   const overrideUrl = airconWebhookUrl();
   const res = await fetch(`${snapBase()}/transactions`, {
