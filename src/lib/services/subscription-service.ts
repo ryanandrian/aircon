@@ -81,12 +81,26 @@ export async function processPaymentNotification(notif: {
   fraud_status?: string;
   transaction_id?: string;
   payment_type?: string;
+  gross_amount?: string;
   raw: unknown;
 }): Promise<{ status: PaymentStatus; tenantId: string | null }> {
   const payment = await prisma.payment.findUnique({ where: { orderId: notif.order_id } });
   if (!payment) {
     // order tak dikenal — abaikan dengan aman
     return { status: "FAILED", tenantId: null };
+  }
+
+  // Lapisan tambahan anti-tamper: gross_amount harus cocok dengan amount tersimpan.
+  // (Signature sudah mengikat gross_amount, ini pertahanan berlapis.)
+  if (notif.gross_amount !== undefined) {
+    const notifAmount = Math.round(Number(notif.gross_amount));
+    if (!Number.isFinite(notifAmount) || notifAmount !== payment.amount) {
+      await prisma.payment.update({
+        where: { orderId: notif.order_id },
+        data: { status: "FAILED", rawNotif: notif.raw as never },
+      });
+      return { status: "FAILED", tenantId: payment.tenantId };
+    }
   }
 
   const newStatus = parseMidtransStatus(notif);

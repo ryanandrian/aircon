@@ -66,7 +66,7 @@ export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapRe
   return { token: json.token, redirectUrl: json.redirect_url };
 }
 
-/** Verifikasi signature webhook Midtrans. */
+/** Verifikasi signature webhook Midtrans (timing-safe). */
 export function verifySignature(params: {
   orderId: string;
   statusCode: string;
@@ -75,6 +75,10 @@ export function verifySignature(params: {
 }): boolean {
   if (!SERVER_KEY) return false;
   const raw = params.orderId + params.statusCode + params.grossAmount + SERVER_KEY;
-  const hash = crypto.createHash("sha512").update(raw).digest("hex");
-  return hash === params.signatureKey;
+  const expected = crypto.createHash("sha512").update(raw).digest("hex");
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(params.signatureKey ?? "", "utf8");
+  // Panjang harus sama sebelum timingSafeEqual (hindari throw & bocor panjang).
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }

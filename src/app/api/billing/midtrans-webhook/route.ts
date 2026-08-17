@@ -49,6 +49,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       fraud_status: notif.fraud_status,
       transaction_id: notif.transaction_id,
       payment_type: notif.payment_type,
+      gross_amount,
       raw: notif,
     });
     // Midtrans hanya butuh 200 OK.
