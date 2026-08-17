@@ -5,6 +5,7 @@
  */
 import type { Customer, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { assertQuota } from "@/lib/services/quota-guard";
 import type {
   CreateCustomerInput,
   UpdateCustomerInput,
@@ -114,6 +115,8 @@ export async function createCustomer(
   tenantId: string,
   input: CreateCustomerInput,
 ): Promise<Customer> {
+  // Kuota paket: tolak bila batas pelanggan tercapai (dari PlanConfig, no hardcode).
+  await assertQuota(tenantId, "customers");
   try {
     // SECURITY: tenant-scoped — tenantId diinject dari konteks, bukan dari input.
     return await prisma.customer.create({

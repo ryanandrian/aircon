@@ -6,6 +6,7 @@
 import type { Asset, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
+import { assertQuota } from "@/lib/services/quota-guard";
 import type {
   CreateAssetInput,
   UpdateAssetInput,
@@ -149,6 +150,8 @@ export async function createAsset(
   tenantId: string,
   input: CreateAssetInput,
 ): Promise<Asset> {
+  // Kuota paket: tolak bila batas unit AC tercapai (dari PlanConfig, no hardcode).
+  await assertQuota(tenantId, "acUnits");
   // SECURITY: tenant-scoped — pastikan customer milik tenant ini.
   const customer = await prisma.customer.findFirst({
     where: { id: input.customerId, tenantId, deletedAt: null },

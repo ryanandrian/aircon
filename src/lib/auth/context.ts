@@ -49,6 +49,18 @@ export async function getServerContext(): Promise<ServerContext> {
     throw new AuthError("UNAUTHORIZED", "Akun belum terhubung ke usaha manapun.");
   }
 
+  // SECURITY: blokir seluruh user bila usaha dinonaktifkan karena tunggakan.
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: domainUser.tenantId },
+    select: { status: true },
+  });
+  if (!tenant || (tenant.status !== "TRIAL" && tenant.status !== "ACTIVE" && tenant.status !== "PAST_DUE")) {
+    throw new AuthError(
+      "FORBIDDEN",
+      "Akun usaha dinonaktifkan karena tunggakan langganan. Hubungi pemilik usaha.",
+    );
+  }
+
   return {
     userId: domainUser.id,
     tenantId: domainUser.tenantId,

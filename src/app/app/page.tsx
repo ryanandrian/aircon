@@ -68,12 +68,14 @@ export default async function AppDashboard() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="text-lg font-bold">Selamat datang di Aircon</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Modul yang sedang dibangun: Pelanggan &amp; Aset, Job Order, Penjadwalan,
-            Pengingat servis (money loop), dan Smart HVAC IoT.
+            Kelola pelanggan &amp; unit AC, atur pekerjaan teknisi, dan pantau perangkat.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/demo" className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">
-              Lihat Demo Money Loop
+            <Link href="/app/perangkat" className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">
+              Pemantauan Perangkat
+            </Link>
+            <Link href="/app/langganan" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              Paket Langganan
             </Link>
             <Link href={`/p/${tenant?.slug ?? ""}`} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Halaman Publik Usaha
