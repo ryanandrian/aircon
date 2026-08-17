@@ -28,6 +28,7 @@ export async function startPayment(
       periodMonths,
       customerName: ctx.name,
       customerEmail: ctx.email ?? undefined,
+      customerPhone: tenant.phone ?? undefined,
     });
     return { ok: true, snapToken: res.snapToken, redirectUrl: res.redirectUrl };
   } catch (err) {

@@ -2,6 +2,7 @@
 
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
+import { prisma } from "@/lib/prisma";
 import {
   createIotOrder,
   startIotOrderPayment,
@@ -30,7 +31,11 @@ export async function orderAndPay(
       shippingAddress: shippingAddress || undefined,
     });
 
-    const pay = await startIotOrderPayment(order.id, ctx.tenantId, ctx.name, ctx.email ?? undefined);
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { phone: true },
+    });
+    const pay = await startIotOrderPayment(order.id, ctx.tenantId, ctx.name, ctx.email ?? undefined, tenant?.phone ?? undefined);
     return { ok: true, snapToken: pay.snapToken, redirectUrl: pay.redirectUrl };
   } catch (err) {
     if (err instanceof IotOrderError) return { ok: false, error: err.message };

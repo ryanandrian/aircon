@@ -49,12 +49,38 @@ function authHeader(): string {
   return "Basic " + Buffer.from(serverKey() + ":").toString("base64");
 }
 
+export interface SnapItem {
+  id: string;
+  name: string;
+  price: number; // IDR per unit
+  quantity: number;
+  category?: string;
+}
+
+export interface SnapCustomer {
+  firstName: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface SnapAddress {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  address: string;
+  city?: string;
+  postalCode?: string;
+  countryCode?: string; // default IDN
+}
+
 export interface SnapCreateParams {
   orderId: string;
-  amount: number; // IDR
-  customerName: string;
-  customerEmail?: string;
-  itemName: string;
+  amount: number; // IDR — HARUS = sum(item.price*qty)
+  customer: SnapCustomer;
+  items: SnapItem[];
+  /** Alamat kirim (mis. pesanan perangkat IoT). Opsional untuk langganan. */
+  shipping?: SnapAddress;
 }
 
 export interface SnapResult {
@@ -62,18 +88,52 @@ export interface SnapResult {
   redirectUrl: string;
 }
 
-/** Buat transaksi Snap → token + redirect url. */
+function splitName(full: string): { first: string; last?: string } {
+  const parts = full.trim().split(/\s+/);
+  if (parts.length <= 1) return { first: (parts[0] ?? "").slice(0, 20) };
+  return { first: parts[0].slice(0, 20), last: parts.slice(1).join(" ").slice(0, 20) };
+}
+
+/** Buat transaksi Snap → token + redirect url. Mengisi customer/item/shipping lengkap. */
 export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapResult> {
   if (!isMidtransConfigured()) {
     throw new Error("Midtrans server key belum diset (cek MIDTRANS_ENV + MIDTRANS_*_SERVER_KEY)");
   }
+
+  const cust: Record<string, unknown> = {
+    first_name: (p.customer.firstName || "Pelanggan").slice(0, 20),
+  };
+  if (p.customer.lastName) cust.last_name = p.customer.lastName.slice(0, 20);
+  if (p.customer.email) cust.email = p.customer.email;
+  if (p.customer.phone) cust.phone = p.customer.phone.slice(0, 20);
+
+  if (p.shipping) {
+    const sn = p.shipping.firstName
+      ? { first: p.shipping.firstName.slice(0, 20), last: p.shipping.lastName?.slice(0, 20) }
+      : splitName(p.customer.firstName + (p.customer.lastName ? ` ${p.customer.lastName}` : ""));
+    const shipAddr = {
+      first_name: sn.first,
+      ...(sn.last ? { last_name: sn.last } : {}),
+      ...(p.shipping.phone ? { phone: p.shipping.phone.slice(0, 20) } : p.customer.phone ? { phone: p.customer.phone.slice(0, 20) } : {}),
+      address: p.shipping.address,
+      ...(p.shipping.city ? { city: p.shipping.city } : {}),
+      ...(p.shipping.postalCode ? { postal_code: p.shipping.postalCode } : {}),
+      country_code: p.shipping.countryCode ?? "IDN",
+    };
+    cust.shipping_address = shipAddr;
+    cust.billing_address = { ...shipAddr };
+  }
+
   const body = {
     transaction_details: { order_id: p.orderId, gross_amount: p.amount },
-    item_details: [{ id: "plan", price: p.amount, quantity: 1, name: p.itemName }],
-    customer_details: {
-      first_name: p.customerName,
-      ...(p.customerEmail ? { email: p.customerEmail } : {}),
-    },
+    item_details: p.items.map((it) => ({
+      id: it.id,
+      price: it.price,
+      quantity: it.quantity,
+      name: it.name.slice(0, 50), // Midtrans batas nama item 50 char
+      ...(it.category ? { category: it.category } : {}),
+    })),
+    customer_details: cust,
     credit_card: { secure: true },
   };
 

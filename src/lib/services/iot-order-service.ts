@@ -78,21 +78,44 @@ export async function startIotOrderPayment(
   tenantId: string,
   customerName: string,
   email?: string,
+  phone?: string,
 ): Promise<{ snapToken: string; redirectUrl: string }> {
   if (!isMidtransConfigured()) {
     throw new IotOrderError("NOT_CONFIGURED", "Pembayaran belum dikonfigurasi. Hubungi admin.");
   }
-  const order = await prisma.iotOrder.findFirst({ where: { id: orderId, tenantId } });
+  const order = await prisma.iotOrder.findFirst({
+    where: { id: orderId, tenantId },
+    include: { items: { include: { product: { select: { name: true } } } } },
+  });
   if (!order) throw new IotOrderError("NOT_FOUND", "Pesanan tidak ditemukan");
   if (order.status !== "PENDING_PAYMENT") throw new IotOrderError("INVALID", "Pesanan sudah diproses");
 
   const paymentOrderId = makeOrderId(tenantId);
+  const deviceName = order.items[0]?.product?.name ?? "Perangkat IoT Aircon";
+
+  // Rincian item = harga perangkat + baris pajak (jumlah HARUS = total pesanan).
+  const items = [
+    {
+      id: "device",
+      name: `${deviceName}`,
+      price: order.unitPrice,
+      quantity: order.quantity,
+      category: "iot_device",
+    },
+    ...(order.taxAmount > 0
+      ? [{ id: "tax", name: `Pajak ${order.taxPercent}%`, price: order.taxAmount, quantity: 1, category: "tax" }]
+      : []),
+  ];
+
   const snap = await createSnapTransaction({
     orderId: paymentOrderId,
     amount: order.total,
-    customerName,
-    customerEmail: email,
-    itemName: `Perangkat IoT Aircon (${order.quantity} unit)`,
+    customer: { firstName: customerName, email, phone },
+    items,
+    // Alamat kirim device (jual putus perlu pengiriman fisik).
+    ...(order.shippingAddress
+      ? { shipping: { address: order.shippingAddress, phone } }
+      : {}),
   });
 
   await prisma.iotOrder.update({

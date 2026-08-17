@@ -33,6 +33,7 @@ export async function startSubscriptionPayment(params: {
   periodMonths?: number;
   customerName: string;
   customerEmail?: string;
+  customerPhone?: string;
 }): Promise<{ snapToken: string; redirectUrl: string; orderId: string }> {
   if (!isMidtransConfigured()) {
     throw new BillingError("NOT_CONFIGURED", "Pembayaran belum dikonfigurasi. Hubungi admin.");
@@ -45,7 +46,7 @@ export async function startSubscriptionPayment(params: {
   const months = params.periodMonths ?? 1;
   const base = planCfg.priceMonthly * months;
   const taxPercent = planCfg.taxable ? policy.taxPercent : 0;
-  const { total: amount } = withTax(base, taxPercent);
+  const { subtotal, taxAmount, total: amount } = withTax(base, taxPercent);
   const orderId = makeOrderId(params.tenantId);
 
   // Catat Payment PENDING dulu (idempoten via orderId unik).
@@ -60,12 +61,30 @@ export async function startSubscriptionPayment(params: {
     },
   });
 
+  // Rincian item: harga paket + baris pajak terpisah agar transparan di Midtrans
+  // (jumlah item_details HARUS = gross_amount).
+  const items = [
+    {
+      id: `plan-${planCfg.plan}`,
+      name: `Langganan ${planCfg.displayName} (${months} bln)`,
+      price: subtotal,
+      quantity: 1,
+      category: "subscription",
+    },
+    ...(taxAmount > 0
+      ? [{ id: "tax", name: `Pajak ${taxPercent}%`, price: taxAmount, quantity: 1, category: "tax" }]
+      : []),
+  ];
+
   const snap = await createSnapTransaction({
     orderId,
     amount,
-    customerName: params.customerName,
-    customerEmail: params.customerEmail,
-    itemName: `Langganan ${planCfg.displayName} (${months} bulan)`,
+    customer: {
+      firstName: params.customerName,
+      email: params.customerEmail,
+      phone: params.customerPhone,
+    },
+    items,
   });
 
   await prisma.payment.update({
