@@ -81,6 +81,10 @@ export interface SnapCreateParams {
   items: SnapItem[];
   /** Alamat kirim (mis. pesanan perangkat IoT). Opsional untuk langganan. */
   shipping?: SnapAddress;
+  /** Masa berlaku link bayar (jam). Dari CompanyProfile.checkoutExpiryHours. */
+  expiryHours?: number;
+  /** URL kembali setelah bayar. Dari CompanyProfile.finishUrl. */
+  finishUrl?: string;
 }
 
 export interface SnapResult {
@@ -133,6 +137,10 @@ export function buildSnapBody(p: SnapCreateParams): Record<string, unknown> {
       ...(it.category ? { category: it.category } : {}),
     })),
     customer_details: cust,
+    ...(p.finishUrl ? { callbacks: { finish: p.finishUrl } } : {}),
+    ...(p.expiryHours && p.expiryHours > 0
+      ? { expiry: { unit: "hours", duration: p.expiryHours } }
+      : {}),
     credit_card: { secure: true },
   };
 }

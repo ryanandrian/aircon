@@ -657,6 +657,30 @@ model PlatformAdmin {
   createdAt DateTime @default(now())
 }
 
+// Profil perusahaan penyedia (Lumite) — untuk invoice/kwitansi & data merchant.
+// Singleton (id="singleton"). EDITABLE admin, NO HARDCODE.
+model CompanyProfile {
+  id            String   @id @default("singleton")
+  legalName     String   @default("")   // nama badan hukum, mis. "PT Lumite ..."
+  brandName     String   @default("Aircon")
+  isPkp         Boolean  @default(false) // Pengusaha Kena Pajak? menentukan boleh pungut PPN
+  npwp          String   @default("")
+  taxLabel      String   @default("PPN") // label pajak tampil (PPN / non-PKP kosongkan)
+  email         String   @default("")
+  phone         String   @default("")
+  addressLine   String   @default("")
+  city          String   @default("")
+  province      String   @default("")
+  postalCode    String   @default("")
+  countryCode   String   @default("IDN")
+  // Knob checkout (dari pola mesinviral):
+  checkoutExpiryHours Int    @default(24)
+  finishUrl           String @default("")
+  updatedBy     String?
+  updatedAt     DateTime @updatedAt
+}
+
+
 // ================= CONFIG (DB-DRIVEN, EDITABLE ADMIN — NO HARDCODE) =================
 
 // Definisi paket langganan yang DAPAT DIUBAH lewat admin panel.

@@ -3,7 +3,9 @@ import {
   planConfigSchema,
   billingPolicySchema,
   iotProductSchema,
+  companyProfileSchema,
 } from "../src/lib/validation/admin-config";
+import { effectiveTaxPercent } from "../src/lib/billing/gating-pure";
 
 const validPlan = {
   displayName: "Professional", priceMonthly: 149000, taxable: true, active: true,
@@ -57,5 +59,41 @@ describe("iotProductSchema", () => {
   });
   it("tolak harga negatif", () => {
     expect(iotProductSchema.safeParse({ name: "X", priceUnit: -1, warrantyDays: 90, active: true }).success).toBe(false);
+  });
+});
+
+const validCompany = {
+  legalName: "PT Lumite Nusantara", brandName: "Aircon", isPkp: true, npwp: "01.234.567.8-901.000",
+  taxLabel: "PPN", email: "billing@lumite.id", phone: "0812", addressLine: "Jl. X", city: "Bandung",
+  province: "Jabar", postalCode: "40111", countryCode: "IDN", checkoutExpiryHours: 24, finishUrl: "",
+};
+
+describe("companyProfileSchema", () => {
+  it("terima valid", () => {
+    expect(companyProfileSchema.safeParse(validCompany).success).toBe(true);
+  });
+  it("tolak email ngawur", () => {
+    expect(companyProfileSchema.safeParse({ ...validCompany, email: "bukan-email" }).success).toBe(false);
+  });
+  it("tolak finishUrl non-http", () => {
+    expect(companyProfileSchema.safeParse({ ...validCompany, finishUrl: "ftp://x" }).success).toBe(false);
+  });
+  it("terima finishUrl kosong", () => {
+    expect(companyProfileSchema.safeParse({ ...validCompany, finishUrl: "" }).success).toBe(true);
+  });
+});
+
+describe("effectiveTaxPercent (PKP gating)", () => {
+  it("bukan PKP -> 0 walau kebijakan 11", () => {
+    expect(effectiveTaxPercent(false, 11)).toBe(0);
+  });
+  it("PKP -> pakai rate kebijakan", () => {
+    expect(effectiveTaxPercent(true, 11)).toBe(11);
+  });
+  it("PKP rate lain (jasa) -> pakai apa adanya", () => {
+    expect(effectiveTaxPercent(true, 1.1)).toBe(1.1);
+  });
+  it("rate negatif dijepit 0", () => {
+    expect(effectiveTaxPercent(true, -5)).toBe(0);
   });
 });

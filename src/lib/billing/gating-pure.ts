@@ -56,6 +56,16 @@ export function withTax(amount: number, taxPercent: number): {
   return { subtotal: amount, taxAmount, total: amount + taxAmount };
 }
 
+/**
+ * Pajak EFEKTIF (persen) yang boleh dipungut.
+ * Bukan PKP → 0 (tak boleh pungut PPN), apa pun rate kebijakan.
+ * PKP → pakai rate kebijakan (mis. 11, atau nilai lain untuk jasa).
+ */
+export function effectiveTaxPercent(isPkp: boolean, policyTaxPercent: number): number {
+  if (!isPkp) return 0;
+  return Math.max(0, policyTaxPercent);
+}
+
 /** Parse "0,1,3" -> [0,1,3] terurut. */
 export function parseReminderDays(csv: string): number[] {
   return csv

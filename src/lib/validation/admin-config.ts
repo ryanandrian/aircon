@@ -51,3 +51,21 @@ export const iotProductSchema = z.object({
   active: z.boolean(),
 });
 export type IotProductInput = z.infer<typeof iotProductSchema>;
+
+export const companyProfileSchema = z.object({
+  legalName: z.string().trim().max(120),
+  brandName: z.string().trim().min(1).max(60),
+  isPkp: z.boolean(),
+  npwp: z.string().trim().max(40),
+  taxLabel: z.string().trim().max(20),
+  email: z.string().trim().max(120).refine((v) => v === "" || /.+@.+\..+/.test(v), "Email tidak valid"),
+  phone: z.string().trim().max(30),
+  addressLine: z.string().trim().max(200),
+  city: z.string().trim().max(60),
+  province: z.string().trim().max(60),
+  postalCode: z.string().trim().max(10),
+  countryCode: z.string().trim().min(2).max(3),
+  checkoutExpiryHours: z.number().int().min(1).max(720),
+  finishUrl: z.string().trim().max(300).refine((v) => v === "" || /^https?:\/\//.test(v), "URL harus diawali http(s)://"),
+});
+export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;

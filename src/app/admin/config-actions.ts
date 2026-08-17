@@ -6,6 +6,7 @@ import {
   planConfigSchema,
   billingPolicySchema,
   iotProductSchema,
+  companyProfileSchema,
 } from "@/lib/validation/admin-config";
 import {
   updatePlanConfig,
@@ -13,6 +14,7 @@ import {
   updateIotProduct,
   updateIotOrderStatus,
 } from "@/lib/services/admin-config-service";
+import { updateCompanyProfile } from "@/lib/services/company-service";
 import type { TenantPlan, IotOrderStatus } from "@prisma/client";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -112,5 +114,35 @@ export async function actionUpdateIotOrderStatus(
   } catch (err) {
     console.error("[actionUpdateIotOrderStatus]", err);
     return { ok: false, error: "Gagal memperbarui pesanan." };
+  }
+}
+
+/** Ubah profil perusahaan (Lumite). PLATFORM-ADMIN-ONLY. */
+export async function actionUpdateCompany(fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const parsed = companyProfileSchema.safeParse({
+      legalName: String(fd.get("legalName") ?? ""),
+      brandName: String(fd.get("brandName") ?? ""),
+      isPkp: boolean(fd, "isPkp"),
+      npwp: String(fd.get("npwp") ?? ""),
+      taxLabel: String(fd.get("taxLabel") ?? ""),
+      email: String(fd.get("email") ?? ""),
+      phone: String(fd.get("phone") ?? ""),
+      addressLine: String(fd.get("addressLine") ?? ""),
+      city: String(fd.get("city") ?? ""),
+      province: String(fd.get("province") ?? ""),
+      postalCode: String(fd.get("postalCode") ?? ""),
+      countryCode: String(fd.get("countryCode") ?? "IDN"),
+      checkoutExpiryHours: num(fd, "checkoutExpiryHours"),
+      finishUrl: String(fd.get("finishUrl") ?? ""),
+    });
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+    await updateCompanyProfile(parsed.data, admin.email);
+    revalidatePath("/admin/perusahaan");
+    return { ok: true };
+  } catch (err) {
+    console.error("[actionUpdateCompany]", err);
+    return { ok: false, error: "Gagal menyimpan profil perusahaan." };
   }
 }

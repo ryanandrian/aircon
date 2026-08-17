@@ -5,6 +5,7 @@
 import { prisma } from "@/lib/prisma";
 import type { IotOrder, IotProduct } from "@prisma/client";
 import { getBillingPolicy } from "@/lib/billing/config";
+import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { createSnapTransaction, isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import { makeOrderId, parseMidtransStatus } from "@/lib/billing/midtrans-logic";
 import { makeIotOrderNo, computeOrderTotals } from "@/lib/services/iot-order-logic";
@@ -46,8 +47,11 @@ export async function createIotOrder(params: {
   if (!product) throw new IotOrderError("NOT_FOUND", "Produk tidak tersedia");
 
   const policy = await getBillingPolicy();
+  const company = await getCompanyProfile();
   const qty = Math.max(1, Math.floor(params.quantity));
-  const { subtotal, taxAmount, total } = computeOrderTotals(product.priceUnit, qty, policy.taxPercent);
+  // PPN hanya dipungut bila perusahaan PKP (no hardcode).
+  const taxPercent = effectiveTaxPercent(company.isPkp, policy.taxPercent);
+  const { subtotal, taxAmount, total } = computeOrderTotals(product.priceUnit, qty, taxPercent);
 
   return prisma.iotOrder.create({
     data: {
@@ -92,6 +96,8 @@ export async function startIotOrderPayment(
 
   const paymentOrderId = makeOrderId(tenantId);
   const deviceName = order.items[0]?.product?.name ?? "Perangkat IoT Aircon";
+  const company = await getCompanyProfile();
+  const taxLabel = company.taxLabel || "Pajak";
 
   // Rincian item = harga perangkat + baris pajak (jumlah HARUS = total pesanan).
   const items = [
@@ -103,7 +109,7 @@ export async function startIotOrderPayment(
       category: "iot_device",
     },
     ...(order.taxAmount > 0
-      ? [{ id: "tax", name: `Pajak ${order.taxPercent}%`, price: order.taxAmount, quantity: 1, category: "tax" }]
+      ? [{ id: "tax", name: `${taxLabel} ${order.taxPercent}%`, price: order.taxAmount, quantity: 1, category: "tax" }]
       : []),
   ];
 
@@ -112,6 +118,8 @@ export async function startIotOrderPayment(
     amount: order.total,
     customer: { firstName: customerName, email, phone },
     items,
+    expiryHours: company.checkoutExpiryHours,
+    finishUrl: company.finishUrl || undefined,
     // Alamat kirim device (jual putus perlu pengiriman fisik).
     ...(order.shippingAddress
       ? { shipping: { address: order.shippingAddress, phone } }

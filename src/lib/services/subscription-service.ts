@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import type { TenantPlan, PaymentStatus } from "@prisma/client";
 import { getPlanConfig, getBillingPolicy, withTax } from "@/lib/billing/config";
+import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { createSnapTransaction, isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import {
   makeOrderId,
@@ -43,9 +44,12 @@ export async function startSubscriptionPayment(params: {
   if (planCfg.priceMonthly <= 0) throw new BillingError("INVALID", "Paket ini gratis, tak perlu bayar");
 
   const policy = await getBillingPolicy();
+  const company = await getCompanyProfile();
   const months = params.periodMonths ?? 1;
   const base = planCfg.priceMonthly * months;
-  const taxPercent = planCfg.taxable ? policy.taxPercent : 0;
+  // Pajak efektif: hanya dipungut bila perusahaan PKP (no hardcode; rate dari kebijakan).
+  const taxPercent = planCfg.taxable ? effectiveTaxPercent(company.isPkp, policy.taxPercent) : 0;
+  const taxLabel = company.taxLabel || "Pajak";
   const { subtotal, taxAmount, total: amount } = withTax(base, taxPercent);
   const orderId = makeOrderId(params.tenantId);
 
@@ -72,7 +76,7 @@ export async function startSubscriptionPayment(params: {
       category: "subscription",
     },
     ...(taxAmount > 0
-      ? [{ id: "tax", name: `Pajak ${taxPercent}%`, price: taxAmount, quantity: 1, category: "tax" }]
+      ? [{ id: "tax", name: `${taxLabel} ${taxPercent}%`, price: taxAmount, quantity: 1, category: "tax" }]
       : []),
   ];
 
@@ -85,6 +89,8 @@ export async function startSubscriptionPayment(params: {
       phone: params.customerPhone,
     },
     items,
+    expiryHours: company.checkoutExpiryHours,
+    finishUrl: company.finishUrl || undefined,
   });
 
   await prisma.payment.update({

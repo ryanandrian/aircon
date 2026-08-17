@@ -9,6 +9,7 @@ const NAV = [
   { href: "/admin/tenants", label: "Daftar Usaha" },
   { href: "/admin/paket", label: "Paket Langganan" },
   { href: "/admin/kebijakan", label: "Kebijakan Billing" },
+  { href: "/admin/perusahaan", label: "Profil Perusahaan" },
   { href: "/admin/iot", label: "Produk & Pesanan IoT" },
 ];
 
