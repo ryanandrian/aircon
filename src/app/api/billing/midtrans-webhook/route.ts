@@ -1,11 +1,18 @@
 /**
- * Webhook Midtrans — menerima notifikasi status pembayaran.
- * Verifikasi signature sebelum memproses. Idempoten.
- * URL ini didaftarkan di dashboard Midtrans: /api/billing/midtrans-webhook
+ * Webhook Midtrans TUNGGAL — menangani pembayaran LANGGANAN dan PERANGKAT IoT.
+ * Verifikasi signature dulu, lalu bedakan jenis transaksi berdasar SUMBER DATA:
+ *   - order_id terdaftar di tabel Payment   -> pembayaran langganan
+ *   - order_id terdaftar di tabel IotOrder  -> pembayaran perangkat IoT
+ * (Keduanya memakai format order_id yang sama, jadi dibedakan lewat lookup, bukan prefix.)
+ *
+ * Daftarkan SATU URL ini di dashboard Midtrans:
+ *   https://<domain>/api/billing/midtrans-webhook
  */
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { verifySignature } from "@/lib/billing/midtrans-client";
 import { processPaymentNotification } from "@/lib/services/subscription-service";
+import { processIotPayment } from "@/lib/services/iot-order-service";
 
 interface MidtransNotification {
   order_id?: string;
@@ -31,7 +38,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Field wajib kurang" }, { status: 400 });
   }
 
-  // SECURITY: verifikasi signature agar hanya Midtrans yang bisa update status.
+  // SECURITY: verifikasi signature agar hanya Midtrans yang bisa mengubah status.
   const valid = verifySignature({
     orderId: order_id,
     statusCode: status_code,
@@ -43,6 +50,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // Bedakan jenis transaksi via lookup order_id (bukan tebak prefix).
+    const iotOrder = await prisma.iotOrder.findUnique({
+      where: { paymentOrderId: order_id },
+      select: { id: true },
+    });
+
+    if (iotOrder) {
+      // Pembayaran PERANGKAT IoT.
+      await processIotPayment({
+        order_id,
+        transaction_status: notif.transaction_status,
+        fraud_status: notif.fraud_status,
+        gross_amount,
+        raw: notif,
+      });
+      return NextResponse.json({ ok: true, kind: "iot" });
+    }
+
+    // Selain itu → pembayaran LANGGANAN (processPaymentNotification aman bila order tak dikenal).
     await processPaymentNotification({
       order_id,
       transaction_status: notif.transaction_status,
@@ -52,8 +78,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       gross_amount,
       raw: notif,
     });
-    // Midtrans hanya butuh 200 OK.
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, kind: "subscription" });
   } catch (err) {
     console.error("[midtrans-webhook] gagal proses:", err);
     // 500 agar Midtrans retry.
