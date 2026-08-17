@@ -32,7 +32,11 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isProtected = path.startsWith("/app");
+  // Route yang wajib login: /app, /onboarding, /admin.
+  const isProtected =
+    path.startsWith("/app") ||
+    path.startsWith("/onboarding") ||
+    path.startsWith("/admin");
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();

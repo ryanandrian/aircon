@@ -31,8 +31,24 @@ enum TenantPlan {
 enum TenantStatus {
   TRIAL
   ACTIVE
+  PAST_DUE
   SUSPENDED
   CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
 }
 
 enum UserStatus {
@@ -208,6 +224,9 @@ model Tenant {
   reminderLeadDays        Int          @default(7)
   plan                    TenantPlan   @default(STARTER)
   status                  TenantStatus @default(TRIAL)
+  trialEndsAt             DateTime?
+  currentPeriodEnd        DateTime?
+  onboardingCompleted     Boolean      @default(false)
   waDriver                WaDriver     @default(WEB)
   publicProfile           Json?
   createdAt               DateTime     @default(now())
@@ -219,6 +238,8 @@ model Tenant {
   technicians  Technician[]
   jobs         JobOrder[]
   subscription Subscription?
+  payments     Payment[]
+  invites      Invite[]
 }
 
 model User {
@@ -563,13 +584,70 @@ model Alert {
 
 // ================= BILLING =================
 model Subscription {
-  id         String       @id @default(cuid())
-  tenantId   String       @unique
-  plan       TenantPlan
-  iotDevices Int          @default(0)
-  status     TenantStatus @default(TRIAL)
-  validUntil DateTime?
-  notes      String?
+  id                 String       @id @default(cuid())
+  tenantId           String       @unique
+  plan               TenantPlan
+  iotDevices         Int          @default(0)
+  status             TenantStatus @default(TRIAL)
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean      @default(false)
+  amountMonthly      Int          @default(0) // IDR snapshot harga saat berlangganan
+  notes              String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+// Pembayaran langganan via Midtrans (Snap).
+model Payment {
+  id            String        @id @default(cuid())
+  tenantId      String
+  orderId       String        @unique // order_id yang dikirim ke Midtrans
+  plan          TenantPlan
+  amount        Int // IDR
+  status        PaymentStatus @default(PENDING)
+  periodMonths  Int           @default(1)
+  snapToken     String?
+  snapRedirect  String?
+  midtransTxId  String? // transaction_id dari Midtrans
+  paymentType   String? // gopay, bank_transfer, dst
+  paidAt        DateTime?
+  rawNotif      Json? // payload webhook terakhir (audit)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([status, createdAt])
+}
+
+// Undangan user ke tenant (teknisi/admin) — invite-only, bukan self-signup.
+model Invite {
+  id         String       @id @default(cuid())
+  tenantId   String
+  role       Role         @default(TECHNICIAN)
+  name       String
+  phone      String
+  token      String       @unique
+  status     InviteStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdById String
+  createdAt  DateTime     @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+}
+
+// Super-admin platform (tim kita) — lintas tenant. Terpisah dari User tenant.
+model PlatformAdmin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }

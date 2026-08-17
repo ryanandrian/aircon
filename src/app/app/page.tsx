@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { isTenantUsable } from "@/lib/billing/gating";
 import { LogoutButton } from "./logout-button";
 import Link from "next/link";
 
@@ -8,7 +10,14 @@ export const dynamic = "force-dynamic";
 
 export default async function AppDashboard() {
   const ctx = await tryGetServerContext();
-  if (!ctx) redirect("/login?next=/app");
+  if (!ctx) {
+    // Bedakan: belum login vs sudah login tapi belum punya usaha.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect("/login?next=/app");
+    // Sudah login tapi belum punya usaha → wizard setup.
+    redirect("/onboarding");
+  }
 
   // SECURITY: semua query tenant-scoped dari ctx.tenantId (session), bukan input.
   const [tenant, metrics, dueReminders] = await Promise.all([
@@ -23,6 +32,11 @@ export default async function AppDashboard() {
     })(),
     prisma.repeatReminder.count({ where: { tenantId: ctx.tenantId, status: "QUEUED" } }),
   ]);
+
+  // Tenant dinonaktifkan → blok akses, arahkan ke langganan.
+  if (tenant && !isTenantUsable(tenant.status)) {
+    redirect("/app/langganan?status=nonaktif");
+  }
 
   return (
     <main className="min-h-screen bg-slate-50">

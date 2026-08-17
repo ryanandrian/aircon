@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import { ensureUserProvisioned } from "@/lib/services/onboarding-service";
+import { findDomainUser } from "@/lib/services/onboarding-service";
 import { NextResponse } from "next/server";
 
 /**
- * OAuth callback (Google SSO) — tukar code jadi session, provision user/tenant,
- * lalu redirect ke /app.
+ * OAuth callback (Google SSO) — tukar code jadi session, lalu arahkan:
+ *  - Sudah punya usaha  → /app (atau ?next=).
+ *  - Belum punya usaha  → /onboarding (wizard setup usaha eksplisit).
+ *
+ * TIDAK lagi auto-provision usaha di sini. Pembuatan usaha dilakukan eksplisit
+ * oleh owner lewat wizard (lihat src/app/onboarding).
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -21,25 +25,30 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth`);
   }
 
-  // Pastikan user punya tenant + record domain (idempoten).
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) {
-    try {
-      await ensureUserProvisioned({
-        email: user.email ?? null,
-        phone: user.phone ?? null,
-        fullName:
-          (user.user_metadata?.full_name as string | undefined) ??
-          (user.user_metadata?.name as string | undefined) ??
-          null,
-      });
-    } catch (e) {
-      console.error("[auth/callback] provisioning gagal:", e);
-      return NextResponse.redirect(`${origin}/login?error=provision`);
-    }
+
+  if (!user) {
+    return NextResponse.redirect(`${origin}/login?error=auth`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  // Kenali user (baca saja) — putuskan tujuan tanpa membuat apa pun.
+  try {
+    const domainUser = await findDomainUser({
+      email: user.email ?? null,
+      phone: user.phone ?? null,
+    });
+
+    if (domainUser) {
+      // Sudah punya usaha → lanjut ke aplikasi.
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+
+    // Belum punya usaha → arahkan ke wizard setup usaha.
+    return NextResponse.redirect(`${origin}/onboarding`);
+  } catch (e) {
+    console.error("[auth/callback] gagal mengenali user:", e);
+    return NextResponse.redirect(`${origin}/login?error=auth`);
+  }
 }
