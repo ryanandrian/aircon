@@ -6,6 +6,7 @@ import { actionUpdateCompany } from "../config-actions";
 interface Initial {
   legalName: string;
   brandName: string;
+  logoUrl: string;
   isPkp: boolean;
   npwp: string;
   taxLabel: string;
@@ -49,6 +50,14 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
           <div>
             <label className={label}>Nama brand</label>
             <input name="brandName" defaultValue={initial.brandName} className={field} required />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={label}>Logo (URL/path)</label>
+            <input name="logoUrl" defaultValue={initial.logoUrl} className={field} placeholder="/brand/lumite-logo.png" />
+            {initial.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={initial.logoUrl} alt="Logo perusahaan" className="mt-2 h-12 w-auto object-contain" />
+            )}
           </div>
           <div>
             <label className={label}>NPWP</label>

@@ -63,7 +63,7 @@ describe("iotProductSchema", () => {
 });
 
 const validCompany = {
-  legalName: "PT Lumite Nusantara", brandName: "Aircon", isPkp: true, npwp: "01.234.567.8-901.000",
+  legalName: "PT Lumite Nusantara", brandName: "Aircon", logoUrl: "/brand/lumite-logo.png", isPkp: true, npwp: "01.234.567.8-901.000",
   taxLabel: "PPN", email: "billing@lumite.id", phone: "0812", addressLine: "Jl. X", city: "Bandung",
   province: "Jabar", postalCode: "40111", countryCode: "IDN", checkoutExpiryHours: 24, finishUrl: "",
 };

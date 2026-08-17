@@ -124,6 +124,7 @@ export async function actionUpdateCompany(fd: FormData): Promise<ActionResult> {
     const parsed = companyProfileSchema.safeParse({
       legalName: String(fd.get("legalName") ?? ""),
       brandName: String(fd.get("brandName") ?? ""),
+      logoUrl: String(fd.get("logoUrl") ?? ""),
       isPkp: boolean(fd, "isPkp"),
       npwp: String(fd.get("npwp") ?? ""),
       taxLabel: String(fd.get("taxLabel") ?? ""),

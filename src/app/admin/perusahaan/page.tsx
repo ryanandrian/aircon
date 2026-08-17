@@ -18,6 +18,7 @@ export default async function AdminPerusahaanPage() {
         initial={{
           legalName: c.legalName,
           brandName: c.brandName,
+          logoUrl: c.logoUrl,
           isPkp: c.isPkp,
           npwp: c.npwp,
           taxLabel: c.taxLabel,

@@ -55,6 +55,7 @@ export type IotProductInput = z.infer<typeof iotProductSchema>;
 export const companyProfileSchema = z.object({
   legalName: z.string().trim().max(120),
   brandName: z.string().trim().min(1).max(60),
+  logoUrl: z.string().trim().max(300),
   isPkp: z.boolean(),
   npwp: z.string().trim().max(40),
   taxLabel: z.string().trim().max(20),

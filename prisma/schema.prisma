@@ -663,6 +663,7 @@ model CompanyProfile {
   id            String   @id @default("singleton")
   legalName     String   @default("")   // nama badan hukum, mis. "PT Lumite ..."
   brandName     String   @default("Aircon")
+  logoUrl       String   @default("")   // URL/path logo untuk invoice & header
   isPkp         Boolean  @default(false) // Pengusaha Kena Pajak? menentukan boleh pungut PPN
   npwp          String   @default("")
   taxLabel      String   @default("PPN") // label pajak tampil (PPN / non-PKP kosongkan)
