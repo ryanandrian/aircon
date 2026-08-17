@@ -71,8 +71,14 @@ export default async function AppDashboard() {
             Kelola pelanggan &amp; unit AC, atur pekerjaan teknisi, dan pantau perangkat.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link href="/app/perangkat" className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">
+            <Link href="/app/pekerjaan" className="inline-flex min-h-[44px] items-center rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600">
+              Pekerjaan
+            </Link>
+            <Link href="/app/perangkat" className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Pemantauan Perangkat
+            </Link>
+            <Link href="/t" className="inline-flex min-h-[44px] items-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+              Mode Teknisi
             </Link>
             <Link href="/app/langganan" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
               Paket Langganan

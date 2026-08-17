@@ -36,6 +36,7 @@ export async function middleware(request: NextRequest) {
   const isProtected =
     path.startsWith("/app") ||
     path.startsWith("/onboarding") ||
+    path.startsWith("/t") ||
     path.startsWith("/admin");
 
   if (isProtected && !user) {
