@@ -6,6 +6,14 @@ export const metadata: Metadata = {
   description:
     "Dapatkan customer, atur teknisi & jadwal, dan buat customer kembali otomatis. Semua dari HP.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-512.png",
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport = {
+  themeColor: "#0ea5e9",
 };
 
 export default function RootLayout({
