@@ -51,10 +51,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   try {
     // Bedakan jenis transaksi via lookup order_id (bukan tebak prefix).
-    const iotOrder = await prisma.iotOrder.findUnique({
-      where: { paymentOrderId: order_id },
-      select: { id: true },
-    });
+    const [iotOrder, subPayment] = await Promise.all([
+      prisma.iotOrder.findUnique({ where: { paymentOrderId: order_id }, select: { id: true } }),
+      prisma.payment.findUnique({ where: { orderId: order_id }, select: { id: true } }),
+    ]);
+
+    // Akun Midtrans dipakai bersama beberapa aplikasi. Bila order_id BUKAN milik
+    // aircon (tidak ada di Payment maupun IotOrder), abaikan dengan aman (ack 200)
+    // agar tidak mengganggu notifikasi milik aplikasi lain.
+    if (!iotOrder && !subPayment) {
+      return NextResponse.json({ ok: true, ignored: "bukan transaksi aircon" });
+    }
 
     if (iotOrder) {
       // Pembayaran PERANGKAT IoT.
@@ -68,7 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ ok: true, kind: "iot" });
     }
 
-    // Selain itu → pembayaran LANGGANAN (processPaymentNotification aman bila order tak dikenal).
+    // Pembayaran LANGGANAN.
     await processPaymentNotification({
       order_id,
       transaction_status: notif.transaction_status,

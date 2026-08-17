@@ -12,6 +12,17 @@ const SNAP_BASE = IS_PROD
   ? "https://app.midtrans.com/snap/v1"
   : "https://app.sandbox.midtrans.com/snap/v1";
 
+/**
+ * URL webhook aircon. Akun Midtrans dipakai bersama beberapa aplikasi
+ * (aiwa, mesinviral, aircon), jadi kita TIDAK bergantung pada Notification URL
+ * global di dashboard. Setiap transaksi aircon meng-override tujuan notifikasi
+ * ke webhook aircon lewat header X-Override-Notification.
+ */
+function airconWebhookUrl(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? "";
+  return base ? `${base}/api/billing/midtrans-webhook` : "";
+}
+
 export function isMidtransConfigured(): boolean {
   return SERVER_KEY.length > 0;
 }
@@ -48,12 +59,16 @@ export async function createSnapTransaction(p: SnapCreateParams): Promise<SnapRe
     credit_card: { secure: true },
   };
 
+  const overrideUrl = airconWebhookUrl();
   const res = await fetch(`${SNAP_BASE}/transactions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
       Authorization: authHeader(),
+      // Arahkan notifikasi transaksi INI ke webhook aircon, apa pun setting
+      // Notification URL global (akun dipakai bersama aiwa/mesinviral/aircon).
+      ...(overrideUrl ? { "X-Override-Notification": overrideUrl } : {}),
     },
     body: JSON.stringify(body),
   });
