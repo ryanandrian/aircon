@@ -3,6 +3,7 @@ import {
   daysLate,
   dunningAction,
   shouldSendReminderToday,
+  isPurgeEligible,
 } from "../src/lib/billing/dunning-pure";
 
 const POLICY = { graceDaysBeforeSuspend: 1, daysBeforeDelete: 7 };
@@ -51,5 +52,25 @@ describe("shouldSendReminderToday", () => {
   it("kirim lagi bila reminder terakhir hari sebelumnya", () => {
     const yesterday = new Date("2026-01-09T09:00:00Z");
     expect(shouldSendReminderToday(1, "0,1,3", yesterday, now)).toBe(true);
+  });
+});
+
+describe("isPurgeEligible (masa tenggang purge — cegah mark+purge di run yang sama)", () => {
+  const now = new Date("2026-01-10T00:00:00Z");
+  it("false bila belum ditandai", () => {
+    expect(isPurgeEligible(null, now, 24)).toBe(false);
+  });
+  it("false bila baru ditandai (run yang sama / < grace jam)", () => {
+    // ditandai 5 menit lalu, grace 24 jam -> belum boleh
+    const justNow = new Date(now.getTime() - 5 * 60_000);
+    expect(isPurgeEligible(justNow, now, 24)).toBe(false);
+  });
+  it("true bila tanda lebih tua dari grace", () => {
+    const oldMark = new Date(now.getTime() - 25 * 3_600_000); // 25 jam lalu
+    expect(isPurgeEligible(oldMark, now, 24)).toBe(true);
+  });
+  it("tepat di ambang belum memenuhi (harus lebih tua)", () => {
+    const exactly = new Date(now.getTime() - 24 * 3_600_000);
+    expect(isPurgeEligible(exactly, now, 24)).toBe(false);
   });
 });

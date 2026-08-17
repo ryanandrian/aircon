@@ -125,12 +125,19 @@ async function queueDunningReminder(
 
 /**
  * Purge tenant yang sudah ditandai hapus & tetap menunggak.
- * Dipanggil terpisah (cron), setelah masa tenggang mark-delete.
- * Menghapus seluruh data anak lalu tenant, dalam transaksi. Idempoten.
+ * MASA TENGGANG PURGE: hanya hapus tenant yang markedForDeletionAt lebih tua dari
+ * `purgeGraceHours` (default 24 jam), sehingga mark (run hari-H) dan purge terjadi di
+ * run BERBEDA — memberi jendela nyata untuk membayar sebelum data hilang permanen.
+ * Dipanggil terpisah (cron). Transaksi child->tenant. Idempoten.
  */
-export async function purgeMarkedTenants(now: Date = new Date()): Promise<{ purged: number; tenantIds: string[] }> {
+export async function purgeMarkedTenants(
+  now: Date = new Date(),
+  purgeGraceHours: number = 24,
+): Promise<{ purged: number; tenantIds: string[] }> {
+  const threshold = new Date(now.getTime() - purgeGraceHours * 3_600_000);
   const marked = await prisma.tenant.findMany({
-    where: { markedForDeletionAt: { lt: now, not: null }, status: "SUSPENDED" },
+    // SECURITY/SAFETY: hanya tenant yang ditandai LEBIH LAMA dari ambang & masih SUSPENDED.
+    where: { markedForDeletionAt: { lt: threshold }, status: "SUSPENDED" },
     select: { id: true, name: true },
   });
 

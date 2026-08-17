@@ -14,6 +14,28 @@ export function daysLate(nextDueDate: Date | null, now: Date = new Date()): numb
 export type DunningAction = "none" | "suspend" | "delete";
 
 /**
+ * Ambang purge: tenant hanya boleh DIHAPUS bila sudah ditandai
+ * (markedForDeletionAt) lebih lama dari `graceHours`. Mengembalikan batas waktu;
+ * purge = markedForDeletionAt < threshold. Mencegah mark+purge di run yang sama.
+ */
+export function purgeThreshold(now: Date, graceHours: number): Date {
+  return new Date(now.getTime() - graceHours * 3_600_000);
+}
+
+/**
+ * Apakah tenant boleh dihapus permanen: sudah ditandai & tandanya lebih tua
+ * dari masa tenggang purge.
+ */
+export function isPurgeEligible(
+  markedForDeletionAt: Date | null,
+  now: Date,
+  graceHours: number,
+): boolean {
+  if (!markedForDeletionAt) return false;
+  return markedForDeletionAt.getTime() < purgeThreshold(now, graceHours).getTime();
+}
+
+/**
  * Tentukan aksi berdasarkan hari telat + kebijakan.
  * - telat > daysBeforeDelete  -> delete (mark)
  * - telat > graceDaysBeforeSuspend -> suspend
