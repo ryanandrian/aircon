@@ -102,3 +102,33 @@ export async function createRepeatJob(tenantId: string, reminderId: string, crea
 
   return job;
 }
+
+/**
+ * RUNNER money loop (dipanggil cron harian): untuk SEMUA tenant aktif,
+ * kirim WA reminder untuk setiap RepeatReminder yang sudah due.
+ * Idempoten: hanya proses status QUEUED (sendReminderWa menandai SENT).
+ * Aman-gagal per item: kegagalan satu reminder tak menghentikan yang lain.
+ */
+export async function runDueRemindersAllTenants(): Promise<{ tenants: number; sent: number; failed: number }> {
+  const tenants = await prisma.tenant.findMany({
+    where: { status: { in: ["TRIAL", "ACTIVE", "PAST_DUE"] } },
+    select: { id: true },
+  });
+
+  let sent = 0;
+  let failed = 0;
+  for (const t of tenants) {
+    const due = await listDueReminders(t.id);
+    for (const item of due) {
+      if (!item.asset?.customer) continue;
+      try {
+        await sendReminderWa(t.id, item.reminder.id);
+        sent += 1;
+      } catch (err) {
+        failed += 1;
+        console.error(`[reminder-runner] gagal tenant=${t.id} reminder=${item.reminder.id}:`, err);
+      }
+    }
+  }
+  return { tenants: tenants.length, sent, failed };
+}
