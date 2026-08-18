@@ -45,10 +45,18 @@ export async function alertToJob(alertId: string): Promise<AlertActionResult> {
       notes: `Dari peringatan IoT: ${alertMessage(alert.type)}`,
     });
 
-    await prisma.alert.update({
-      where: { id: alert.id },
+    // KLAIM ATOMIK: tautkan job hanya bila alert belum punya job (cegah job ganda saat
+    // dua request bersamaan). 0 baris = sudah diklaim proses lain → buang job baru.
+    const claim = await prisma.alert.updateMany({
+      where: { id: alert.id, tenantId: ctx.tenantId, createdJobId: null },
       data: { createdJobId: job.id, status: "ACK" },
     });
+    if (claim.count === 0) {
+      // Sudah ada job dari request lain: hapus job duplikat yang baru dibuat.
+      await prisma.jobOrder.delete({ where: { id: job.id } }).catch(() => {});
+      const fresh = await prisma.alert.findFirst({ where: { id: alert.id, tenantId: ctx.tenantId }, select: { createdJobId: true } });
+      return { ok: true, jobId: fresh?.createdJobId ?? undefined };
+    }
 
     revalidatePath("/app/perangkat");
     revalidatePath("/app/pekerjaan");
