@@ -135,6 +135,13 @@ export default async function PublicTenantPage({ params }: PageProps) {
           <span aria-hidden="true">💬</span> Chat via WhatsApp
         </a>
 
+        {/* Sinyal percaya (jujur, benar untuk semua usaha) */}
+        <ul className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <TrustBadge icon="⚡" label="Respons cepat" />
+          <TrustBadge icon="✅" label="Dikonfirmasi WhatsApp" />
+          <TrustBadge icon="🕐" label="Pesan online 24 jam" />
+        </ul>
+
         {/* Layanan */}
         <section className="mt-8" aria-labelledby="layanan-heading">
           <h2
@@ -186,9 +193,20 @@ export default async function PublicTenantPage({ params }: PageProps) {
         </section>
 
         <footer className="mt-10 text-center text-xs text-slate-400">
-          Ditenagai oleh Aircon — Operating System untuk usaha servis AC.
+          Ditenagai oleh{" "}
+          <a href="/" className="font-medium text-sky-500 hover:text-sky-600">Aircon</a>
+          {" "}— Operating System untuk usaha servis AC.
         </footer>
       </div>
     </main>
+  );
+}
+
+function TrustBadge({ icon, label }: { icon: string; label: string }) {
+  return (
+    <li className="rounded-xl border border-slate-200 bg-white px-2 py-2">
+      <div className="text-lg" aria-hidden>{icon}</div>
+      <div className="mt-0.5 text-[11px] font-medium leading-tight text-slate-600">{label}</div>
+    </li>
   );
 }
