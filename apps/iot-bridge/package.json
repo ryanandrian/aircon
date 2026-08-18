@@ -1,0 +1,14 @@
+{
+  "name": "aircon-iot-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Subscriber MQTT (Mosquitto) -> POST telemetry ke aircon. Jalan di VPS.",
+  "scripts": {
+    "start": "node --experimental-strip-types index.ts",
+    "dev": "node --watch --experimental-strip-types index.ts"
+  },
+  "dependencies": {
+    "mqtt": "^5.10.1"
+  }
+}

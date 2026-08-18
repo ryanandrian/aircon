@@ -3,6 +3,9 @@ import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { countInstalledDevices } from "@/lib/services/iot-order-service";
+import { listOpenAlerts } from "@/lib/services/iot-ingest-service";
+import { alertMessage } from "@/lib/iot/alert-detection";
+import { AlertCard } from "./alert-card";
 
 export const dynamic = "force-dynamic";
 
@@ -12,14 +15,16 @@ export default async function PerangkatPage() {
 
   // Monitor SELALU dapat diakses. Fungsi bergantung ada/tidaknya perangkat terpasang.
   const deviceCount = await countInstalledDevices(ctx.tenantId);
-  const devices =
+  const [devices, alerts] = await Promise.all([
     deviceCount > 0
-      ? await prisma.device.findMany({
+      ? prisma.device.findMany({
           where: { tenantId: ctx.tenantId },
           include: { asset: { select: { brand: true, model: true, roomLocation: true } } },
           take: 50,
         })
-      : [];
+      : Promise.resolve([]),
+    listOpenAlerts(ctx.tenantId),
+  ]);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -31,6 +36,27 @@ export default async function PerangkatPage() {
       </header>
 
       <div className="mx-auto max-w-4xl space-y-6 p-6">
+        {/* PELUANG SERVIS dari IoT — inti demand generator */}
+        {alerts.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+              <span aria-hidden>🔔</span> Peluang Servis ({alerts.length})
+            </h2>
+            {alerts.map((a) => (
+              <AlertCard
+                key={a.id}
+                id={a.id}
+                type={a.type}
+                severity={a.severity}
+                message={alertMessage(a.type)}
+                hasJob={Boolean(a.createdJobId)}
+                jobId={a.createdJobId}
+                at={a.at.toISOString()}
+              />
+            ))}
+          </section>
+        )}
+
         {deviceCount === 0 ? (
           // Empty-state fungsional: fitur bisa diakses, tapi belum ada perangkat.
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
