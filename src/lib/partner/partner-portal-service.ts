@@ -57,10 +57,14 @@ export async function loginAgent(email: string, pin: string): Promise<{ id: stri
 }
 
 export async function loginReseller(email: string, pin: string): Promise<{ id: string }> {
-  const rs = await prisma.reseller.findFirst({ where: { email: email.trim().toLowerCase() } });
-  if (!rs || !verifyPin(pin, rs.pinHash)) throw new PartnerPortalError("Email atau PIN salah");
-  if (rs.status !== "ACTIVE") throw new PartnerPortalError("Akun reseller belum aktif");
-  return { id: rs.id };
+  const norm = email.trim().toLowerCase();
+  // Email bisa terdaftar di >1 agen (dedup registerReseller per-agen). Cocokkan HANYA
+  // reseller ACTIVE; bila >1 ACTIVE dgn email sama → ambigu, tolak (cegah masuk akun salah).
+  const candidates = await prisma.reseller.findMany({ where: { email: norm, status: "ACTIVE" } });
+  const matches = candidates.filter((r) => verifyPin(pin, r.pinHash));
+  if (matches.length === 0) throw new PartnerPortalError("Email atau PIN salah");
+  if (matches.length > 1) throw new PartnerPortalError("Email terdaftar di lebih dari satu agen. Hubungi agen Anda.");
+  return { id: matches[0].id };
 }
 
 /** DASBOR AGEN — semua tenant bawaan + komisi + reseller + pencairan (isolasi ketat). */
