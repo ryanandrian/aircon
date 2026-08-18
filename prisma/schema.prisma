@@ -517,10 +517,12 @@ model MessageLog {
   status      MessageStatus  @default(LOGGED)
   toPhone     String?
   body        String?
+  gatewayMessageId String?    // id dari messaging-gateway (untuk update status via callback)
   at          DateTime       @default(now())
 
   @@index([tenantId, customerId, at])
   @@index([driver, status])
+  @@index([tenantId, gatewayMessageId])
 }
 
 // ================= IoT =================

@@ -1,0 +1,17 @@
+{
+  "name": "messaging-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared WhatsApp + MQTT gateway untuk portofolio (12 SaaS). REST API multi-app, webhook callback. Ganti mesin WA (waweb.js -> Cloud API) tanpa app berubah.",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "whatsapp-web.js": "^1.26.0",
+    "qrcode-terminal": "^0.12.0",
+    "qrcode": "^1.5.4"
+  }
+}
