@@ -58,6 +58,7 @@ server.post("/v1/wa/send", async (req, res) => {
   }
   try {
     const r = await wa.enqueue(req.app_id, String(externalId), String(toPhone), String(message));
+    if (r.duplicate) return res.status(409).json({ ok: false, error: "pesan identik baru saja diantre (dedup)", duplicate: true });
     res.json({ ok: true, ...r });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });

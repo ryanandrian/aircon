@@ -94,8 +94,27 @@ Mesin di balik gateway akan **ditukar dari whatsapp-web.js ke WhatsApp Cloud API
 skala tumbuh. **Kontrak API di dokumen ini TIDAK berubah** — app Anda tetap `POST /v1/wa/send`.
 Jadi bangun app Anda terhadap API ini, jangan pernah panggil whatsapp-web.js langsung.
 
-## 9. Batasan & etika (wajib dipahami)
-- whatsapp-web.js = tak resmi → ada risiko ban. Hormati throttle, jangan spam, pakai
-  hanya untuk pesan yang diminta/diharapkan user (transaksional/opt-in).
-- 1 sesi = 1 nomor = ~250–500MB RAM di gateway. Koordinasikan jumlah sesi dengan admin infra
-  (lihat 30_Capacity_and_Specs.md).
+## 9. Batasan & etika (WAJIB dipahami) — server NOTIFIKASI, bukan blasting
+Gateway ini dirancang untuk **notifikasi transaksional/opt-in** (pengingat servis,
+konfirmasi booking, status pekerjaan, tagihan) — BUKAN blasting promosi massal.
+Proteksi anti-ban yang SUDAH tertanam di gateway (otomatis, tak perlu app urus):
+
+| Proteksi | Fungsi |
+|---|---|
+| **Jeda acak manusiawi** (6–15 dtk) | pola kirim tak seperti bot |
+| **Batas per menit / nomor** (default 8) | cegah burst |
+| **Plafon HARIAN / nomor** (default 200) | batas wajar notifikasi; di atas ini ditunda |
+| **Warm-up nomor baru** (7 hari ramp) | nomor baru mulai pelan (±20/hari) lalu naik — kritis agar tak langsung diblokir |
+| **Jam tenang** (21:00–07:00 WIB) | tak kirim tengah malam (mencurigakan + mengganggu) |
+| **Dedup** | pesan identik ke nomor sama dalam 60 dtk ditolak (cegah kirim ganda) |
+| **Batas sesi hidup + evict idle** | hemat RAM; Chromium idle ditutup |
+
+Semua angka di atas dari ENV (setel di `.env` gateway tanpa ubah kode). **Aturan pakai:**
+- Kirim HANYA pesan yang diminta/diharapkan penerima (transaksional/opt-in). Jangan promosi massal.
+- Sediakan cara berhenti (STOP) bila mengirim pesan berulang non-transaksional.
+- Jika `POST /v1/wa/send` mengembalikan `409 duplicate`, itu dedup — jangan retry membabi-buta.
+- Pesan yang melebihi plafon harian TIDAK hilang — tetap diantre & terkirim hari berikutnya.
+
+> Catatan RAM: 1 sesi = 1 nomor = ~250–500MB. Gateway membatasi jumlah sesi hidup
+> (`WA_MAX_LIVE_SESSIONS`) & menutup sesi idle. Koordinasikan jumlah nomor aktif dengan
+> admin infra (lihat 30_Capacity_and_Specs.md).
