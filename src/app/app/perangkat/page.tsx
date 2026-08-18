@@ -6,6 +6,7 @@ import { countInstalledDevices } from "@/lib/services/iot-order-service";
 import { listOpenAlerts } from "@/lib/services/iot-ingest-service";
 import { alertMessage } from "@/lib/iot/alert-detection";
 import { AlertCard } from "./alert-card";
+import { AppHeader } from "../_components/app-header";
 
 export const dynamic = "force-dynamic";
 
@@ -28,12 +29,7 @@ export default async function PerangkatPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-bold">Pemantauan Perangkat</h1>
-          <Link href="/app" className="text-sm text-slate-500 hover:text-slate-800">← Ringkasan</Link>
-        </div>
-      </header>
+      <AppHeader title="Pemantauan Perangkat" />
 
       <div className="mx-auto max-w-4xl space-y-6 p-6">
         {/* PELUANG SERVIS dari IoT — inti demand generator */}

@@ -5,6 +5,7 @@ import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config"
 import { formatIDR } from "@/lib/billing/plans";
 import { isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import { PlanCards } from "./plan-cards";
+import { AppHeader } from "../_components/app-header";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -21,10 +22,15 @@ export default async function LanggananPage() {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/langganan");
 
-  const [tenant, plans, policy] = await Promise.all([
+  const [tenant, plans, policy, payments] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
     getActivePlans(),
     getBillingPolicy(),
+    prisma.payment.findMany({
+      where: { tenantId: ctx.tenantId },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    }),
   ]);
   if (!tenant) redirect("/login");
 
@@ -62,12 +68,7 @@ export default async function LanggananPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-bold">Paket Langganan</h1>
-          <Link href="/app" className="text-sm text-slate-500 hover:text-slate-800">← Ringkasan</Link>
-        </div>
-      </header>
+      <AppHeader title="Paket Langganan" />
 
       <div className="mx-auto max-w-4xl space-y-6 p-6">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -100,6 +101,41 @@ export default async function LanggananPage() {
           canPay={configured && isOwner}
           plans={planViews}
         />
+
+        {/* Riwayat pembayaran + faktur */}
+        {payments.length > 0 && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h2 className="text-sm font-semibold text-slate-500">Riwayat Pembayaran</h2>
+            <div className="mt-3 divide-y divide-slate-100">
+              {payments.map((p) => {
+                const paid = p.status === "PAID";
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-slate-900">
+                        Paket {p.plan} · {p.periodMonths} bln
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {(p.paidAt ?? p.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold tabular-nums text-slate-700">Rp {p.amount.toLocaleString("id-ID")}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        paid ? "bg-emerald-100 text-emerald-700" : p.status === "PENDING" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {paid ? "Lunas" : p.status === "PENDING" ? "Menunggu" : p.status}
+                      </span>
+                      <Link href={`/app/langganan/faktur/${p.id}`} className="text-xs font-medium text-sky-600 hover:text-sky-700">
+                        {paid ? "Kwitansi" : "Faktur"} →
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
