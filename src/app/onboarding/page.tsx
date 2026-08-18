@@ -15,7 +15,12 @@ import OnboardingWizard from "./wizard";
 
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const { ref } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -56,7 +61,7 @@ export default async function OnboardingPage() {
           </p>
         </header>
 
-        <OnboardingWizard />
+        <OnboardingWizard initialRef={ref ?? ""} />
 
         <p className="mt-6 text-center text-xs text-slate-400">
           Data ini bisa Anda ubah kapan saja lewat pengaturan usaha.

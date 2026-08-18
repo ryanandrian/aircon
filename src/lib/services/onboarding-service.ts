@@ -59,6 +59,8 @@ interface CreateTenantInput {
   businessName: string;
   city: string;
   whatsappPhone: string;
+  /** Kode agen/reseller (opsional) — atribusi keagenan permanen. */
+  referralCode?: string | null;
 }
 
 /**
@@ -143,6 +145,16 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
       update: {},
     });
   });
+
+  // Atribusi keagenan (opsional, PERMANEN, gagal-jujur — tak mengganggu onboarding).
+  if (input.referralCode?.trim()) {
+    try {
+      const { attributeTenant } = await import("@/lib/partner/partner-service");
+      await attributeTenant(tenantId, input.referralCode.trim());
+    } catch (err) {
+      console.error("[attribution] gagal (onboarding tetap sukses):", err);
+    }
+  }
 
   return { userId, tenantId, slug };
 }

@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/kebijakan", label: "Kebijakan Billing" },
   { href: "/admin/perusahaan", label: "Profil Perusahaan" },
   { href: "/admin/iot", label: "Produk & Pesanan IoT" },
+  { href: "/admin/keagenan", label: "Program Keagenan" },
 ];
 
 /**

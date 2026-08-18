@@ -151,6 +151,29 @@ export async function processPaymentNotification(notif: {
 
   if (newStatus === "PAID" && !alreadyPaid) {
     await activateSubscription(payment.tenantId, payment.plan, payment.periodMonths, payment.amount);
+    // KOMISI KEAGENAN (gagal-jujur: kegagalan komisi TAK mengganggu aktivasi tenant).
+    try {
+      const { accrueCommission } = await import("@/lib/partner/partner-service");
+      await accrueCommission({
+        orderId: payment.orderId,
+        tenantId: payment.tenantId,
+        grossIdr: payment.amount, // settlement (anti-tamper sudah dicek di atas)
+        monthsPaid: payment.periodMonths,
+        settledAt: new Date(),
+      });
+    } catch (err) {
+      console.error("[commission] accrue gagal (pembayaran tetap sukses):", err);
+    }
+  }
+
+  // Refund/pembatalan → tarik balik komisi (reversal append-only).
+  if ((newStatus === "FAILED" || newStatus === "EXPIRED") && alreadyPaid) {
+    try {
+      const { reverseCommission } = await import("@/lib/partner/partner-service");
+      await reverseCommission(payment.orderId);
+    } catch (err) {
+      console.error("[commission] reversal gagal:", err);
+    }
   }
 
   return { status: newStatus, tenantId: payment.tenantId };

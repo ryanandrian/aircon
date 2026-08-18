@@ -29,7 +29,7 @@ function SubmitButton() {
   );
 }
 
-export default function OnboardingWizard() {
+export default function OnboardingWizard({ initialRef = "" }: { initialRef?: string }) {
   const [state, formAction] = useActionState<OnboardingActionState, FormData>(
     completeOnboarding,
     initialState,
@@ -153,6 +153,26 @@ export default function OnboardingWizard() {
             Nomor untuk dihubungi pelanggan & mengirim pengingat servis.
           </p>
         )}
+      </div>
+
+      {/* Kode agen/reseller (opsional) */}
+      <div>
+        <label htmlFor="referralCode" className="mb-1 block text-sm font-medium text-slate-700">
+          Kode Agen / Referral <span className="text-slate-400">(opsional)</span>
+        </label>
+        <input
+          id="referralCode"
+          name="referralCode"
+          type="text"
+          maxLength={12}
+          defaultValue={initialRef}
+          autoComplete="off"
+          className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base uppercase text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+          placeholder="Punya kode dari agen? Isi di sini"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Isi bila Anda diajak oleh agen/mitra Aircon. Kosongkan bila mendaftar sendiri.
+        </p>
       </div>
 
       <SubmitButton />

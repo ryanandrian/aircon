@@ -83,6 +83,7 @@ export async function completeOnboarding(
         businessName: parsed.data.businessName,
         city: parsed.data.city,
         whatsappPhone: parsed.data.whatsappPhone,
+        referralCode: str(formData, "referralCode") || null,
       });
     }
   } catch (err) {

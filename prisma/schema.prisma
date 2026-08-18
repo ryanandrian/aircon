@@ -245,6 +245,7 @@ model Tenant {
   payments     Payment[]
   invites      Invite[]
   iotOrders    IotOrder[]
+  attribution  TenantAttribution?
 }
 
 model User {
@@ -792,4 +793,193 @@ model IotOrderItem {
 
   order   IotOrder   @relation(fields: [orderId], references: [id])
   product IotProduct @relation(fields: [productId], references: [id])
+}
+
+// ================= PROGRAM KEAGENAN (PARTNER) — adaptasi mesinviral =================
+// Model 2-tingkat: Agen (mitra pemasaran) -> Reseller (tim penjual agen) -> Tenant.
+// Prinsip (dari mesinviral AGENT_AND_AFILIATION_ARCITECTURE.md):
+//  - Uang pelanggan SELALU ke Midtrans Lumite (harga resmi). Agen/reseller tak pegang uang.
+//  - Lumite transfer komisi ke AGEN 1x/bulan; reseller dibayar agennya (kita hitung + export).
+//  - Atribusi = kode unik saat daftar, PERMANEN (unique tenantId = anti-rebutan).
+//  - Ledger APPEND-ONLY: koreksi/refund = baris reversal, tak pernah UPDATE nilai.
+//  - Rate di-snapshot per baris (perubahan berlaku pembayaran berikutnya).
+//  - Semua angka config-driven (BillingPolicy/app-level), rekening terenkripsi.
+
+enum PartnerStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ResellerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+enum CommissionType {
+  FLAT_IDR
+  PERCENT
+}
+
+enum PartnerTaxStatus {
+  BADAN_NPWP
+  BADAN_NON_NPWP
+  PERORANGAN
+  PKP
+}
+
+enum PayoutStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+enum LedgerEntryKind {
+  ACCRUAL
+  REVERSAL
+}
+
+enum LedgerStatus {
+  ACCRUED
+  APPROVED
+  PAID
+  REVERSED
+}
+
+// Agen: perusahaan/perorangan mitra pemasaran. Komisi diatur ADMIN (bukan dari app agen).
+model Agent {
+  id              String         @id @default(cuid())
+  companyName     String
+  picName         String?
+  picEmail        String         @unique
+  picPhone        String?
+  status          PartnerStatus  @default(ACTIVE)
+  commissionType  CommissionType @default(PERCENT)
+  commissionValue Float          @default(0) // >=0; makna ikut tipe
+  taxStatus       PartnerTaxStatus @default(BADAN_NPWP)
+  npwp            String?
+  // rekening tujuan transfer (nomor terenkripsi at-rest)
+  bankName        String?
+  bankAccountEnc  String?
+  bankHolder      String?
+  joinCode        String?        @unique // tautan pendaftaran reseller khusus agen ini
+  userId          String?        // login agen (portal, fase lanjutan)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  resellers    Reseller[]
+  codes        PartnerCode[]
+  attributions TenantAttribution[]
+  payouts      AgentPayout[]
+  ledger       CommissionLedger[]
+}
+
+// Reseller: di bawah agen. Komisi diatur AGEN. Aktif setelah agen menyetujui.
+model Reseller {
+  id              String         @id @default(cuid())
+  agentId         String
+  userId          String?        // login reseller (portal, fase lanjutan)
+  name            String
+  email           String?
+  phone           String?
+  status          ResellerStatus @default(PENDING)
+  commissionType  CommissionType @default(FLAT_IDR)
+  commissionValue Float          @default(0)
+  bankName        String?
+  bankAccountEnc  String?
+  bankHolder      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  agent        Agent               @relation(fields: [agentId], references: [id])
+  codes        PartnerCode[]
+  attributions TenantAttribution[]
+
+  @@index([agentId, status])
+}
+
+// Registry kode: SATU daftar lintas agen+reseller — unik GLOBAL (mustahil dobel).
+model PartnerCode {
+  code       String   @id // UPPERCASE, [A-Z0-9]{4,12}
+  ownerKind  String   // "agent" | "reseller"
+  agentId    String
+  resellerId String?
+  active     Boolean  @default(true)
+  usedCount  Int      @default(0) // >0 = kode BEKU selamanya (jejak atribusi)
+  createdAt  DateTime @default(now())
+
+  agent        Agent               @relation(fields: [agentId], references: [id])
+  reseller     Reseller?           @relation(fields: [resellerId], references: [id])
+  attributions TenantAttribution[]
+
+  @@index([agentId])
+}
+
+// Atribusi tenant: ditulis SEKALI saat daftar, PERMANEN. tenantId unik = anti-rebutan.
+model TenantAttribution {
+  tenantId   String   @id
+  agentId    String
+  resellerId String?
+  code       String
+  lockedAt   DateTime @default(now())
+
+  tenant   Tenant       @relation(fields: [tenantId], references: [id])
+  agent    Agent        @relation(fields: [agentId], references: [id])
+  reseller Reseller?    @relation(fields: [resellerId], references: [id])
+  codeRef  PartnerCode  @relation(fields: [code], references: [code])
+}
+
+// Pencairan bulanan ke AGEN (1 baris per agen per periode; gerbang persetujuan owner).
+model AgentPayout {
+  id                 String       @id @default(cuid())
+  agentId            String
+  periodMonth        DateTime     // tanggal 1 bulan periode
+  grossCommissionIdr Int          @default(0)
+  deductionIdr       Int          @default(0) // reversal refund menggantung
+  taxWithheldIdr     Int          @default(0) // prefill dari taxStatus, boleh dikoreksi admin
+  netPaidIdr         Int?
+  status             PayoutStatus @default(DRAFT)
+  transferRef        String?
+  notes              String?
+  approvedAt         DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  agent  Agent              @relation(fields: [agentId], references: [id])
+  ledger CommissionLedger[]
+
+  @@unique([agentId, periodMonth])
+}
+
+// Buku besar komisi APPEND-ONLY. Koreksi = baris reversal (reversalOf menunjuk asal).
+model CommissionLedger {
+  id                Int             @id @default(autoincrement())
+  orderId           String          // Payment.orderId
+  tenantId          String
+  agentId           String
+  resellerId        String?
+  grossIdr          Int             // rupiah settlement (basis-net)
+  monthsPaid        Int             @default(1)
+  agentRateType     CommissionType  // snapshot rate saat kejadian
+  agentRateValue    Float
+  agentAmountIdr    Int
+  resellerRateType  CommissionType?
+  resellerRateValue Float?
+  resellerAmountIdr Int             @default(0) // INFO utk agen (kewajiban agen)
+  entryKind         LedgerEntryKind @default(ACCRUAL)
+  reversalOf        Int?
+  status            LedgerStatus    @default(ACCRUED)
+  payoutId          String?
+  periodMonth       DateTime
+  createdAt         DateTime        @default(now())
+
+  agent  Agent        @relation(fields: [agentId], references: [id])
+  payout AgentPayout? @relation(fields: [payoutId], references: [id])
+
+  @@unique([orderId, entryKind]) // idempotensi: 1 accrual + maks 1 reversal/order
+  @@index([agentId, periodMonth, status])
+  @@index([tenantId])
 }
