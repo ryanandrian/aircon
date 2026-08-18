@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { actionCreateAgent, actionUpdateAgent, actionBuildPayouts, actionMarkPaid } from "./actions";
+import { actionCreateAgent, actionUpdateAgent, actionBuildPayouts, actionMarkPaid, actionIssueAgentToken } from "./actions";
 import type { CommissionType, PartnerStatus, PartnerTaxStatus, PayoutStatus } from "@prisma/client";
 
 interface AgentView {
@@ -62,6 +62,16 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
   }
   function copy(text: string, key: string) {
     navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(null), 1500);
+  }
+  function inviteAgent(agentId: string) {
+    start(async () => {
+      const res = await actionIssueAgentToken(agentId);
+      if (res.ok) {
+        const full = window.location.origin + res.url;
+        navigator.clipboard?.writeText(full);
+        toast(true, "Tautan aktivasi login agen tersalin — kirim ke PIC agen.");
+      } else toast(false, res.error);
+    });
   }
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -148,6 +158,9 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
                 )}
                 <button onClick={() => setEditId(editId === a.id ? null : a.id)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">
                   {editId === a.id ? "Batal" : "Ubah rate/status"}
+                </button>
+                <button onClick={() => inviteAgent(a.id)} disabled={pending} className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 disabled:opacity-50">
+                  Undang login portal
                 </button>
               </div>
 

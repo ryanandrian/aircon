@@ -32,7 +32,21 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  // Route yang wajib login: /app, /onboarding, /admin, /t.
+
+  // Portal partner (agen/reseller): login via cookie tertanda, bukan Supabase.
+  // Path publik: login, daftar reseller, aktivasi PIN.
+  const isPartnerPublic =
+    path.startsWith("/agen/login") || path.startsWith("/agen/aktivasi") ||
+    path.startsWith("/reseller/login") || path.startsWith("/reseller/daftar") || path.startsWith("/reseller/aktivasi");
+  const isPartnerArea = (path === "/agen" || path.startsWith("/agen/") || path === "/reseller" || path.startsWith("/reseller/")) && !isPartnerPublic;
+  const hasPartnerCookie = Boolean(request.cookies.get("aircon_partner")?.value);
+  if (isPartnerArea && !hasPartnerCookie) {
+    const url = request.nextUrl.clone();
+    url.pathname = path.startsWith("/reseller") ? "/reseller/login" : "/agen/login";
+    return NextResponse.redirect(url);
+  }
+
+  // Route yang wajib login (Supabase/teknisi): /app, /onboarding, /admin, /t.
   const isProtected =
     path.startsWith("/app") ||
     path.startsWith("/onboarding") ||

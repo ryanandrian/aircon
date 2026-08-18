@@ -83,3 +83,15 @@ export async function actionMarkPaid(payoutId: string, transferRef: string): Pro
     return { ok: false, error: err instanceof Error ? err.message : "Gagal menandai lunas" };
   }
 }
+
+/** Terbitkan tautan aktivasi login portal agen (untuk dikirim ke PIC). */
+export async function actionIssueAgentToken(agentId: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  try {
+    await requirePlatformAdmin();
+    const { issueAgentLoginToken } = await import("@/lib/partner/partner-portal-service");
+    const token = await issueAgentLoginToken(agentId);
+    return { ok: true, url: `/agen/aktivasi/${token}` };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Gagal membuat tautan" };
+  }
+}

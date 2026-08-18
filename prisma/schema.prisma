@@ -865,6 +865,8 @@ model Agent {
   bankHolder      String?
   joinCode        String?        @unique // tautan pendaftaran reseller khusus agen ini
   userId          String?        // login agen (portal, fase lanjutan)
+  pinHash         String?        // login portal agen (scrypt); set via tautan aktivasi
+  loginToken      String?        @unique // token aktivasi sekali-pakai (set PIN)
   notes           String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -887,6 +889,8 @@ model Reseller {
   status          ResellerStatus @default(PENDING)
   commissionType  CommissionType @default(FLAT_IDR)
   commissionValue Float          @default(0)
+  pinHash         String?        // login portal reseller (scrypt)
+  loginToken      String?        @unique // token aktivasi sekali-pakai
   bankName        String?
   bankAccountEnc  String?
   bankHolder      String?
