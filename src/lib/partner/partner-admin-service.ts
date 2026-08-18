@@ -27,6 +27,13 @@ async function uniqueCode(): Promise<string> {
   throw new Error("gagal membuat kode unik");
 }
 
+/** Guard nilai komisi (cegah salah-ketik mahal): PERCENT 0-100, FLAT_IDR 0-100jt. */
+function assertCommissionValue(type: CommissionType, value: number): void {
+  if (!Number.isFinite(value) || value < 0) throw new Error("Nilai komisi tidak valid");
+  if (type === "PERCENT" && value > 100) throw new Error("Komisi persen tak boleh > 100%");
+  if (type === "FLAT_IDR" && value > 100_000_000) throw new Error("Komisi flat terlalu besar (maks Rp100jt)");
+}
+
 export interface CreateAgentInput {
   companyName: string;
   picName?: string;
@@ -45,6 +52,7 @@ export interface CreateAgentInput {
 /** Buat agen baru + kode agen + joinCode reseller. Rekening dienkripsi. */
 export async function createAgent(input: CreateAgentInput) {
   const email = input.picEmail.trim().toLowerCase();
+  assertCommissionValue(input.commissionType, input.commissionValue);
   const dup = await prisma.agent.findUnique({ where: { picEmail: email } });
   if (dup) throw new Error("Email PIC agen sudah terdaftar");
 
@@ -89,6 +97,12 @@ export async function updateAgent(agentId: string, data: {
   const patch: Record<string, unknown> = {};
   if (data.commissionType) patch.commissionType = data.commissionType;
   if (data.commissionValue != null) patch.commissionValue = data.commissionValue;
+  if (data.commissionType || data.commissionValue != null) {
+    // Validasi terhadap tipe efektif (baru bila diubah, jika tidak ambil dari DB).
+    const eff = data.commissionType ?? (await prisma.agent.findUnique({ where: { id: agentId }, select: { commissionType: true } }))?.commissionType;
+    const val = data.commissionValue ?? (await prisma.agent.findUnique({ where: { id: agentId }, select: { commissionValue: true } }))?.commissionValue ?? 0;
+    if (eff) assertCommissionValue(eff, val);
+  }
   if (data.status) patch.status = data.status;
   if (data.taxStatus) patch.taxStatus = data.taxStatus;
   if (data.bankName !== undefined) patch.bankName = data.bankName.trim() || null;
@@ -158,14 +172,21 @@ export async function buildMonthlyPayouts(periodMonth: Date) {
   const results = [];
 
   for (const agent of agents) {
+    // Sapu SEMUA baris ACCRUED sampai periode ini (termasuk reversal menggantung dari
+    // bulan lampau — clawback §2.3: refund pasca-payout jadi pengurang bulan berikutnya).
     const rows = await prisma.commissionLedger.findMany({
-      where: { agentId: agent.id, periodMonth: periodStart, status: { in: ["ACCRUED"] } },
+      where: { agentId: agent.id, periodMonth: { lte: periodStart }, status: "ACCRUED" },
     });
-    const gross = rows.reduce((s, r) => s + r.agentAmountIdr, 0);
-    if (gross <= 0) continue; // net-negatif/nol digulung (tak buat payout)
+    if (rows.length === 0) continue;
 
-    const tax = computeTaxWithholding(gross, agent.taxStatus);
-    const net = netPayout(gross, 0, tax);
+    // Pisah positif (accrual) vs negatif (reversal menggantung) untuk transparansi.
+    const gross = rows.filter((r) => r.agentAmountIdr > 0).reduce((s, r) => s + r.agentAmountIdr, 0);
+    const deduction = rows.filter((r) => r.agentAmountIdr < 0).reduce((s, r) => s - r.agentAmountIdr, 0);
+    const netCommission = gross - deduction;
+    if (netCommission <= 0) continue; // net-negatif/nol digulung (baris tetap ACCRUED utk bulan depan)
+
+    const tax = computeTaxWithholding(netCommission, agent.taxStatus);
+    const net = netPayout(gross, deduction, tax);
 
     const existing = await prisma.agentPayout.findUnique({
       where: { agentId_periodMonth: { agentId: agent.id, periodMonth: periodStart } },
@@ -176,7 +197,7 @@ export async function buildMonthlyPayouts(periodMonth: Date) {
       const p = await tx.agentPayout.create({
         data: {
           agentId: agent.id, periodMonth: periodStart,
-          grossCommissionIdr: gross, taxWithheldIdr: tax, netPaidIdr: net, status: "DRAFT",
+          grossCommissionIdr: gross, deductionIdr: deduction, taxWithheldIdr: tax, netPaidIdr: net, status: "DRAFT",
         },
       });
       await tx.commissionLedger.updateMany({
@@ -190,9 +211,12 @@ export async function buildMonthlyPayouts(periodMonth: Date) {
   return results;
 }
 
-/** Tandai payout PAID (setelah owner transfer + catat bukti). */
+/** Tandai payout PAID (setelah owner transfer + catat bukti). Guard: hanya DRAFT/APPROVED. */
 export async function markPayoutPaid(payoutId: string, transferRef: string) {
   return prisma.$transaction(async (tx) => {
+    const current = await tx.agentPayout.findUnique({ where: { id: payoutId }, select: { status: true } });
+    if (!current) throw new Error("Pencairan tak ditemukan");
+    if (current.status === "PAID") throw new Error("Pencairan sudah lunas");
     const p = await tx.agentPayout.update({
       where: { id: payoutId },
       data: { status: "PAID", paidAt: new Date(), transferRef, approvedAt: new Date() },

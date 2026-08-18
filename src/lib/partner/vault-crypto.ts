@@ -5,8 +5,13 @@
 import crypto from "crypto";
 
 function key(): Buffer {
-  const secret = process.env.PARTNER_ENC_KEY || process.env.SESSION_SECRET || "";
+  const dedicated = process.env.PARTNER_ENC_KEY;
+  const secret = dedicated || process.env.SESSION_SECRET || "";
   if (!secret) throw new Error("PARTNER_ENC_KEY/SESSION_SECRET belum diset");
+  if (!dedicated && process.env.NODE_ENV === "production") {
+    // Fail-closed di produksi: rekening bank butuh kunci domain-terpisah (rotasi jelas).
+    throw new Error("PARTNER_ENC_KEY wajib diset di produksi (jangan pakai SESSION_SECRET untuk enkripsi rekening)");
+  }
   return crypto.createHash("sha256").update(secret).digest();
 }
 

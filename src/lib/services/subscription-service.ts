@@ -154,10 +154,16 @@ export async function processPaymentNotification(notif: {
     // KOMISI KEAGENAN (gagal-jujur: kegagalan komisi TAK mengganggu aktivasi tenant).
     try {
       const { accrueCommission } = await import("@/lib/partner/partner-service");
+      // Basis komisi = subtotal PRA-PAJAK (PPN diteruskan ke negara, bukan pendapatan Lumite).
+      const { getCompanyProfile, effectiveTaxPercent } = await import("@/lib/services/company-service");
+      const { getBillingPolicy } = await import("@/lib/billing/config");
+      const [company, policy] = await Promise.all([getCompanyProfile(), getBillingPolicy()]);
+      const taxPct = effectiveTaxPercent(company.isPkp, policy.taxPercent);
+      const commissionBase = taxPct > 0 ? Math.round(payment.amount / (1 + taxPct / 100)) : payment.amount;
       await accrueCommission({
         orderId: payment.orderId,
         tenantId: payment.tenantId,
-        grossIdr: payment.amount, // settlement (anti-tamper sudah dicek di atas)
+        grossIdr: commissionBase, // pra-pajak (bukan porsi PPN)
         monthsPaid: payment.periodMonths,
         settledAt: new Date(),
       });
