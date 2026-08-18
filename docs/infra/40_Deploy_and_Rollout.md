@@ -21,10 +21,24 @@ docker run --rm -v $PWD/mosquitto/config:/c eclipse-mosquitto:2 \
 
 ## 3. Jalankan
 ```bash
-docker compose up -d --build
-curl http://localhost:8080/health     # {ok:true,...}
-docker compose logs -f messaging-gateway
+# Cara termudah (idempoten, sekaligus swap+firewall+log-limit):
+export REPO_URL=<git-url>
+PROFILE=4gb bash provision.sh          # VPS 4GB (uji/pilot). Ganti PROFILE=8gb saat tumbuh.
+
+# Atau manual:
+docker compose --env-file infra.env.4gb up -d --build
+curl http://localhost:8080/health      # {ok:true,...}
+docker stats --no-stream               # pantau RAM aktual
 ```
+Profil resource:
+- **infra.env.4gb** — VPS 4GB (~Rp180rb/bln): gateway 2500m + mqtt 128m + bridge 192m ≈ 2,8GB
+  + OS ~600MB, sisa ~700MB + swap 2GB. Muat ~5-6 sesi WhatsApp (set WA_MAX_LIVE_SESSIONS=6).
+- **infra.env.8gb** — VPS 8GB (Rp269rb/bln): gateway 6g, muat ~15 sesi (WA_MAX_LIVE_SESSIONS=15).
+
+## 3a. Naik dari 4GB → 8GB TANPA migrasi
+1. Resize instance di panel BiznetGio (RAM 4→8GB) — reboot singkat, data volume tetap.
+2. Set `WA_MAX_LIVE_SESSIONS=15` di `apps/messaging-gateway/.env`.
+3. `docker compose --env-file infra.env.8gb up -d` — selesai. Tanpa pindah server, tanpa kehilangan sesi WA.
 
 ## 4. Tautkan sesi WA (per nomor/tenant)
 - App memanggil `POST /v1/wa/sessions/{externalId}/init` → dapat QR → user scan.

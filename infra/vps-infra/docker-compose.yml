@@ -1,20 +1,22 @@
-# VPS-INFRA — shared WhatsApp Gateway + Mosquitto MQTT untuk portofolio (12 SaaS).
-# Jalankan: docker compose up -d   (setelah isi .env dari .env.example masing-masing service)
-# Tiap service ber-LIMIT RAM + auto-restart. WA (Chromium) di-isolasi dari yang lain.
+# VPS-INFRA — shared WhatsApp Gateway + Mosquitto MQTT + iot-bridge (portofolio 12 SaaS).
+# SATU file untuk semua ukuran VPS: limit RAM & jumlah sesi dibaca dari .env (lihat infra.env.example).
+#   4GB (hemat, pilot):  GW_MEM_LIMIT=2500m GW_SHM=512m  (WA_MAX_LIVE_SESSIONS=6 di gateway .env)
+#   8GB (tumbuh):        GW_MEM_LIMIT=6g    GW_SHM=1gb   (WA_MAX_LIVE_SESSIONS=15)
+# Jalankan: docker compose --env-file infra.env up -d --build
 services:
   messaging-gateway:
     build: ../../apps/messaging-gateway
     restart: unless-stopped
     env_file: ../../apps/messaging-gateway/.env
     ports:
-      - "8080:8080"        # API gateway (taruh di belakang nginx+TLS di produksi)
+      - "8080:8080"                 # API gateway (di belakang nginx+TLS di produksi)
     volumes:
-      - wa_sessions:/data/.wwebjs_auth   # sesi WA persisten (tahan restart)
+      - wa_sessions:/data/.wwebjs_auth
     deploy:
       resources:
         limits:
-          memory: 6g       # batas armada Chromium; naikkan saat sesi WA bertambah
-    shm_size: "1gb"        # Chromium butuh /dev/shm cukup
+          memory: ${GW_MEM_LIMIT:-2500m}   # 4GB→2500m, 8GB→6g
+    shm_size: ${GW_SHM:-512m}              # Chromium /dev/shm; 4GB→512m, 8GB→1gb
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -25,8 +27,8 @@ services:
     image: eclipse-mosquitto:2
     restart: unless-stopped
     ports:
-      - "1883:1883"        # MQTT plain (batasi via firewall; TLS 8883 di produksi)
-      - "8883:8883"        # MQTT TLS (isi sertifikat di ./mosquitto/certs)
+      - "1883:1883"                 # MQTT plain (batasi firewall; TLS 8883 di produksi)
+      - "8883:8883"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - mosquitto_data:/mosquitto/data
@@ -34,7 +36,18 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256m
+          memory: ${MQTT_MEM_LIMIT:-128m}
+
+  iot-bridge:
+    build: ../../apps/iot-bridge
+    restart: unless-stopped
+    env_file: ../../apps/iot-bridge/.env
+    depends_on:
+      - mosquitto
+    deploy:
+      resources:
+        limits:
+          memory: ${BRIDGE_MEM_LIMIT:-192m}
 
 volumes:
   wa_sessions:

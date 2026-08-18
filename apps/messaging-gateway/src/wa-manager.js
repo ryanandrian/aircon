@@ -60,7 +60,17 @@ export class WaManager {
 
     const client = new Client({
       authStrategy: new LocalAuth({ clientId: sid.replace(/[^a-zA-Z0-9_-]/g, "_"), dataPath: SESSION_DIR }),
-      puppeteer: { headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"] },
+      puppeteer: {
+        headless: true,
+        args: [
+          "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage",
+          // Hemat RAM (penting untuk VPS kecil 4GB):
+          "--disable-gpu", "--no-first-run", "--no-zygote",
+          "--disable-extensions", "--disable-background-networking",
+          "--disable-default-apps", "--disable-sync", "--mute-audio",
+          "--js-flags=--max-old-space-size=256",
+        ],
+      },
     });
     const state = {
       client, ready: false, qr: null, qrDataUrl: null,
