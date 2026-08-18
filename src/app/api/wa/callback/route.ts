@@ -6,9 +6,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { getInfraSecrets } from "@/lib/services/infra-config-service";
 
-function authorized(req: NextRequest): boolean {
-  const secret = process.env.WA_GATEWAY_CALLBACK_SECRET;
+async function authorized(req: NextRequest): Promise<boolean> {
+  const { callbackSecret } = await getInfraSecrets();
+  const secret = callbackSecret || process.env.WA_GATEWAY_CALLBACK_SECRET;
   if (!secret) return false;
   const got = req.headers.get("x-callback-secret") ?? "";
   const a = Buffer.from(got);
@@ -17,7 +19,7 @@ function authorized(req: NextRequest): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  if (!authorized(req)) {
+  if (!(await authorized(req))) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   let body: Record<string, unknown>;

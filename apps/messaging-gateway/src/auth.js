@@ -14,7 +14,7 @@ export function loadApps() {
   }
   try {
     const arr = JSON.parse(raw);
-    return arr.map((a) => ({ id: String(a.id), key: String(a.key), webhook: a.webhook ? String(a.webhook) : null }));
+    return arr.map((a) => ({ id: String(a.id), key: String(a.key), webhook: a.webhook ? String(a.webhook) : null, policyUrl: a.policyUrl ? String(a.policyUrl) : null }));
   } catch (e) {
     console.error("[gateway] GATEWAY_APPS bukan JSON valid:", e.message);
     return [];

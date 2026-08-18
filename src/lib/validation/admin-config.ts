@@ -70,3 +70,27 @@ export const companyProfileSchema = z.object({
   finishUrl: z.string().trim().max(300).refine((v) => v === "" || /^https?:\/\//.test(v), "URL harus diawali http(s)://"),
 });
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;
+
+/** Konfigurasi infra WhatsApp Gateway + MQTT (editable admin). */
+export const infraConfigSchema = z.object({
+  waGatewayUrl: z.string().trim().max(300).refine((v) => v === "" || /^https?:\/\//.test(v), "URL harus http(s)://"),
+  waGatewayKey: z.string().trim().max(200).optional().or(z.literal("")),
+  waCallbackSecret: z.string().trim().max(200).optional().or(z.literal("")),
+  waMinGapMs: z.number().int().min(0).max(600000),
+  waMaxGapMs: z.number().int().min(0).max(600000),
+  waMaxPerMin: z.number().int().min(1).max(120),
+  waMaxPerDay: z.number().int().min(1).max(100000),
+  waWarmupEnabled: z.boolean(),
+  waWarmupDays: z.number().int().min(0).max(60),
+  waWarmupDay1Cap: z.number().int().min(1).max(10000),
+  waQuietStartHour: z.number().int().min(0).max(23),
+  waQuietEndHour: z.number().int().min(0).max(23),
+  waTzOffset: z.number().int().min(-12).max(14),
+  waMaxLiveSessions: z.number().int().min(1).max(1000),
+  waIdleEvictMs: z.number().int().min(60000).max(86400000),
+  mqttBrokerHost: z.string().trim().max(200),
+  mqttBrokerPort: z.number().int().min(1).max(65535),
+  mqttTlsEnabled: z.boolean(),
+  mqttTopicPrefix: z.string().trim().min(1).max(40).regex(/^[a-zA-Z0-9_-]+$/, "Hanya huruf/angka/_/-"),
+}).refine((v) => v.waMaxGapMs >= v.waMinGapMs, { message: "Jeda maks harus >= jeda min", path: ["waMaxGapMs"] });
+export type InfraConfigFormInput = z.infer<typeof infraConfigSchema>;

@@ -28,6 +28,18 @@ export const policy = {
   idleEvictMs: Number(process.env.WA_IDLE_EVICT_MS ?? 30 * 60 * 1000), // 30 mnt idle → tutup
 };
 
+/**
+ * Terapkan policy dari admin app (di-pull via /api/wa/policy) MENIMPA default ENV.
+ * Hanya field yang valid (angka/boolean) yang ditimpa; sisanya tetap.
+ */
+export function applyPolicyOverride(p) {
+  if (!p || typeof p !== "object") return;
+  const numKeys = ["minGapMs","maxGapMs","maxPerMin","maxPerDay","warmupDays","warmupDay1Cap",
+    "quietStartHour","quietEndHour","quietTzOffset","maxLiveSessions","idleEvictMs"];
+  for (const k of numKeys) if (Number.isFinite(p[k])) policy[k] = Number(p[k]);
+  if (typeof p.warmupEnabled === "boolean") policy.warmupEnabled = p.warmupEnabled;
+}
+
 /** Apakah SEKARANG jam tenang? (kirim ditunda ke jam aktif) */
 export function isQuietHour(now = new Date()) {
   const h = (now.getUTCHours() + policy.quietTzOffset + 24) % 24;

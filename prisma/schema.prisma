@@ -692,6 +692,37 @@ model CompanyProfile {
   updatedAt     DateTime @updatedAt
 }
 
+// Konfigurasi infra WhatsApp Gateway + MQTT — EDITABLE ADMIN (no hardcode).
+// Singleton. Secret (key/callback) disimpan TERENKRIPSI (AES-256-GCM via PARTNER_ENC_KEY).
+// Anti-ban policy di-pull gateway per-app (endpoint /api/wa/policy) → perubahan admin berlaku.
+model InfraConfig {
+  id                String   @id @default("singleton")
+  // --- WhatsApp Gateway (koneksi) ---
+  waGatewayUrl      String   @default("")   // mis. https://gateway.domain
+  waGatewayKeyEnc   String?                 // API key aircon di gateway (terenkripsi)
+  waCallbackSecretEnc String?               // secret verifikasi callback (terenkripsi)
+  // --- Anti-ban policy (di-pull gateway) ---
+  waMinGapMs        Int      @default(6000)
+  waMaxGapMs        Int      @default(15000)
+  waMaxPerMin       Int      @default(8)
+  waMaxPerDay       Int      @default(200)
+  waWarmupEnabled   Boolean  @default(true)
+  waWarmupDays      Int      @default(7)
+  waWarmupDay1Cap   Int      @default(20)
+  waQuietStartHour  Int      @default(21)
+  waQuietEndHour    Int      @default(7)
+  waTzOffset        Int      @default(7)
+  waMaxLiveSessions Int      @default(20)
+  waIdleEvictMs     Int      @default(1800000)
+  // --- MQTT / IoT ---
+  mqttBrokerHost    String   @default("")
+  mqttBrokerPort    Int      @default(8883)
+  mqttTlsEnabled    Boolean  @default(true)
+  mqttTopicPrefix   String   @default("aircon")
+  updatedBy         String?
+  updatedAt         DateTime @updatedAt
+}
+
 
 // ================= CONFIG (DB-DRIVEN, EDITABLE ADMIN — NO HARDCODE) =================
 

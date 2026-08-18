@@ -12,6 +12,7 @@ const NAV = [
   { href: "/admin/perusahaan", label: "Profil Perusahaan" },
   { href: "/admin/iot", label: "Produk & Pesanan IoT" },
   { href: "/admin/keagenan", label: "Program Keagenan" },
+  { href: "/admin/infra", label: "Konfigurasi Infra" },
 ];
 
 /**

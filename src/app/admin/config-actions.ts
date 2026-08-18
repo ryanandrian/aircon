@@ -147,3 +147,39 @@ export async function actionUpdateCompany(fd: FormData): Promise<ActionResult> {
     return { ok: false, error: "Gagal menyimpan profil perusahaan." };
   }
 }
+
+export async function actionUpdateInfra(fd: FormData): Promise<ActionResult> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const { infraConfigSchema } = await import("@/lib/validation/admin-config");
+    const { updateInfraConfig } = await import("@/lib/services/infra-config-service");
+    const parsed = infraConfigSchema.safeParse({
+      waGatewayUrl: String(fd.get("waGatewayUrl") ?? ""),
+      waGatewayKey: String(fd.get("waGatewayKey") ?? ""),
+      waCallbackSecret: String(fd.get("waCallbackSecret") ?? ""),
+      waMinGapMs: num(fd, "waMinGapMs"),
+      waMaxGapMs: num(fd, "waMaxGapMs"),
+      waMaxPerMin: num(fd, "waMaxPerMin"),
+      waMaxPerDay: num(fd, "waMaxPerDay"),
+      waWarmupEnabled: boolean(fd, "waWarmupEnabled"),
+      waWarmupDays: num(fd, "waWarmupDays"),
+      waWarmupDay1Cap: num(fd, "waWarmupDay1Cap"),
+      waQuietStartHour: num(fd, "waQuietStartHour"),
+      waQuietEndHour: num(fd, "waQuietEndHour"),
+      waTzOffset: num(fd, "waTzOffset"),
+      waMaxLiveSessions: num(fd, "waMaxLiveSessions"),
+      waIdleEvictMs: num(fd, "waIdleEvictMs"),
+      mqttBrokerHost: String(fd.get("mqttBrokerHost") ?? ""),
+      mqttBrokerPort: num(fd, "mqttBrokerPort"),
+      mqttTlsEnabled: boolean(fd, "mqttTlsEnabled"),
+      mqttTopicPrefix: String(fd.get("mqttTopicPrefix") ?? "aircon"),
+    });
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+    await updateInfraConfig(parsed.data, admin.email);
+    revalidatePath("/admin/infra");
+    return { ok: true };
+  } catch (err) {
+    console.error("[actionUpdateInfra]", err);
+    return { ok: false, error: "Gagal menyimpan konfigurasi infra." };
+  }
+}

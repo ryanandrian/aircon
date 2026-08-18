@@ -24,10 +24,28 @@
 import express from "express";
 import { WaManager } from "./wa-manager.js";
 import { loadApps, authMiddleware } from "./auth.js";
+import { applyPolicyOverride } from "./policy.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
-const apps = loadApps(); // registry app + API key + webhook URL
+const apps = loadApps(); // registry app + API key + webhook + policyUrl
 const wa = new WaManager({ apps });
+
+/**
+ * Sinkron policy anti-ban dari admin app (di-pull berkala) → perubahan admin di panel
+ * aplikasi berlaku di gateway TANPA redeploy. Tiap app boleh punya policyUrl sendiri.
+ */
+const POLICY_SYNC_MS = Number(process.env.WA_POLICY_SYNC_MS ?? 60000);
+async function syncPolicies() {
+  for (const a of apps) {
+    if (!a.policyUrl) continue;
+    try {
+      const r = await fetch(a.policyUrl, { headers: { "X-Api-Key": a.key } });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (data?.policy) applyPolicyOverride(data.policy);
+    } catch (e) { console.error(`[gateway] sync policy ${a.id} gagal:`, e.message); }
+  }
+}
 
 const server = express();
 server.use(express.json({ limit: "1mb" }));
@@ -73,4 +91,7 @@ server.delete("/v1/wa/sessions/:externalId", async (req, res) => {
 server.listen(PORT, () => {
   console.log(`[gateway] listening :${PORT} — ${apps.length} app terdaftar`);
   wa.start();
+  // Sinkron policy admin di awal + berkala.
+  syncPolicies();
+  setInterval(syncPolicies, POLICY_SYNC_MS);
 });
