@@ -100,6 +100,7 @@ export class WaManager {
     });
     client.on("message", async (msg) => {
       const from = String(msg.from).replace(/@c\.us$/, "");
+      console.log(`[gateway] INBOUND ${from} → ${sid}`);
       await this._callback(appId, { type: "inbound", externalId, fromPhone: from, body: msg.body ?? "" });
     });
 
@@ -189,9 +190,17 @@ export class WaManager {
         if (st.dayCount >= cap) { remaining.push(m); continue; }      // plafon harian / warm-up
         if (!this._underRate(st)) { remaining.push(m); continue; }     // batas per-menit
         try {
-          await st.client.sendMessage(chatId(m.toPhone), m.message);
+          // Validasi nomor terdaftar di WhatsApp (cegah "SENT" palsu ke nomor non-WA / self).
+          const numberId = await st.client.getNumberId(String(m.toPhone).replace(/[^0-9]/g, ""));
+          if (!numberId) {
+            await this._callback(m.appId, { type: "failed", externalId: m.externalId, messageId: m.id, error: "Nomor tidak terdaftar di WhatsApp" });
+            console.error(`[gateway] FAILED ${m.id}: nomor ${m.toPhone} tidak terdaftar di WhatsApp`);
+            continue;
+          }
+          await st.client.sendMessage(numberId._serialized, m.message);
           st.sentTimestamps.push(Date.now());
           st.dayCount += 1; st.lastUsed = Date.now();
+          console.log(`[gateway] SENT ${m.id} → ${m.toPhone} (${sid})`);
           await this._callback(m.appId, { type: "sent", externalId: m.externalId, messageId: m.id, toPhone: m.toPhone });
         } catch (e) {
           await this._callback(m.appId, { type: "failed", externalId: m.externalId, messageId: m.id, error: e.message });
