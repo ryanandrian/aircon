@@ -47,3 +47,4 @@ next-env.d.ts
 # wa-worker
 apps/wa-worker/.wwebjs_auth/
 apps/wa-worker/node_modules/
+.secrets/
