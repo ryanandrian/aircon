@@ -1,0 +1,22 @@
+[Unit]
+Description=Aircon Messaging Gateway (WhatsApp) — shared portfolio gateway
+After=network.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+User=rad4ssh
+WorkingDirectory=/home/rad4ssh/infra/messaging-gateway
+EnvironmentFile=/home/rad4ssh/infra/messaging-gateway/.env
+ExecStart=/usr/bin/node src/server.js
+Restart=always
+RestartSec=5
+# Batas RAM (pengganti Docker limit) — profil VPS 4GB. VPS 8GB: naikkan ke 6G/5.5G.
+MemoryMax=2500M
+MemoryHigh=2200M
+# Hardening dasar
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

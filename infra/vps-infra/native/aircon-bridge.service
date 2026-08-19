@@ -1,0 +1,20 @@
+[Unit]
+Description=Aircon IoT Bridge (MQTT -> HTTP ingest)
+After=network.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+User=rad4ssh
+WorkingDirectory=/home/rad4ssh/infra/iot-bridge
+EnvironmentFile=/home/rad4ssh/infra/iot-bridge/.env
+# Node 20 tak dukung --experimental-strip-types → jalankan index.mjs (transpiled).
+ExecStart=/usr/bin/node index.mjs
+Restart=always
+RestartSec=5
+MemoryMax=256M
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
