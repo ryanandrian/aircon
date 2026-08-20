@@ -46,8 +46,21 @@ Profil resource:
 - Sesi tersimpan di volume `wa_sessions` (tahan restart).
 
 ## 5. Produksi: nginx + TLS di depan gateway
-Pasang nginx reverse-proxy `gateway.<domain>` → `localhost:8080`, TLS via certbot.
-Batasi akses `/v1` ke IP VPS-APP / Vercel egress bila memungkinkan (defense in depth).
+Pasang nginx reverse-proxy `gw.<domain>` → `localhost:8080`, TLS via certbot (Let's Encrypt gratis).
+Template: `infra/vps-infra/native/gw.conf`. Contoh live aircon (gw.lumite.biz.id):
+```bash
+# DNS: buat A record gw.<domain> -> <IP VPS> (di panel DNS domain, mis. idcloudhost)
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo cp gw.conf /etc/nginx/sites-available/gw.conf
+sudo ln -sf /etc/nginx/sites-available/gw.conf /etc/nginx/sites-enabled/gw.conf
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d gw.<domain> --agree-tos -m info@<domain> --redirect  # SSL gratis + auto-renew
+# Setelah HTTPS aktif, tutup akses langsung ke 8080 (hanya via nginx):
+sudo ufw delete allow 8080/tcp
+```
+SSL sub-domain (gw.) TIDAK bentrok dengan cert domain utama (beda hostname, beda server).
+Lalu set `WA_GATEWAY_URL=https://gw.<domain>` di ENV app + redeploy.
 
 ## 6. Monitoring & pemeliharaan
 - Healthcheck compose sudah aktif (restart bila mati).
