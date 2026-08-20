@@ -87,6 +87,7 @@ export default async function AppDashboard() {
             <NavCard href="/t" icon="📱" title="Mode Teknisi" desc="Kerjakan job di lapangan" />
             <NavCard href="/app/langganan" icon="💳" title="Langganan" desc="Paket & pembayaran" />
             <NavCard href="/app/pesan" icon="💬" title="Template Pesan" desc="Atur pesan WA ke pelanggan" />
+            <NavCard href="/app/checklist" icon="✅" title="Checklist Servis" desc="Langkah kerja teknisi" />
             <NavCard href={`/p/${tenant?.slug ?? ""}`} icon="🌐" title="Halaman Usaha" desc="Terima booking online" external />
           </div>
         </section>
