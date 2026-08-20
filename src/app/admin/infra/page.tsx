@@ -25,6 +25,7 @@ export default async function AdminInfraPage() {
           waMaxLiveSessions: c.waMaxLiveSessions, waIdleEvictMs: c.waIdleEvictMs,
           mqttBrokerHost: c.mqttBrokerHost, mqttBrokerPort: c.mqttBrokerPort,
           mqttTlsEnabled: c.mqttTlsEnabled, mqttTopicPrefix: c.mqttTopicPrefix,
+          iotOvercurrentA: c.iotOvercurrentA, iotNoCoolTempC: c.iotNoCoolTempC, iotOfflineMinutes: c.iotOfflineMinutes,
           updatedAt: c.updatedAt.toISOString(),
         }}
       />

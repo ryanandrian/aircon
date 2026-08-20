@@ -68,6 +68,8 @@ export async function actionUpdatePolicy(fd: FormData): Promise<ActionResult> {
       daysBeforeDelete: num(fd, "daysBeforeDelete"),
       dunningReminderDays: String(fd.get("dunningReminderDays") ?? ""),
       deleteWarningDay: num(fd, "deleteWarningDay"),
+      dunningReminderTemplate: String(fd.get("dunningReminderTemplate") ?? ""),
+      dunningWarningTemplate: String(fd.get("dunningWarningTemplate") ?? ""),
     });
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
     await updateBillingPolicy(parsed.data, admin.email);
@@ -173,6 +175,9 @@ export async function actionUpdateInfra(fd: FormData): Promise<ActionResult> {
       mqttBrokerPort: num(fd, "mqttBrokerPort"),
       mqttTlsEnabled: boolean(fd, "mqttTlsEnabled"),
       mqttTopicPrefix: String(fd.get("mqttTopicPrefix") ?? "aircon"),
+      iotOvercurrentA: num(fd, "iotOvercurrentA"),
+      iotNoCoolTempC: num(fd, "iotNoCoolTempC"),
+      iotOfflineMinutes: num(fd, "iotOfflineMinutes"),
     });
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
     await updateInfraConfig(parsed.data, admin.email);

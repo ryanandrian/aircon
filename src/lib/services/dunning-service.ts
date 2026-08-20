@@ -88,7 +88,12 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
   return summary;
 }
 
-/** Antre pesan pengingat tunggakan ke wa-worker (MessageLog QUEUED). */
+/** Ganti placeholder {kunci} (single brace) — dipakai template dunning dari BillingPolicy. */
+function fillSingle(tpl: string, vars: Record<string, string>): string {
+  return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+}
+
+/** Antre pesan pengingat tunggakan ke antrean WA (MessageLog QUEUED). Template dari BillingPolicy (editable admin). */
 async function queueDunningReminder(
   tenantId: string,
   toPhone: string,
@@ -98,18 +103,10 @@ async function queueDunningReminder(
   deleteWarningDay: number,
 ): Promise<void> {
   const sisaHapus = Math.max(daysBeforeDelete - late, 0);
-  let body: string;
-  if (late >= deleteWarningDay) {
-    body = renderTemplate(
-      "Halo {nama}, langganan Aircon Anda menunggak {telat} hari. PERINGATAN: bila tidak dibayar dalam {sisa} hari lagi, data usaha Anda akan dihapus permanen. Segera perpanjang untuk menghindari kehilangan data.",
-      { nama: tenantName, telat: String(late), sisa: String(sisaHapus) },
-    );
-  } else {
-    body = renderTemplate(
-      "Halo {nama}, langganan Aircon Anda jatuh tempo dan menunggak {telat} hari. Mohon segera perpanjang agar layanan tidak terputus.",
-      { nama: tenantName, telat: String(late) },
-    );
-  }
+  const policy = await getBillingPolicy();
+  const vars = { nama: tenantName, telat: String(late), sisa: String(sisaHapus) };
+  const tpl = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
+  const body = fillSingle(tpl, vars);
 
   await prisma.messageLog.create({
     data: {

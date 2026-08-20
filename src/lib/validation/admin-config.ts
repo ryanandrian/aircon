@@ -32,6 +32,8 @@ export const billingPolicySchema = z
       .trim()
       .regex(/^(\d+)(\s*,\s*\d+)*$/, "Format harus angka dipisah koma, mis. 0,1,3"),
     deleteWarningDay: z.number().int().min(0),
+    dunningReminderTemplate: z.string().trim().min(10).max(1000),
+    dunningWarningTemplate: z.string().trim().min(10).max(1000),
   })
   .refine((d) => d.daysBeforeDelete > d.graceDaysBeforeSuspend, {
     message: "Hari hapus harus lebih besar dari hari suspend",
@@ -92,5 +94,8 @@ export const infraConfigSchema = z.object({
   mqttBrokerPort: z.number().int().min(1).max(65535),
   mqttTlsEnabled: z.boolean(),
   mqttTopicPrefix: z.string().trim().min(1).max(40).regex(/^[a-zA-Z0-9_-]+$/, "Hanya huruf/angka/_/-"),
+  iotOvercurrentA: z.number().min(0).max(1000),
+  iotNoCoolTempC: z.number().min(0).max(100),
+  iotOfflineMinutes: z.number().int().min(1).max(1440),
 }).refine((v) => v.waMaxGapMs >= v.waMinGapMs, { message: "Jeda maks harus >= jeda min", path: ["waMaxGapMs"] });
 export type InfraConfigFormInput = z.infer<typeof infraConfigSchema>;

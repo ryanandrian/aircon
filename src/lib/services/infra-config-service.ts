@@ -30,6 +30,7 @@ export interface InfraConfigInput {
   waQuietStartHour: number; waQuietEndHour: number; waTzOffset: number;
   waMaxLiveSessions: number; waIdleEvictMs: number;
   mqttBrokerHost: string; mqttBrokerPort: number; mqttTlsEnabled: boolean; mqttTopicPrefix: string;
+  iotOvercurrentA: number; iotNoCoolTempC: number; iotOfflineMinutes: number;
 }
 
 /** PLATFORM-ADMIN-ONLY. Perbarui config. Secret hanya ditimpa bila diisi. */
@@ -43,6 +44,7 @@ export async function updateInfraConfig(input: InfraConfigInput, adminEmail: str
     waMaxLiveSessions: input.waMaxLiveSessions, waIdleEvictMs: input.waIdleEvictMs,
     mqttBrokerHost: input.mqttBrokerHost.trim(), mqttBrokerPort: input.mqttBrokerPort,
     mqttTlsEnabled: input.mqttTlsEnabled, mqttTopicPrefix: input.mqttTopicPrefix.trim(),
+    iotOvercurrentA: input.iotOvercurrentA, iotNoCoolTempC: input.iotNoCoolTempC, iotOfflineMinutes: input.iotOfflineMinutes,
     updatedBy: adminEmail,
   };
   if (input.waGatewayKey && input.waGatewayKey.trim()) data.waGatewayKeyEnc = encryptSecret(input.waGatewayKey.trim());

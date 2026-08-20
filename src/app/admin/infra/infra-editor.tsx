@@ -11,6 +11,7 @@ interface Initial {
   waQuietStartHour: number; waQuietEndHour: number; waTzOffset: number;
   waMaxLiveSessions: number; waIdleEvictMs: number;
   mqttBrokerHost: string; mqttBrokerPort: number; mqttTlsEnabled: boolean; mqttTopicPrefix: string;
+  iotOvercurrentA: number; iotNoCoolTempC: number; iotOfflineMinutes: number;
   updatedAt: string;
 }
 
@@ -91,6 +92,17 @@ export function InfraEditor({ initial }: { initial: Initial }) {
             <input type="checkbox" name="mqttTlsEnabled" defaultChecked={initial.mqttTlsEnabled} className="h-4 w-4" />
             Gunakan TLS (disarankan)
           </label>
+        </div>
+      </section>
+
+      {/* Ambang deteksi IoT */}
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="font-semibold text-slate-900">Ambang Deteksi Alert IoT</h2>
+        <p className="mt-1 text-xs text-slate-500">Batas telemetry yang memicu peluang servis. Sesuaikan dengan karakter unit AC pelanggan.</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <Num name="iotOvercurrentA" label="Arus berlebih (Ampere)" v={initial.iotOvercurrentA} />
+          <Num name="iotNoCoolTempC" label="Suhu tak mendingin (°C)" v={initial.iotNoCoolTempC} />
+          <Num name="iotOfflineMinutes" label="Offline setelah (menit)" v={initial.iotOfflineMinutes} />
         </div>
       </section>
 

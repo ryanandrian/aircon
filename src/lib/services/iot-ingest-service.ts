@@ -7,6 +7,17 @@
 import { prisma } from "@/lib/prisma";
 import { detectAlert, DEFAULT_THRESHOLDS, type AlertThresholds } from "@/lib/iot/alert-detection";
 
+/** Ambil ambang deteksi dari InfraConfig (editable admin). Fallback ke default bila belum ada. */
+export async function getIotThresholds(): Promise<AlertThresholds> {
+  const c = await prisma.infraConfig.findUnique({ where: { id: "singleton" } });
+  if (!c) return DEFAULT_THRESHOLDS;
+  return {
+    overcurrentA: c.iotOvercurrentA,
+    noCoolingTempC: c.iotNoCoolTempC,
+    runningMinA: DEFAULT_THRESHOLDS.runningMinA,
+  };
+}
+
 export interface IngestSample {
   deviceId: string;
   ts?: string | number;
@@ -27,7 +38,8 @@ export interface IngestResult {
  * Proses satu sample telemetry.
  * SECURITY: deviceId harus terdaftar & terhubung ke tenant (device.tenantId).
  */
-export async function ingestTelemetry(sample: IngestSample, th: AlertThresholds = DEFAULT_THRESHOLDS): Promise<IngestResult> {
+export async function ingestTelemetry(sample: IngestSample, th?: AlertThresholds): Promise<IngestResult> {
+  const thresholds = th ?? await getIotThresholds();
   const device = await prisma.device.findUnique({
     where: { id: sample.deviceId },
     select: { id: true, tenantId: true, assetId: true },
@@ -57,7 +69,7 @@ export async function ingestTelemetry(sample: IngestSample, th: AlertThresholds 
   ]);
 
   // Deteksi anomali.
-  const detected = detectAlert(sample, th);
+  const detected = detectAlert(sample, thresholds);
   if (!detected || !device.tenantId) return { stored: true, alertOpened: null };
 
   // Anti-spam: sudah ada Alert OPEN dgn tipe sama utk device ini? jangan duplikat.

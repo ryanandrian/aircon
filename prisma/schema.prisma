@@ -720,6 +720,10 @@ model InfraConfig {
   mqttBrokerPort    Int      @default(8883)
   mqttTlsEnabled    Boolean  @default(true)
   mqttTopicPrefix   String   @default("aircon")
+  // Ambang deteksi alert IoT (editable admin, no hardcode)
+  iotOvercurrentA   Float    @default(10)   // arus (A) di atas ini = alert overcurrent
+  iotNoCoolTempC    Float    @default(30)   // suhu keluar (°C) di atas ini + AC nyala = tak mendingin
+  iotOfflineMinutes Int      @default(30)   // tak ada telemetry > N menit = offline
   updatedBy         String?
   updatedAt         DateTime @updatedAt
 }
@@ -759,6 +763,9 @@ model BillingPolicy {
   // Jadwal reminder WA (hari keterlambatan saat reminder dikirim), mis "0,1,3"
   dunningReminderDays   String   @default("0,1,3")
   deleteWarningDay      Int      @default(3) // reminder khusus peringatan hapus di hari ke-N
+  // Template pesan penagihan (platform->tenant). Placeholder: {nama} {telat} {sisa}. Editable admin.
+  dunningReminderTemplate String @default("Halo {nama}, langganan Aircon Anda jatuh tempo dan menunggak {telat} hari. Mohon segera perpanjang agar layanan tidak terputus.")
+  dunningWarningTemplate  String @default("Halo {nama}, langganan Aircon Anda menunggak {telat} hari. PERINGATAN: bila tidak dibayar dalam {sisa} hari lagi, data usaha Anda akan dihapus permanen. Segera perpanjang untuk menghindari kehilangan data.")
   updatedAt             DateTime @updatedAt
   updatedBy             String?
 }

@@ -30,6 +30,8 @@ describe("planConfigSchema", () => {
 const validPolicy = {
   taxPercent: 11, trialDays: 14, graceDaysBeforeSuspend: 1,
   daysBeforeDelete: 7, dunningReminderDays: "0,1,3", deleteWarningDay: 3,
+  dunningReminderTemplate: "Halo {nama}, tagihan menunggak {telat} hari.",
+  dunningWarningTemplate: "Halo {nama}, menunggak {telat} hari, sisa {sisa} hari sebelum data dihapus.",
 };
 
 describe("billingPolicySchema", () => {

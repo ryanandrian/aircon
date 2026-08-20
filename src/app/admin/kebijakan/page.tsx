@@ -22,6 +22,8 @@ export default async function AdminKebijakanPage() {
           daysBeforeDelete: p.daysBeforeDelete,
           dunningReminderDays: p.dunningReminderDays,
           deleteWarningDay: p.deleteWarningDay,
+          dunningReminderTemplate: p.dunningReminderTemplate,
+          dunningWarningTemplate: p.dunningWarningTemplate,
         }}
         updatedBy={p.updatedBy}
       />

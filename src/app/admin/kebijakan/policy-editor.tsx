@@ -10,6 +10,8 @@ interface Initial {
   daysBeforeDelete: number;
   dunningReminderDays: string;
   deleteWarningDay: number;
+  dunningReminderTemplate: string;
+  dunningWarningTemplate: string;
 }
 
 export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updatedBy: string | null }) {
@@ -56,6 +58,19 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
         <div>
           <label className={label}>Jadwal pengingat (hari)</label>
           <input name="dunningReminderDays" defaultValue={initial.dunningReminderDays} className={field} placeholder="0,1,3" />
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm font-medium text-slate-700">Template Pesan Penagihan (WhatsApp ke owner tenant)</p>
+        <p className="text-xs text-slate-500">Placeholder: {"{nama}"} = nama usaha, {"{telat}"} = hari menunggak, {"{sisa}"} = sisa hari sebelum data dihapus.</p>
+        <div>
+          <label className={label}>Pengingat biasa</label>
+          <textarea name="dunningReminderTemplate" defaultValue={initial.dunningReminderTemplate} rows={2} className={field} />
+        </div>
+        <div>
+          <label className={label}>Peringatan hapus data (mendekati batas)</label>
+          <textarea name="dunningWarningTemplate" defaultValue={initial.dunningWarningTemplate} rows={2} className={field} />
         </div>
       </div>
 
