@@ -162,6 +162,7 @@ enum MessageDir {
 
 enum MessageStatus {
   QUEUED
+  SENDING
   SENT
   DELIVERED
   FAILED

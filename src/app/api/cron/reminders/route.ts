@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { runDueRemindersAllTenants } from "@/lib/services/reminder-service";
+import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -24,7 +25,9 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   }
   try {
     const result = await runDueRemindersAllTenants();
-    return NextResponse.json({ ok: true, ...result });
+    // Flush antrean WA (reminder + dunning) ke gateway. Menutup money loop end-to-end.
+    const dispatch = await flushQueuedMessages();
+    return NextResponse.json({ ok: true, ...result, dispatch });
   } catch (err) {
     console.error("[cron/reminders] gagal:", err);
     return NextResponse.json({ error: "Gagal menjalankan reminders" }, { status: 500 });
