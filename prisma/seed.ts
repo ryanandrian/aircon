@@ -74,6 +74,27 @@ async function main() {
   await prisma.asset.update({ where: { id: asset.id }, data: { nextServiceDate: nextService } });
   console.log("Job COMPLETED:", job.id, "-> next service:", nextService.toISOString().slice(0, 10));
 
+  // RepeatReminder yang JATUH TEMPO hari ini (agar bagian Money Loop di /demo terisi).
+  const dueRem = new Date(); dueRem.setDate(dueRem.getDate() - 1); // due kemarin
+  await prisma.repeatReminder.create({
+    data: { tenantId: tenant.id, assetId: asset.id, dueDate: dueRem, leadTimeDays: 0, status: "QUEUED" },
+  });
+
+  // Customer & unit kedua + pekerjaan berjalan (agar daftar job & metrik lebih hidup).
+  const cust2 = await prisma.customer.create({
+    data: { tenantId: tenant.id, name: "Bpk. Hendra", phone: "628222000002", address: "Jl. Anggrek No.7", source: "WEBSITE", geoLat: -6.21, geoLng: 106.82 },
+  });
+  const asset2 = await prisma.asset.create({
+    data: { tenantId: tenant.id, customerId: cust2.id, brand: "Panasonic", type: "SPLIT", capacityPk: 2, roomLocation: "Kantor", maintenanceIntervalDays: 90 },
+  });
+  await prisma.jobOrder.create({
+    data: {
+      tenantId: tenant.id, customerId: cust2.id, assetId: asset2.id, technicianId: tech.id,
+      serviceType: "REPAIR", status: "ASSIGNED", source: "WEBSITE", price: 250000, createdById: owner.id,
+    },
+  });
+  console.log("Data tambahan: customer+unit+job kedua, 1 pengingat due.");
+
   console.log("\nSEED OK. Tenant demo siap untuk uji money loop.");
 }
 
