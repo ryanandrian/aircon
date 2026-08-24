@@ -1,0 +1,80 @@
+# PETA KONDISI AIRCON — Status & Rencana Lanjutan (SUMBER KEBENARAN)
+
+> Dokumen tunggal untuk melanjutkan dengan aman kapan pun. Diperbarui tiap milestone.
+> Terakhir diperbarui: 20 Agustus 2026. Commit HEAD saat ditulis: a811971.
+> Jika sesi baru: BACA FILE INI DULU untuk tahu persis di mana kita berhenti.
+
+## 1. RINGKAS SATU PARAGRAF
+Aircon (AC Service Growth OS) — SaaS PWA multi-tenant untuk usaha servis AC kecil Indonesia,
+Digital Asset #1 dari "12 SaaS/tahun". Aplikasi LIVE di Vercel, infrastruktur WhatsApp+MQTT
+LIVE di VPS BiznetGio (systemd-native, tanpa Docker), HTTPS via gw.lumite.biz.id. Progress
+menuju go-komersial ~93%. Sisa mayoritas = konfigurasi eksternal + validasi pilot, bukan coding.
+
+## 2. YANG SUDAH LIVE & TERBUKTI
+- App produksi: https://aircon-peach.vercel.app (Vercel Hobby, project aircon, team lumite1)
+- DB: Supabase Tokyo (ref ksvdjtzfpictmwuksmuu)
+- Gateway WhatsApp: https://gw.lumite.biz.id (HTTPS Let's Encrypt, auto-renew, port 8080 ditutup)
+- VPS-INFRA: 103.127.138.16 (rad4ssh, key ~/.ssh/aircon-ssh.pem) — 3 service systemd aktif+enabled:
+  mosquitto, aircon-gateway (:8080, MemoryMax 2500M), aircon-bridge. Swap 2GB. RAM idle ~275MB.
+- WhatsApp TERBUKTI dua-arah: kirim (money loop) + terima balasan, nomor pilot 085880181816
+  tertaut (sesi persisten, reconnect tanpa QR ulang). Nomor tujuan uji: 6281284848901.
+- S3 BiznetGio NEO AKTIF: bucket aircon, endpoint https://nos.jkt-1.neo.id, region idn,
+  path-style. Teruji upload/GET/delete. 7 env di Vercel.
+- Money loop end-to-end: cron reminders -> MessageLog QUEUED -> flusher -> gateway -> WA. Terbukti
+  (MessageLog SENT + gatewayMessageId nyata).
+- Tenant demo di-seed: /demo hidup (AC Jaya Demo, 2 pelanggan, money loop terisi).
+- Kualitas: 177 test lulus, tsc 0, build hijau. Review keamanan independen tiap batch.
+
+## 3. FITUR SELESAI (per domain)
+- Inti: multi-tenant, onboarding, 4 peran (owner Google SSO / admin / teknisi phone+PIN / customer booking publik)
+- Job Order FSM + app teknisi (checklist, foto S3, timeline) + kuota per paket
+- Billing Midtrans (langganan + IoT jual-putus) — MASIH SANDBOX; PPN PKP-aware; faktur/kwitansi
+- Dunning otomatis + teks penagihan editable admin
+- Program keagenan LENGKAP: F1 mesin uang (komisi/clawback/PPh) + F2/F3 portal agen & reseller + CSV
+- IoT: ingest + deteksi alert (ambang editable admin) + 1-tap buat pekerjaan
+- Shared WA+MQTT gateway multi-app (untuk 12-SaaS) + dokumentasi developer (docs/infra/)
+- No-hardcode 100%: semua aturan bisnis DB-driven + editable admin (paket, kebijakan, infra,
+  keagenan, perusahaan, IoT, template WA tenant /app/pesan, checklist /app/checklist)
+
+## 4. YANG BELUM SELESAI (prioritas menuju go-komersial)
+### KRITIS (butuh input/keputusan owner)
+1. Midtrans PRODUCTION — masih sandbox. Perlu: Server Key + Client Key + Merchant ID mode
+   Production dari dashboard Midtrans. Lalu ganti env Vercel + uji 1 transaksi nyata. (~2 jam)
+2. Warm-up nomor WA — 7 hari (by-design pelan agar tak diblokir). Mulai setelah nomor bisnis final.
+3. Pilot 3-5 tenant NYATA — penemu bug lapangan, tak tergantikan.
+
+### PENTING
+4. Status PKP Lumite — konfirmasi (default isPkp=false). Pengaruh ke PPN faktur.
+5. Rotate kredensial — SEMUA kredensial pernah lewat chat (S3, gateway key, MQTT, VPS, Midtrans,
+   PARTNER_ENC_KEY, IOT_BRIDGE_TOKEN). Setelah stabil, regenerate di panel masing-masing.
+
+### NICE-TO-HAVE (pasca-launch)
+6. Kwitansi PDF untuk job/servis (kini hanya langganan)
+7. Portal customer akhir (tracking servis mandiri)
+8. Dashboard metrik admin (activation/retensi)
+9. Migrasi app Vercel->VPS-APP (saat menagih massal / keluar batas Hobby)
+10. TLS MQTT (port 8883) untuk device IoT dari internet — kini Mosquitto 127.0.0.1:1883 lokal
+
+## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
+- Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
+- Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
+  supaya penukaran mesin WA = 1 perubahan untuk semua app.
+- systemd-native (bukan Docker) di VPS 4GB — lebih hemat ~200MB. Alternatif Docker ada di repo.
+- Migrasi app Vercel->VPS = murah (cuma Dockerfile+nginx, nol ubah kode) -> tunda sampai go-komersial.
+- Vercel Hobby: cron MAKS 1x/hari. Semua cron aircon harian.
+
+## 6. LOKASI PENTING
+- Kredensial live: /home/rad/aircon/.secrets/vps-infra-credentials.txt (GITIGNORED, jangan commit)
+- Dokumen infra: docs/infra/ (README + panduan WA/MQTT + kapasitas + deploy runbook)
+- Analisis arsitektur: docs/Hosting_Architecture_Decision.md, Capacity_Planning.md,
+  Portfolio_Shared_Gateway_Architecture.md
+- Artefak deploy native: infra/vps-infra/native/ (provision, unit systemd, gw.conf nginx, redeploy)
+- GTM: docs/GoToMarket_Strategy_ROI.md
+
+## 7. CARA MELANJUTKAN DI SESI BARU
+1. `cd /home/rad/aircon && git pull && git log --oneline -5`
+2. Baca file ini (docs/PROJECT_STATUS.md) + docs/infra/README.md
+3. Cek infra hidup: `ssh -i ~/.ssh/aircon-ssh.pem rad4ssh@103.127.138.16 'systemctl is-active mosquitto aircon-gateway aircon-bridge'`
+   + `curl https://gw.lumite.biz.id/health`
+4. Verifikasi app: `pnpm run test && pnpm run build`
+5. Lanjut dari bagian "BELUM SELESAI" sesuai prioritas.
