@@ -127,9 +127,15 @@ function Metric({ icon: IconCmp, label, value, tone, href }: {
     amber: "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30",
     slate: "border-border bg-card",
   };
+  const iconTones = {
+    sky: "text-sky-500",
+    violet: "text-violet-500",
+    amber: "text-amber-500",
+    slate: "text-muted-foreground",
+  };
   const inner = (
-    <div className={`rounded-2xl border p-4 transition ${tones[tone]} ${href ? "hover:shadow-sm active:scale-[0.98]" : ""}`}>
-      <div className="text-foreground/80"><IconCmp className="h-6 w-6" /></div>
+    <div className={`rounded-2xl border p-4 ${tones[tone]} ${href ? "interactive" : ""}`}>
+      <div className={iconTones[tone]}><IconCmp className="h-6 w-6" /></div>
       <div className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</div>
       <div className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</div>
     </div>
@@ -144,10 +150,10 @@ function NavCard({ href, icon: IconCmp, title, desc, primary, badge, external }:
     <Link
       href={href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`group relative flex flex-col rounded-2xl border p-4 transition active:scale-[0.98] ${
+      className={`group interactive relative flex flex-col rounded-2xl border p-4 ${
         primary
           ? "border-sky-200 bg-card shadow-sm ring-1 ring-sky-100 hover:ring-sky-200 dark:border-sky-900/50 dark:ring-sky-900/40"
-          : "border-border bg-card hover:border-foreground/20 hover:shadow-sm"
+          : "border-border bg-card hover:border-sky-200 dark:hover:border-sky-900/50"
       }`}
     >
       {badge ? (
@@ -155,7 +161,7 @@ function NavCard({ href, icon: IconCmp, title, desc, primary, badge, external }:
           {badge}
         </span>
       ) : null}
-      <span className="text-foreground/80"><IconCmp className="h-6 w-6" /></span>
+      <span className="text-sky-500"><IconCmp className="h-6 w-6" /></span>
       <span className="mt-2 font-semibold text-foreground">{title}</span>
       <span className="mt-0.5 text-xs text-muted-foreground">{desc}</span>
     </Link>
