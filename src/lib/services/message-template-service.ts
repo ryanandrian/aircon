@@ -10,6 +10,7 @@ import { DEFAULT_WA_TEMPLATES } from "@/lib/domain/defaults";
 /** Label ramah + deskripsi untuk tiap kunci template (ditampilkan ke owner). */
 export const TEMPLATE_META: Record<string, { label: string; desc: string }> = {
   reminder: { label: "Pengingat Servis Rutin", desc: "Dikirim otomatis saat AC pelanggan waktunya servis (money loop)." },
+  reminder_multi: { label: "Pengingat Servis (Banyak Unit)", desc: "Dikirim saat >1 unit AC pelanggan jatuh tempo di hari sama — 1 pesan berisi daftar unit. Placeholder: {{customer}} {{jumlah}} {{daftar}} {{usaha}}." },
   reschedule: { label: "Ubah Jadwal", desc: "Saat jadwal servis diubah." },
   on_the_way: { label: "Teknisi Menuju Lokasi", desc: "Saat teknisi berangkat ke pelanggan." },
   review: { label: "Minta Ulasan", desc: "Setelah servis selesai, minta ulasan pelanggan." },

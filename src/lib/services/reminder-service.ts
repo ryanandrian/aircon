@@ -31,41 +31,93 @@ export async function listDueReminders(tenantId: string) {
   return enriched;
 }
 
-/** Kirim reminder WA: render template, antre ke MessageLog (driver WEB), tandai reminder SENT. */
-export async function sendReminderWa(tenantId: string, reminderId: string) {
-  const reminder = await prisma.repeatReminder.findFirst({ where: { id: reminderId, tenantId } });
-  if (!reminder) throw new Error("Reminder tidak ditemukan");
+/**
+ * Kirim reminder WA per PELANGGAN (batch): 1 pesan untuk SEMUA unit yang due milik pelanggan itu.
+ * Cegah banjir notifikasi bagi institusi ber-AC banyak. Semua reminder di grup ditandai SENT,
+ * merujuk ke SATU MessageLog.
+ *
+ * items: daftar { reminder, asset } milik SATU pelanggan (sudah difilter due).
+ */
+export async function sendCustomerReminderWa(
+  tenantId: string,
+  customerId: string,
+  reminderIds: string[],
+) {
+  // Ambil ulang reminder (guard tenant + status QUEUED, cegah dobel-kirim balapan).
+  const reminders = await prisma.repeatReminder.findMany({
+    where: { id: { in: reminderIds }, tenantId, status: "QUEUED" },
+  });
+  if (reminders.length === 0) return null;
 
-  const asset = await prisma.asset.findUnique({
-    where: { id: reminder.assetId },
+  const assets = await prisma.asset.findMany({
+    where: { id: { in: reminders.map((r) => r.assetId) }, tenantId },
     include: { customer: true },
   });
-  if (!asset?.customer) throw new Error("Customer tidak ditemukan");
+  const customer = assets[0]?.customer;
+  if (!customer) throw new Error("Customer tidak ditemukan");
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  const template = await prisma.messageTemplate.findUnique({
-    where: { tenantId_key: { tenantId, key: "reminder" } },
-  });
-  const body = renderTemplate(template?.body ?? "Halo {{customer}}, saatnya servis AC. — {{usaha}}", {
-    customer: asset.customer.name,
-    unit: `${asset.brand ?? ""} ${asset.roomLocation ?? ""}`.trim() || "AC",
-    usaha: tenant?.name ?? "",
-  });
+  const labelOf = (aId: string) => {
+    const a = assets.find((x) => x.id === aId);
+    if (!a) return "AC";
+    return `${a.brand ?? ""} ${a.roomLocation ?? ""}`.trim() || "AC";
+  };
 
-  const toPhone = normalizePhone(asset.customer.phone);
+  let body: string;
+  if (reminders.length === 1) {
+    const template = await prisma.messageTemplate.findUnique({
+      where: { tenantId_key: { tenantId, key: "reminder" } },
+    });
+    body = renderTemplate(template?.body ?? "Halo {{customer}}, saatnya servis AC {{unit}}. Balas untuk jadwalkan. — {{usaha}}", {
+      customer: customer.name,
+      unit: labelOf(reminders[0].assetId),
+      usaha: tenant?.name ?? "",
+    });
+  } else {
+    // Versi banyak-unit: 1 pesan berisi daftar. Template key terpisah + fallback default.
+    const template = await prisma.messageTemplate.findUnique({
+      where: { tenantId_key: { tenantId, key: "reminder_multi" } },
+    });
+    const daftar = reminders.map((r) => `• ${labelOf(r.assetId)}`).join("\n");
+    body = renderTemplate(
+      template?.body ??
+        "Halo {{customer}}, {{jumlah}} unit AC Anda sudah waktunya servis/cuci:\n{{daftar}}\n\nBalas pesan ini untuk jadwalkan. — {{usaha}}",
+      {
+        customer: customer.name,
+        jumlah: String(reminders.length),
+        daftar,
+        usaha: tenant?.name ?? "",
+      },
+    );
+  }
 
-  // Antre ke wa-worker (driver WEB) + tandai reminder SENT
+  const toPhone = normalizePhone(customer.phone);
+
+  // SATU MessageLog + tandai SEMUA reminder di grup SENT (atomik).
   const [msg] = await prisma.$transaction([
     prisma.messageLog.create({
       data: {
-        tenantId, customerId: asset.customer.id, channel: "WA", driver: tenant?.waDriver ?? "WEB",
-        templateKey: "reminder", direction: "OUTBOUND", status: "QUEUED", toPhone, body,
+        tenantId, customerId, channel: "WA", driver: tenant?.waDriver ?? "WEB",
+        templateKey: reminders.length > 1 ? "reminder_multi" : "reminder",
+        direction: "OUTBOUND", status: "QUEUED", toPhone, body,
       },
     }),
-    prisma.repeatReminder.update({ where: { id: reminder.id }, data: { status: "SENT", sentAt: new Date() } }),
+    prisma.repeatReminder.updateMany({
+      where: { id: { in: reminders.map((r) => r.id) }, tenantId, status: "QUEUED" },
+      data: { status: "SENT", sentAt: new Date() },
+    }),
   ]);
 
-  return { messageLogId: msg.id, toPhone, body };
+  return { messageLogId: msg.id, toPhone, body, count: reminders.length };
+}
+
+/** Kirim reminder WA (SATU unit) — dipakai tombol manual per-reminder di dashboard/demo. */
+export async function sendReminderWa(tenantId: string, reminderId: string) {
+  const reminder = await prisma.repeatReminder.findFirst({ where: { id: reminderId, tenantId } });
+  if (!reminder) throw new Error("Reminder tidak ditemukan");
+  const asset = await prisma.asset.findUnique({ where: { id: reminder.assetId }, select: { customerId: true } });
+  if (!asset) throw new Error("Asset tidak ditemukan");
+  return sendCustomerReminderWa(tenantId, asset.customerId, [reminderId]);
 }
 
 /** Buat repeat job dari reminder (prefill dari job sebelumnya di asset yang sama). */
@@ -105,9 +157,9 @@ export async function createRepeatJob(tenantId: string, reminderId: string, crea
 
 /**
  * RUNNER money loop (dipanggil cron harian): untuk SEMUA tenant aktif,
- * kirim WA reminder untuk setiap RepeatReminder yang sudah due.
- * Idempoten: hanya proses status QUEUED (sendReminderWa menandai SENT).
- * Aman-gagal per item: kegagalan satu reminder tak menghentikan yang lain.
+ * kirim WA reminder untuk RepeatReminder yang due. Dikelompokkan PER PELANGGAN:
+ * 1 pelanggan dengan banyak unit due di hari sama -> 1 pesan WA (cegah banjir notifikasi).
+ * Idempoten: hanya proses QUEUED. Aman-gagal per grup.
  */
 export async function runDueRemindersAllTenants(): Promise<{ tenants: number; sent: number; failed: number }> {
   const tenants = await prisma.tenant.findMany({
@@ -119,14 +171,23 @@ export async function runDueRemindersAllTenants(): Promise<{ tenants: number; se
   let failed = 0;
   for (const t of tenants) {
     const due = await listDueReminders(t.id);
+    // Kelompokkan per pelanggan.
+    const byCustomer = new Map<string, string[]>();
     for (const item of due) {
-      if (!item.asset?.customer) continue;
+      const cId = item.asset?.customer?.id;
+      if (!cId) continue;
+      const arr = byCustomer.get(cId) ?? [];
+      arr.push(item.reminder.id);
+      byCustomer.set(cId, arr);
+    }
+    // Kirim 1 pesan per pelanggan (berisi semua unit due-nya).
+    for (const [customerId, reminderIds] of byCustomer) {
       try {
-        await sendReminderWa(t.id, item.reminder.id);
-        sent += 1;
+        await sendCustomerReminderWa(t.id, customerId, reminderIds);
+        sent += 1; // hitung per PESAN terkirim (bukan per unit)
       } catch (err) {
         failed += 1;
-        console.error(`[reminder-runner] gagal tenant=${t.id} reminder=${item.reminder.id}:`, err);
+        console.error(`[reminder-runner] gagal tenant=${t.id} customer=${customerId}:`, err);
       }
     }
   }

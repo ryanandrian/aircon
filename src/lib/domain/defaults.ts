@@ -65,6 +65,8 @@ export const DEFAULT_CHECKLISTS: Record<string, ChecklistItem[]> = {
 export const DEFAULT_WA_TEMPLATES: Record<string, string> = {
   reminder:
     "Halo {{customer}}, AC {{unit}} Anda sudah waktunya servis rutin. Boleh kami jadwalkan kunjungan teknisi? — {{usaha}}",
+  reminder_multi:
+    "Halo {{customer}}, {{jumlah}} unit AC Anda sudah waktunya servis/cuci:\n{{daftar}}\n\nBoleh kami jadwalkan kunjungan teknisi? Balas pesan ini ya. — {{usaha}}",
   reschedule:
     "Halo {{customer}}, mohon maaf jadwal servis AC diubah ke {{tanggal}} pukul {{jam}}. Mohon konfirmasinya ya. — {{usaha}}",
   on_the_way:
