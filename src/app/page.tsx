@@ -100,7 +100,7 @@ export default async function Home() {
       {/* Cara kerja */}
       <section className="mx-auto max-w-5xl px-5 py-20">
         <h2 className="text-center text-3xl font-bold tracking-tight">Cara kerjanya sederhana</h2>
-        <p className="mt-2 text-center text-muted-foreground">Dirancang untuk teknisi & pemilik usaha — bukan orang IT.</p>
+        <p className="mt-2 text-center text-muted-foreground">Dirancang untuk teknisi &amp; pemilik usaha.</p>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
           <Step n="1" icon={Icon.Note} title="Catat pekerjaan" desc="Terima booking online atau catat sendiri. Tugaskan ke teknisi, pantau dari HP." />
           <Step n="2" icon={Icon.Wrench} title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
@@ -219,11 +219,13 @@ function RoiStat({ angka, ket }: { angka: string; ket: string }) {
 
 function Step({ n, icon: IconCmp, title, desc }: { n: string; icon: ComponentType<{ className?: string }>; title: string; desc: string }) {
   return (
-    <Card className="interactive relative">
+    <Card className="interactive">
       <CardContent className="p-6">
-        <div className="absolute -top-3 left-6 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-sm font-bold text-white shadow-sm">{n}</div>
-        <div className="mt-2 text-sky-500"><IconCmp className="h-8 w-8" /></div>
-        <h3 className="mt-3 font-semibold">{title}</h3>
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500 text-sm font-bold text-white shadow-sm">{n}</span>
+          <span className="text-sky-500"><IconCmp className="h-7 w-7" /></span>
+        </div>
+        <h3 className="mt-4 font-semibold">{title}</h3>
         <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
       </CardContent>
     </Card>
