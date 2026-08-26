@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
 import { LogoutButton } from "./logout-button";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 import Image from "next/image";
 import type { ComponentType } from "react";
@@ -49,26 +51,29 @@ export default async function AppDashboard() {
   const roleLabel = { OWNER: "Pemilik", ADMIN: "Admin", TECHNICIAN: "Teknisi", CUSTOMER: "Pelanggan" }[ctx.role] ?? ctx.role;
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-muted/40">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/80 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
           <div className="flex items-center gap-2.5">
             <Image src="/brand/aircon-logo.png" alt="Aircon" width={34} height={34} className="h-8 w-8 object-contain" priority />
             <div className="leading-tight">
-              <div className="text-sm font-semibold text-slate-900">{tenant?.name ?? "Usaha Anda"}</div>
-              <div className="text-xs text-slate-500">{roleLabel}</div>
+              <div className="text-sm font-semibold text-foreground">{tenant?.name ?? "Usaha Anda"}</div>
+              <div className="text-xs text-muted-foreground">{roleLabel}</div>
             </div>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl space-y-6 p-5">
         {/* Greeting */}
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">{greeting}, {firstName} <Icon.Wave className="h-6 w-6 text-amber-500" aria-hidden /></h1>
-          <p className="mt-1 text-sm text-slate-500">Ringkasan usaha AC Anda hari ini.</p>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">{greeting}, {firstName} <Icon.Wave className="h-6 w-6 text-amber-500" aria-hidden /></h1>
+          <p className="mt-1 text-sm text-muted-foreground">Ringkasan usaha AC Anda hari ini.</p>
         </div>
 
         {/* Metrics */}
@@ -81,7 +86,7 @@ export default async function AppDashboard() {
 
         {/* Aksi cepat */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">Menu</h2>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Menu</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <NavCard href="/app/pekerjaan" icon={Icon.Job} title="Pekerjaan" desc="Atur & pantau job teknisi" primary />
             <NavCard href="/app/teknisi" icon={Icon.Technician} title="Teknisi" desc="Undang & kelola tim" />
@@ -95,17 +100,19 @@ export default async function AppDashboard() {
         </section>
 
         {/* Tip money loop */}
-        <section className="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white"><Icon.Repeat className="h-5 w-5" aria-hidden /></div>
-            <div>
-              <h3 className="font-semibold text-slate-900">Pelanggan Datang Lagi</h3>
-              <p className="mt-1 text-sm text-slate-600">
-                Setiap pekerjaan selesai otomatis membuat pengingat servis berikutnya. Saat waktunya tiba, pelanggan dikabari lewat WhatsApp — servis berulang tanpa Anda harus mengingat-ingat.
-              </p>
+        <Card className="overflow-hidden border-sky-100 bg-gradient-to-br from-sky-50 to-background dark:border-sky-900/40 dark:from-sky-950/30">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white"><Icon.Repeat className="h-5 w-5" aria-hidden /></div>
+              <div>
+                <h3 className="font-semibold text-foreground">Pelanggan Datang Lagi</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Setiap pekerjaan selesai otomatis membuat pengingat servis berikutnya. Saat waktunya tiba, pelanggan dikabari lewat WhatsApp — servis berulang tanpa Anda harus mengingat-ingat.
+                </p>
+              </div>
             </div>
-          </div>
-        </section>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
@@ -115,16 +122,16 @@ function Metric({ icon: IconCmp, label, value, tone, href }: {
   icon: ComponentType<{ className?: string }>; label: string; value: number; tone: "sky" | "violet" | "amber" | "slate"; href?: string;
 }) {
   const tones = {
-    sky: "border-sky-100 bg-sky-50",
-    violet: "border-violet-100 bg-violet-50",
-    amber: "border-amber-200 bg-amber-50",
-    slate: "border-slate-200 bg-white",
+    sky: "border-sky-100 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30",
+    violet: "border-violet-100 bg-violet-50 dark:border-violet-900/40 dark:bg-violet-950/30",
+    amber: "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30",
+    slate: "border-border bg-card",
   };
   const inner = (
     <div className={`rounded-2xl border p-4 transition ${tones[tone]} ${href ? "hover:shadow-sm active:scale-[0.98]" : ""}`}>
-      <div className="text-slate-700"><IconCmp className="h-6 w-6" /></div>
-      <div className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{value}</div>
-      <div className="mt-0.5 text-xs font-medium text-slate-500">{label}</div>
+      <div className="text-foreground/80"><IconCmp className="h-6 w-6" /></div>
+      <div className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</div>
+      <div className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</div>
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -139,8 +146,8 @@ function NavCard({ href, icon: IconCmp, title, desc, primary, badge, external }:
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className={`group relative flex flex-col rounded-2xl border p-4 transition active:scale-[0.98] ${
         primary
-          ? "border-sky-200 bg-white shadow-sm ring-1 ring-sky-100 hover:ring-sky-200"
-          : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+          ? "border-sky-200 bg-card shadow-sm ring-1 ring-sky-100 hover:ring-sky-200 dark:border-sky-900/50 dark:ring-sky-900/40"
+          : "border-border bg-card hover:border-foreground/20 hover:shadow-sm"
       }`}
     >
       {badge ? (
@@ -148,9 +155,9 @@ function NavCard({ href, icon: IconCmp, title, desc, primary, badge, external }:
           {badge}
         </span>
       ) : null}
-      <span className="text-slate-700"><IconCmp className="h-6 w-6" /></span>
-      <span className="mt-2 font-semibold text-slate-900">{title}</span>
-      <span className="mt-0.5 text-xs text-slate-500">{desc}</span>
+      <span className="text-foreground/80"><IconCmp className="h-6 w-6" /></span>
+      <span className="mt-2 font-semibold text-foreground">{title}</span>
+      <span className="mt-0.5 text-xs text-muted-foreground">{desc}</span>
     </Link>
   );
 }
