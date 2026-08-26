@@ -38,8 +38,10 @@ menuju go-komersial ~93%. Sisa mayoritas = konfigurasi eksternal + validasi pilo
 
 ## 4. YANG BELUM SELESAI (prioritas menuju go-komersial)
 ### KRITIS (butuh input/keputusan owner)
-1. Midtrans PRODUCTION — masih sandbox. Perlu: Server Key + Client Key + Merchant ID mode
-   Production dari dashboard Midtrans. Lalu ganti env Vercel + uji 1 transaksi nyata. (~2 jam)
+1. Midtrans PRODUCTION — ✅ SELESAI (20 Agu 2026). MIDTRANS_ENV + NEXT_PUBLIC_MIDTRANS_ENV =
+   production di Vercel; server key production terverifikasi VALID (HTTP 200 api.midtrans.com);
+   webhook via X-Override-Notification -> NEXT_PUBLIC_APP_URL. Merchant G523181402.
+   CATATAN: kini pembayaran = UANG NYATA (kartu test tak berlaku). Belum ada transaksi produksi nyata.
 2. Warm-up nomor WA — 7 hari (by-design pelan agar tak diblokir). Mulai setelah nomor bisnis final.
 3. Pilot 3-5 tenant NYATA — penemu bug lapangan, tak tergantikan.
 
