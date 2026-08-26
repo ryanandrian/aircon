@@ -107,18 +107,20 @@ export default async function PublicTenantPage({ params }: PageProps) {
   const areaLabel = [...cities, ...districts].join(", ");
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-background dark:from-sky-950/30">
-      <div className="mx-auto w-full max-w-lg px-5 pb-16 pt-8">
+    <main className="min-h-screen bg-muted/30">
+      {/* Banner brand */}
+      <div aria-hidden className="h-28 bg-gradient-to-br from-sky-500 via-sky-600 to-cyan-500 sm:h-32" />
+      <div className="mx-auto -mt-16 w-full max-w-lg px-5 pb-16">
         {/* Header usaha */}
-        <header className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500 text-2xl font-bold text-white shadow-lg shadow-sky-200">
+        <header className="animate-in-up text-center">
+          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl border-4 border-background bg-sky-500 text-3xl font-bold text-white shadow-lg">
             {tenant.name.charAt(0).toUpperCase()}
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
             {tenant.name}
           </h1>
           {profile.tagline && (
-            <p className="mt-1 text-sm font-medium text-sky-600">
+            <p className="mt-1 text-sm font-medium text-sky-600 dark:text-sky-400">
               {profile.tagline}
             </p>
           )}
@@ -134,13 +136,13 @@ export default async function PublicTenantPage({ params }: PageProps) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Chat WhatsApp dengan ${tenant.name}`}
-          className="mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          className="animate-in-up delay-75 mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-600 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
         >
           <Icon.Message className="h-5 w-5" aria-hidden /> Chat via WhatsApp
         </a>
 
         {/* Sinyal percaya (jujur, benar untuk semua usaha) */}
-        <ul className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <ul className="animate-in-up delay-150 mt-4 grid grid-cols-3 gap-2 text-center">
           <TrustBadge icon={Icon.Zap} label="Respons cepat" />
           <TrustBadge icon={Icon.Check} label="Dikonfirmasi WhatsApp" />
           <TrustBadge icon={Icon.Clock} label="Pesan online 24 jam" />
