@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { techAcceptInvite } from "@/app/masuk-teknisi/actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 export function AcceptForm({ token }: { token: string }) {
   const router = useRouter();
@@ -22,33 +26,25 @@ export function AcceptForm({ token }: { token: string }) {
     });
   }
 
-  const field = "mt-1 min-h-[48px] w-full rounded-xl border border-slate-300 px-4 py-3 text-center text-2xl tracking-[0.5em]";
+  const field = "min-h-[48px] text-center text-2xl tracking-[0.5em]";
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {msg && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{msg}</p>}
-      <div>
-        <label htmlFor="pin" className="block text-sm font-medium text-slate-700">Buat PIN (6 angka)</label>
-        <input
-          id="pin" type="password" inputMode="numeric" maxLength={6}
-          value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} required
-          placeholder="••••••" className={field}
-        />
+      {msg && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>}
+      <div className="space-y-1.5">
+        <Label htmlFor="pin">Buat PIN (6 angka)</Label>
+        <Input id="pin" type="password" inputMode="numeric" maxLength={6}
+          value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} required placeholder="••••••" className={field} />
       </div>
-      <div>
-        <label htmlFor="confirm" className="block text-sm font-medium text-slate-700">Ulangi PIN</label>
-        <input
-          id="confirm" type="password" inputMode="numeric" maxLength={6}
-          value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ""))} required
-          placeholder="••••••" className={field}
-        />
+      <div className="space-y-1.5">
+        <Label htmlFor="confirm">Ulangi PIN</Label>
+        <Input id="confirm" type="password" inputMode="numeric" maxLength={6}
+          value={confirm} onChange={(e) => setConfirm(e.target.value.replace(/\D/g, ""))} required placeholder="••••••" className={field} />
       </div>
-      <button
-        type="submit" disabled={pending || pin.length !== 6 || confirm.length !== 6}
-        className="min-h-[48px] w-full rounded-2xl bg-sky-500 font-semibold text-white active:bg-sky-600 disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending || pin.length !== 6 || confirm.length !== 6} aria-busy={pending} className="min-h-[48px] w-full">
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         {pending ? "Menyimpan…" : "Simpan PIN & Masuk"}
-      </button>
+      </Button>
     </form>
   );
 }
