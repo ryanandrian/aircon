@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -13,19 +14,26 @@ export const metadata = {
     "Aplikasi kasir & manajemen usaha AC dari HP. Terima booking online, atur teknisi, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis coba 14 hari.",
 };
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
+
+export default async function Home() {
+  const [plans, policy] = await Promise.all([getActivePlans(), getBillingPolicy()]);
+
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <div className="flex items-center gap-2">
             <Image src="/brand/aircon-logo.png" alt="Aircon" width={32} height={32} className="h-8 w-8 object-contain" priority />
             <span className="text-lg font-bold tracking-tight">Aircon</span>
           </div>
           <nav className="flex items-center gap-1.5 text-sm">
+            <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Harga</Link>
             <ThemeToggle />
-            <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm" })}>Lihat Demo</Link>
+            <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm" })}>Demo</Link>
             <Link href="/login" className={buttonVariants({ size: "sm" })}>Mulai Gratis</Link>
           </nav>
         </div>
@@ -33,32 +41,55 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute -top-32 right-0 h-96 w-96 rounded-full bg-sky-100/60 blur-3xl" />
-        <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-14 text-center">
-          <Badge variant="secondary" className="mb-4 border-sky-200 bg-sky-50 text-sky-700">
+        <div aria-hidden className="pointer-events-none absolute -top-40 right-0 h-[32rem] w-[32rem] rounded-full bg-sky-200/40 blur-3xl dark:bg-sky-500/10" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-20 h-[28rem] w-[28rem] rounded-full bg-cyan-200/30 blur-3xl dark:bg-cyan-500/10" />
+        <div className="relative mx-auto max-w-6xl px-5 pb-8 pt-16 text-center">
+          <Badge variant="secondary" className="animate-fade mb-5 border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">
             Software usaha servis AC — dari HP, tanpa ribet
           </Badge>
-          <h1 className="mx-auto max-w-3xl text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-5xl">
-            Pelanggan servis AC Anda <span className="text-sky-500">datang lagi otomatis</span>
+          <h1 className="animate-in-up mx-auto max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground sm:text-6xl">
+            Pelanggan servis AC Anda <span className="bg-gradient-to-r from-sky-500 to-cyan-500 bg-clip-text text-transparent">datang lagi otomatis</span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
+          <p className="animate-in-up delay-75 mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
             Terima booking online, atur pekerjaan teknisi, dan ingatkan pelanggan servis berkala lewat WhatsApp —
             semua otomatis. Fokus kerja, biar Aircon yang jaga usaha Anda tetap ramai.
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/login" className={buttonVariants({ size: "lg", className: "w-full shadow-lg shadow-sky-200 sm:w-auto" })}>
-              Coba Gratis 14 Hari
+          <div className="animate-in-up delay-150 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link href="/login" className={buttonVariants({ size: "lg", className: "w-full shadow-lg shadow-sky-500/20 sm:w-auto" })}>
+              Coba Gratis {policy.trialDays} Hari
             </Link>
             <Link href="/demo" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full sm:w-auto" })}>
               Lihat Demo Dulu
             </Link>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Tanpa kartu kredit · Bisa langsung dipakai · Berhenti kapan saja</p>
+          <p className="animate-in-up delay-150 mt-3 text-xs text-muted-foreground">Tanpa kartu kredit · Bisa langsung dipakai · Berhenti kapan saja</p>
+
+          {/* Product visual mock */}
+          <div className="animate-in-up delay-300 mx-auto mt-14 max-w-4xl">
+            <div className="rounded-2xl border bg-card p-2 shadow-lg sm:p-3">
+              <div className="rounded-xl border bg-muted/40 p-4 sm:p-6">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <MockStat icon={Icon.Job} label="Pekerjaan" value="12" tone="sky" />
+                  <MockStat icon={Icon.Wrench} label="Berjalan" value="3" tone="slate" />
+                  <MockStat icon={Icon.Bell} label="Pengingat" value="27" tone="violet" />
+                  <MockStat icon={Icon.Money} label="Bulan ini" value="Rp8,4jt" tone="emerald" />
+                </div>
+                <div className="mt-3 flex items-center gap-3 rounded-xl border bg-card p-3 text-left">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500 text-white"><Icon.Repeat className="h-4.5 w-4.5" aria-hidden /></div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">Pengingat servis → Ibu Sari (Daikin ¾ PK)</div>
+                    <div className="truncate text-xs text-muted-foreground">Terkirim via WhatsApp otomatis · jatuh tempo hari ini</div>
+                  </div>
+                  <Badge className="ml-auto shrink-0 bg-emerald-500 text-white hover:bg-emerald-500">Terkirim</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Argumen ekonomi — ROI */}
-      <section className="border-y bg-muted/40">
+      {/* Trust bar */}
+      <section className="border-y bg-muted/30">
         <div className="mx-auto grid max-w-5xl gap-6 px-5 py-12 sm:grid-cols-3">
           <RoiStat angka="1 servis ulang" ket="Cukup 1 pelanggan servis ulang per bulan sudah menutup biaya langganan." />
           <RoiStat angka="±90 hari" ket="Aircon ingatkan pelanggan servis berikutnya otomatis — Anda tak perlu catat manual." />
@@ -67,10 +98,10 @@ export default function Home() {
       </section>
 
       {/* Cara kerja */}
-      <section className="mx-auto max-w-5xl px-5 py-16">
-        <h2 className="text-center text-2xl font-bold tracking-tight">Cara kerjanya sederhana</h2>
+      <section className="mx-auto max-w-5xl px-5 py-20">
+        <h2 className="text-center text-3xl font-bold tracking-tight">Cara kerjanya sederhana</h2>
         <p className="mt-2 text-center text-muted-foreground">Dirancang untuk teknisi & pemilik usaha — bukan orang IT.</p>
-        <div className="mt-10 grid gap-6 sm:grid-cols-3">
+        <div className="mt-12 grid gap-6 sm:grid-cols-3">
           <Step n="1" icon={Icon.Note} title="Catat pekerjaan" desc="Terima booking online atau catat sendiri. Tugaskan ke teknisi, pantau dari HP." />
           <Step n="2" icon={Icon.Wrench} title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
           <Step n="3" icon={Icon.Repeat} title="Pelanggan datang lagi" desc="Aircon otomatis ingatkan pelanggan saat waktunya servis lagi, lewat WhatsApp." />
@@ -78,8 +109,8 @@ export default function Home() {
       </section>
 
       {/* Untuk siapa */}
-      <section className="bg-muted/40">
-        <div className="mx-auto grid max-w-5xl gap-4 px-5 py-16 sm:grid-cols-2">
+      <section className="bg-muted/30">
+        <div className="mx-auto grid max-w-5xl gap-4 px-5 py-20 sm:grid-cols-2">
           <SegmentCard
             icon={Icon.Job}
             title="Teknisi / Usaha Perorangan"
@@ -94,57 +125,93 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Booking page hook */}
-      <section className="mx-auto max-w-5xl px-5 py-16">
-        <Card className="overflow-hidden border-sky-100 bg-gradient-to-br from-sky-50 to-background">
-          <CardContent className="grid items-center gap-6 p-8 sm:grid-cols-2 sm:p-10">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">Punya halaman booking sendiri</h2>
-              <p className="mt-3 text-muted-foreground">
-                Setiap usaha dapat halaman online sendiri untuk dibagikan di status WhatsApp, Instagram, atau Google Maps.
-                Pelanggan pesan servis kapan saja — order langsung masuk ke aplikasi Anda.
-              </p>
-              <Link href="/demo" className={buttonVariants({ className: "mt-5" })}>Lihat contohnya</Link>
-            </div>
-            <Card className="shadow-sm">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500 font-bold text-white">S</div>
-                  <div className="text-sm font-semibold">AC Sejuk Jaya</div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {["Cuci AC", "Isi Freon", "Perbaikan", "Pasang Baru"].map((s) => (
-                    <Badge key={s} variant="secondary" className="border-sky-200 bg-sky-50 text-sky-700">{s}</Badge>
-                  ))}
-                </div>
-                <div className="mt-3 flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 text-sm font-semibold text-white"><Icon.Message className="h-4 w-4" aria-hidden /> Chat via WhatsApp</div>
-                <div className="mt-2 h-9 rounded-xl border text-center text-sm font-medium leading-9 text-muted-foreground">Booking Servis</div>
-              </CardContent>
-            </Card>
-          </CardContent>
-        </Card>
+      {/* HARGA — transparan, dari DB */}
+      <section id="harga" className="mx-auto max-w-5xl scroll-mt-20 px-5 py-20">
+        <h2 className="text-center text-3xl font-bold tracking-tight">Harga jujur, tanpa kejutan</h2>
+        <p className="mt-2 text-center text-muted-foreground">Coba gratis {policy.trialDays} hari. Tak perlu kartu kredit. Berhenti kapan saja.</p>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {plans.map((p, i) => {
+            const t = withTax(p.priceMonthly, p.taxable ? policy.taxPercent : 0);
+            const featured = i === 1;
+            return (
+              <Card key={p.id} className={`relative flex flex-col ${featured ? "ring-2 ring-sky-500 shadow-lg" : ""}`}>
+                {featured && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-500 text-white hover:bg-sky-500">Paling Populer</Badge>}
+                <CardContent className="flex flex-1 flex-col p-6">
+                  <div className="text-lg font-bold text-foreground">{p.displayName}</div>
+                  {p.tagline && <div className="mt-1 text-sm text-muted-foreground">{p.tagline}</div>}
+                  <div className="mt-5">
+                    {p.priceMonthly === 0 ? (
+                      <div className="text-3xl font-extrabold text-foreground">Gratis</div>
+                    ) : (
+                      <>
+                        <div className="text-3xl font-extrabold text-foreground">Rp{rupiah(p.priceMonthly)}<span className="text-base font-medium text-muted-foreground">/bln</span></div>
+                        {p.taxable && policy.taxPercent > 0 && <div className="mt-1 text-xs text-muted-foreground">Rp{rupiah(t.total)} termasuk pajak {policy.taxPercent}%</div>}
+                      </>
+                    )}
+                  </div>
+                  <ul className="mt-5 flex-1 space-y-2 text-sm">
+                    <PlanFeature text={p.maxTechnicians ? `${p.maxTechnicians} akun teknisi` : "Teknisi tanpa batas"} />
+                    <PlanFeature text={p.maxCustomers ? `${rupiah(p.maxCustomers)} pelanggan` : "Pelanggan tanpa batas"} />
+                    <PlanFeature text={p.maxAcUnits ? `${rupiah(p.maxAcUnits)} unit AC` : "Unit AC tanpa batas"} />
+                    <PlanFeature text="Booking online + pengingat WhatsApp" />
+                  </ul>
+                  <Link href="/login" className={buttonVariants({ variant: featured ? "default" : "outline", className: "mt-6 w-full" })}>
+                    {p.priceMonthly === 0 ? "Mulai Gratis" : "Pilih Paket"}
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* FAQ — jawab keberatan */}
+      <section className="bg-muted/30">
+        <div className="mx-auto max-w-3xl px-5 py-20">
+          <h2 className="text-center text-3xl font-bold tracking-tight">Pertanyaan yang sering ditanya</h2>
+          <div className="mt-10 space-y-3">
+            <Faq q="Ribet nggak? Saya bukan orang IT." a="Tidak. Aircon dibuat untuk teknisi & pemilik usaha. Semua dari HP, bahasa Indonesia, langsung bisa dipakai hari ini — tanpa pelatihan khusus." />
+            <Faq q="HP saya biasa saja, muat nggak?" a="Muat. Aircon ringan dan berjalan di browser HP mana pun. Tidak perlu install aplikasi berat dari toko aplikasi." />
+            <Faq q="Data pelanggan saya aman?" a="Aman. Data tersimpan terpisah per usaha, terenkripsi, dan hanya bisa diakses akun Anda. Foto bukti & rekening disimpan aman." />
+            <Faq q="Kalau saya berhenti bagaimana?" a="Bebas berhenti kapan saja tanpa penalti. Selama masa coba gratis, Anda tidak ditagih sama sekali." />
+            <Faq q="Bagaimana pelanggan tahu waktunya servis lagi?" a="Otomatis. Setiap pekerjaan selesai membuat pengingat, dan saat waktunya tiba pelanggan dikabari lewat WhatsApp — Anda tak perlu mengingat-ingat." />
+          </div>
+        </div>
       </section>
 
       {/* CTA akhir */}
-      <section className="mx-auto max-w-3xl px-5 pb-20 text-center">
-        <h2 className="text-3xl font-extrabold tracking-tight">Siap bikin usaha AC Anda lebih ramai?</h2>
-        <p className="mt-3 text-muted-foreground">Coba gratis 14 hari. Tak perlu kartu kredit. Bisa langsung dipakai hari ini.</p>
-        <Link href="/login" className={buttonVariants({ size: "lg", className: "mt-6 shadow-lg shadow-sky-200" })}>
+      <section className="mx-auto max-w-3xl px-5 py-24 text-center">
+        <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Siap bikin usaha AC Anda lebih ramai?</h2>
+        <p className="mt-3 text-muted-foreground">Coba gratis {policy.trialDays} hari. Tak perlu kartu kredit. Bisa langsung dipakai hari ini.</p>
+        <Link href="/login" className={buttonVariants({ size: "lg", className: "mt-7 shadow-lg shadow-sky-500/20" })}>
           Mulai Sekarang — Gratis
         </Link>
       </section>
 
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">
+      <footer className="border-t py-10 text-center text-sm text-muted-foreground">
         Aircon — Operating System untuk usaha servis AC. Dari Lumite.
       </footer>
     </main>
   );
 }
 
+function MockStat({ icon: IconCmp, label, value, tone }: { icon: ComponentType<{ className?: string }>; label: string; value: string; tone: "sky" | "violet" | "emerald" | "slate" }) {
+  const tones = {
+    sky: "text-sky-500", violet: "text-violet-500", emerald: "text-emerald-500", slate: "text-muted-foreground",
+  };
+  return (
+    <div className="rounded-xl border bg-card p-3 text-left">
+      <div className={tones[tone]}><IconCmp className="h-5 w-5" aria-hidden /></div>
+      <div className="mt-1.5 text-lg font-bold tabular-nums text-foreground">{value}</div>
+      <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
 function RoiStat({ angka, ket }: { angka: string; ket: string }) {
   return (
     <div className="text-center sm:text-left">
-      <div className="text-2xl font-extrabold text-sky-600">{angka}</div>
+      <div className="text-2xl font-extrabold text-sky-600 dark:text-sky-400">{angka}</div>
       <p className="mt-1 text-sm text-muted-foreground">{ket}</p>
     </div>
   );
@@ -152,9 +219,9 @@ function RoiStat({ angka, ket }: { angka: string; ket: string }) {
 
 function Step({ n, icon: IconCmp, title, desc }: { n: string; icon: ComponentType<{ className?: string }>; title: string; desc: string }) {
   return (
-    <Card className="relative">
+    <Card className="interactive relative">
       <CardContent className="p-6">
-        <div className="absolute -top-3 left-6 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-sm font-bold text-white">{n}</div>
+        <div className="absolute -top-3 left-6 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-sm font-bold text-white shadow-sm">{n}</div>
         <div className="mt-2 text-sky-500"><IconCmp className="h-8 w-8" /></div>
         <h3 className="mt-3 font-semibold">{title}</h3>
         <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
@@ -165,7 +232,7 @@ function Step({ n, icon: IconCmp, title, desc }: { n: string; icon: ComponentTyp
 
 function SegmentCard({ icon: IconCmp, title, points, featured }: { icon: ComponentType<{ className?: string }>; title: string; points: string[]; featured?: boolean }) {
   return (
-    <Card className={featured ? "ring-1 ring-sky-100" : ""}>
+    <Card className={`interactive ${featured ? "ring-1 ring-sky-200 dark:ring-sky-900/50" : ""}`}>
       <CardContent className="p-6">
         <div className="text-sky-500"><IconCmp className="h-8 w-8" /></div>
         <h3 className="mt-3 text-lg font-bold">{title}</h3>
@@ -179,5 +246,27 @@ function SegmentCard({ icon: IconCmp, title, points, featured }: { icon: Compone
         </ul>
       </CardContent>
     </Card>
+  );
+}
+
+function PlanFeature({ text }: { text: string }) {
+  return (
+    <li className="flex items-start gap-2 text-muted-foreground">
+      <Icon.Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+      <span>{text}</span>
+    </li>
+  );
+}
+
+function Faq({ q, a }: { q: string; a: string }) {
+  return (
+    <details className="group rounded-xl border bg-card px-5 py-4 [&_summary]:cursor-pointer">
+      <summary className="flex items-center justify-between gap-3 font-semibold text-foreground marker:content-none">
+        {q}
+        <Icon.Bell className="hidden" aria-hidden />
+        <span className="shrink-0 text-muted-foreground transition-transform group-open:rotate-45">+</span>
+      </summary>
+      <p className="mt-2 text-sm text-muted-foreground">{a}</p>
+    </details>
   );
 }
