@@ -7,6 +7,7 @@ import { CopyButton } from "@/app/agen/copy-button";
 import { Icon } from "@/components/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/empty-state";
 import { Loader2 } from "lucide-react";
 
 interface ResellerView {
@@ -58,7 +59,12 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
       <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
         <h2 className="text-sm font-semibold text-muted-foreground">Menunggu Persetujuan ({pendingList.length})</h2>
         {pendingList.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">Tidak ada pendaftaran baru.</p>
+          <EmptyState
+            variant="bare"
+            icon={Icon.Users}
+            title="Tidak ada pendaftaran baru"
+            desc="Bagikan tautan rekrut di atas — pendaftaran reseller yang menunggu persetujuan akan muncul di sini."
+          />
         ) : (
           <div className="mt-3 space-y-3">
             {pendingList.map((r) => (
@@ -99,7 +105,12 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
           )}
         </div>
         {activeList.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">Belum ada reseller aktif.</p>
+          <EmptyState
+            variant="bare"
+            icon={Icon.Technician}
+            title="Belum ada reseller aktif"
+            desc="Setujui pendaftaran reseller untuk menambah jaringan penjualan Anda."
+          />
         ) : (
           <div className="mt-3 divide-y divide-border">
             {activeList.map((r) => (

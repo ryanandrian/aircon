@@ -11,6 +11,7 @@ import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -59,25 +60,21 @@ export default async function PerangkatPage() {
 
         {deviceCount === 0 ? (
           // Empty-state fungsional: fitur bisa diakses, tapi belum ada perangkat.
-          <Card className="border border-dashed">
-            <CardContent className="p-8 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400"><Icon.Device className="h-7 w-7" aria-hidden /></div>
-              <h2 className="text-xl font-bold text-foreground">Belum ada perangkat terpasang</h2>
-              <p className="mx-auto mt-2 max-w-md text-muted-foreground">
-                Pantau suhu, arus, dan kesehatan AC pelanggan secara otomatis. Pasang perangkat
-                Aircon pada unit AC untuk mengaktifkan pemantauan dan notifikasi otomatis.
-              </p>
+          <EmptyState
+            icon={Icon.Device}
+            title="Belum ada perangkat terpasang"
+            desc="Pantau suhu, arus, dan kesehatan AC pelanggan secara otomatis. Pasang perangkat Aircon pada unit AC untuk mengaktifkan pemantauan dan notifikasi otomatis."
+            actionHref="/app/perangkat/pesan"
+            actionLabel="Pesan Perangkat"
+            secondary={
               <Link
-                href="/app/perangkat/pesan"
-                className={buttonVariants({ className: "mt-5 min-h-[48px] px-6" })}
+                href="/app/perangkat/pesanan"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
               >
-                Pesan Perangkat
+                Status pesanan
               </Link>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Sudah pesan? Cek <Link href="/app/perangkat/pesanan" className="underline">status pesanan</Link>.
-              </p>
-            </CardContent>
-          </Card>
+            }
+          />
         ) : (
           <>
             <div className="flex items-center justify-between">

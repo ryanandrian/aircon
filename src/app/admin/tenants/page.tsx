@@ -5,6 +5,8 @@ import { TenantStatusBadge } from "../status-badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/submit-button";
+import { EmptyState } from "@/components/empty-state";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -72,9 +74,12 @@ export default async function TenantsPage({
 
       <Card className="p-0">
         {items.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Tidak ada usaha yang cocok.
-          </p>
+          <EmptyState
+            variant="bare"
+            icon={Icon.Business}
+            title="Tidak ada usaha yang cocok"
+            desc="Coba ubah kata kunci pencarian atau filter status untuk menemukan usaha yang Anda cari."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>

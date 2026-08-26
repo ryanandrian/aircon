@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { listTenantOrders } from "@/lib/services/iot-order-service";
 import { formatIDR } from "@/lib/billing/plans";
@@ -7,6 +6,7 @@ import { AppHeader } from "../../_components/app-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -32,16 +32,13 @@ export default async function PesananPerangkatPage() {
 
       <div className="mx-auto max-w-3xl space-y-4 p-6">
         {orders.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400"><Icon.Package className="h-7 w-7" aria-hidden /></div>
-              <h2 className="text-lg font-bold text-foreground">Belum ada pesanan</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                Anda belum memesan perangkat apa pun.{" "}
-                <Link href="/app/perangkat/pesan" className="font-medium text-sky-600 underline dark:text-sky-400">Pesan sekarang</Link>
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Icon.Package}
+            title="Belum ada pesanan"
+            desc="Anda belum memesan perangkat apa pun. Pesan perangkat Aircon untuk mulai memantau unit AC pelanggan."
+            actionHref="/app/perangkat/pesan"
+            actionLabel="Pesan Perangkat"
+          />
         ) : (
           orders.map((o) => {
             const s = STATUS[o.status] ?? { label: o.status, cls: "bg-muted text-muted-foreground" };

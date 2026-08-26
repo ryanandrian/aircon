@@ -7,6 +7,8 @@ import { CopyButton } from "./copy-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
+import { EmptyState } from "@/components/empty-state";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 const rupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
@@ -82,7 +84,12 @@ export default async function AgentDashboard() {
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold text-muted-foreground">Pelanggan Bawaan ({d.tenants.length})</h2>
             {d.tenants.length === 0 ? (
-              <p className="mt-3 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Belum ada pelanggan. Bagikan kode Anda.</p>
+              <EmptyState
+                variant="bare"
+                icon={Icon.Users}
+                title="Belum ada pelanggan"
+                desc="Bagikan kode agen Anda ke calon pelanggan. Setiap usaha yang mendaftar dengan kode Anda tercatat sebagai pelanggan bawaan."
+              />
             ) : (
               <div className="mt-3 divide-y divide-border">
                 {d.tenants.map((t, i) => (
@@ -104,7 +111,12 @@ export default async function AgentDashboard() {
           <CardContent className="p-5">
             <h2 className="text-sm font-semibold text-muted-foreground">Riwayat Pencairan</h2>
             {d.payouts.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">Belum ada pencairan.</p>
+              <EmptyState
+                variant="bare"
+                icon={Icon.Money}
+                title="Belum ada pencairan"
+                desc="Komisi yang terkumpul akan dicairkan berkala dan riwayatnya muncul di sini."
+              />
             ) : (
               <div className="mt-3 divide-y divide-border">
                 {d.payouts.map((p, i) => (

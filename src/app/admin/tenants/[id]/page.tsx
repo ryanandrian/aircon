@@ -6,6 +6,8 @@ import { tenantHealth } from "@/lib/services/platform-format";
 import { TenantStatusBadge, PaymentStatusBadge } from "../../status-badge";
 import { StatusChanger } from "./status-changer";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +104,12 @@ export default async function TenantDetailPage({
           <h2 className="text-lg font-medium text-foreground">Riwayat Pembayaran</h2>
         </div>
         {tenant.payments.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">Belum ada pembayaran.</p>
+          <EmptyState
+            variant="bare"
+            icon={Icon.Billing}
+            title="Belum ada pembayaran"
+            desc="Riwayat transaksi langganan usaha ini akan muncul di sini setelah ada pembayaran."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>

@@ -7,6 +7,7 @@ import { StatusBadge } from "./status-badge";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -87,7 +88,13 @@ export default async function PekerjaanPage() {
 
       <div className="mx-auto max-w-3xl space-y-8 px-4 py-6 sm:px-6">
         {jobs.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            icon={Icon.Job}
+            title="Belum ada pekerjaan"
+            desc="Mulai dari sini — catat pekerjaan pertama Anda (cuci AC, isi freon, atau perbaikan), lalu tugaskan ke teknisi."
+            actionHref="/app/pekerjaan/baru"
+            actionLabel="+ Buat Pekerjaan"
+          />
         ) : (
           <>
             <JobGroup title="Hari ini" emptyText="Tidak ada pekerjaan untuk hari ini." jobs={hariIni} />
@@ -97,28 +104,6 @@ export default async function PekerjaanPage() {
         )}
       </div>
     </main>
-  );
-}
-
-function EmptyState() {
-  return (
-    <Card className="border-dashed">
-      <CardContent className="p-8 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
-          <Icon.Job className="h-7 w-7" aria-hidden />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">Belum ada pekerjaan</h2>
-        <p className="mx-auto mt-2 max-w-md text-muted-foreground">
-          Catat pekerjaan pertama Anda — cuci AC, isi freon, atau perbaikan — lalu tugaskan ke teknisi.
-        </p>
-        <Link
-          href="/app/pekerjaan/baru"
-          className={buttonVariants({ size: "lg", className: "mt-5 min-h-[48px] bg-sky-500 px-6 text-white hover:bg-sky-600" })}
-        >
-          Buat Pekerjaan
-        </Link>
-      </CardContent>
-    </Card>
   );
 }
 

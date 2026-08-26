@@ -3,6 +3,8 @@ import { getPlatformStats } from "@/lib/services/platform-service";
 import { formatIDR } from "@/lib/billing/plans";
 import { PaymentStatusBadge } from "./status-badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +55,12 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
         {stats.recentPayments.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">Belum ada pembayaran.</p>
+          <EmptyState
+            variant="bare"
+            icon={Icon.Billing}
+            title="Belum ada pembayaran"
+            desc="Transaksi langganan dari seluruh usaha akan muncul di sini begitu ada pembayaran masuk."
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>

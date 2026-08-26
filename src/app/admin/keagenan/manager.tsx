@@ -6,6 +6,7 @@ import { actionCreateAgent, actionUpdateAgent, actionBuildPayouts, actionMarkPai
 import { Icon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/empty-state";
 import { Loader2 } from "lucide-react";
 import type { CommissionType, PartnerStatus, PartnerTaxStatus, PayoutStatus } from "@prisma/client";
 
@@ -130,7 +131,12 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
 
         <div className="mt-4 space-y-3">
           {agents.length === 0 ? (
-            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Belum ada agen. Rekrut mitra pemasaran &amp; buat di sini.</p>
+            <EmptyState
+              variant="bare"
+              icon={Icon.Users}
+              title="Belum ada agen"
+              desc="Rekrut mitra pemasaran dan buat agen baru lewat tombol di atas untuk memperluas jangkauan penjualan."
+            />
           ) : agents.map((a) => (
             <div key={a.id} className="rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -208,7 +214,12 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
         <p className="mt-1 text-xs text-muted-foreground">Draft dihitung dari buku besar (komisi terkumpul − refund). Owner menyetujui &amp; mencatat bukti transfer.</p>
         <div className="mt-3 space-y-2">
           {payouts.length === 0 ? (
-            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Belum ada pencairan. Klik &quot;Susun Draft&quot; setelah ada komisi.</p>
+            <EmptyState
+              variant="bare"
+              icon={Icon.Money}
+              title="Belum ada pencairan"
+              desc="Klik &quot;Susun Draft Bulan Lalu&quot; setelah ada komisi terkumpul untuk menyusun draft pencairan."
+            />
           ) : payouts.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3">
               <div>

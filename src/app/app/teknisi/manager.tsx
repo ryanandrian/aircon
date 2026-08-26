@@ -10,6 +10,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 
 interface Tech { id: string; name: string; phone: string; active: boolean }
 interface Invite { id: string; name: string; phone: string; token: string }
@@ -123,16 +124,11 @@ export function TechnicianManager({
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-muted-foreground">Teknisi Aktif ({technicians.length})</h2>
         {technicians.length === 0 ? (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
-                <Icon.Technician className="h-6 w-6" aria-hidden />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Belum ada teknisi. Undang lewat form di atas.
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Icon.Technician}
+            title="Belum ada teknisi"
+            desc="Undang teknisi lewat form di atas — mereka akan menerima tautan untuk membuat PIN dan mulai menangani pekerjaan."
+          />
         ) : (
           technicians.map((t) => (
             <Card key={t.id}>
