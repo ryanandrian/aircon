@@ -5,6 +5,7 @@ import { Icon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -23,6 +24,7 @@ export default function Home() {
             <span className="text-lg font-bold tracking-tight">Aircon</span>
           </div>
           <nav className="flex items-center gap-1.5 text-sm">
+            <ThemeToggle />
             <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm" })}>Lihat Demo</Link>
             <Link href="/login" className={buttonVariants({ size: "sm" })}>Mulai Gratis</Link>
           </nav>
