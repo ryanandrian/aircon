@@ -100,3 +100,30 @@ export async function deleteObject(key: string): Promise<void> {
   if (!isStorageConfigured()) return;
   await client().send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }
+
+/**
+ * Presigned PUT untuk aset publik (landing: logo, hero, OG, foto testimoni).
+ * Bukan tenant-scoped — hanya dipanggil dari admin platform (guarded di server action).
+ */
+export async function createAssetUploadUrl(params: {
+  scope: string; // mis. "landing" | "testimonial"
+  filename: string;
+  contentType: string;
+}): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+  if (!isStorageConfigured()) throw new Error("S3 storage belum dikonfigurasi");
+  if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
+
+  const ext = safeExt(params.filename);
+  const safeScope = params.scope.replace(/[^a-z0-9-]/gi, "").slice(0, 32) || "asset";
+  const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const key = `assets/${safeScope}/${rand}.${ext}`;
+
+  const cmd = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: params.contentType,
+    ACL: "public-read",
+  });
+  const uploadUrl = await getSignedUrl(client(), cmd, { expiresIn: 300 });
+  return { uploadUrl, publicUrl: publicUrl(key), key };
+}

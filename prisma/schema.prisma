@@ -669,6 +669,57 @@ model LoginThrottle {
   updatedAt   DateTime @updatedAt
 }
 
+// Konten landing page — EDITABLE ADMIN (no hardcode). Singleton (id="singleton").
+// Teks per-section + URL gambar (upload S3) + toggle tampil. Kolom kosong = pakai default kode.
+model LandingContent {
+  id                String   @id @default("singleton")
+  // Hero
+  heroBadge         String   @default("")
+  heroTitle         String   @default("")
+  heroTitleAccent   String   @default("")
+  heroSubtitle      String   @default("")
+  heroCtaPrimary    String   @default("")
+  heroCtaSecondary  String   @default("")
+  heroMicrocopy     String   @default("")
+  heroImageUrl      String   @default("") // mockup/screenshot hero (S3)
+  // Gambar global
+  logoUrl           String   @default("")
+  ogImageUrl        String   @default("")
+  // Section: cara kerja
+  howTitle          String   @default("")
+  howSubtitle       String   @default("")
+  // Section: booking hook / CTA akhir / footer
+  ctaTitle          String   @default("")
+  ctaSubtitle       String   @default("")
+  ctaButton         String   @default("")
+  footerTagline     String   @default("")
+  // Toggle tampil per-section
+  showRoi           Boolean  @default(true)
+  showHow           Boolean  @default(true)
+  showSegments      Boolean  @default(true)
+  showPricing       Boolean  @default(true)
+  showTestimonials  Boolean  @default(false) // default off sampai ada testimoni jujur
+  showFaq           Boolean  @default(true)
+  updatedBy         String?
+  updatedAt         DateTime @updatedAt
+}
+
+// Testimoni pelanggan landing — CRUD admin. JANGAN isi palsu (etika + hukum).
+model Testimonial {
+  id         String   @id @default(cuid())
+  name       String
+  business   String   @default("")
+  quote      String
+  photoUrl   String   @default("")
+  rating     Int      @default(5)
+  sortOrder  Int      @default(0)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([published, sortOrder])
+}
+
 // Profil perusahaan penyedia (Lumite) — untuk invoice/kwitansi & data merchant.
 // Singleton (id="singleton"). EDITABLE admin, NO HARDCODE.
 model CompanyProfile {

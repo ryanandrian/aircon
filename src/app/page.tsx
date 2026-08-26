@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
+import { getLandingContent, listTestimonials } from "@/lib/services/landing-service";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -19,7 +20,13 @@ export const dynamic = "force-dynamic";
 const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
 export default async function Home() {
-  const [plans, policy] = await Promise.all([getActivePlans(), getBillingPolicy()]);
+  const [plans, policy, c, testimonials] = await Promise.all([
+    getActivePlans(),
+    getBillingPolicy(),
+    getLandingContent(),
+    listTestimonials(true),
+  ]);
+  const logo = c.logoUrl || "/brand/aircon-logo.png";
 
   return (
     <main className="min-h-screen bg-background">
@@ -27,11 +34,11 @@ export default async function Home() {
       <header className="sticky top-0 z-30 border-b bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <div className="flex items-center gap-2">
-            <Image src="/brand/aircon-logo.png" alt="Aircon" width={32} height={32} className="h-8 w-8 object-contain" priority />
+            <Image src={logo} alt="Aircon" width={32} height={32} className="h-8 w-8 object-contain" priority />
             <span className="text-lg font-bold tracking-tight">Aircon</span>
           </div>
           <nav className="flex items-center gap-1.5 text-sm">
-            <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Harga</Link>
+            {c.showPricing && <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Harga</Link>}
             <ThemeToggle />
             <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm" })}>Demo</Link>
             <Link href="/login" className={buttonVariants({ size: "sm" })}>Mulai Gratis</Link>
@@ -45,27 +52,30 @@ export default async function Home() {
         <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-20 h-[28rem] w-[28rem] rounded-full bg-cyan-200/30 blur-3xl dark:bg-cyan-500/10" />
         <div className="relative mx-auto max-w-6xl px-5 pb-8 pt-16 text-center">
           <Badge variant="secondary" className="animate-fade mb-5 border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">
-            Software usaha servis AC — dari HP, tanpa ribet
+            {c.heroBadge}
           </Badge>
           <h1 className="animate-in-up mx-auto max-w-3xl text-4xl font-extrabold leading-[1.08] tracking-tight text-foreground sm:text-6xl">
-            Pelanggan servis AC Anda <span className="bg-gradient-to-r from-sky-500 to-cyan-500 bg-clip-text text-transparent">datang lagi otomatis</span>
+            {c.heroTitle} <span className="bg-gradient-to-r from-sky-500 to-cyan-500 bg-clip-text text-transparent">{c.heroTitleAccent}</span>
           </h1>
           <p className="animate-in-up delay-75 mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Terima booking online, atur pekerjaan teknisi, dan ingatkan pelanggan servis berkala lewat WhatsApp —
-            semua otomatis. Fokus kerja, biar Aircon yang jaga usaha Anda tetap ramai.
+            {c.heroSubtitle}
           </p>
           <div className="animate-in-up delay-150 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/login" className={buttonVariants({ size: "lg", className: "w-full shadow-lg shadow-sky-500/20 sm:w-auto" })}>
-              Coba Gratis {policy.trialDays} Hari
+              {c.heroCtaPrimary} {policy.trialDays} Hari
             </Link>
             <Link href="/demo" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full sm:w-auto" })}>
-              Lihat Demo Dulu
+              {c.heroCtaSecondary}
             </Link>
           </div>
-          <p className="animate-in-up delay-150 mt-3 text-xs text-muted-foreground">Tanpa kartu kredit · Bisa langsung dipakai · Berhenti kapan saja</p>
+          <p className="animate-in-up delay-150 mt-3 text-xs text-muted-foreground">{c.heroMicrocopy}</p>
 
-          {/* Product visual mock */}
+          {/* Product visual mock (atau gambar hero kustom) */}
           <div className="animate-in-up delay-300 mx-auto mt-14 max-w-4xl">
+            {c.heroImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={c.heroImageUrl} alt="Tampilan Aircon" className="w-full rounded-2xl border shadow-lg" />
+            ) : (
             <div className="rounded-2xl border bg-card p-2 shadow-lg sm:p-3">
               <div className="rounded-xl border bg-muted/40 p-4 sm:p-6">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -84,11 +94,13 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       </section>
 
       {/* Trust bar */}
+      {c.showRoi && (
       <section className="border-y bg-muted/30">
         <div className="mx-auto grid max-w-5xl gap-6 px-5 py-12 sm:grid-cols-3">
           <RoiStat angka="1 servis ulang" ket="Cukup 1 pelanggan servis ulang per bulan sudah menutup biaya langganan." />
@@ -96,19 +108,23 @@ export default async function Home() {
           <RoiStat angka="0 job hilang" ket="Semua pekerjaan & pelanggan tercatat rapi. Tak ada lagi order yang lupa dikerjakan." />
         </div>
       </section>
+      )}
 
       {/* Cara kerja */}
+      {c.showHow && (
       <section className="mx-auto max-w-5xl px-5 py-20">
-        <h2 className="text-center text-3xl font-bold tracking-tight">Cara kerjanya sederhana</h2>
-        <p className="mt-2 text-center text-muted-foreground">Dirancang untuk teknisi &amp; pemilik usaha.</p>
+        <h2 className="text-center text-3xl font-bold tracking-tight">{c.howTitle}</h2>
+        <p className="mt-2 text-center text-muted-foreground">{c.howSubtitle}</p>
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
           <Step n="1" icon={Icon.Note} title="Catat pekerjaan" desc="Terima booking online atau catat sendiri. Tugaskan ke teknisi, pantau dari HP." />
           <Step n="2" icon={Icon.Wrench} title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
           <Step n="3" icon={Icon.Repeat} title="Pelanggan datang lagi" desc="Aircon otomatis ingatkan pelanggan saat waktunya servis lagi, lewat WhatsApp." />
         </div>
       </section>
+      )}
 
       {/* Untuk siapa */}
+      {c.showSegments && (
       <section className="bg-muted/30">
         <div className="mx-auto grid max-w-5xl gap-4 px-5 py-20 sm:grid-cols-2">
           <SegmentCard
@@ -124,8 +140,43 @@ export default async function Home() {
           />
         </div>
       </section>
+      )}
+
+      {/* TESTIMONI (tampil bila diaktifkan & ada data) */}
+      {c.showTestimonials && testimonials.length > 0 && (
+      <section className="mx-auto max-w-5xl px-5 py-20">
+        <h2 className="text-center text-3xl font-bold tracking-tight">Kata mereka yang sudah pakai</h2>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {testimonials.map((t) => (
+            <Card key={t.id} className="interactive">
+              <CardContent className="p-6">
+                <div className="flex gap-0.5 text-amber-500">
+                  {Array.from({ length: Math.max(1, Math.min(5, t.rating)) }).map((_, i) => (
+                    <Icon.Check key={i} className="h-4 w-4" aria-hidden />
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-foreground">&ldquo;{t.quote}&rdquo;</p>
+                <div className="mt-4 flex items-center gap-3">
+                  {t.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.photoUrl} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 font-bold text-white">{t.name.charAt(0).toUpperCase()}</div>
+                  )}
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">{t.name}</div>
+                    {t.business && <div className="text-xs text-muted-foreground">{t.business}</div>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+      )}
 
       {/* HARGA — transparan, dari DB */}
+      {c.showPricing && (
       <section id="harga" className="mx-auto max-w-5xl scroll-mt-20 px-5 py-20">
         <h2 className="text-center text-3xl font-bold tracking-tight">Harga jujur, tanpa kejutan</h2>
         <p className="mt-2 text-center text-muted-foreground">Coba gratis {policy.trialDays} hari. Tak perlu kartu kredit. Berhenti kapan saja.</p>
@@ -164,13 +215,15 @@ export default async function Home() {
           })}
         </div>
       </section>
+      )}
 
       {/* FAQ — jawab keberatan */}
+      {c.showFaq && (
       <section className="bg-muted/30">
         <div className="mx-auto max-w-3xl px-5 py-20">
           <h2 className="text-center text-3xl font-bold tracking-tight">Pertanyaan yang sering ditanya</h2>
           <div className="mt-10 space-y-3">
-            <Faq q="Ribet nggak? Saya bukan orang IT." a="Tidak. Aircon dibuat untuk teknisi & pemilik usaha. Semua dari HP, bahasa Indonesia, langsung bisa dipakai hari ini — tanpa pelatihan khusus." />
+            <Faq q="Ribet nggak?" a="Tidak. Aircon dibuat untuk teknisi & pemilik usaha. Semua dari HP, bahasa Indonesia, langsung bisa dipakai hari ini — tanpa pelatihan khusus." />
             <Faq q="HP saya biasa saja, muat nggak?" a="Muat. Aircon ringan dan berjalan di browser HP mana pun. Tidak perlu install aplikasi berat dari toko aplikasi." />
             <Faq q="Data pelanggan saya aman?" a="Aman. Data tersimpan terpisah per usaha, terenkripsi, dan hanya bisa diakses akun Anda. Foto bukti & rekening disimpan aman." />
             <Faq q="Kalau saya berhenti bagaimana?" a="Bebas berhenti kapan saja tanpa penalti. Selama masa coba gratis, Anda tidak ditagih sama sekali." />
@@ -178,18 +231,19 @@ export default async function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* CTA akhir */}
       <section className="mx-auto max-w-3xl px-5 py-24 text-center">
-        <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Siap bikin usaha AC Anda lebih ramai?</h2>
-        <p className="mt-3 text-muted-foreground">Coba gratis {policy.trialDays} hari. Tak perlu kartu kredit. Bisa langsung dipakai hari ini.</p>
+        <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{c.ctaTitle}</h2>
+        <p className="mt-3 text-muted-foreground">{c.ctaSubtitle}</p>
         <Link href="/login" className={buttonVariants({ size: "lg", className: "mt-7 shadow-lg shadow-sky-500/20" })}>
-          Mulai Sekarang — Gratis
+          {c.ctaButton}
         </Link>
       </section>
 
       <footer className="border-t py-10 text-center text-sm text-muted-foreground">
-        Aircon — Operating System untuk usaha servis AC. Dari Lumite.
+        {c.footerTagline}
       </footer>
     </main>
   );
