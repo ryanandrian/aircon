@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { actionUpdatePlan } from "../config-actions";
 import type { TenantPlan } from "@prisma/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/submit-button";
 
 interface Initial {
   displayName: string;
@@ -30,72 +34,73 @@ export function PlanEditor({ plan, initial }: { plan: TenantPlan; initial: Initi
     });
   }
 
-  const field = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
-  const label = "block text-xs font-medium text-slate-600";
-
   return (
-    <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="font-bold">{plan}</h2>
-        <label className="flex items-center gap-1 text-xs text-slate-600">
-          <input type="checkbox" name="active" defaultChecked={initial.active} /> Aktif
-        </label>
-      </div>
+    <Card>
+      <CardContent className="p-5">
+        <form onSubmit={onSubmit}>
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-foreground">{plan}</h2>
+            <label className="flex items-center gap-1 text-xs text-muted-foreground">
+              <input type="checkbox" name="active" defaultChecked={initial.active} className="accent-sky-500" /> Aktif
+            </label>
+          </div>
 
-      <div className="mt-3 space-y-3">
-        <div>
-          <label className={label}>Nama tampilan</label>
-          <input name="displayName" defaultValue={initial.displayName} className={field} required />
-        </div>
-        <div>
-          <label className={label}>Tagline</label>
-          <input name="tagline" defaultValue={initial.tagline} className={field} />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={label}>Harga/bulan (Rp)</label>
-            <input type="number" name="priceMonthly" defaultValue={initial.priceMonthly} className={field} min={0} />
-          </div>
-          <div>
-            <label className={label}>Urutan</label>
-            <input type="number" name="sortOrder" defaultValue={initial.sortOrder} className={field} min={0} />
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" name="taxable" defaultChecked={initial.taxable} /> Kena pajak
-        </label>
+          <div className="mt-3 space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Nama tampilan</Label>
+              <Input name="displayName" defaultValue={initial.displayName} required />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Tagline</Label>
+              <Input name="tagline" defaultValue={initial.tagline} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Harga/bulan (Rp)</Label>
+                <Input type="number" name="priceMonthly" defaultValue={initial.priceMonthly} min={0} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Urutan</Label>
+                <Input type="number" name="sortOrder" defaultValue={initial.sortOrder} min={0} />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input type="checkbox" name="taxable" defaultChecked={initial.taxable} className="accent-sky-500" /> Kena pajak
+            </label>
 
-        <p className="pt-2 text-xs font-semibold text-slate-500">Kuota (kosong = tanpa batas)</p>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className={label}>Maks admin</label>
-            <input type="number" name="maxAdmins" defaultValue={initial.maxAdmins ?? ""} className={field} min={0} />
+            <p className="pt-2 text-xs font-semibold text-muted-foreground">Kuota (kosong = tanpa batas)</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Maks admin</Label>
+                <Input type="number" name="maxAdmins" defaultValue={initial.maxAdmins ?? ""} min={0} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Maks teknisi</Label>
+                <Input type="number" name="maxTechnicians" defaultValue={initial.maxTechnicians ?? ""} min={0} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Maks pelanggan</Label>
+                <Input type="number" name="maxCustomers" defaultValue={initial.maxCustomers ?? ""} min={0} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Maks unit AC</Label>
+                <Input type="number" name="maxAcUnits" defaultValue={initial.maxAcUnits ?? ""} min={0} />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className={label}>Maks teknisi</label>
-            <input type="number" name="maxTechnicians" defaultValue={initial.maxTechnicians ?? ""} className={field} min={0} />
-          </div>
-          <div>
-            <label className={label}>Maks pelanggan</label>
-            <input type="number" name="maxCustomers" defaultValue={initial.maxCustomers ?? ""} className={field} min={0} />
-          </div>
-          <div>
-            <label className={label}>Maks unit AC</label>
-            <input type="number" name="maxAcUnits" defaultValue={initial.maxAcUnits ?? ""} className={field} min={0} />
-          </div>
-        </div>
-      </div>
 
-      {msg && (
-        <p className={`mt-3 text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>
-      )}
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-4 w-full rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
-      >
-        {pending ? "Menyimpan…" : "Simpan"}
-      </button>
-    </form>
+          {msg && (
+            <p className={`mt-3 text-sm ${msg.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{msg.text}</p>
+          )}
+          <SubmitButton
+            pending={pending}
+            pendingLabel="Menyimpan…"
+            className="mt-4 w-full bg-sky-500 text-white hover:bg-sky-600"
+          >
+            Simpan
+          </SubmitButton>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

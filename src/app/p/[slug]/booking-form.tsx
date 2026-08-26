@@ -9,10 +9,13 @@
  * - Honeypot tersembunyi menangkap bot.
  */
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import { submitBooking, type BookingActionState } from "./actions";
 import { HONEYPOT_FIELD, SERVICE_TYPES } from "@/lib/validation/booking";
 import { Icon } from "@/components/icons";
+import { SubmitButton } from "@/components/submit-button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 const SERVICE_LABELS: Record<(typeof SERVICE_TYPES)[number], string> = {
   CLEANING: "Cuci AC",
@@ -26,19 +29,9 @@ const SERVICE_LABELS: Record<(typeof SERVICE_TYPES)[number], string> = {
 
 const initialState: BookingActionState = { ok: null };
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-sky-200 transition hover:bg-sky-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-      aria-busy={pending}
-    >
-      {pending ? "Mengirim…" : "Kirim Permintaan Booking"}
-    </button>
-  );
-}
+// Select native dipertahankan untuk progressive enhancement (form bekerja tanpa JS).
+const selectClass =
+  "flex min-h-[48px] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 export default function BookingForm({ slug }: { slug: string }) {
   const [state, formAction] = useActionState<BookingActionState, FormData>(
@@ -54,15 +47,15 @@ export default function BookingForm({ slug }: { slug: string }) {
       <div
         role="status"
         aria-live="polite"
-        className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center"
+        className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30"
       >
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white">
           <Icon.Check className="h-6 w-6" aria-hidden />
         </div>
-        <h3 className="text-lg font-bold text-emerald-800">
+        <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-300">
           {state.message}
         </h3>
-        <p className="mt-1 text-sm text-emerald-700">
+        <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
           Permintaan Anda sudah kami terima. Tim kami akan menghubungi via
           WhatsApp secepatnya.
         </p>
@@ -77,7 +70,7 @@ export default function BookingForm({ slug }: { slug: string }) {
         <p
           role="alert"
           aria-live="assertive"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400"
         >
           {state.error}
         </p>
@@ -95,14 +88,11 @@ export default function BookingForm({ slug }: { slug: string }) {
         />
       </div>
 
-      <div>
-        <label
-          htmlFor="name"
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
+      <div className="space-y-1.5">
+        <Label htmlFor="name">
           Nama <span className="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="name"
           name="name"
           type="text"
@@ -112,24 +102,21 @@ export default function BookingForm({ slug }: { slug: string }) {
           aria-required="true"
           aria-invalid={!!fieldErrors.name}
           aria-describedby={fieldErrors.name ? "name-err" : undefined}
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+          className="min-h-[48px] text-base"
           placeholder="Nama lengkap Anda"
         />
         {fieldErrors.name && (
-          <p id="name-err" className="mt-1 text-sm text-red-600">
+          <p id="name-err" className="text-sm text-red-600 dark:text-red-400">
             {fieldErrors.name}
           </p>
         )}
       </div>
 
-      <div>
-        <label
-          htmlFor="phone"
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
+      <div className="space-y-1.5">
+        <Label htmlFor="phone">
           Nomor WhatsApp <span className="text-red-500">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="phone"
           name="phone"
           type="tel"
@@ -140,32 +127,27 @@ export default function BookingForm({ slug }: { slug: string }) {
           aria-required="true"
           aria-invalid={!!fieldErrors.phone}
           aria-describedby={fieldErrors.phone ? "phone-err" : "phone-hint"}
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+          className="min-h-[48px] text-base"
           placeholder="08xxxxxxxxxx"
         />
         {fieldErrors.phone ? (
-          <p id="phone-err" className="mt-1 text-sm text-red-600">
+          <p id="phone-err" className="text-sm text-red-600 dark:text-red-400">
             {fieldErrors.phone}
           </p>
         ) : (
-          <p id="phone-hint" className="mt-1 text-xs text-slate-500">
+          <p id="phone-hint" className="text-xs text-muted-foreground">
             Kami akan menghubungi Anda lewat WhatsApp.
           </p>
         )}
       </div>
 
-      <div>
-        <label
-          htmlFor="serviceType"
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
-          Jenis Layanan
-        </label>
+      <div className="space-y-1.5">
+        <Label htmlFor="serviceType">Jenis Layanan</Label>
         <select
           id="serviceType"
           name="serviceType"
           defaultValue=""
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+          className={selectClass}
         >
           <option value="">— Pilih (opsional) —</option>
           {SERVICE_TYPES.map((st) => (
@@ -176,47 +158,42 @@ export default function BookingForm({ slug }: { slug: string }) {
         </select>
       </div>
 
-      <div>
-        <label
-          htmlFor="preferredDate"
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
-          Tanggal Diinginkan
-        </label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="preferredDate">Tanggal Diinginkan</Label>
+        <Input
           id="preferredDate"
           name="preferredDate"
           type="date"
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+          className="min-h-[48px] text-base"
         />
       </div>
 
-      <div>
-        <label
-          htmlFor="note"
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
-          Catatan
-        </label>
-        <textarea
+      <div className="space-y-1.5">
+        <Label htmlFor="note">Catatan</Label>
+        <Textarea
           id="note"
           name="note"
           rows={3}
           maxLength={500}
           aria-invalid={!!fieldErrors.note}
           aria-describedby={fieldErrors.note ? "note-err" : undefined}
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-200"
+          className="text-base"
           placeholder="Contoh: AC kamar tidak dingin, unit 1 PK"
         />
         {fieldErrors.note && (
-          <p id="note-err" className="mt-1 text-sm text-red-600">
+          <p id="note-err" className="text-sm text-red-600 dark:text-red-400">
             {fieldErrors.note}
           </p>
         )}
       </div>
 
-      <SubmitButton />
-      <p className="text-center text-xs text-slate-400">
+      <SubmitButton
+        pendingLabel="Mengirim…"
+        className="min-h-[48px] w-full bg-sky-500 text-base text-white shadow-lg shadow-sky-200 hover:bg-sky-600 dark:shadow-none"
+      >
+        Kirim Permintaan Booking
+      </SubmitButton>
+      <p className="text-center text-xs text-muted-foreground">
         Dengan mengirim, Anda setuju dihubungi terkait permintaan servis ini.
       </p>
     </form>

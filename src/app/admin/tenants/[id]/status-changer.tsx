@@ -3,6 +3,15 @@
 import { useState, useTransition } from "react";
 import type { TenantStatus } from "@prisma/client";
 import { actionSetTenantStatus } from "../../actions";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 
 const OPTIONS: { value: TenantStatus; label: string }[] = [
   { value: "TRIAL", label: "Masa Coba" },
@@ -39,29 +48,35 @@ export function StatusChanger({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <select
+      <Select
         value={value}
-        onChange={(e) => setValue(e.target.value as TenantStatus)}
+        onValueChange={(v) => setValue(v as TenantStatus)}
         disabled={pending}
-        className="rounded-2xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
       >
-        {OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <button
+        <SelectTrigger className="min-h-[40px] w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
         type="button"
         onClick={submit}
         disabled={!dirty || pending}
-        className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-40"
+        aria-busy={pending}
+        className="bg-sky-500 text-white hover:bg-sky-600"
       >
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         {pending ? "Menyimpan…" : "Ubah Status"}
-      </button>
+      </Button>
       {msg ? (
         <span
-          className={`text-sm ${msg.kind === "ok" ? "text-emerald-600" : "text-rose-600"}`}
+          className={`text-sm ${msg.kind === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
         >
           {msg.text}
         </span>
