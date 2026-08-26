@@ -13,6 +13,8 @@ import { prisma } from "@/lib/prisma";
 import { normalizeBookingPhone } from "@/lib/validation/booking";
 import BookingForm from "./booking-form";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import type { ComponentType } from "react";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -105,14 +107,14 @@ export default async function PublicTenantPage({ params }: PageProps) {
   const areaLabel = [...cities, ...districts].join(", ");
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
+    <main className="min-h-screen bg-gradient-to-b from-sky-50 to-background dark:from-sky-950/30">
       <div className="mx-auto w-full max-w-lg px-5 pb-16 pt-8">
         {/* Header usaha */}
         <header className="text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500 text-2xl font-bold text-white shadow-lg shadow-sky-200">
             {tenant.name.charAt(0).toUpperCase()}
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
             {tenant.name}
           </h1>
           {profile.tagline && (
@@ -120,7 +122,7 @@ export default async function PublicTenantPage({ params }: PageProps) {
               {profile.tagline}
             </p>
           )}
-          <p className="mx-auto mt-3 max-w-md text-slate-600">
+          <p className="mx-auto mt-3 max-w-md text-muted-foreground">
             {profile.description ??
               "Servis AC cepat, jujur, dan profesional. Pesan online — tim kami akan menghubungi Anda via WhatsApp."}
           </p>
@@ -148,17 +150,14 @@ export default async function PublicTenantPage({ params }: PageProps) {
         <section className="mt-8" aria-labelledby="layanan-heading">
           <h2
             id="layanan-heading"
-            className="text-sm font-semibold uppercase tracking-wide text-slate-500"
+            className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
           >
             Layanan Kami
           </h2>
           <ul className="mt-3 flex flex-wrap gap-2">
             {services.map((s) => (
-              <li
-                key={s}
-                className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700"
-              >
-                {s}
+              <li key={s}>
+                <Badge variant="secondary" className="border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">{s}</Badge>
               </li>
             ))}
           </ul>
@@ -169,32 +168,28 @@ export default async function PublicTenantPage({ params }: PageProps) {
           <section className="mt-6" aria-labelledby="area-heading">
             <h2
               id="area-heading"
-              className="text-sm font-semibold uppercase tracking-wide text-slate-500"
+              className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
             >
               Area Layanan
             </h2>
-            <p className="mt-2 text-slate-700">{areaLabel}</p>
+            <p className="mt-2 text-foreground/80">{areaLabel}</p>
           </section>
         )}
 
         {/* Form booking */}
-        <section
-          className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-          aria-labelledby="booking-heading"
-        >
-          <h2
-            id="booking-heading"
-            className="text-xl font-bold text-slate-900"
-          >
-            Booking Servis
-          </h2>
-          <p className="mb-5 mt-1 text-sm text-slate-600">
-            Isi form di bawah, tim kami akan segera menghubungi Anda.
-          </p>
-          <BookingForm slug={tenant.slug} />
-        </section>
+        <Card className="mt-8 shadow-sm" aria-labelledby="booking-heading">
+          <CardContent className="p-6">
+            <h2 id="booking-heading" className="text-xl font-bold text-foreground">
+              Booking Servis
+            </h2>
+            <p className="mb-5 mt-1 text-sm text-muted-foreground">
+              Isi form di bawah, tim kami akan segera menghubungi Anda.
+            </p>
+            <BookingForm slug={tenant.slug} />
+          </CardContent>
+        </Card>
 
-        <footer className="mt-10 text-center text-xs text-slate-400">
+        <footer className="mt-10 text-center text-xs text-muted-foreground">
           Ditenagai oleh{" "}
           <a href="/" className="font-medium text-sky-500 hover:text-sky-600">Aircon</a>
           {" "}— Operating System untuk usaha servis AC.
@@ -206,9 +201,9 @@ export default async function PublicTenantPage({ params }: PageProps) {
 
 function TrustBadge({ icon: IconCmp, label }: { icon: ComponentType<{ className?: string }>; label: string }) {
   return (
-    <li className="rounded-xl border border-slate-200 bg-white px-2 py-2">
+    <li className="rounded-xl border bg-card px-2 py-2">
       <div className="flex justify-center text-sky-500"><IconCmp className="h-5 w-5" aria-hidden /></div>
-      <div className="mt-0.5 text-[11px] font-medium leading-tight text-slate-600">{label}</div>
+      <div className="mt-0.5 text-[11px] font-medium leading-tight text-muted-foreground">{label}</div>
     </li>
   );
 }
