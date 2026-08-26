@@ -90,7 +90,11 @@ KEPUTUSAN identitas unit (owner setuju arah, BELUM dibangun — tunggu bukti pil
  - Anti-duplikat utama = ALUR find-before-create (pilih unit existing dulu; "tambah unit" opsi terakhir).
    CATATAN: di form JOB sudah ada (filter unit per pelanggan). Yang kurang: saat TAMBAH unit baru.
  - Dedup-warning HARUS LUNAK (warn, jangan blokir) — unit kembar itu SAH.
- - TOLAK stiker/QR tempel di badan AC (owner: pelanggan sering menolak + menyulitkan teknisi).
+ - STIKER/KODE UNIT = OPT-IN (revisi 26 Agu, owner): JANGAN wajib/global. Untuk RUMAH pelanggan sering
+   menolak → jangan paksa. Untuk INSTITUSI (masjid/kantor banyak unit KEMBAR) stiker kode kecil
+   (mis. U-001..U-008) JUSTRU membantu: satu-satunya cara andal bedakan unit identik + pengelola ikut
+   kontrol riwayat. Jadi: fitur opsional per-unit (generate kode pendek, boleh ditempel bila mau),
+   bukan kewajiban. Kode ini kelak = jembatan ke portabilitas atas-izin (tunjukkan kode → riwayat unit).
 KASUS BANYAK-UNIT-KEMBAR (mis. masjid 8 AC merek/tipe/PK/lokasi SAMA — atribut identik, teknisi pun
 sulit bedakan unit fisiknya):
  - KEPUTUSAN default = Pola B: 1 aset + field JUMLAH unit (quantity), diservis sekaligus. Ringan,
