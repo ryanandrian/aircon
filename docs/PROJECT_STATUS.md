@@ -57,6 +57,25 @@ menuju go-komersial ~93%. Sisa mayoritas = konfigurasi eksternal + validasi pilo
 9. Migrasi app Vercel->VPS-APP (saat menagih massal / keluar batas Hobby)
 10. TLS MQTT (port 8883) untuk device IoT dari internet — kini Mosquitto 127.0.0.1:1883 lokal
 
+### KEPUTUSAN DESAIN TERTUNDA — "Catatan medis mesin AC" lintas-tenant (26 Agu 2026)
+Owner mempertimbangkan: bila 1 pelanggan dilayani 2+ tenant, riwayat perawatan unit AC pecah;
+usulan awal = catatan GLOBAL lintas-tenant agar 1 unit = 1 riwayat.
+KESIMPULAN (setelah analisis): JANGAN global-otomatis. 3 alasan penentu:
+ (a) IDENTITAS: tak ada registry AC nasional; serial sering kosong/salah/terhapus → sistem tak bisa
+     andal tahu 2 tenant menyervis unit fisik yang sama (risiko salah-gabung/gagal-gabung).
+ (b) PRIVASI/HUKUM: catatan memuat harga, diagnosis, data pribadi pelanggan (UU PDP). Global =
+     bocor kompetitif antar-tenant + rusak model kepercayaan CRM privat (nilai jual inti).
+ (c) KEPEMILIKAN: konflik edit/koreksi lintas badan usaha.
+ARAH YANG BENAR (analogi rekam medis: ikut PASIEN, pindah atas IZIN):
+ - Riwayat tetap PRIVAT per-tenant (isolasi tak dirusak).
+ - Portabilitas ATAS-IZIN pelanggan: pemilik unit membagikan riwayat ke tenant baru saat booking
+   (consent-driven copy via halaman booking/QR di unit) — BUKAN visibilitas global.
+LANGKAH BERTAHAP (belum dibangun; tunggu bukti kebutuhan — di pilot kemungkinan ~nol):
+ 1) SEKARANG (opsional, low-risk): kuatkan identitas unit (serial/brand/model/PK/installedAt rapi)
+    + dedupe DALAM-tenant (1 unit fisik = 1 record). Menyiapkan data utk portabilitas nanti.
+ 2) NANTI: portabilitas atas-izin. 3) JANGAN bangun global lintas-tenant.
+Model saat ini: Asset {tenantId, customerId, serial?(opsional), deviceId?@unique} — riwayat via JobOrder.
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
