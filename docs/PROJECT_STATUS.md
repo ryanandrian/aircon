@@ -76,6 +76,31 @@ LANGKAH BERTAHAP (belum dibangun; tunggu bukti kebutuhan — di pilot kemungkina
  2) NANTI: portabilitas atas-izin. 3) JANGAN bangun global lintas-tenant.
 Model saat ini: Asset {tenantId, customerId, serial?(opsional), deviceId?@unique} — riwayat via JobOrder.
 
+### KEPUTUSAN DESAIN TERTUNDA — Identitas unit AC & kasus banyak-unit-kembar (26 Agu 2026)
+Konteks nyata (PASTI terjadi): dalam 1 tenant, 1 pelanggan ditangani teknisi berbeda dari waktu
+ke waktu → kalau identitas unit kabur, teknisi kedua bikin record baru → DUPLIKAT → rekam medis pecah.
+FAKTA KODE (sudah baik, tak perlu ubah):
+ - Reminder SUDAH per-mesin (RepeatReminder.assetId, unique [tenantId,assetId,dueDate]).
+ - Reminder SUDAH di-BATCH per pelanggan (374b93e): banyak unit due hari sama = 1 WA berisi daftar
+   (template reminder_multi, editable /app/pesan). Cegah banjir notifikasi institusi.
+KEPUTUSAN identitas unit (owner setuju arah, BELUM dibangun — tunggu bukti pilot):
+ - Lokasi = FREE-TEXT (bukan dropdown baku; tiap tempat beda). RENCANA: combobox free-text yang
+   MENYARANKAN lokasi yang pernah dipakai (per pelanggan → per tenant) agar seragam & anti-duplikat
+   "kamar depan" vs "k.tamu". Data membangun dirinya; tak perlu tabel preferensi manual.
+ - Anti-duplikat utama = ALUR find-before-create (pilih unit existing dulu; "tambah unit" opsi terakhir).
+   CATATAN: di form JOB sudah ada (filter unit per pelanggan). Yang kurang: saat TAMBAH unit baru.
+ - Dedup-warning HARUS LUNAK (warn, jangan blokir) — unit kembar itu SAH.
+ - TOLAK stiker/QR tempel di badan AC (owner: pelanggan sering menolak + menyulitkan teknisi).
+KASUS BANYAK-UNIT-KEMBAR (mis. masjid 8 AC merek/tipe/PK/lokasi SAMA — atribut identik, teknisi pun
+sulit bedakan unit fisiknya):
+ - KEPUTUSAN default = Pola B: 1 aset + field JUMLAH unit (quantity), diservis sekaligus. Ringan,
+   realistis untuk borongan. Riwayat = "8 unit dicuci tgl X".
+ - Bisa "PECAH" ke Pola A (per-unit dg label posisi: 'Ruang Utama 1..8' / 'Dekat Mimbar') HANYA saat
+   1 unit butuh riwayat khusus (mis. sering bocor).
+ - Butuh perubahan skema: Asset + kolom `quantity Int @default(1)` (+ opsi pecah). BELUM dibangun.
+STATUS: konsep matang & disepakati arah; implementasi ditunda sampai pilot membuktikan kebutuhan
+(hindari kompleksitas skema spekulatif). Reminder-batch sudah live sebagai fondasi.
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
