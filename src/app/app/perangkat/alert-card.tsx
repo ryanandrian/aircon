@@ -4,6 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { alertToJob, dismissAlert } from "./alert-actions";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import type { AlertType, AlertSeverity } from "@prisma/client";
 
 const TYPE_LABEL: Record<AlertType, string> = {
@@ -14,9 +18,9 @@ const TYPE_LABEL: Record<AlertType, string> = {
 };
 
 const SEV_STYLE: Record<AlertSeverity, string> = {
-  CRITICAL: "border-red-200 bg-red-50",
-  WARNING: "border-amber-200 bg-amber-50",
-  INFO: "border-sky-200 bg-sky-50",
+  CRITICAL: "border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30",
+  WARNING: "border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30",
+  INFO: "border border-sky-200 bg-sky-50 dark:border-sky-900/50 dark:bg-sky-950/30",
 };
 
 export function AlertCard({
@@ -47,39 +51,39 @@ export function AlertCard({
   }
 
   return (
-    <div className={`rounded-2xl border p-4 ${SEV_STYLE[severity]}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-900">{TYPE_LABEL[type]}</span>
-            {severity === "CRITICAL" && (
-              <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-medium text-white">Penting</span>
-            )}
+    <Card className={`ring-0 ${SEV_STYLE[severity]}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground">{TYPE_LABEL[type]}</span>
+              {severity === "CRITICAL" && (
+                <Badge variant="destructive" className="bg-red-500 text-white dark:bg-red-500">Penting</Badge>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-foreground/80">{message}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{new Date(at).toLocaleString("id-ID")}</p>
           </div>
-          <p className="mt-1 text-sm text-slate-700">{message}</p>
-          <p className="mt-1 text-xs text-slate-400">{new Date(at).toLocaleString("id-ID")}</p>
         </div>
-      </div>
 
-      {msg && <p className="mt-2 text-sm text-red-600">{msg}</p>}
+        {msg && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{msg}</p>}
 
-      <div className="mt-3 flex gap-2">
-        {hasJob && jobId ? (
-          <Link href={`/app/pekerjaan/${jobId}`}
-            className="min-h-[44px] flex-1 rounded-xl bg-emerald-100 px-4 py-2 text-center text-sm font-medium text-emerald-700">
-            Pekerjaan sudah dibuat →
-          </Link>
-        ) : (
-          <button onClick={createJob} disabled={pending}
-            className="min-h-[44px] flex-1 rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50">
-            {pending ? "Memproses…" : "Buat Pekerjaan"}
-          </button>
-        )}
-        <button onClick={dismiss} disabled={pending}
-          className="min-h-[44px] rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50">
-          Abaikan
-        </button>
-      </div>
-    </div>
+        <div className="mt-3 flex gap-2">
+          {hasJob && jobId ? (
+            <Link href={`/app/pekerjaan/${jobId}`}
+              className={buttonVariants({ variant: "secondary", className: "min-h-[44px] flex-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400" })}>
+              Pekerjaan sudah dibuat →
+            </Link>
+          ) : (
+            <SubmitButton type="button" onClick={createJob} pending={pending} pendingLabel="Memproses…" className="min-h-[44px] flex-1">
+              Buat Pekerjaan
+            </SubmitButton>
+          )}
+          <Button type="button" variant="outline" onClick={dismiss} disabled={pending} className="min-h-[44px]">
+            Abaikan
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

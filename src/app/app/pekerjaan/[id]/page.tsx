@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { JOB_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "../status-badge";
 import { OwnerActions } from "./owner-actions";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -84,17 +85,17 @@ export default async function PekerjaanDetailPage({
     : todayStr;
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+    <main className="min-h-screen bg-muted/40 pb-16">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <div>
             <Link
               href="/app/pekerjaan"
-              className="text-xs text-slate-500 hover:text-slate-800"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
               ← Semua Pekerjaan
             </Link>
-            <h1 className="text-lg font-bold text-slate-900">
+            <h1 className="text-lg font-bold text-foreground">
               {SERVICE_TYPE_LABEL[job.serviceType] ?? job.serviceType}
             </h1>
           </div>
@@ -104,47 +105,53 @@ export default async function PekerjaanDetailPage({
 
       <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
         {/* Pelanggan */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-base font-bold text-slate-900">Pelanggan</h2>
-          <dl className="mt-3 space-y-2 text-sm">
-            <Row label="Nama" value={job.customer.name} />
-            <Row label="Telepon" value={job.customer.phone ?? "—"} />
-            <Row label="Alamat" value={job.addressSnapshot ?? job.customer.address ?? "—"} />
-          </dl>
-        </section>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-base font-bold text-foreground">Pelanggan</h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              <Row label="Nama" value={job.customer.name} />
+              <Row label="Telepon" value={job.customer.phone ?? "—"} />
+              <Row label="Alamat" value={job.addressSnapshot ?? job.customer.address ?? "—"} />
+            </dl>
+          </CardContent>
+        </Card>
 
         {/* Unit AC */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-base font-bold text-slate-900">Unit AC</h2>
-          {job.asset ? (
-            <dl className="mt-3 space-y-2 text-sm">
-              <Row label="Unit" value={unit ?? "—"} />
-              <Row label="Lokasi" value={job.asset.roomLocation ?? "—"} />
-              <Row label="Tipe" value={job.asset.type ?? "—"} />
-            </dl>
-          ) : (
-            <p className="mt-2 text-sm text-slate-400">Tidak terkait unit AC tertentu.</p>
-          )}
-        </section>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-base font-bold text-foreground">Unit AC</h2>
+            {job.asset ? (
+              <dl className="mt-3 space-y-2 text-sm">
+                <Row label="Unit" value={unit ?? "—"} />
+                <Row label="Lokasi" value={job.asset.roomLocation ?? "—"} />
+                <Row label="Tipe" value={job.asset.type ?? "—"} />
+              </dl>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">Tidak terkait unit AC tertentu.</p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Jadwal & teknisi */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-base font-bold text-slate-900">Jadwal &amp; Teknisi</h2>
-          <dl className="mt-3 space-y-2 text-sm">
-            <Row
-              label="Jadwal"
-              value={`${fmtTanggal(job.scheduledDate)}${jam ? ` · ${jam}` : ""}`}
-            />
-            <Row label="Teknisi" value={job.technician?.user.name ?? "Belum ditugaskan"} />
-            <Row label="Harga" value={job.price != null ? fmtRupiah(job.price) : "—"} />
-          </dl>
-          {job.notes && (
-            <div className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-              <span className="font-medium text-slate-700">Catatan: </span>
-              {job.notes}
-            </div>
-          )}
-        </section>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-base font-bold text-foreground">Jadwal &amp; Teknisi</h2>
+            <dl className="mt-3 space-y-2 text-sm">
+              <Row
+                label="Jadwal"
+                value={`${fmtTanggal(job.scheduledDate)}${jam ? ` · ${jam}` : ""}`}
+              />
+              <Row label="Teknisi" value={job.technician?.user.name ?? "Belum ditugaskan"} />
+              <Row label="Harga" value={job.price != null ? fmtRupiah(job.price) : "—"} />
+            </dl>
+            {job.notes && (
+              <div className="mt-3 rounded-xl bg-muted/40 p-3 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Catatan: </span>
+                {job.notes}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Aksi owner */}
         <OwnerActions
@@ -156,46 +163,50 @@ export default async function PekerjaanDetailPage({
         />
 
         {/* Foto */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-base font-bold text-slate-900">Foto</h2>
-          {job.photos.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Belum ada foto.</p>
-          ) : (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {job.photos.map((p) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={p.id}
-                  src={p.url}
-                  alt={`Foto ${p.kind} pekerjaan`}
-                  className="aspect-square w-full rounded-xl object-cover"
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-base font-bold text-foreground">Foto</h2>
+            {job.photos.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Belum ada foto.</p>
+            ) : (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {job.photos.map((p) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={p.id}
+                    src={p.url}
+                    alt={`Foto ${p.kind} pekerjaan`}
+                    className="aspect-square w-full rounded-xl object-cover"
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Timeline */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-base font-bold text-slate-900">Riwayat</h2>
-          {job.events.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Belum ada riwayat.</p>
-          ) : (
-            <ol className="mt-3 space-y-3">
-              {job.events.map((ev) => (
-                <li key={ev.id} className="flex gap-3">
-                  <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-400" />
-                  <div className="text-sm">
-                    <p className="font-medium text-slate-800">
-                      {JOB_STATUS_LABEL[ev.toStatus] ?? ev.toStatus}
-                    </p>
-                    <p className="text-xs text-slate-400">{fmtWaktu(ev.at)}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-base font-bold text-foreground">Riwayat</h2>
+            {job.events.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Belum ada riwayat.</p>
+            ) : (
+              <ol className="mt-3 space-y-3">
+                {job.events.map((ev) => (
+                  <li key={ev.id} className="flex gap-3">
+                    <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-sky-400" />
+                    <div className="text-sm">
+                      <p className="font-medium text-foreground">
+                        {JOB_STATUS_LABEL[ev.toStatus] ?? ev.toStatus}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{fmtWaktu(ev.at)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
@@ -204,8 +215,8 @@ export default async function PekerjaanDetailPage({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="shrink-0 text-slate-500">{label}</dt>
-      <dd className="text-right font-medium text-slate-800">{value}</dd>
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="text-right font-medium text-foreground">{value}</dd>
     </div>
   );
 }

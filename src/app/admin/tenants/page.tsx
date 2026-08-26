@@ -2,6 +2,9 @@ import Link from "next/link";
 import { listTenants } from "@/lib/services/platform-service";
 import type { TenantStatus } from "@prisma/client";
 import { TenantStatusBadge } from "../status-badge";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -39,22 +42,22 @@ export default async function TenantsPage({
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Daftar Usaha</h1>
-        <p className="text-sm text-slate-500">Kelola langganan seluruh usaha pelanggan.</p>
+        <h1 className="text-2xl font-semibold text-foreground">Daftar Usaha</h1>
+        <p className="text-sm text-muted-foreground">Kelola langganan seluruh usaha pelanggan.</p>
       </header>
 
       <form method="get" className="flex flex-wrap items-center gap-3">
-        <input
+        <Input
           type="search"
           name="search"
           defaultValue={search ?? ""}
           placeholder="Cari nama, slug, atau telepon…"
-          className="w-64 rounded-2xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+          className="h-9 w-64"
         />
         <select
           name="status"
           defaultValue={sp.status ?? ""}
-          className="rounded-2xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
         >
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -62,23 +65,20 @@ export default async function TenantsPage({
             </option>
           ))}
         </select>
-        <button
-          type="submit"
-          className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-600"
-        >
+        <SubmitButton className="h-9 bg-sky-500 px-4 text-white hover:bg-sky-600" pendingLabel="Menerapkan…">
           Terapkan
-        </button>
+        </SubmitButton>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <Card className="p-0">
         {items.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
+          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
             Tidak ada usaha yang cocok.
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+              <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-3 font-medium">Nama Usaha</th>
                 <th className="px-5 py-3 font-medium">Paket</th>
                 <th className="px-5 py-3 font-medium">Status</th>
@@ -89,26 +89,26 @@ export default async function TenantsPage({
             </thead>
             <tbody>
               {items.map((t) => (
-                <tr key={t.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                <tr key={t.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="px-5 py-3">
                     <Link href={`/admin/tenants/${t.id}`} className="block">
-                      <span className="font-medium text-slate-800">{t.name}</span>
-                      <span className="block text-xs text-slate-400">/{t.slug}</span>
+                      <span className="font-medium text-foreground">{t.name}</span>
+                      <span className="block text-xs text-muted-foreground">/{t.slug}</span>
                     </Link>
                   </td>
-                  <td className="px-5 py-3 text-slate-600">{t.plan}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{t.plan}</td>
                   <td className="px-5 py-3">
                     <TenantStatusBadge status={t.status} />
                   </td>
-                  <td className="px-5 py-3 text-slate-500">{fmtDate(t.trialEndsAt)}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-slate-600">{t.userCount}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-slate-600">{t.jobCount}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{fmtDate(t.trialEndsAt)}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{t.userCount}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{t.jobCount}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

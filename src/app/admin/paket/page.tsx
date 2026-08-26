@@ -8,8 +8,8 @@ export default async function AdminPaketPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold">Paket Langganan</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-bold text-foreground">Paket Langganan</h1>
+        <p className="text-sm text-muted-foreground">
           Harga, pajak, dan kuota tiap paket. Perubahan berlaku untuk tagihan/aktivasi berikutnya.
           Kosongkan kuota = tanpa batas.
         </p>

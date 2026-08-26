@@ -3,6 +3,9 @@
 import { useState, useTransition } from "react";
 import { startPayment } from "./actions";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import type { TenantPlan } from "@prisma/client";
 
 interface PlanView {
@@ -79,50 +82,57 @@ export function PlanCards({
   return (
     <div>
       <div className="mb-4 flex items-center gap-2 text-sm">
-        <span className="text-slate-600">Durasi:</span>
+        <span className="text-muted-foreground">Durasi:</span>
         {[1, 3, 12].map((m) => (
-          <button
+          <Button
             key={m}
+            type="button"
+            variant={months === m ? "default" : "outline"}
+            size="sm"
             onClick={() => setMonths(m)}
-            className={`rounded-lg px-3 py-1.5 font-medium ${months === m ? "bg-sky-500 text-white" : "border border-slate-300 text-slate-600"}`}
           >
             {m} bulan
-          </button>
+          </Button>
         ))}
       </div>
 
-      {msg && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{msg}</p>}
+      {msg && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {plans.map((p) => {
           const isCurrent = p.id === currentPlan;
           return (
-            <div key={p.id} className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900">{p.name}</h3>
-              <p className="mt-1 text-sm text-slate-500">{p.tagline}</p>
-              <div className="mt-3 text-2xl font-extrabold text-slate-900">
-                {p.price}
-                {!p.isFree && <span className="text-sm font-normal text-slate-500">/bln</span>}
-              </div>
-              {p.taxNote && <p className="text-xs text-slate-400">{p.taxNote} · {p.priceWithTax}/bln</p>}
-              <ul className="mt-4 flex-1 space-y-2 text-sm text-slate-600">
-                {p.quotas.map((q) => (
-                  <li key={q} className="flex gap-2">
-                    <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> {q}
+            <Card key={p.id} className="flex flex-col">
+              <CardContent className="flex flex-1 flex-col p-5">
+                <h3 className="text-lg font-bold text-foreground">{p.name}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{p.tagline}</p>
+                <div className="mt-3 text-2xl font-extrabold text-foreground">
+                  {p.price}
+                  {!p.isFree && <span className="text-sm font-normal text-muted-foreground">/bln</span>}
+                </div>
+                {p.taxNote && <p className="text-xs text-muted-foreground">{p.taxNote} · {p.priceWithTax}/bln</p>}
+                <ul className="mt-4 flex-1 space-y-2 text-sm text-muted-foreground">
+                  {p.quotas.map((q) => (
+                    <li key={q} className="flex gap-2">
+                      <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> {q}
+                    </li>
+                  ))}
+                  <li className="flex gap-2">
+                    <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> Semua fitur
                   </li>
-                ))}
-                <li className="flex gap-2">
-                  <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> Semua fitur
-                </li>
-              </ul>
-              <button
-                disabled={!canPay || pending || p.isFree}
-                onClick={() => subscribe(p.id)}
-                className="mt-5 min-h-[44px] rounded-xl bg-sky-500 px-4 py-2.5 font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
-              >
-                {p.isFree ? "Paket Coba" : isCurrent ? "Perpanjang" : "Pilih Paket"}
-              </button>
-            </div>
+                </ul>
+                <SubmitButton
+                  type="button"
+                  disabled={!canPay || p.isFree}
+                  pending={pending}
+                  pendingLabel="Memproses…"
+                  onClick={() => subscribe(p.id)}
+                  className="mt-5 min-h-[44px]"
+                >
+                  {p.isFree ? "Paket Coba" : isCurrent ? "Perpanjang" : "Pilih Paket"}
+                </SubmitButton>
+              </CardContent>
+            </Card>
           );
         })}
       </div>

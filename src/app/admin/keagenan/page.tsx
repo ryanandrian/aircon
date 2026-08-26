@@ -14,8 +14,8 @@ export default async function AdminKeagenanPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Program Keagenan</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Program Keagenan</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Kelola agen mitra pemasaran, komisi, dan pencairan bulanan. Uang pelanggan tetap masuk ke Lumite; kita transfer komisi ke agen.
         </p>
       </div>
@@ -46,9 +46,9 @@ export default async function AdminKeagenanPage() {
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${accent ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-white"}`}>
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-lg font-bold tabular-nums text-slate-900">{value}</div>
+    <div className={`rounded-2xl border p-4 ${accent ? "border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30" : "bg-card"}`}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-bold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }

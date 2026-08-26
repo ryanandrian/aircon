@@ -15,11 +15,11 @@ export default async function TeknisiPage() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-muted/40">
       <AppHeader title="Teknisi" />
 
       <div className="mx-auto max-w-2xl space-y-6 p-6">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Undang teknisi dengan nomor HP. Mereka menerima link untuk membuat PIN dan langsung bisa menerima pekerjaan.
         </p>
         <TechnicianManager

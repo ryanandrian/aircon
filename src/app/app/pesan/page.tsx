@@ -14,14 +14,14 @@ export default async function PesanPage() {
   const templates = await listTemplates(ctx.tenantId);
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-muted/40">
       <AppHeader title="Template Pesan WhatsApp" />
       <div className="mx-auto max-w-3xl space-y-5 p-6">
-        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-slate-700">
+        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-foreground/80 dark:border-sky-900/40 dark:bg-sky-950/30">
           Sesuaikan kalimat pesan otomatis ke pelanggan Anda. Gunakan tanda seperti{" "}
-          <code className="rounded bg-white px-1">{"{{customer}}"}</code>,{" "}
-          <code className="rounded bg-white px-1">{"{{unit}}"}</code>,{" "}
-          <code className="rounded bg-white px-1">{"{{usaha}}"}</code>{" "}
+          <code className="rounded bg-background px-1">{"{{customer}}"}</code>,{" "}
+          <code className="rounded bg-background px-1">{"{{unit}}"}</code>,{" "}
+          <code className="rounded bg-background px-1">{"{{usaha}}"}</code>{" "}
           — nanti otomatis diganti data asli. Pengingat servis rutin adalah inti agar pelanggan datang lagi.
         </div>
         {templates.map((t) => (

@@ -3,6 +3,19 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { actionAssignJob, actionCancelJob } from "../actions";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TechOption {
   id: string;
@@ -65,135 +78,137 @@ export function OwnerActions({
   if (!canAssign && !canCancel) return null;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h2 className="text-base font-bold text-slate-900">Aksi Pemilik</h2>
+    <Card>
+      <CardContent className="p-5">
+        <h2 className="text-base font-bold text-foreground">Aksi Pemilik</h2>
 
-      {msg && (
-        <p
-          role={msg.kind === "err" ? "alert" : "status"}
-          className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
-            msg.kind === "err"
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
-          }`}
-        >
-          {msg.text}
-        </p>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {canAssign && (
-          <button
-            type="button"
-            onClick={() => {
-              setShowAssign((v) => !v);
-              setShowCancel(false);
-            }}
-            className="min-h-[44px] rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+        {msg && (
+          <p
+            role={msg.kind === "err" ? "alert" : "status"}
+            className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
+              msg.kind === "err"
+                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-400"
+            }`}
           >
-            {technicians.length ? "Tugaskan Teknisi" : "Teknisi belum ada"}
-          </button>
+            {msg.text}
+          </p>
         )}
-        {canCancel && (
-          <button
-            type="button"
-            onClick={() => {
-              setShowCancel((v) => !v);
-              setShowAssign(false);
-            }}
-            className="min-h-[44px] rounded-2xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-          >
-            Batalkan
-          </button>
-        )}
-      </div>
 
-      {showAssign && (
-        <div className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4">
-          <div>
-            <label htmlFor="assign-tech" className="mb-1 block text-sm font-medium text-slate-700">
-              Teknisi
-            </label>
-            <select
-              id="assign-tech"
-              value={technicianId}
-              onChange={(e) => setTechnicianId(e.target.value)}
-              disabled={technicians.length === 0}
-              className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base disabled:opacity-50"
+        <div className="mt-4 flex flex-wrap gap-2">
+          {canAssign && (
+            <Button
+              type="button"
+              onClick={() => {
+                setShowAssign((v) => !v);
+                setShowCancel(false);
+              }}
+              size="lg"
+              className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600"
             >
-              {technicians.length === 0 ? (
-                <option value="">Belum ada teknisi terdaftar</option>
-              ) : (
-                technicians.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="assign-date" className="mb-1 block text-sm font-medium text-slate-700">
-                Tanggal
-              </label>
-              <input
-                id="assign-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base"
-              />
-            </div>
-            <div>
-              <label htmlFor="assign-time" className="mb-1 block text-sm font-medium text-slate-700">
-                Jam
-              </label>
-              <input
-                id="assign-time"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base"
-              />
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={submitAssign}
-            disabled={pending || !technicianId || !date}
-            className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 py-3 font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
-          >
-            {pending ? "Menyimpan…" : "Simpan Penugasan"}
-          </button>
+              {technicians.length ? "Tugaskan Teknisi" : "Teknisi belum ada"}
+            </Button>
+          )}
+          {canCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowCancel((v) => !v);
+                setShowAssign(false);
+              }}
+              size="lg"
+              className="min-h-[44px] border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40"
+            >
+              Batalkan
+            </Button>
+          )}
         </div>
-      )}
 
-      {showCancel && (
-        <div className="mt-4 space-y-3 rounded-2xl bg-slate-50 p-4">
-          <div>
-            <label htmlFor="cancel-reason" className="mb-1 block text-sm font-medium text-slate-700">
-              Alasan pembatalan
-            </label>
-            <textarea
-              id="cancel-reason"
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Contoh: pelanggan menunda, alamat tidak ditemukan…"
-              className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-base"
-            />
+        {showAssign && (
+          <div className="mt-4 space-y-3 rounded-2xl bg-muted/40 p-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-tech">Teknisi</Label>
+              <Select
+                items={technicians.map((t) => ({ value: t.id, label: t.name }))}
+                value={technicianId}
+                onValueChange={(v) => setTechnicianId((v as string) ?? "")}
+                disabled={technicians.length === 0}
+              >
+                <SelectTrigger id="assign-tech" className="min-h-[48px] w-full rounded-2xl text-base">
+                  <SelectValue placeholder="Belum ada teknisi terdaftar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {technicians.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="assign-date">Tanggal</Label>
+                <Input
+                  id="assign-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="min-h-[48px] rounded-2xl text-base"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="assign-time">Jam</Label>
+                <Input
+                  id="assign-time"
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="min-h-[48px] rounded-2xl text-base"
+                />
+              </div>
+            </div>
+            <SubmitButton
+              type="button"
+              onClick={submitAssign}
+              pending={pending}
+              disabled={!technicianId || !date}
+              pendingLabel="Menyimpan…"
+              size="lg"
+              className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 text-white hover:bg-sky-600"
+            >
+              Simpan Penugasan
+            </SubmitButton>
           </div>
-          <button
-            type="button"
-            onClick={submitCancel}
-            disabled={pending}
-            className="min-h-[48px] w-full rounded-2xl bg-red-500 px-6 py-3 font-semibold text-white hover:bg-red-600 disabled:opacity-50"
-          >
-            {pending ? "Memproses…" : "Ya, Batalkan Pekerjaan"}
-          </button>
-        </div>
-      )}
-    </section>
+        )}
+
+        {showCancel && (
+          <div className="mt-4 space-y-3 rounded-2xl bg-muted/40 p-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="cancel-reason">Alasan pembatalan</Label>
+              <Textarea
+                id="cancel-reason"
+                rows={2}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Contoh: pelanggan menunda, alamat tidak ditemukan…"
+                className="rounded-2xl text-base"
+              />
+            </div>
+            <SubmitButton
+              type="button"
+              onClick={submitCancel}
+              pending={pending}
+              pendingLabel="Memproses…"
+              size="lg"
+              className="min-h-[48px] w-full rounded-2xl bg-red-500 px-6 text-white hover:bg-red-600"
+            >
+              Ya, Batalkan Pekerjaan
+            </SubmitButton>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

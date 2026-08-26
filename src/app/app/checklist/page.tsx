@@ -14,11 +14,11 @@ export default async function ChecklistPage() {
   const checklists = await listChecklists(ctx.tenantId);
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-muted/40">
       <AppHeader title="Checklist Servis" />
       <div className="mx-auto max-w-3xl space-y-5 p-6">
-        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-slate-700">
-          Atur daftar langkah yang harus dikerjakan & difoto teknisi untuk tiap jenis servis.
+        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-foreground/80 dark:border-sky-900/40 dark:bg-sky-950/30">
+          Atur daftar langkah yang harus dikerjakan &amp; difoto teknisi untuk tiap jenis servis.
           Item wajib harus dicentang teknisi sebelum pekerjaan bisa diselesaikan.
         </div>
         {checklists.map((c) => (

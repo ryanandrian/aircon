@@ -2,6 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { orderAndPay } from "../actions";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/submit-button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ProductView {
   id: string;
@@ -72,61 +84,66 @@ export function OrderForm({ products, taxPercent }: { products: ProductView[]; t
 
   return (
     <div className="space-y-5">
-      {msg && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{msg}</p>}
+      {msg && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>}
 
-      <div>
-        <label htmlFor="product" className="mb-1 block text-sm font-medium text-slate-700">Produk</label>
-        <select
-          id="product"
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base"
-        >
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>{p.name} — {p.priceLabel} (garansi {p.warrantyDays} hari)</option>
-          ))}
-        </select>
-        {product?.description && <p className="mt-1 text-sm text-slate-500">{product.description}</p>}
+      <div className="space-y-1.5">
+        <Label htmlFor="product">Produk</Label>
+        <Select value={productId} onValueChange={(v) => setProductId(v ?? "")}>
+          <SelectTrigger id="product" className="min-h-[48px] w-full">
+            <SelectValue placeholder="Pilih produk" />
+          </SelectTrigger>
+          <SelectContent>
+            {products.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name} — {p.priceLabel} (garansi {p.warrantyDays} hari)</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {product?.description && <p className="mt-1 text-sm text-muted-foreground">{product.description}</p>}
       </div>
 
-      <div>
-        <label htmlFor="qty" className="mb-1 block text-sm font-medium text-slate-700">Jumlah unit</label>
-        <input
+      <div className="space-y-1.5">
+        <Label htmlFor="qty">Jumlah unit</Label>
+        <Input
           id="qty"
           type="number"
           min={1}
           value={qty}
           onChange={(e) => setQty(Math.max(1, parseInt(e.target.value || "1", 10)))}
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-4 py-3 text-base"
+          className="min-h-[48px] text-base"
         />
       </div>
 
-      <div>
-        <label htmlFor="address" className="mb-1 block text-sm font-medium text-slate-700">Alamat pengiriman</label>
-        <textarea
+      <div className="space-y-1.5">
+        <Label htmlFor="address">Alamat pengiriman</Label>
+        <Textarea
           id="address"
           rows={3}
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           placeholder="Alamat lengkap untuk pengiriman perangkat"
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-base"
+          className="text-base"
         />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm">
-        <div className="flex justify-between"><span className="text-slate-500">Subtotal</span><span>{rupiah(subtotal)}</span></div>
-        <div className="flex justify-between"><span className="text-slate-500">Pajak ({taxPercent}%)</span><span>{rupiah(tax)}</span></div>
-        <div className="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-bold"><span>Total</span><span>{rupiah(total)}</span></div>
-      </div>
+      <Card>
+        <CardContent className="p-4 text-sm">
+          <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{rupiah(subtotal)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Pajak ({taxPercent}%)</span><span>{rupiah(tax)}</span></div>
+          <div className="mt-2 flex justify-between border-t pt-2 text-base font-bold"><span>Total</span><span>{rupiah(total)}</span></div>
+        </CardContent>
+      </Card>
 
-      <button
+      <SubmitButton
+        type="button"
         onClick={submit}
-        disabled={pending || !productId}
-        className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 py-3 font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+        pending={pending}
+        disabled={!productId}
+        pendingLabel="Memproses…"
+        className="min-h-[48px] w-full px-6"
       >
-        {pending ? "Memproses…" : "Bayar Sekarang"}
-      </button>
-      <p className="text-center text-xs text-slate-400">
+        Bayar Sekarang
+      </SubmitButton>
+      <p className="text-center text-xs text-muted-foreground">
         Perangkat dijual putus dengan garansi. Pembayaran aman via Midtrans.
       </p>
     </div>

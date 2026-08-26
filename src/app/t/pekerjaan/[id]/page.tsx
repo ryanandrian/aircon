@@ -8,6 +8,7 @@ import { isStorageConfigured } from "@/lib/storage/s3";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { TechJobWork } from "./work";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -28,13 +29,13 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
   const checklist = await getJobChecklist(ctx.tenantId, id);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-28">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+    <main className="min-h-screen bg-muted/40 pb-28">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-3">
-          <Link href="/t" className="text-slate-500" aria-label="Kembali">←</Link>
+          <Link href="/t" className="text-muted-foreground" aria-label="Kembali">←</Link>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-bold">{job.customer.name}</h1>
-            <p className="truncate text-xs text-slate-500">
+            <h1 className="truncate text-base font-bold text-foreground">{job.customer.name}</h1>
+            <p className="truncate text-xs text-muted-foreground">
               {job.asset ? `${job.asset.brand ?? "AC"} ${job.asset.model ?? ""}`.trim() : "Servis AC"}
             </p>
           </div>
@@ -46,35 +47,39 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
 
       <div className="mx-auto max-w-md space-y-4 p-4">
         {/* Info pelanggan */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-          <h2 className="text-sm font-semibold text-slate-500">Pelanggan</h2>
-          <p className="mt-1 font-medium">{job.customer.name}</p>
-          {job.customer.address && <p className="mt-0.5 text-sm text-slate-600">{job.customer.address}</p>}
-          <div className="mt-3 flex gap-2">
-            {job.customer.phone && (
-              <a href={`tel:${job.customer.phone}`} className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-slate-100 text-sm font-medium text-slate-700">
-                <Icon.Phone className="h-4 w-4" aria-hidden /> Telepon
-              </a>
-            )}
-            {(job.geoLat && job.geoLng) || job.customer.address ? (
-              <a
-                href={job.geoLat && job.geoLng
-                  ? `https://www.google.com/maps/search/?api=1&query=${job.geoLat},${job.geoLng}`
-                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer.address ?? "")}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-sky-100 text-sm font-medium text-sky-700"
-              >
-                <Icon.Navigate className="h-4 w-4" aria-hidden /> Navigasi
-              </a>
-            ) : null}
-          </div>
-        </section>
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-sm font-semibold text-muted-foreground">Pelanggan</h2>
+            <p className="mt-1 font-medium text-foreground">{job.customer.name}</p>
+            {job.customer.address && <p className="mt-0.5 text-sm text-muted-foreground">{job.customer.address}</p>}
+            <div className="mt-3 flex gap-2">
+              {job.customer.phone && (
+                <a href={`tel:${job.customer.phone}`} className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-muted text-sm font-medium text-foreground">
+                  <Icon.Phone className="h-4 w-4" aria-hidden /> Telepon
+                </a>
+              )}
+              {(job.geoLat && job.geoLng) || job.customer.address ? (
+                <a
+                  href={job.geoLat && job.geoLng
+                    ? `https://www.google.com/maps/search/?api=1&query=${job.geoLat},${job.geoLng}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer.address ?? "")}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-sky-100 text-sm font-medium text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"
+                >
+                  <Icon.Navigate className="h-4 w-4" aria-hidden /> Navigasi
+                </a>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
 
         {job.notes && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-500">Catatan</h2>
-            <p className="mt-1 text-sm text-slate-700">{job.notes}</p>
-          </section>
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="text-sm font-semibold text-muted-foreground">Catatan</h2>
+              <p className="mt-1 text-sm text-foreground">{job.notes}</p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Bagian kerja interaktif (checklist, foto, tombol status) */}

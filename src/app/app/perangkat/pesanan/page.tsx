@@ -3,17 +3,21 @@ import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { listTenantOrders } from "@/lib/services/iot-order-service";
 import { formatIDR } from "@/lib/billing/plans";
+import { AppHeader } from "../../_components/app-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  PENDING_PAYMENT: { label: "Menunggu Pembayaran", cls: "bg-amber-100 text-amber-700" },
-  PAID: { label: "Dibayar", cls: "bg-emerald-100 text-emerald-700" },
-  PROCESSING: { label: "Diproses", cls: "bg-sky-100 text-sky-700" },
-  SHIPPED: { label: "Dikirim", cls: "bg-indigo-100 text-indigo-700" },
-  DELIVERED: { label: "Tiba", cls: "bg-teal-100 text-teal-700" },
-  INSTALLED: { label: "Terpasang", cls: "bg-green-100 text-green-700" },
-  CANCELLED: { label: "Dibatalkan", cls: "bg-slate-100 text-slate-500" },
+  PENDING_PAYMENT: { label: "Menunggu Pembayaran", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" },
+  PAID: { label: "Dibayar", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" },
+  PROCESSING: { label: "Diproses", cls: "bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400" },
+  SHIPPED: { label: "Dikirim", cls: "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-400" },
+  DELIVERED: { label: "Tiba", cls: "bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-400" },
+  INSTALLED: { label: "Terpasang", cls: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400" },
+  CANCELLED: { label: "Dibatalkan", cls: "bg-muted text-muted-foreground" },
 };
 
 export default async function PesananPerangkatPage() {
@@ -23,36 +27,39 @@ export default async function PesananPerangkatPage() {
   const orders = await listTenantOrders(ctx.tenantId);
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
-          <h1 className="text-lg font-bold">Pesanan Perangkat</h1>
-          <Link href="/app/perangkat" className="text-sm text-slate-500 hover:text-slate-800">← Kembali</Link>
-        </div>
-      </header>
+    <main className="min-h-screen bg-muted/40">
+      <AppHeader title="Pesanan Perangkat" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
 
       <div className="mx-auto max-w-3xl space-y-4 p-6">
         {orders.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600">
-            Belum ada pesanan.{" "}
-            <Link href="/app/perangkat/pesan" className="font-medium text-sky-600 underline">Pesan sekarang</Link>
-          </div>
+          <Card>
+            <CardContent className="p-8 text-center">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/50 dark:text-sky-400"><Icon.Package className="h-7 w-7" aria-hidden /></div>
+              <h2 className="text-lg font-bold text-foreground">Belum ada pesanan</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                Anda belum memesan perangkat apa pun.{" "}
+                <Link href="/app/perangkat/pesan" className="font-medium text-sky-600 underline dark:text-sky-400">Pesan sekarang</Link>
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           orders.map((o) => {
-            const s = STATUS[o.status] ?? { label: o.status, cls: "bg-slate-100 text-slate-500" };
+            const s = STATUS[o.status] ?? { label: o.status, cls: "bg-muted text-muted-foreground" };
             return (
-              <div key={o.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm text-slate-500">{o.orderNo}</span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${s.cls}`}>{s.label}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-sm text-slate-600">{o.quantity} unit</span>
-                  <span className="font-bold text-slate-900">{formatIDR(o.total)}</span>
-                </div>
-                {o.trackingNote && <p className="mt-2 text-sm text-slate-500">Info: {o.trackingNote}</p>}
-                <p className="mt-1 text-xs text-slate-400">{o.createdAt.toLocaleDateString("id-ID")}</p>
-              </div>
+              <Card key={o.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm text-muted-foreground">{o.orderNo}</span>
+                    <Badge variant="secondary" className={s.cls}>{s.label}</Badge>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">{o.quantity} unit</span>
+                    <span className="font-bold text-foreground">{formatIDR(o.total)}</span>
+                  </div>
+                  {o.trackingNote && <p className="mt-2 text-sm text-muted-foreground">Info: {o.trackingNote}</p>}
+                  <p className="mt-1 text-xs text-muted-foreground">{o.createdAt.toLocaleDateString("id-ID")}</p>
+                </CardContent>
+              </Card>
             );
           })
         )}

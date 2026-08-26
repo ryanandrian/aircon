@@ -12,8 +12,8 @@ export default async function AdminIotPage() {
     <div className="space-y-8">
       <section className="space-y-4">
         <div>
-          <h1 className="text-xl font-bold">Produk IoT</h1>
-          <p className="text-sm text-slate-500">Harga jual-putus & garansi. Editable — tanpa hardcode.</p>
+          <h1 className="text-xl font-bold text-foreground">Produk IoT</h1>
+          <p className="text-sm text-muted-foreground">Harga jual-putus & garansi. Editable — tanpa hardcode.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {products.map((p) => (
@@ -30,15 +30,15 @@ export default async function AdminIotPage() {
               }}
             />
           ))}
-          {products.length === 0 && <p className="text-sm text-slate-500">Belum ada produk.</p>}
+          {products.length === 0 && <p className="text-sm text-muted-foreground">Belum ada produk.</p>}
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-bold">Pesanan Perangkat</h2>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <h2 className="text-lg font-bold text-foreground">Pesanan Perangkat</h2>
+        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">No. Pesanan</th>
                 <th className="px-4 py-3">Qty</th>
@@ -47,7 +47,7 @@ export default async function AdminIotPage() {
                 <th className="px-4 py-3">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {orders.map((o) => (
                 <OrderRow
                   key={o.id}
@@ -60,7 +60,7 @@ export default async function AdminIotPage() {
                 />
               ))}
               {orders.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Belum ada pesanan.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Belum ada pesanan.</td></tr>
               )}
             </tbody>
           </table>

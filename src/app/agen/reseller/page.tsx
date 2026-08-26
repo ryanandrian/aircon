@@ -12,16 +12,16 @@ export default async function AgentResellerPage() {
   const d = await agentDashboard(sess.id);
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/80 px-5 py-3 backdrop-blur">
+    <main className="min-h-screen bg-muted/40">
+      <header className="sticky top-0 z-10 border-b bg-background/80 px-5 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <h1 className="text-lg font-bold text-slate-900">Kelola Reseller</h1>
-          <Link href="/agen" className="text-sm text-slate-500 hover:text-slate-800">← Dasbor</Link>
+          <h1 className="text-lg font-bold text-foreground">Kelola Reseller</h1>
+          <Link href="/agen" className="text-sm text-muted-foreground hover:text-foreground">← Dasbor</Link>
         </div>
       </header>
       <div className="mx-auto max-w-4xl space-y-4 p-5">
-        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-slate-700">
-          Reseller dibayar oleh <b>Anda</b> (agen). Aircon menghitung komisinya & menyediakan file transfer — pembayaran ke reseller di luar sistem kami.
+        <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-foreground dark:border-sky-900/40 dark:bg-sky-950/30">
+          Reseller dibayar oleh <b>Anda</b> (agen). Aircon menghitung komisinya &amp; menyediakan file transfer — pembayaran ke reseller di luar sistem kami.
         </div>
         <ResellerManager
           joinCode={d.agent.joinCode}

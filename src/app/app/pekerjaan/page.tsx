@@ -5,6 +5,8 @@ import { listJobs } from "@/lib/services/job-management-service";
 import { SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "./status-badge";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -65,18 +67,18 @@ export default async function PekerjaanPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+    <main className="min-h-screen bg-muted/40 pb-16">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
           <div>
-            <Link href="/app" className="text-xs text-slate-500 hover:text-slate-800">
+            <Link href="/app" className="text-xs text-muted-foreground hover:text-foreground">
               ← Ringkasan
             </Link>
-            <h1 className="text-lg font-bold text-slate-900">Pekerjaan</h1>
+            <h1 className="text-lg font-bold text-foreground">Pekerjaan</h1>
           </div>
           <Link
             href="/app/pekerjaan/baru"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600"
+            className={buttonVariants({ size: "lg", className: "min-h-[44px] bg-sky-500 text-white hover:bg-sky-600" })}
           >
             + Pekerjaan
           </Link>
@@ -100,21 +102,23 @@ export default async function PekerjaanPage() {
 
 function EmptyState() {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
-        <Icon.Job className="h-7 w-7" aria-hidden />
-      </div>
-      <h2 className="text-xl font-bold text-slate-900">Belum ada pekerjaan</h2>
-      <p className="mx-auto mt-2 max-w-md text-slate-600">
-        Catat pekerjaan pertama Anda — cuci AC, isi freon, atau perbaikan — lalu tugaskan ke teknisi.
-      </p>
-      <Link
-        href="/app/pekerjaan/baru"
-        className="mt-5 inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-sky-500 px-6 py-3 font-semibold text-white hover:bg-sky-600"
-      >
-        Buat Pekerjaan
-      </Link>
-    </div>
+    <Card className="border-dashed">
+      <CardContent className="p-8 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
+          <Icon.Job className="h-7 w-7" aria-hidden />
+        </div>
+        <h2 className="text-xl font-bold text-foreground">Belum ada pekerjaan</h2>
+        <p className="mx-auto mt-2 max-w-md text-muted-foreground">
+          Catat pekerjaan pertama Anda — cuci AC, isi freon, atau perbaikan — lalu tugaskan ke teknisi.
+        </p>
+        <Link
+          href="/app/pekerjaan/baru"
+          className={buttonVariants({ size: "lg", className: "mt-5 min-h-[48px] bg-sky-500 px-6 text-white hover:bg-sky-600" })}
+        >
+          Buat Pekerjaan
+        </Link>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -130,13 +134,15 @@ function JobGroup({
   return (
     <section>
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-base font-bold text-slate-900">{title}</h2>
-        <span className="text-xs font-medium text-slate-400">{jobs.length}</span>
+        <h2 className="text-base font-bold text-foreground">{title}</h2>
+        <span className="text-xs font-medium text-muted-foreground">{jobs.length}</span>
       </div>
       {jobs.length === 0 ? (
-        <p className="rounded-2xl border border-slate-200 bg-white px-4 py-5 text-sm text-slate-400">
-          {emptyText}
-        </p>
+        <Card>
+          <CardContent className="px-4 py-5 text-sm text-muted-foreground">
+            {emptyText}
+          </CardContent>
+        </Card>
       ) : (
         <ul className="space-y-3">
           {jobs.map((job) => (
@@ -162,12 +168,12 @@ function JobCard({ job }: { job: JobRow }) {
   return (
     <Link
       href={`/app/pekerjaan/${job.id}`}
-      className="block rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-sky-300 hover:shadow-sm"
+      className="block rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition hover:ring-sky-300 hover:shadow-sm dark:hover:ring-sky-800"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-semibold text-slate-900">{job.customer.name}</p>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <p className="truncate font-semibold text-foreground">{job.customer.name}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             {SERVICE_TYPE_LABEL[job.serviceType] ?? job.serviceType}
           </p>
         </div>
@@ -175,10 +181,10 @@ function JobCard({ job }: { job: JobRow }) {
       </div>
 
       {job.customer.address && (
-        <p className="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500"><Icon.Location className="h-3.5 w-3.5 shrink-0" aria-hidden /> {job.customer.address}</p>
+        <p className="mt-2 flex items-center gap-1.5 truncate text-sm text-muted-foreground"><Icon.Location className="h-3.5 w-3.5 shrink-0" aria-hidden /> {job.customer.address}</p>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5"><Icon.Calendar className="h-3.5 w-3.5" aria-hidden /> {formatTanggal(job.scheduledDate)}{jam ? ` · ${jam}` : ""}</span>
         {unit && <span className="flex items-center gap-1.5"><Icon.AC className="h-3.5 w-3.5" aria-hidden /> {unit}</span>}
         <span className="flex items-center gap-1.5"><Icon.Technician className="h-3.5 w-3.5" aria-hidden /> {teknisi ?? "Belum ada teknisi"}</span>

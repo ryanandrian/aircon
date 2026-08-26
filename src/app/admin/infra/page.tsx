@@ -8,8 +8,8 @@ export default async function AdminInfraPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">Konfigurasi Infra (WhatsApp & MQTT)</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-xl font-bold tracking-tight text-foreground">Konfigurasi Infra (WhatsApp & MQTT)</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Semua pengaturan gateway WhatsApp (anti-ban) & broker MQTT — dapat diubah kapan saja tanpa developer.
           Perubahan policy berlaku di gateway otomatis (di-pull berkala). Rahasia disimpan terenkripsi.
         </p>

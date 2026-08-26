@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 import { actionUpdateIotProduct, actionUpdateIotOrderStatus } from "../config-actions";
 import { Icon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import type { IotOrderStatus } from "@prisma/client";
 
 const ORDER_STATUSES: IotOrderStatus[] = [
@@ -18,7 +22,6 @@ export function ProductEditor({
 }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const field = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,29 +33,30 @@ export function ProductEditor({
   }
 
   return (
-    <form onSubmit={onSubmit} className="rounded-2xl border border-slate-200 bg-white p-5">
+    <form onSubmit={onSubmit} className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-slate-400">{sku}</span>
-        <label className="flex items-center gap-1 text-xs"><input type="checkbox" name="active" defaultChecked={initial.active} /> Aktif</label>
+        <span className="font-mono text-xs text-muted-foreground">{sku}</span>
+        <label className="flex items-center gap-1 text-xs text-foreground"><input type="checkbox" name="active" defaultChecked={initial.active} /> Aktif</label>
       </div>
-      <label className="mt-2 block text-xs font-medium text-slate-600">Nama</label>
-      <input name="name" defaultValue={initial.name} className={field} required />
-      <label className="mt-2 block text-xs font-medium text-slate-600">Deskripsi</label>
-      <input name="description" defaultValue={initial.description} className={field} />
+      <Label htmlFor={`name-${id}`} className="mt-2 text-xs text-muted-foreground">Nama</Label>
+      <Input id={`name-${id}`} name="name" defaultValue={initial.name} className="mt-1" required />
+      <Label htmlFor={`description-${id}`} className="mt-2 text-xs text-muted-foreground">Deskripsi</Label>
+      <Input id={`description-${id}`} name="description" defaultValue={initial.description} className="mt-1" />
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div>
-          <label className="block text-xs font-medium text-slate-600">Harga (Rp)</label>
-          <input type="number" name="priceUnit" defaultValue={initial.priceUnit} className={field} min={0} />
+          <Label htmlFor={`priceUnit-${id}`} className="text-xs text-muted-foreground">Harga (Rp)</Label>
+          <Input id={`priceUnit-${id}`} type="number" name="priceUnit" defaultValue={initial.priceUnit} className="mt-1" min={0} />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600">Garansi (hari)</label>
-          <input type="number" name="warrantyDays" defaultValue={initial.warrantyDays} className={field} min={0} />
+          <Label htmlFor={`warrantyDays-${id}`} className="text-xs text-muted-foreground">Garansi (hari)</Label>
+          <Input id={`warrantyDays-${id}`} type="number" name="warrantyDays" defaultValue={initial.warrantyDays} className="mt-1" min={0} />
         </div>
       </div>
       {msg && <p className={`mt-2 text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>}
-      <button type="submit" disabled={pending} className="mt-3 w-full rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50">
+      <Button type="submit" disabled={pending} className="mt-3 w-full bg-sky-500 text-white hover:bg-sky-600">
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         {pending ? "Menyimpan…" : "Simpan"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -77,20 +81,21 @@ export function OrderRow({
 
   return (
     <tr>
-      <td className="px-4 py-3 font-mono text-xs">{orderNo}</td>
-      <td className="px-4 py-3">{qty}</td>
-      <td className="px-4 py-3">{total}</td>
+      <td className="px-4 py-3 font-mono text-xs text-foreground">{orderNo}</td>
+      <td className="px-4 py-3 text-foreground">{qty}</td>
+      <td className="px-4 py-3 text-foreground">{total}</td>
       <td className="px-4 py-3">
-        <select value={st} onChange={(e) => setSt(e.target.value as IotOrderStatus)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">
+        <select value={st} onChange={(e) => setSt(e.target.value as IotOrderStatus)} className="rounded-lg border border-input bg-transparent px-2 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
           {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan/resi" className="w-32 rounded-lg border border-slate-300 px-2 py-1 text-xs" />
-          <button onClick={save} disabled={pending} className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-white disabled:opacity-50">
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan/resi" className="h-7 w-32 text-xs" />
+          <Button type="button" onClick={save} disabled={pending} variant="secondary" size="sm">
+            {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
             {pending ? "…" : "Simpan"}
-          </button>
+          </Button>
           {saved && <Icon.Check className="h-4 w-4 text-emerald-600" aria-hidden />}
         </div>
       </td>

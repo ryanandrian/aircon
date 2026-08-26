@@ -4,6 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ownerInviteTechnician, ownerRevokeInvite } from "@/app/masuk-teknisi/actions";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface Tech { id: string; name: string; phone: string; active: boolean }
 interface Invite { id: string; name: string; phone: string; token: string }
@@ -56,75 +62,92 @@ export function TechnicianManager({
   return (
     <div className="space-y-6">
       {/* Form undang */}
-      <form onSubmit={invite} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="font-semibold">Undang Teknisi Baru</h2>
-        {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-slate-700">Nama</label>
-            <input id="name" value={name} onChange={(e) => setName(e.target.value)} required
-              className="mt-1 min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 text-base" />
-          </div>
-          <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-slate-700">Nomor HP</label>
-            <input id="phone" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required
-              placeholder="08xxxxxxxxxx"
-              className="mt-1 min-h-[44px] w-full rounded-xl border border-slate-300 px-3 py-2 text-base" />
-          </div>
-        </div>
-        <button type="submit" disabled={pending || !name || !phone}
-          className="min-h-[44px] rounded-xl bg-sky-500 px-5 font-semibold text-white hover:bg-sky-600 disabled:opacity-50">
-          {pending ? "Memproses…" : "Buat Undangan"}
-        </button>
-      </form>
+      <Card>
+        <CardContent className="p-5">
+          <form onSubmit={invite} className="space-y-3">
+            <h2 className="font-semibold text-foreground">Undang Teknisi Baru</h2>
+            {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{msg.text}</p>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Nama</Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required
+                  className="min-h-[44px] rounded-xl text-base" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Nomor HP</Label>
+                <Input id="phone" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} required
+                  placeholder="08xxxxxxxxxx"
+                  className="min-h-[44px] rounded-xl text-base" />
+              </div>
+            </div>
+            <SubmitButton pending={pending} disabled={!name || !phone} pendingLabel="Memproses…"
+              size="lg" className="min-h-[44px] rounded-xl bg-sky-500 px-5 text-white hover:bg-sky-600">
+              Buat Undangan
+            </SubmitButton>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Undangan pending */}
       {invites.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-500">Menunggu Bergabung</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Menunggu Bergabung</h2>
           {invites.map((inv) => (
-            <div key={inv.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{inv.name}</p>
-                  <p className="text-sm text-slate-500">{inv.phone}</p>
+            <Card key={inv.id} className="border-amber-200 bg-amber-50 ring-amber-200/50 dark:border-amber-900/40 dark:bg-amber-950/30 dark:ring-amber-900/40">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">{inv.name}</p>
+                    <p className="text-sm text-muted-foreground">{inv.phone}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => revoke(inv.id)} disabled={pending}
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40">Batalkan</Button>
                 </div>
-                <button onClick={() => revoke(inv.id)} disabled={pending}
-                  className="text-sm text-red-600 hover:underline">Batalkan</button>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <button onClick={() => waShare(inv)}
-                  className="min-h-[40px] flex-1 rounded-xl bg-emerald-500 text-sm font-medium text-white">
-                  Kirim via WhatsApp
-                </button>
-                <button onClick={() => copyLink(inv.token)}
-                  className="min-h-[40px] flex-1 rounded-xl bg-slate-100 text-sm font-medium text-slate-700">
-                  {copied === inv.token ? <span className="inline-flex items-center gap-1"><Icon.Check className="h-4 w-4" aria-hidden /> Tersalin</span> : "Salin Link"}
-                </button>
-              </div>
-            </div>
+                <div className="mt-3 flex gap-2">
+                  <Button onClick={() => waShare(inv)} size="lg"
+                    className="min-h-[40px] flex-1 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">
+                    Kirim via WhatsApp
+                  </Button>
+                  <Button variant="secondary" onClick={() => copyLink(inv.token)} size="lg"
+                    className="min-h-[40px] flex-1 rounded-xl">
+                    {copied === inv.token ? <span className="inline-flex items-center gap-1"><Icon.Check className="h-4 w-4" aria-hidden /> Tersalin</span> : "Salin Link"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </section>
       )}
 
       {/* Teknisi aktif */}
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-500">Teknisi Aktif ({technicians.length})</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Teknisi Aktif ({technicians.length})</h2>
         {technicians.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-slate-400">
-            Belum ada teknisi. Undang lewat form di atas.
-          </p>
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
+                <Icon.Technician className="h-6 w-6" aria-hidden />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Belum ada teknisi. Undang lewat form di atas.
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           technicians.map((t) => (
-            <div key={t.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4">
-              <div>
-                <p className="font-medium">{t.name}</p>
-                <p className="text-sm text-slate-500">{t.phone}</p>
-              </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${t.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                {t.active ? "Aktif" : "Nonaktif"}
-              </span>
-            </div>
+            <Card key={t.id}>
+              <CardContent className="flex items-center justify-between p-4">
+                <div>
+                  <p className="font-medium text-foreground">{t.name}</p>
+                  <p className="text-sm text-muted-foreground">{t.phone}</p>
+                </div>
+                {t.active ? (
+                  <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">Aktif</Badge>
+                ) : (
+                  <Badge variant="secondary">Nonaktif</Badge>
+                )}
+              </CardContent>
+            </Card>
           ))
         )}
       </section>

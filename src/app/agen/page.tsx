@@ -4,6 +4,9 @@ import { getPartnerSession } from "@/lib/partner/partner-session";
 import { agentDashboard } from "@/lib/partner/partner-portal-service";
 import { actionPartnerLogout } from "./actions";
 import { CopyButton } from "./copy-button";
+import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 const rupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
@@ -14,16 +17,16 @@ export default async function AgentDashboard() {
   const d = await agentDashboard(sess.id);
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-10 border-b border-slate-200/80 bg-white/80 px-5 py-3 backdrop-blur">
+    <main className="min-h-screen bg-muted/40">
+      <header className="sticky top-0 z-10 border-b bg-background/80 px-5 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <div>
-            <div className="text-sm font-semibold text-slate-900">{d.agent.companyName}</div>
-            <div className="text-xs text-slate-500">Portal Agen · Aircon</div>
+            <div className="text-sm font-semibold text-foreground">{d.agent.companyName}</div>
+            <div className="text-xs text-muted-foreground">Portal Agen · Aircon</div>
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/agen/reseller" className="rounded-lg bg-sky-500 px-3 py-2 text-sm font-medium text-white hover:bg-sky-600">Reseller</Link>
-            <form action={actionPartnerLogout}><button className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600">Keluar</button></form>
+            <Link href="/agen/reseller" className={buttonVariants({ className: "bg-sky-500 text-white hover:bg-sky-600" })}>Reseller</Link>
+            <form action={actionPartnerLogout}><SubmitButton variant="outline" pendingLabel="Keluar…">Keluar</SubmitButton></form>
           </div>
         </div>
       </header>
@@ -38,79 +41,85 @@ export default async function AgentDashboard() {
         </section>
 
         {/* Kode & tautan */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-500">Kode & Tautan Anda</h2>
-          <p className="mt-1 text-xs text-slate-500">Bagikan agar pelanggan tercatat sebagai bawaan Anda (komisi otomatis).</p>
-          <div className="mt-3 space-y-2">
-            {d.agent.code && (
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 p-3">
-                <div>
-                  <div className="text-xs text-slate-400">Kode agen (isi saat pelanggan daftar)</div>
-                  <div className="font-bold text-slate-900">{d.agent.code}</div>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold text-muted-foreground">Kode &amp; Tautan Anda</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Bagikan agar pelanggan tercatat sebagai bawaan Anda (komisi otomatis).</p>
+            <div className="mt-3 space-y-2">
+              {d.agent.code && (
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 p-3">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Kode agen (isi saat pelanggan daftar)</div>
+                    <div className="font-bold text-foreground">{d.agent.code}</div>
+                  </div>
+                  <CopyButton text={d.agent.code} />
                 </div>
-                <CopyButton text={d.agent.code} />
-              </div>
-            )}
-            {d.agent.code && (
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 p-3">
-                <div className="min-w-0">
-                  <div className="text-xs text-slate-400">Tautan daftar langsung</div>
-                  <div className="truncate text-sm text-slate-700">…/onboarding?ref={d.agent.code}</div>
+              )}
+              {d.agent.code && (
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 p-3">
+                  <div className="min-w-0">
+                    <div className="text-xs text-muted-foreground">Tautan daftar langsung</div>
+                    <div className="truncate text-sm text-foreground">…/onboarding?ref={d.agent.code}</div>
+                  </div>
+                  <CopyButton text={`/onboarding?ref=${d.agent.code}`} full />
                 </div>
-                <CopyButton text={`/onboarding?ref=${d.agent.code}`} full />
-              </div>
-            )}
-            {d.agent.joinCode && (
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-sky-50 p-3">
-                <div className="min-w-0">
-                  <div className="text-xs text-sky-500">Tautan rekrut reseller</div>
-                  <div className="truncate text-sm text-slate-700">…/reseller/daftar/{d.agent.joinCode}</div>
+              )}
+              {d.agent.joinCode && (
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-sky-50 p-3 dark:bg-sky-950/30">
+                  <div className="min-w-0">
+                    <div className="text-xs text-sky-500">Tautan rekrut reseller</div>
+                    <div className="truncate text-sm text-foreground">…/reseller/daftar/{d.agent.joinCode}</div>
+                  </div>
+                  <CopyButton text={`/reseller/daftar/${d.agent.joinCode}`} full />
                 </div>
-                <CopyButton text={`/reseller/daftar/${d.agent.joinCode}`} full />
-              </div>
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Pelanggan bawaan */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-500">Pelanggan Bawaan ({d.tenants.length})</h2>
-          {d.tenants.length === 0 ? (
-            <p className="mt-3 rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-400">Belum ada pelanggan. Bagikan kode Anda.</p>
-          ) : (
-            <div className="mt-3 divide-y divide-slate-100">
-              {d.tenants.map((t, i) => (
-                <div key={i} className="flex items-center justify-between py-2.5 text-sm">
-                  <div>
-                    <div className="font-medium text-slate-900">{t.name}</div>
-                    <div className="text-xs text-slate-400">{t.viaReseller ? `via ${t.viaReseller}` : "langsung"} · {new Date(t.since).toLocaleDateString("id-ID")}</div>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold text-muted-foreground">Pelanggan Bawaan ({d.tenants.length})</h2>
+            {d.tenants.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Belum ada pelanggan. Bagikan kode Anda.</p>
+            ) : (
+              <div className="mt-3 divide-y divide-border">
+                {d.tenants.map((t, i) => (
+                  <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+                    <div>
+                      <div className="font-medium text-foreground">{t.name}</div>
+                      <div className="text-xs text-muted-foreground">{t.viaReseller ? `via ${t.viaReseller}` : "langsung"} · {new Date(t.since).toLocaleDateString("id-ID")}</div>
+                    </div>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t.status}</span>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{t.status}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Pencairan */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-500">Riwayat Pencairan</h2>
-          {d.payouts.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">Belum ada pencairan.</p>
-          ) : (
-            <div className="mt-3 divide-y divide-slate-100">
-              {d.payouts.map((p, i) => (
-                <div key={i} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="text-slate-600">{new Date(p.period).toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold tabular-nums text-slate-900">{rupiah(p.net)}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs ${p.status === "PAID" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{p.status === "PAID" ? "Lunas" : "Proses"}</span>
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="text-sm font-semibold text-muted-foreground">Riwayat Pencairan</h2>
+            {d.payouts.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Belum ada pencairan.</p>
+            ) : (
+              <div className="mt-3 divide-y divide-border">
+                {d.payouts.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+                    <span className="text-muted-foreground">{new Date(p.period).toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold tabular-nums text-foreground">{rupiah(p.net)}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs ${p.status === "PAID" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"}`}>{p.status === "PAID" ? "Lunas" : "Proses"}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   );
@@ -118,9 +127,9 @@ export default async function AgentDashboard() {
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${accent ? "border-sky-200 bg-sky-50" : "border-slate-200 bg-white"}`}>
-      <div className="text-xs text-slate-500">{label}</div>
-      <div className="mt-1 text-lg font-bold tabular-nums text-slate-900">{value}</div>
+    <div className={`rounded-2xl border p-4 ${accent ? "border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30" : "bg-card"}`}>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 text-lg font-bold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }

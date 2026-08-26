@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { actionUpdateCompany } from "../config-actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 interface Initial {
   legalName: string;
@@ -35,112 +39,110 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
     });
   }
 
-  const field = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
-  const label = "block text-sm font-medium text-slate-700";
-
   return (
-    <form onSubmit={onSubmit} className="max-w-2xl space-y-5 rounded-2xl border border-slate-200 bg-white p-6">
+    <form onSubmit={onSubmit} className="max-w-2xl space-y-5 rounded-xl bg-card p-6 ring-1 ring-foreground/10">
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-500">Identitas</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Identitas</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={label}>Nama badan hukum</label>
-            <input name="legalName" defaultValue={initial.legalName} className={field} placeholder="PT Lumite ..." />
+            <Label htmlFor="legalName">Nama badan hukum</Label>
+            <Input id="legalName" name="legalName" defaultValue={initial.legalName} className="mt-1" placeholder="PT Lumite ..." />
           </div>
           <div>
-            <label className={label}>Nama brand</label>
-            <input name="brandName" defaultValue={initial.brandName} className={field} required />
+            <Label htmlFor="brandName">Nama brand</Label>
+            <Input id="brandName" name="brandName" defaultValue={initial.brandName} className="mt-1" required />
           </div>
           <div className="sm:col-span-2">
-            <label className={label}>Logo (URL/path)</label>
-            <input name="logoUrl" defaultValue={initial.logoUrl} className={field} placeholder="/brand/lumite-logo.png" />
+            <Label htmlFor="logoUrl">Logo (URL/path)</Label>
+            <Input id="logoUrl" name="logoUrl" defaultValue={initial.logoUrl} className="mt-1" placeholder="/brand/lumite-logo.png" />
             {initial.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={initial.logoUrl} alt="Logo perusahaan" className="mt-2 h-12 w-auto object-contain" />
             )}
           </div>
           <div>
-            <label className={label}>NPWP</label>
-            <input name="npwp" defaultValue={initial.npwp} className={field} />
+            <Label htmlFor="npwp">NPWP</Label>
+            <Input id="npwp" name="npwp" defaultValue={initial.npwp} className="mt-1" />
           </div>
           <div>
-            <label className={label}>Email</label>
-            <input name="email" type="email" defaultValue={initial.email} className={field} />
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" defaultValue={initial.email} className="mt-1" />
           </div>
           <div>
-            <label className={label}>Telepon</label>
-            <input name="phone" defaultValue={initial.phone} className={field} />
+            <Label htmlFor="phone">Telepon</Label>
+            <Input id="phone" name="phone" defaultValue={initial.phone} className="mt-1" />
           </div>
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-500">Pajak</h2>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <h2 className="text-sm font-semibold text-muted-foreground">Pajak</h2>
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" name="isPkp" checked={isPkp} onChange={(e) => setIsPkp(e.target.checked)} />
           Perusahaan sudah PKP (boleh memungut pajak)
         </label>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-muted-foreground">
           {isPkp
             ? "Pajak dipungut sesuai rate di menu Kebijakan Billing."
             : "Bukan PKP → pajak TIDAK dipungut (rate efektif 0%), apa pun setelan Kebijakan."}
         </p>
         <div className="max-w-xs">
-          <label className={label}>Label pajak</label>
-          <input name="taxLabel" defaultValue={initial.taxLabel} className={field} placeholder="PPN" />
+          <Label htmlFor="taxLabel">Label pajak</Label>
+          <Input id="taxLabel" name="taxLabel" defaultValue={initial.taxLabel} className="mt-1" placeholder="PPN" />
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-500">Alamat</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Alamat</h2>
         <div>
-          <label className={label}>Alamat</label>
-          <input name="addressLine" defaultValue={initial.addressLine} className={field} />
+          <Label htmlFor="addressLine">Alamat</Label>
+          <Input id="addressLine" name="addressLine" defaultValue={initial.addressLine} className="mt-1" />
         </div>
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="sm:col-span-2">
-            <label className={label}>Kota</label>
-            <input name="city" defaultValue={initial.city} className={field} />
+            <Label htmlFor="city">Kota</Label>
+            <Input id="city" name="city" defaultValue={initial.city} className="mt-1" />
           </div>
           <div>
-            <label className={label}>Provinsi</label>
-            <input name="province" defaultValue={initial.province} className={field} />
+            <Label htmlFor="province">Provinsi</Label>
+            <Input id="province" name="province" defaultValue={initial.province} className="mt-1" />
           </div>
           <div>
-            <label className={label}>Kode pos</label>
-            <input name="postalCode" defaultValue={initial.postalCode} className={field} />
+            <Label htmlFor="postalCode">Kode pos</Label>
+            <Input id="postalCode" name="postalCode" defaultValue={initial.postalCode} className="mt-1" />
           </div>
         </div>
         <div className="max-w-xs">
-          <label className={label}>Kode negara</label>
-          <input name="countryCode" defaultValue={initial.countryCode} className={field} />
+          <Label htmlFor="countryCode">Kode negara</Label>
+          <Input id="countryCode" name="countryCode" defaultValue={initial.countryCode} className="mt-1" />
         </div>
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-500">Checkout</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Checkout</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={label}>Masa berlaku link bayar (jam)</label>
-            <input type="number" name="checkoutExpiryHours" defaultValue={initial.checkoutExpiryHours} className={field} min={1} max={720} />
+            <Label htmlFor="checkoutExpiryHours">Masa berlaku link bayar (jam)</Label>
+            <Input id="checkoutExpiryHours" type="number" name="checkoutExpiryHours" defaultValue={initial.checkoutExpiryHours} className="mt-1" min={1} max={720} />
           </div>
           <div>
-            <label className={label}>URL kembali setelah bayar</label>
-            <input name="finishUrl" defaultValue={initial.finishUrl} className={field} placeholder="https://..." />
+            <Label htmlFor="finishUrl">URL kembali setelah bayar</Label>
+            <Input id="finishUrl" name="finishUrl" defaultValue={initial.finishUrl} className="mt-1" placeholder="https://..." />
           </div>
         </div>
       </section>
 
       {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>}
-      {updatedBy && <p className="text-xs text-slate-400">Terakhir diubah oleh {updatedBy}</p>}
+      {updatedBy && <p className="text-xs text-muted-foreground">Terakhir diubah oleh {updatedBy}</p>}
 
-      <button
+      <Button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-sky-500 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+        className="bg-sky-500 text-white hover:bg-sky-600"
       >
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         {pending ? "Menyimpan…" : "Simpan Profil"}
-      </button>
+      </Button>
     </form>
   );
 }

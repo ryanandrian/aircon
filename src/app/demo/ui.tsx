@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { actionSendReminder, actionCreateRepeatJob, actionCompleteJob } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 export function ReminderActions({ reminderId }: { reminderId: string }) {
   const [pending, start] = useTransition();
@@ -10,7 +12,8 @@ export function ReminderActions({ reminderId }: { reminderId: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <div className="flex gap-2">
-        <button
+        <Button
+          type="button"
           disabled={pending}
           onClick={() =>
             start(async () => {
@@ -18,11 +21,13 @@ export function ReminderActions({ reminderId }: { reminderId: string }) {
               setMsg(r.error ? `Gagal: ${r.error}` : "WA diantre ke worker");
             })
           }
-          className="rounded-lg bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+          className="bg-green-500 text-white hover:bg-green-600"
         >
+          {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
           Kirim WA
-        </button>
-        <button
+        </Button>
+        <Button
+          type="button"
           disabled={pending}
           onClick={() =>
             start(async () => {
@@ -30,12 +35,13 @@ export function ReminderActions({ reminderId }: { reminderId: string }) {
               setMsg(r.error ? `Gagal: ${r.error}` : "Job ulang dibuat (DRAFT)");
             })
           }
-          className="rounded-lg bg-sky-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
+          className="bg-sky-500 text-white hover:bg-sky-600"
         >
+          {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
           Buat Job Ulang
-        </button>
+        </Button>
       </div>
-      {msg && <span className="text-xs text-slate-500">{msg}</span>}
+      {msg && <span className="text-xs text-muted-foreground">{msg}</span>}
     </div>
   );
 }
@@ -45,7 +51,9 @@ export function CompleteJobButton({ jobId }: { jobId: string }) {
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <div className="flex flex-col items-end">
-      <button
+      <Button
+        type="button"
+        variant="outline"
         disabled={pending}
         onClick={() =>
           start(async () => {
@@ -53,11 +61,11 @@ export function CompleteJobButton({ jobId }: { jobId: string }) {
             setMsg(r.error ? `Gagal: ${r.error}` : "Selesai → pengingat dibuat");
           })
         }
-        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
       >
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         Selesaikan
-      </button>
-      {msg && <span className="mt-1 text-xs text-slate-500">{msg}</span>}
+      </Button>
+      {msg && <span className="mt-1 text-xs text-muted-foreground">{msg}</span>}
     </div>
   );
 }

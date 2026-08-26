@@ -6,6 +6,9 @@ import { formatIDR } from "@/lib/billing/plans";
 import { isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import { PlanCards } from "./plan-cards";
 import { AppHeader } from "../_components/app-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -67,33 +70,37 @@ export default async function LanggananPage() {
   });
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-muted/40">
       <AppHeader title="Paket Langganan" />
 
       <div className="mx-auto max-w-4xl space-y-6 p-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-slate-500">Paket saat ini</div>
-              <div className="text-xl font-bold">{currentPlanName}</div>
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground">Paket saat ini</div>
+                <div className="text-xl font-bold text-foreground">{currentPlanName}</div>
+              </div>
+              <Badge variant="secondary" className="bg-sky-100 px-3 py-1 text-sm text-sky-700 dark:bg-sky-950/50 dark:text-sky-400">
+                {STATUS_LABEL[tenant.status] ?? tenant.status}
+              </Badge>
             </div>
-            <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-700">
-              {STATUS_LABEL[tenant.status] ?? tenant.status}
-            </span>
-          </div>
-          {trialInfo && <p className="mt-3 text-sm text-amber-600">{trialInfo}</p>}
-        </div>
+            {trialInfo && <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">{trialInfo}</p>}
+          </CardContent>
+        </Card>
 
         {!configured && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
             Pembayaran online belum diaktifkan. Hubungi tim Aircon untuk berlangganan.
           </div>
         )}
 
         {!isOwner && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-            Hanya pemilik usaha yang dapat mengubah paket langganan.
-          </div>
+          <Card>
+            <CardContent className="p-4 text-sm text-muted-foreground">
+              Hanya pemilik usaha yang dapat mengubah paket langganan.
+            </CardContent>
+          </Card>
         )}
 
         <PlanCards
@@ -104,37 +111,39 @@ export default async function LanggananPage() {
 
         {/* Riwayat pembayaran + faktur */}
         {payments.length > 0 && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-slate-500">Riwayat Pembayaran</h2>
-            <div className="mt-3 divide-y divide-slate-100">
-              {payments.map((p) => {
-                const paid = p.status === "PAID";
-                return (
-                  <div key={p.id} className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-slate-900">
-                        Paket {p.plan} · {p.periodMonths} bln
+          <Card>
+            <CardContent className="p-5">
+              <h2 className="text-sm font-semibold text-muted-foreground">Riwayat Pembayaran</h2>
+              <div className="mt-3 divide-y divide-border">
+                {payments.map((p) => {
+                  const paid = p.status === "PAID";
+                  return (
+                    <div key={p.id} className="flex items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-foreground">
+                          Paket {p.plan} · {p.periodMonths} bln
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {(p.paidAt ?? p.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400">
-                        {(p.paidAt ?? p.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold tabular-nums text-foreground/80">Rp {p.amount.toLocaleString("id-ID")}</span>
+                        <Badge variant="secondary" className={
+                          paid ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : p.status === "PENDING" ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" : "bg-muted text-muted-foreground"
+                        }>
+                          {paid ? "Lunas" : p.status === "PENDING" ? "Menunggu" : p.status}
+                        </Badge>
+                        <Link href={`/app/langganan/faktur/${p.id}`} className={buttonVariants({ variant: "ghost", size: "xs", className: "text-sky-600 dark:text-sky-400" })}>
+                          {paid ? "Kwitansi" : "Faktur"} →
+                        </Link>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold tabular-nums text-slate-700">Rp {p.amount.toLocaleString("id-ID")}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        paid ? "bg-emerald-100 text-emerald-700" : p.status === "PENDING" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
-                      }`}>
-                        {paid ? "Lunas" : p.status === "PENDING" ? "Menunggu" : p.status}
-                      </span>
-                      <Link href={`/app/langganan/faktur/${p.id}`} className="text-xs font-medium text-sky-600 hover:text-sky-700">
-                        {paid ? "Kwitansi" : "Faktur"} →
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </main>

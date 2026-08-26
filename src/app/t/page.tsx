@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { listTechnicianJobsToday } from "@/lib/services/job-management-service";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,13 @@ export default async function TechnicianHome() {
   });
   if (!tech) {
     return (
-      <main className="min-h-screen bg-slate-50 p-6">
-        <div className="mx-auto max-w-md rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
-          <p className="text-amber-800">Akun ini bukan teknisi. Hubungi pemilik usaha.</p>
-          <Link href="/app" className="mt-3 inline-block text-sm text-sky-600 underline">Ke Dashboard</Link>
-        </div>
+      <main className="min-h-screen bg-muted/40 p-6">
+        <Card className="mx-auto max-w-md border-amber-200 bg-amber-50 text-center dark:border-amber-900/40 dark:bg-amber-950/30">
+          <CardContent className="p-6">
+            <p className="text-amber-800 dark:text-amber-300">Akun ini bukan teknisi. Hubungi pemilik usaha.</p>
+            <Link href="/app" className="mt-3 inline-block text-sm text-sky-600 underline">Ke Dashboard</Link>
+          </CardContent>
+        </Card>
       </main>
     );
   }
@@ -30,34 +33,36 @@ export default async function TechnicianHome() {
   const jobs = await listTechnicianJobsToday(ctx.tenantId, tech.id);
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-20">
-      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+    <main className="min-h-screen bg-muted/40 pb-20">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
           <div>
-            <h1 className="text-lg font-bold">Halo, {ctx.name.split(" ")[0]}</h1>
-            <p className="text-xs text-slate-500">Pekerjaan hari ini</p>
+            <h1 className="text-lg font-bold text-foreground">Halo, {ctx.name.split(" ")[0]}</h1>
+            <p className="text-xs text-muted-foreground">Pekerjaan hari ini</p>
           </div>
-          <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700">{jobs.length}</span>
+          <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{jobs.length}</span>
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
         {jobs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600"><Icon.Success className="h-7 w-7" aria-hidden /></div>
-            <p className="font-semibold text-slate-900">Tidak ada pekerjaan hari ini</p>
-            <p className="mt-1 text-sm text-slate-500">Santai dulu — tugas baru akan muncul di sini.</p>
-          </div>
+          <Card className="border-dashed text-center">
+            <CardContent className="p-8">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"><Icon.Success className="h-7 w-7" aria-hidden /></div>
+              <p className="font-semibold text-foreground">Tidak ada pekerjaan hari ini</p>
+              <p className="mt-1 text-sm text-muted-foreground">Santai dulu — tugas baru akan muncul di sini.</p>
+            </CardContent>
+          </Card>
         ) : (
           jobs.map((job) => (
             <Link
               key={job.id}
               href={`/t/pekerjaan/${job.id}`}
-              className="block rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50"
+              className="block rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition active:bg-muted/50"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-900">{job.customer.name}</p>
-                  <p className="mt-0.5 truncate text-sm text-slate-500">
+                  <p className="truncate font-semibold text-foreground">{job.customer.name}</p>
+                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
                     {job.asset ? `${job.asset.brand ?? "AC"} ${job.asset.model ?? ""}`.trim() : "Servis AC"}
                     {job.asset?.roomLocation ? ` · ${job.asset.roomLocation}` : ""}
                   </p>
@@ -67,11 +72,11 @@ export default async function TechnicianHome() {
                 </span>
               </div>
               {job.customer.address && (
-                <p className="mt-2 flex items-start gap-1 text-sm text-slate-600">
+                <p className="mt-2 flex items-start gap-1 text-sm text-muted-foreground">
                   <Icon.Location className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /><span className="line-clamp-2">{job.customer.address}</span>
                 </p>
               )}
-              <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>
                   {job.windowStart
                     ? new Date(job.windowStart).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })

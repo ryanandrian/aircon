@@ -3,6 +3,7 @@ import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { JobForm } from "./job-form";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
@@ -41,11 +42,11 @@ export default async function PekerjaanBaruPage() {
   const technicians = technicianRows.map((t) => ({ id: t.id, name: t.user.name }));
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-16">
-      <header className="border-b border-slate-200 bg-white">
+    <main className="min-h-screen bg-muted/40 pb-16">
+      <header className="border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-4 sm:px-6">
-          <h1 className="text-lg font-bold text-slate-900">Pekerjaan Baru</h1>
-          <Link href="/app/pekerjaan" className="text-sm text-slate-500 hover:text-slate-800">
+          <h1 className="text-lg font-bold text-foreground">Pekerjaan Baru</h1>
+          <Link href="/app/pekerjaan" className="text-sm text-muted-foreground hover:text-foreground">
             ← Kembali
           </Link>
         </div>
@@ -53,9 +54,11 @@ export default async function PekerjaanBaruPage() {
 
       <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 sm:px-6">
         {customers.length === 0 ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            Belum ada pelanggan. Tambahkan pelanggan dulu sebelum membuat pekerjaan.
-          </div>
+          <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30">
+            <CardContent className="p-4 text-sm text-amber-800 dark:text-amber-300">
+              Belum ada pelanggan. Tambahkan pelanggan dulu sebelum membuat pekerjaan.
+            </CardContent>
+          </Card>
         ) : (
           <JobForm customers={customers} assets={assetOptions} technicians={technicians} />
         )}

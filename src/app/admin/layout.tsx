@@ -29,26 +29,26 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-muted/40 text-foreground">
       <div className="flex">
-        <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-white p-5 md:block">
+        <aside className="hidden w-60 shrink-0 border-r bg-card p-5 md:block">
           <div className="mb-6">
             <div className="text-lg font-semibold text-sky-600">Admin Platform</div>
-            <div className="text-xs text-slate-500">Panel tim internal</div>
+            <div className="text-xs text-muted-foreground">Panel tim internal</div>
           </div>
           <nav className="flex flex-col gap-1">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-2xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-700"
+                className="rounded-2xl px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-500">
-            <div className="font-medium text-slate-700">{admin.name}</div>
+          <div className="mt-8 border-t pt-4 text-xs text-muted-foreground">
+            <div className="font-medium text-foreground">{admin.name}</div>
             <div className="truncate">{admin.email}</div>
           </div>
         </aside>

@@ -2,6 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { actionUpdatePolicy } from "../config-actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 interface Initial {
   taxPercent: number;
@@ -27,63 +32,61 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
     });
   }
 
-  const field = "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm";
-  const label = "block text-sm font-medium text-slate-700";
-
   return (
-    <form onSubmit={onSubmit} className="max-w-lg space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
+    <form onSubmit={onSubmit} className="max-w-lg space-y-4 rounded-xl bg-card p-6 ring-1 ring-foreground/10">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={label}>Pajak (%)</label>
-          <input type="number" step="0.1" name="taxPercent" defaultValue={initial.taxPercent} className={field} />
+          <Label htmlFor="taxPercent">Pajak (%)</Label>
+          <Input id="taxPercent" type="number" step="0.1" name="taxPercent" defaultValue={initial.taxPercent} className="mt-1" />
         </div>
         <div>
-          <label className={label}>Masa trial (hari)</label>
-          <input type="number" name="trialDays" defaultValue={initial.trialDays} className={field} />
+          <Label htmlFor="trialDays">Masa trial (hari)</Label>
+          <Input id="trialDays" type="number" name="trialDays" defaultValue={initial.trialDays} className="mt-1" />
         </div>
         <div>
-          <label className={label}>Tenggang suspend (hari)</label>
-          <input type="number" name="graceDaysBeforeSuspend" defaultValue={initial.graceDaysBeforeSuspend} className={field} />
-          <p className="mt-1 text-xs text-slate-400">Telat lebih dari ini → tak bisa login.</p>
+          <Label htmlFor="graceDaysBeforeSuspend">Tenggang suspend (hari)</Label>
+          <Input id="graceDaysBeforeSuspend" type="number" name="graceDaysBeforeSuspend" defaultValue={initial.graceDaysBeforeSuspend} className="mt-1" />
+          <p className="mt-1 text-xs text-muted-foreground">Telat lebih dari ini → tak bisa login.</p>
         </div>
         <div>
-          <label className={label}>Tenggang hapus (hari)</label>
-          <input type="number" name="daysBeforeDelete" defaultValue={initial.daysBeforeDelete} className={field} />
-          <p className="mt-1 text-xs text-slate-400">Telat lebih dari ini → data dihapus.</p>
+          <Label htmlFor="daysBeforeDelete">Tenggang hapus (hari)</Label>
+          <Input id="daysBeforeDelete" type="number" name="daysBeforeDelete" defaultValue={initial.daysBeforeDelete} className="mt-1" />
+          <p className="mt-1 text-xs text-muted-foreground">Telat lebih dari ini → data dihapus.</p>
         </div>
         <div>
-          <label className={label}>Hari peringatan hapus</label>
-          <input type="number" name="deleteWarningDay" defaultValue={initial.deleteWarningDay} className={field} />
+          <Label htmlFor="deleteWarningDay">Hari peringatan hapus</Label>
+          <Input id="deleteWarningDay" type="number" name="deleteWarningDay" defaultValue={initial.deleteWarningDay} className="mt-1" />
         </div>
         <div>
-          <label className={label}>Jadwal pengingat (hari)</label>
-          <input name="dunningReminderDays" defaultValue={initial.dunningReminderDays} className={field} placeholder="0,1,3" />
+          <Label htmlFor="dunningReminderDays">Jadwal pengingat (hari)</Label>
+          <Input id="dunningReminderDays" name="dunningReminderDays" defaultValue={initial.dunningReminderDays} className="mt-1" placeholder="0,1,3" />
         </div>
       </div>
 
-      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-medium text-slate-700">Template Pesan Penagihan (WhatsApp ke owner tenant)</p>
-        <p className="text-xs text-slate-500">Placeholder: {"{nama}"} = nama usaha, {"{telat}"} = hari menunggak, {"{sisa}"} = sisa hari sebelum data dihapus.</p>
+      <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
+        <p className="text-sm font-medium text-foreground">Template Pesan Penagihan (WhatsApp ke owner tenant)</p>
+        <p className="text-xs text-muted-foreground">Placeholder: {"{nama}"} = nama usaha, {"{telat}"} = hari menunggak, {"{sisa}"} = sisa hari sebelum data dihapus.</p>
         <div>
-          <label className={label}>Pengingat biasa</label>
-          <textarea name="dunningReminderTemplate" defaultValue={initial.dunningReminderTemplate} rows={2} className={field} />
+          <Label htmlFor="dunningReminderTemplate">Pengingat biasa</Label>
+          <Textarea id="dunningReminderTemplate" name="dunningReminderTemplate" defaultValue={initial.dunningReminderTemplate} rows={2} className="mt-1" />
         </div>
         <div>
-          <label className={label}>Peringatan hapus data (mendekati batas)</label>
-          <textarea name="dunningWarningTemplate" defaultValue={initial.dunningWarningTemplate} rows={2} className={field} />
+          <Label htmlFor="dunningWarningTemplate">Peringatan hapus data (mendekati batas)</Label>
+          <Textarea id="dunningWarningTemplate" name="dunningWarningTemplate" defaultValue={initial.dunningWarningTemplate} rows={2} className="mt-1" />
         </div>
       </div>
 
       {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</p>}
-      {updatedBy && <p className="text-xs text-slate-400">Terakhir diubah oleh {updatedBy}</p>}
+      {updatedBy && <p className="text-xs text-muted-foreground">Terakhir diubah oleh {updatedBy}</p>}
 
-      <button
+      <Button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-sky-500 px-5 py-2 text-sm font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+        className="bg-sky-500 text-white hover:bg-sky-600"
       >
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         {pending ? "Menyimpan…" : "Simpan Kebijakan"}
-      </button>
+      </Button>
     </form>
   );
 }

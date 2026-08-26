@@ -4,6 +4,17 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { actionCreateJob } from "../actions";
 import { SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SubmitButton } from "@/components/submit-button";
 
 interface CustomerOption {
   id: string;
@@ -60,6 +71,33 @@ export function JobForm({
     [assets, customerId],
   );
 
+  const customerItems = useMemo(
+    () =>
+      customers.map((c) => ({
+        value: c.id,
+        label: c.address ? `${c.name} — ${c.address}` : c.name,
+      })),
+    [customers],
+  );
+  const assetItems = useMemo(
+    () => [
+      { value: "", label: "— Tidak terkait unit tertentu —" },
+      ...customerAssets.map((a) => ({ value: a.id, label: a.label })),
+    ],
+    [customerAssets],
+  );
+  const serviceItems = useMemo(
+    () => SERVICE_TYPES.map((s) => ({ value: s, label: SERVICE_TYPE_LABEL[s] ?? s })),
+    [],
+  );
+  const technicianItems = useMemo(
+    () => [
+      { value: "", label: "— Tugaskan nanti —" },
+      ...technicians.map((t) => ({ value: t.id, label: t.name })),
+    ],
+    [technicians],
+  );
+
   function submit() {
     setError(null);
     if (!customerId) {
@@ -96,180 +134,183 @@ export function JobForm({
       }}
     >
       {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">
           {error}
         </p>
       )}
 
-      <div>
-        <label htmlFor="customer" className="mb-1 block text-sm font-medium text-slate-700">
+      <div className="space-y-1.5">
+        <Label htmlFor="customer">
           Pelanggan <span className="text-red-500">*</span>
-        </label>
-        <select
-          id="customer"
+        </Label>
+        <Select
+          items={customerItems}
           value={customerId}
-          onChange={(e) => {
-            setCustomerId(e.target.value);
+          onValueChange={(v) => {
+            setCustomerId((v as string) ?? "");
             setAssetId("");
           }}
-          required
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base"
         >
-          {customers.length === 0 ? (
-            <option value="">Belum ada pelanggan</option>
-          ) : (
-            customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.address ? ` — ${c.address}` : ""}
-              </option>
-            ))
-          )}
-        </select>
+          <SelectTrigger id="customer" className="min-h-[48px] w-full rounded-2xl text-base">
+            <SelectValue placeholder={customers.length === 0 ? "Belum ada pelanggan" : "Pilih pelanggan"} />
+          </SelectTrigger>
+          <SelectContent>
+            {customerItems.map((c) => (
+              <SelectItem key={c.value} value={c.value}>
+                {c.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div>
-        <label htmlFor="asset" className="mb-1 block text-sm font-medium text-slate-700">
-          Unit AC <span className="text-slate-400">(opsional)</span>
-        </label>
-        <select
-          id="asset"
+      <div className="space-y-1.5">
+        <Label htmlFor="asset">
+          Unit AC <span className="text-muted-foreground">(opsional)</span>
+        </Label>
+        <Select
+          items={assetItems}
           value={assetId}
-          onChange={(e) => setAssetId(e.target.value)}
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base"
+          onValueChange={(v) => setAssetId((v as string) ?? "")}
         >
-          <option value="">— Tidak terkait unit tertentu —</option>
-          {customerAssets.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="asset" className="min-h-[48px] w-full rounded-2xl text-base">
+            <SelectValue placeholder="— Tidak terkait unit tertentu —" />
+          </SelectTrigger>
+          <SelectContent>
+            {assetItems.map((a) => (
+              <SelectItem key={a.value || "none"} value={a.value}>
+                {a.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div>
-        <label htmlFor="serviceType" className="mb-1 block text-sm font-medium text-slate-700">
+      <div className="space-y-1.5">
+        <Label htmlFor="serviceType">
           Jenis servis <span className="text-red-500">*</span>
-        </label>
-        <select
-          id="serviceType"
+        </Label>
+        <Select
+          items={serviceItems}
           value={serviceType}
-          onChange={(e) => setServiceType(e.target.value as (typeof SERVICE_TYPES)[number])}
-          required
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base"
+          onValueChange={(v) => setServiceType(v as (typeof SERVICE_TYPES)[number])}
         >
-          {SERVICE_TYPES.map((s) => (
-            <option key={s} value={s}>
-              {SERVICE_TYPE_LABEL[s] ?? s}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="serviceType" className="min-h-[48px] w-full rounded-2xl text-base">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {serviceItems.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label htmlFor="date" className="mb-1 block text-sm font-medium text-slate-700">
-            Tanggal
-          </label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="date">Tanggal</Label>
+          <Input
             id="date"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-3 py-3 text-base"
+            className="min-h-[48px] rounded-2xl text-base"
           />
         </div>
-        <div>
-          <label htmlFor="time" className="mb-1 block text-sm font-medium text-slate-700">
-            Jam mulai
-          </label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="time">Jam mulai</Label>
+          <Input
             id="time"
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-3 py-3 text-base"
+            className="min-h-[48px] rounded-2xl text-base"
           />
         </div>
-        <div>
-          <label htmlFor="endTime" className="mb-1 block text-sm font-medium text-slate-700">
-            Jam selesai
-          </label>
-          <input
+        <div className="space-y-1.5">
+          <Label htmlFor="endTime">Jam selesai</Label>
+          <Input
             id="endTime"
             type="time"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            className="min-h-[48px] w-full rounded-2xl border border-slate-300 px-3 py-3 text-base"
+            className="min-h-[48px] rounded-2xl text-base"
           />
         </div>
       </div>
-      <p className="-mt-3 text-xs text-slate-400">
+      <p className="-mt-3 text-xs text-muted-foreground">
         Isi tanggal + teknisi agar pekerjaan langsung berstatus &quot;Ditugaskan&quot;.
       </p>
 
-      <div>
-        <label htmlFor="technician" className="mb-1 block text-sm font-medium text-slate-700">
-          Teknisi <span className="text-slate-400">(opsional)</span>
-        </label>
-        <select
-          id="technician"
+      <div className="space-y-1.5">
+        <Label htmlFor="technician">
+          Teknisi <span className="text-muted-foreground">(opsional)</span>
+        </Label>
+        <Select
+          items={technicianItems}
           value={technicianId}
-          onChange={(e) => setTechnicianId(e.target.value)}
-          className="min-h-[48px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base"
+          onValueChange={(v) => setTechnicianId((v as string) ?? "")}
         >
-          <option value="">— Tugaskan nanti —</option>
-          {technicians.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="technician" className="min-h-[48px] w-full rounded-2xl text-base">
+            <SelectValue placeholder="— Tugaskan nanti —" />
+          </SelectTrigger>
+          <SelectContent>
+            {technicianItems.map((t) => (
+              <SelectItem key={t.value || "none"} value={t.value}>
+                {t.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <div>
-        <label htmlFor="price" className="mb-1 block text-sm font-medium text-slate-700">
-          Harga <span className="text-slate-400">(opsional)</span>
-        </label>
-        <div className="flex items-center rounded-2xl border border-slate-300 px-4">
-          <span className="text-slate-400">Rp</span>
+      <div className="space-y-1.5">
+        <Label htmlFor="price">
+          Harga <span className="text-muted-foreground">(opsional)</span>
+        </Label>
+        <div className="flex items-center rounded-2xl border border-input px-4 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+          <span className="text-muted-foreground">Rp</span>
           <input
             id="price"
             inputMode="numeric"
             value={price}
             onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ""))}
             placeholder="0"
-            className="min-h-[48px] w-full bg-transparent px-2 py-3 text-base outline-none"
+            className="min-h-[48px] w-full bg-transparent px-2 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
         {price && (
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Rp{Number(price).toLocaleString("id-ID")}
           </p>
         )}
       </div>
 
-      <div>
-        <label htmlFor="notes" className="mb-1 block text-sm font-medium text-slate-700">
-          Catatan <span className="text-slate-400">(opsional)</span>
-        </label>
-        <textarea
+      <div className="space-y-1.5">
+        <Label htmlFor="notes">
+          Catatan <span className="text-muted-foreground">(opsional)</span>
+        </Label>
+        <Textarea
           id="notes"
           rows={3}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Catatan untuk teknisi, patokan alamat, keluhan pelanggan…"
-          className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-base"
+          className="rounded-2xl text-base"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={pending || customers.length === 0}
-        className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 py-3 font-semibold text-white hover:bg-sky-600 disabled:opacity-50"
+      <SubmitButton
+        pending={pending}
+        disabled={customers.length === 0}
+        pendingLabel="Menyimpan…"
+        size="lg"
+        className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 text-white hover:bg-sky-600"
       >
-        {pending ? "Menyimpan…" : "Simpan Pekerjaan"}
-      </button>
+        Simpan Pekerjaan
+      </SubmitButton>
     </form>
   );
 }
