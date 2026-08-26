@@ -135,8 +135,8 @@ export default async function Home() {
             const featured = i === 1;
             return (
               <Card key={p.id} className={`relative flex flex-col ${featured ? "ring-2 ring-sky-500 shadow-lg" : ""}`}>
-                {featured && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-sky-500 text-white hover:bg-sky-500">Paling Populer</Badge>}
                 <CardContent className="flex flex-1 flex-col p-6">
+                  {featured && <Badge className="mb-3 w-fit bg-sky-500 text-white hover:bg-sky-500">Paling Populer</Badge>}
                   <div className="text-lg font-bold text-foreground">{p.displayName}</div>
                   {p.tagline && <div className="mt-1 text-sm text-muted-foreground">{p.tagline}</div>}
                   <div className="mt-5">
