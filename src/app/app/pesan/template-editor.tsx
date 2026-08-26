@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { actionSaveTemplate, actionResetTemplate } from "./actions";
+import { Icon } from "@/components/icons";
 
 interface Tpl { key: string; label: string; desc: string; body: string }
 
@@ -13,7 +14,7 @@ export function TemplateEditor({ tpl }: { tpl: Tpl }) {
   function save(fd: FormData) {
     start(async () => {
       const res = await actionSaveTemplate(tpl.key, fd);
-      setMsg(res.ok ? { ok: true, text: "Tersimpan ✓" } : { ok: false, text: res.error });
+      setMsg(res.ok ? { ok: true, text: "Tersimpan" } : { ok: false, text: res.error });
     });
   }
   function reset() {
@@ -49,7 +50,7 @@ export function TemplateEditor({ tpl }: { tpl: Tpl }) {
           className="min-h-[40px] rounded-xl border border-slate-300 px-4 text-sm text-slate-600 hover:bg-slate-50">
           Kembalikan bawaan
         </button>
-        {msg && <span className={`text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</span>}
+        {msg && <span className={`flex items-center gap-1 text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.ok && <Icon.Check className="h-4 w-4" aria-hidden />}{msg.text}</span>}
       </div>
     </form>
   );

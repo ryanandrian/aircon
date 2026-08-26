@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { GoogleSignInButton } from "./google-button";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function LoginPage({
 
           <div className="mt-6 grid gap-2">
             <Link href="/masuk-teknisi" className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-              📱 Masuk sebagai Teknisi
+              <Icon.Mobile className="h-4 w-4" aria-hidden /> Masuk sebagai Teknisi
             </Link>
             <Link href="/demo" className="flex min-h-[44px] items-center justify-center rounded-xl text-sm font-medium text-sky-600 transition hover:bg-sky-50">
               Lihat Demo tanpa login →

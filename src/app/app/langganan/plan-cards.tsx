@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { startPayment } from "./actions";
+import { Icon } from "@/components/icons";
 import type { TenantPlan } from "@prisma/client";
 
 interface PlanView {
@@ -107,11 +108,11 @@ export function PlanCards({
               <ul className="mt-4 flex-1 space-y-2 text-sm text-slate-600">
                 {p.quotas.map((q) => (
                   <li key={q} className="flex gap-2">
-                    <span className="text-emerald-500">✓</span> {q}
+                    <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> {q}
                   </li>
                 ))}
                 <li className="flex gap-2">
-                  <span className="text-emerald-500">✓</span> Semua fitur
+                  <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> Semua fitur
                 </li>
               </ul>
               <button

@@ -15,7 +15,7 @@ export function ReminderActions({ reminderId }: { reminderId: string }) {
           onClick={() =>
             start(async () => {
               const r = await actionSendReminder(reminderId);
-              setMsg(r.error ? `Gagal: ${r.error}` : "✓ WA diantre ke worker");
+              setMsg(r.error ? `Gagal: ${r.error}` : "WA diantre ke worker");
             })
           }
           className="rounded-lg bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
@@ -27,7 +27,7 @@ export function ReminderActions({ reminderId }: { reminderId: string }) {
           onClick={() =>
             start(async () => {
               const r = await actionCreateRepeatJob(reminderId);
-              setMsg(r.error ? `Gagal: ${r.error}` : "✓ Job ulang dibuat (DRAFT)");
+              setMsg(r.error ? `Gagal: ${r.error}` : "Job ulang dibuat (DRAFT)");
             })
           }
           className="rounded-lg bg-sky-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-600 disabled:opacity-50"
@@ -50,7 +50,7 @@ export function CompleteJobButton({ jobId }: { jobId: string }) {
         onClick={() =>
           start(async () => {
             const r = await actionCompleteJob(jobId);
-            setMsg(r.error ? `Gagal: ${r.error}` : "✓ Selesai → pengingat dibuat");
+            setMsg(r.error ? `Gagal: ${r.error}` : "Selesai → pengingat dibuat");
           })
         }
         className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"

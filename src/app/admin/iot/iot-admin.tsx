@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { actionUpdateIotProduct, actionUpdateIotOrderStatus } from "../config-actions";
+import { Icon } from "@/components/icons";
 import type { IotOrderStatus } from "@prisma/client";
 
 const ORDER_STATUSES: IotOrderStatus[] = [
@@ -90,7 +91,7 @@ export function OrderRow({
           <button onClick={save} disabled={pending} className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-medium text-white disabled:opacity-50">
             {pending ? "…" : "Simpan"}
           </button>
-          {saved && <span className="text-xs text-emerald-600">✓</span>}
+          {saved && <Icon.Check className="h-4 w-4 text-emerald-600" aria-hidden />}
         </div>
       </td>
     </tr>

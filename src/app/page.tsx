@@ -1,5 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Icon } from "@/components/icons";
+import type { ComponentType } from "react";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -65,9 +67,9 @@ export default function Home() {
         <h2 className="text-center text-2xl font-bold tracking-tight text-slate-900">Cara kerjanya sederhana</h2>
         <p className="mt-2 text-center text-slate-500">Dirancang untuk teknisi & pemilik usaha — bukan orang IT.</p>
         <div className="mt-10 grid gap-6 sm:grid-cols-3">
-          <Step n="1" icon="📝" title="Catat pekerjaan" desc="Terima booking online atau catat sendiri. Tugaskan ke teknisi, pantau dari HP." />
-          <Step n="2" icon="🔧" title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
-          <Step n="3" icon="🔁" title="Pelanggan datang lagi" desc="Aircon otomatis ingatkan pelanggan saat waktunya servis lagi, lewat WhatsApp." />
+          <Step n="1" icon={Icon.Note} title="Catat pekerjaan" desc="Terima booking online atau catat sendiri. Tugaskan ke teknisi, pantau dari HP." />
+          <Step n="2" icon={Icon.Wrench} title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
+          <Step n="3" icon={Icon.Repeat} title="Pelanggan datang lagi" desc="Aircon otomatis ingatkan pelanggan saat waktunya servis lagi, lewat WhatsApp." />
         </div>
       </section>
 
@@ -75,12 +77,12 @@ export default function Home() {
       <section className="bg-slate-50">
         <div className="mx-auto grid max-w-5xl gap-4 px-5 py-16 sm:grid-cols-2">
           <SegmentCard
-            emoji="🧰"
+            icon={Icon.Job}
             title="Teknisi / Usaha Perorangan"
             points={["Halaman booking online sendiri — terlihat profesional", "Ingat semua pelanggan & jadwal servis tanpa buku catatan", "Pelanggan servis ulang otomatis = penghasilan berulang"]}
           />
           <SegmentCard
-            emoji="🏢"
+            icon={Icon.Business}
             title="Perusahaan Servis AC"
             points={["Atur banyak teknisi & jadwal dalam satu layar", "Pantau performa & pekerjaan real-time", "Pemantauan AC pintar (IoT) → peluang servis otomatis"]}
             featured
@@ -112,7 +114,7 @@ export default function Home() {
                   <span key={s} className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700">{s}</span>
                 ))}
               </div>
-              <div className="mt-3 h-9 rounded-xl bg-emerald-500 text-center text-sm font-semibold leading-9 text-white">💬 Chat via WhatsApp</div>
+              <div className="mt-3 flex h-9 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 text-center text-sm font-semibold text-white"><Icon.Message className="h-4 w-4" aria-hidden /> Chat via WhatsApp</div>
               <div className="mt-2 h-9 rounded-xl border border-slate-200 text-center text-sm font-medium leading-9 text-slate-500">Booking Servis</div>
             </div>
           </div>
@@ -144,26 +146,26 @@ function RoiStat({ angka, ket }: { angka: string; ket: string }) {
   );
 }
 
-function Step({ n, icon, title, desc }: { n: string; icon: string; title: string; desc: string }) {
+function Step({ n, icon: IconCmp, title, desc }: { n: string; icon: ComponentType<{ className?: string }>; title: string; desc: string }) {
   return (
     <div className="relative rounded-2xl border border-slate-200 bg-white p-6">
       <div className="absolute -top-3 left-6 flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-sm font-bold text-white">{n}</div>
-      <div className="mt-2 text-3xl">{icon}</div>
+      <div className="mt-2 text-sky-500"><IconCmp className="h-8 w-8" /></div>
       <h3 className="mt-3 font-semibold text-slate-900">{title}</h3>
       <p className="mt-1 text-sm text-slate-600">{desc}</p>
     </div>
   );
 }
 
-function SegmentCard({ emoji, title, points, featured }: { emoji: string; title: string; points: string[]; featured?: boolean }) {
+function SegmentCard({ icon: IconCmp, title, points, featured }: { icon: ComponentType<{ className?: string }>; title: string; points: string[]; featured?: boolean }) {
   return (
     <div className={`rounded-2xl border p-6 ${featured ? "border-sky-200 bg-white shadow-sm ring-1 ring-sky-100" : "border-slate-200 bg-white"}`}>
-      <div className="text-3xl">{emoji}</div>
+      <div className="text-sky-500"><IconCmp className="h-8 w-8" /></div>
       <h3 className="mt-3 text-lg font-bold text-slate-900">{title}</h3>
       <ul className="mt-3 space-y-2">
         {points.map((p) => (
           <li key={p} className="flex items-start gap-2 text-sm text-slate-600">
-            <span className="mt-0.5 text-sky-500" aria-hidden>✓</span>
+            <Icon.Check className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" aria-hidden />
             <span>{p}</span>
           </li>
         ))}

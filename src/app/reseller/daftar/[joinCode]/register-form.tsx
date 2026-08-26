@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
 import { actionRegisterReseller, type PortalResult } from "@/app/agen/actions";
+import { Icon } from "@/components/icons";
 
 function Submit() {
   const { pending } = useFormStatus();
@@ -21,7 +22,7 @@ export function RegisterForm({ joinCode, agentName }: { joinCode: string; agentN
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
         <div className="w-full max-w-sm rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-lg">
-          <div className="text-4xl">✅</div>
+          <div className="flex justify-center text-emerald-500"><Icon.Success className="h-10 w-10" aria-hidden /></div>
           <h1 className="mt-3 text-xl font-bold text-slate-900">Pendaftaran Terkirim</h1>
           <p className="mt-2 text-sm text-slate-600">Menunggu persetujuan <b>{agentName}</b>. Setelah disetujui, Anda dapat tautan untuk membuat PIN & masuk portal reseller.</p>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { actionSaveChecklist, actionResetChecklist } from "./actions";
+import { Icon } from "@/components/icons";
 
 type Item = { key: string; label: string; type: "bool" | "number" | "text" | "photo"; required: boolean };
 const TYPE_LABEL: Record<Item["type"], string> = { bool: "Centang", number: "Angka", text: "Teks", photo: "Foto" };
@@ -24,7 +25,7 @@ export function ChecklistEditor({ serviceType, label, initialItems }: { serviceT
   function save() {
     start(async () => {
       const res = await actionSaveChecklist(serviceType, items);
-      setMsg(res.ok ? { ok: true, text: "Tersimpan ✓" } : { ok: false, text: res.error });
+      setMsg(res.ok ? { ok: true, text: "Tersimpan" } : { ok: false, text: res.error });
     });
   }
   function reset() {
@@ -57,7 +58,7 @@ export function ChecklistEditor({ serviceType, label, initialItems }: { serviceT
                 <input type="checkbox" checked={it.required} onChange={(e) => update(i, { required: e.target.checked })} className="h-4 w-4" />
                 Wajib
               </label>
-              <button onClick={() => remove(i)} className="rounded-lg px-2 py-1 text-sm text-red-500 hover:bg-red-50">✕</button>
+              <button onClick={() => remove(i)} aria-label="Hapus langkah" className="rounded-lg px-2 py-1 text-red-500 hover:bg-red-50"><Icon.Close className="h-4 w-4" aria-hidden /></button>
             </div>
           ))}
           <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -66,7 +67,7 @@ export function ChecklistEditor({ serviceType, label, initialItems }: { serviceT
               {pending ? "Menyimpan…" : "Simpan"}
             </button>
             <button onClick={reset} disabled={pending} className="min-h-[38px] rounded-lg border border-slate-300 px-3 text-sm text-slate-600 hover:bg-slate-50">Bawaan</button>
-            {msg && <span className={`text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.text}</span>}
+            {msg && <span className={`flex items-center gap-1 text-sm ${msg.ok ? "text-emerald-600" : "text-red-600"}`}>{msg.ok && <Icon.Check className="h-4 w-4" aria-hidden />}{msg.text}</span>}
           </div>
         </div>
       )}

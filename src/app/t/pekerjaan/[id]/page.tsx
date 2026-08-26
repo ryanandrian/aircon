@@ -7,6 +7,7 @@ import { getJobChecklist } from "@/lib/services/job-work-service";
 import { isStorageConfigured } from "@/lib/storage/s3";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { TechJobWork } from "./work";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
           <div className="mt-3 flex gap-2">
             {job.customer.phone && (
               <a href={`tel:${job.customer.phone}`} className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-slate-100 text-sm font-medium text-slate-700">
-                📞 Telepon
+                <Icon.Phone className="h-4 w-4" aria-hidden /> Telepon
               </a>
             )}
             {(job.geoLat && job.geoLng) || job.customer.address ? (
@@ -63,7 +64,7 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
                 target="_blank" rel="noopener noreferrer"
                 className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-sky-100 text-sm font-medium text-sky-700"
               >
-                🧭 Navigasi
+                <Icon.Navigate className="h-4 w-4" aria-hidden /> Navigasi
               </a>
             ) : null}
           </div>

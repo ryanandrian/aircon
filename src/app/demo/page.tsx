@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { listDueReminders } from "@/lib/services/reminder-service";
 import Link from "next/link";
 import { ReminderActions, CompleteJobButton } from "./ui";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function DemoDashboard() {
         {/* Money Loop — reminder due */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="mb-1 flex items-center gap-2">
-            <h2 className="text-lg font-bold">💰 Pengingat Servis (Money Loop)</h2>
+            <h2 className="flex items-center gap-2 text-lg font-bold"><Icon.Money className="h-5 w-5 text-emerald-500" aria-hidden /> Pengingat Servis (Money Loop)</h2>
           </div>
           <p className="mb-4 text-sm text-slate-500">
             Customer yang sudah waktunya servis lagi. Kirim WhatsApp atau langsung buat job ulang.

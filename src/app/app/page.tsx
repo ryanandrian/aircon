@@ -4,8 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
 import { LogoutButton } from "./logout-button";
+import { Icon } from "@/components/icons";
 import Link from "next/link";
 import Image from "next/image";
+import type { ComponentType } from "react";
 
 export const dynamic = "force-dynamic";
 
@@ -65,37 +67,37 @@ export default async function AppDashboard() {
       <div className="mx-auto max-w-5xl space-y-6 p-5">
         {/* Greeting */}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{greeting}, {firstName} 👋</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">{greeting}, {firstName} <Icon.Wave className="h-6 w-6 text-amber-500" aria-hidden /></h1>
           <p className="mt-1 text-sm text-slate-500">Ringkasan usaha AC Anda hari ini.</p>
         </div>
 
         {/* Metrics */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric icon="📋" label="Pekerjaan Hari Ini" value={todayJobs} tone="sky" href="/app/pekerjaan" />
-          <Metric icon="🔧" label="Sedang Berjalan" value={metrics.activeJobs} tone="slate" href="/app/pekerjaan" />
-          <Metric icon="🔔" label="Pengingat Aktif" value={dueReminders} tone="violet" />
-          <Metric icon="⚡" label="Peluang IoT" value={openAlerts} tone={openAlerts > 0 ? "amber" : "slate"} href="/app/perangkat" />
+          <Metric icon={Icon.Job} label="Pekerjaan Hari Ini" value={todayJobs} tone="sky" href="/app/pekerjaan" />
+          <Metric icon={Icon.Wrench} label="Sedang Berjalan" value={metrics.activeJobs} tone="slate" href="/app/pekerjaan" />
+          <Metric icon={Icon.Bell} label="Pengingat Aktif" value={dueReminders} tone="violet" />
+          <Metric icon={Icon.Zap} label="Peluang IoT" value={openAlerts} tone={openAlerts > 0 ? "amber" : "slate"} href="/app/perangkat" />
         </section>
 
         {/* Aksi cepat */}
         <section>
           <h2 className="mb-3 text-sm font-semibold text-slate-500">Menu</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <NavCard href="/app/pekerjaan" icon="📋" title="Pekerjaan" desc="Atur & pantau job teknisi" primary />
-            <NavCard href="/app/teknisi" icon="👷" title="Teknisi" desc="Undang & kelola tim" />
-            <NavCard href="/app/perangkat" icon="📡" title="Pemantauan AC" desc="Sensor & peluang servis" badge={openAlerts > 0 ? openAlerts : undefined} />
-            <NavCard href="/t" icon="📱" title="Mode Teknisi" desc="Kerjakan job di lapangan" />
-            <NavCard href="/app/langganan" icon="💳" title="Langganan" desc="Paket & pembayaran" />
-            <NavCard href="/app/pesan" icon="💬" title="Template Pesan" desc="Atur pesan WA ke pelanggan" />
-            <NavCard href="/app/checklist" icon="✅" title="Checklist Servis" desc="Langkah kerja teknisi" />
-            <NavCard href={`/p/${tenant?.slug ?? ""}`} icon="🌐" title="Halaman Usaha" desc="Terima booking online" external />
+            <NavCard href="/app/pekerjaan" icon={Icon.Job} title="Pekerjaan" desc="Atur & pantau job teknisi" primary />
+            <NavCard href="/app/teknisi" icon={Icon.Technician} title="Teknisi" desc="Undang & kelola tim" />
+            <NavCard href="/app/perangkat" icon={Icon.Device} title="Pemantauan AC" desc="Sensor & peluang servis" badge={openAlerts > 0 ? openAlerts : undefined} />
+            <NavCard href="/t" icon={Icon.Mobile} title="Mode Teknisi" desc="Kerjakan job di lapangan" />
+            <NavCard href="/app/langganan" icon={Icon.Billing} title="Langganan" desc="Paket & pembayaran" />
+            <NavCard href="/app/pesan" icon={Icon.Message} title="Template Pesan" desc="Atur pesan WA ke pelanggan" />
+            <NavCard href="/app/checklist" icon={Icon.Check} title="Checklist Servis" desc="Langkah kerja teknisi" />
+            <NavCard href={`/p/${tenant?.slug ?? ""}`} icon={Icon.Web} title="Halaman Usaha" desc="Terima booking online" external />
           </div>
         </section>
 
         {/* Tip money loop */}
         <section className="overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-lg text-white">🔁</div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white"><Icon.Repeat className="h-5 w-5" aria-hidden /></div>
             <div>
               <h3 className="font-semibold text-slate-900">Pelanggan Datang Lagi</h3>
               <p className="mt-1 text-sm text-slate-600">
@@ -109,8 +111,8 @@ export default async function AppDashboard() {
   );
 }
 
-function Metric({ icon, label, value, tone, href }: {
-  icon: string; label: string; value: number; tone: "sky" | "violet" | "amber" | "slate"; href?: string;
+function Metric({ icon: IconCmp, label, value, tone, href }: {
+  icon: ComponentType<{ className?: string }>; label: string; value: number; tone: "sky" | "violet" | "amber" | "slate"; href?: string;
 }) {
   const tones = {
     sky: "border-sky-100 bg-sky-50",
@@ -120,7 +122,7 @@ function Metric({ icon, label, value, tone, href }: {
   };
   const inner = (
     <div className={`rounded-2xl border p-4 transition ${tones[tone]} ${href ? "hover:shadow-sm active:scale-[0.98]" : ""}`}>
-      <div className="text-lg">{icon}</div>
+      <div className="text-slate-700"><IconCmp className="h-6 w-6" /></div>
       <div className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{value}</div>
       <div className="mt-0.5 text-xs font-medium text-slate-500">{label}</div>
     </div>
@@ -128,8 +130,8 @@ function Metric({ icon, label, value, tone, href }: {
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-function NavCard({ href, icon, title, desc, primary, badge, external }: {
-  href: string; icon: string; title: string; desc: string; primary?: boolean; badge?: number; external?: boolean;
+function NavCard({ href, icon: IconCmp, title, desc, primary, badge, external }: {
+  href: string; icon: ComponentType<{ className?: string }>; title: string; desc: string; primary?: boolean; badge?: number; external?: boolean;
 }) {
   return (
     <Link
@@ -146,7 +148,7 @@ function NavCard({ href, icon, title, desc, primary, badge, external }: {
           {badge}
         </span>
       ) : null}
-      <span className="text-2xl">{icon}</span>
+      <span className="text-slate-700"><IconCmp className="h-6 w-6" /></span>
       <span className="mt-2 font-semibold text-slate-900">{title}</span>
       <span className="mt-0.5 text-xs text-slate-500">{desc}</span>
     </Link>

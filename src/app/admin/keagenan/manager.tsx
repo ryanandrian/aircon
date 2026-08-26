@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { actionCreateAgent, actionUpdateAgent, actionBuildPayouts, actionMarkPaid, actionIssueAgentToken } from "./actions";
+import { Icon } from "@/components/icons";
 import type { CommissionType, PartnerStatus, PartnerTaxStatus, PayoutStatus } from "@prisma/client";
 
 interface AgentView {
@@ -147,13 +148,13 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {a.code && (
-                  <button onClick={() => copy(a.code!, `code-${a.id}`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                    Kode agen: <b>{a.code}</b> {copied === `code-${a.id}` ? "✓" : "📋"}
+                  <button onClick={() => copy(a.code!, `code-${a.id}`)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                    Kode agen: <b>{a.code}</b> {copied === `code-${a.id}` ? <Icon.Check className="h-3.5 w-3.5" aria-hidden /> : <Icon.Copy className="h-3.5 w-3.5" aria-hidden />}
                   </button>
                 )}
                 {a.joinCode && (
-                  <button onClick={() => copy(`${appUrl}/agen/daftar/${a.joinCode}`, `join-${a.id}`)} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
-                    Tautan rekrut reseller {copied === `join-${a.id}` ? "✓ tersalin" : "📋"}
+                  <button onClick={() => copy(`${appUrl}/agen/daftar/${a.joinCode}`, `join-${a.id}`)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
+                    Tautan rekrut reseller {copied === `join-${a.id}` ? <span className="inline-flex items-center gap-1"><Icon.Check className="h-3.5 w-3.5" aria-hidden /> tersalin</span> : <Icon.Copy className="h-3.5 w-3.5" aria-hidden />}
                   </button>
                 )}
                 <button onClick={() => setEditId(editId === a.id ? null : a.id)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">

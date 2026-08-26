@@ -4,6 +4,7 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { listJobs } from "@/lib/services/job-management-service";
 import { SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "./status-badge";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -100,8 +101,8 @@ export default async function PekerjaanPage() {
 function EmptyState() {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-3xl">
-        🧰
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
+        <Icon.Job className="h-7 w-7" aria-hidden />
       </div>
       <h2 className="text-xl font-bold text-slate-900">Belum ada pekerjaan</h2>
       <p className="mx-auto mt-2 max-w-md text-slate-600">
@@ -174,13 +175,13 @@ function JobCard({ job }: { job: JobRow }) {
       </div>
 
       {job.customer.address && (
-        <p className="mt-2 truncate text-sm text-slate-500">📍 {job.customer.address}</p>
+        <p className="mt-2 flex items-center gap-1.5 truncate text-sm text-slate-500"><Icon.Location className="h-3.5 w-3.5 shrink-0" aria-hidden /> {job.customer.address}</p>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-        <span>🗓️ {formatTanggal(job.scheduledDate)}{jam ? ` · ${jam}` : ""}</span>
-        {unit && <span>❄️ {unit}</span>}
-        <span>👷 {teknisi ?? "Belum ada teknisi"}</span>
+        <span className="flex items-center gap-1.5"><Icon.Calendar className="h-3.5 w-3.5" aria-hidden /> {formatTanggal(job.scheduledDate)}{jam ? ` · ${jam}` : ""}</span>
+        {unit && <span className="flex items-center gap-1.5"><Icon.AC className="h-3.5 w-3.5" aria-hidden /> {unit}</span>}
+        <span className="flex items-center gap-1.5"><Icon.Technician className="h-3.5 w-3.5" aria-hidden /> {teknisi ?? "Belum ada teknisi"}</span>
       </div>
     </Link>
   );

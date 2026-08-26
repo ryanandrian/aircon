@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ownerInviteTechnician, ownerRevokeInvite } from "@/app/masuk-teknisi/actions";
+import { Icon } from "@/components/icons";
 
 interface Tech { id: string; name: string; phone: string; active: boolean }
 interface Invite { id: string; name: string; phone: string; token: string }
@@ -98,7 +99,7 @@ export function TechnicianManager({
                 </button>
                 <button onClick={() => copyLink(inv.token)}
                   className="min-h-[40px] flex-1 rounded-xl bg-slate-100 text-sm font-medium text-slate-700">
-                  {copied === inv.token ? "Tersalin ✓" : "Salin Link"}
+                  {copied === inv.token ? <span className="inline-flex items-center gap-1"><Icon.Check className="h-4 w-4" aria-hidden /> Tersalin</span> : "Salin Link"}
                 </button>
               </div>
             </div>

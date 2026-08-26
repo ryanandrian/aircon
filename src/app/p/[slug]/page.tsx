@@ -12,6 +12,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { normalizeBookingPhone } from "@/lib/validation/booking";
 import BookingForm from "./booking-form";
+import { Icon } from "@/components/icons";
+import type { ComponentType } from "react";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
@@ -132,14 +134,14 @@ export default async function PublicTenantPage({ params }: PageProps) {
           aria-label={`Chat WhatsApp dengan ${tenant.name}`}
           className="mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
         >
-          <span aria-hidden="true">💬</span> Chat via WhatsApp
+          <Icon.Message className="h-5 w-5" aria-hidden /> Chat via WhatsApp
         </a>
 
         {/* Sinyal percaya (jujur, benar untuk semua usaha) */}
         <ul className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <TrustBadge icon="⚡" label="Respons cepat" />
-          <TrustBadge icon="✅" label="Dikonfirmasi WhatsApp" />
-          <TrustBadge icon="🕐" label="Pesan online 24 jam" />
+          <TrustBadge icon={Icon.Zap} label="Respons cepat" />
+          <TrustBadge icon={Icon.Check} label="Dikonfirmasi WhatsApp" />
+          <TrustBadge icon={Icon.Clock} label="Pesan online 24 jam" />
         </ul>
 
         {/* Layanan */}
@@ -202,10 +204,10 @@ export default async function PublicTenantPage({ params }: PageProps) {
   );
 }
 
-function TrustBadge({ icon, label }: { icon: string; label: string }) {
+function TrustBadge({ icon: IconCmp, label }: { icon: ComponentType<{ className?: string }>; label: string }) {
   return (
     <li className="rounded-xl border border-slate-200 bg-white px-2 py-2">
-      <div className="text-lg" aria-hidden>{icon}</div>
+      <div className="flex justify-center text-sky-500"><IconCmp className="h-5 w-5" aria-hidden /></div>
       <div className="mt-0.5 text-[11px] font-medium leading-tight text-slate-600">{label}</div>
     </li>
   );

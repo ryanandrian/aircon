@@ -7,6 +7,7 @@ import { listOpenAlerts } from "@/lib/services/iot-ingest-service";
 import { alertMessage } from "@/lib/iot/alert-detection";
 import { AlertCard } from "./alert-card";
 import { AppHeader } from "../_components/app-header";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function PerangkatPage() {
         {alerts.length > 0 && (
           <section className="space-y-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-              <span aria-hidden>🔔</span> Peluang Servis ({alerts.length})
+              <Icon.Bell className="h-4 w-4" aria-hidden /> Peluang Servis ({alerts.length})
             </h2>
             {alerts.map((a) => (
               <AlertCard
@@ -56,7 +57,7 @@ export default async function PerangkatPage() {
         {deviceCount === 0 ? (
           // Empty-state fungsional: fitur bisa diakses, tapi belum ada perangkat.
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-3xl">📡</div>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-100 text-sky-600"><Icon.Device className="h-7 w-7" aria-hidden /></div>
             <h2 className="text-xl font-bold text-slate-900">Belum ada perangkat terpasang</h2>
             <p className="mx-auto mt-2 max-w-md text-slate-600">
               Pantau suhu, arus, dan kesehatan AC pelanggan secara otomatis. Pasang perangkat

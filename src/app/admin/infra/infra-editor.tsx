@@ -42,9 +42,9 @@ export function InfraEditor({ initial }: { initial: Initial }) {
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="sm:col-span-2"><span className={label}>URL Gateway</span>
             <input name="waGatewayUrl" defaultValue={initial.waGatewayUrl} placeholder="https://gateway.domain" className={field} /></label>
-          <label><span className={label}>API Key {initial.hasKey ? "(tersimpan ✓)" : "(belum diisi)"}</span>
+          <label><span className={label}>API Key {initial.hasKey ? "(tersimpan)" : "(belum diisi)"}</span>
             <input name="waGatewayKey" type="password" placeholder={initial.hasKey ? "••••• (biarkan kosong = tetap)" : "isi API key"} className={field} /></label>
-          <label><span className={label}>Callback Secret {initial.hasCallbackSecret ? "(tersimpan ✓)" : "(belum diisi)"}</span>
+          <label><span className={label}>Callback Secret {initial.hasCallbackSecret ? "(tersimpan)" : "(belum diisi)"}</span>
             <input name="waCallbackSecret" type="password" placeholder={initial.hasCallbackSecret ? "••••• (biarkan kosong = tetap)" : "isi secret"} className={field} /></label>
         </div>
       </section>

@@ -4,6 +4,7 @@ import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { techTransition, techSetChecklist, techAddPhoto, techRequestUploadUrl } from "../../actions";
 import { nextTechAction } from "@/lib/copy/job-status";
+import { Icon } from "@/components/icons";
 import type { JobStatus } from "@prisma/client";
 
 interface ChecklistItem {
@@ -200,7 +201,7 @@ export function TechJobWork({
 
       {status === "COMPLETED" && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-          <p className="font-semibold text-emerald-800">✅ Pekerjaan selesai</p>
+          <p className="flex items-center justify-center gap-2 font-semibold text-emerald-800"><Icon.Success className="h-5 w-5" aria-hidden /> Pekerjaan selesai</p>
           <p className="mt-1 text-sm text-emerald-700">Pengingat servis berikutnya sudah dibuat otomatis.</p>
         </div>
       )}

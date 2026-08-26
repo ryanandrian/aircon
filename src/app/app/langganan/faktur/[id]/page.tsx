@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { getBillingPolicy } from "@/lib/billing/config";
 import { PrintButton } from "./print-button";
+import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export default async function FakturPage({ params }: { params: Promise<{ id: str
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
             isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
           }`}>
-            {isPaid ? "✓ LUNAS" : "MENUNGGU PEMBAYARAN"}
+            {isPaid ? <span className="inline-flex items-center gap-1"><Icon.Check className="h-3.5 w-3.5" aria-hidden /> LUNAS</span> : "MENUNGGU PEMBAYARAN"}
           </span>
         </div>
 

@@ -12,6 +12,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { submitBooking, type BookingActionState } from "./actions";
 import { HONEYPOT_FIELD, SERVICE_TYPES } from "@/lib/validation/booking";
+import { Icon } from "@/components/icons";
 
 const SERVICE_LABELS: Record<(typeof SERVICE_TYPES)[number], string> = {
   CLEANING: "Cuci AC",
@@ -55,8 +56,8 @@ export default function BookingForm({ slug }: { slug: string }) {
         aria-live="polite"
         className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center"
       >
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-2xl text-white">
-          ✓
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white">
+          <Icon.Check className="h-6 w-6" aria-hidden />
         </div>
         <h3 className="text-lg font-bold text-emerald-800">
           {state.message}
