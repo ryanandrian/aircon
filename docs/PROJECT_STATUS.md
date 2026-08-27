@@ -154,6 +154,25 @@ KEPUTUSAN TEKNIS TAMBAHAN (revisi poin C — owner benar, riwayat BOLEH publik a
  - TIMBANG (belum diputus): riwayat-publik default ON atau toggle per-tenant? Cenderung default ON +
    opsi tenant matikan (prinsip configurable). Owner belum tetapkan.
 
+### OPSI FINAL DISEPAKATI — model scanner (simple, owner 26 Agu 2026)
+Owner pilih opsi SIMPEL (lebih baik dari ide "render per-sesi"): 1 kode, 1 URL pendek.
+ - Scanner UMUM (app luar) → buka URL → halaman PUBLIK sederhana (identitas mesin + spek + riwayat).
+ - Scanner IN-APP Aircon → potong URL, ambil KODE saja → tampilkan detail LENGKAP di dalam app.
+KOREKSI KEAMANAN (WAJIB, dari asisten — owner setuju arah): keamanan TIDAK boleh bergantung pada
+"scanner mana". URL bisa dibuka siapa saja di browser → SERVER yang menentukan berdasar LOGIN:
+ - /u/{code} tanpa sesi login = SELALU public view sederhana (dumb, cacheable, tak mungkin bocor).
+ - Detail lengkap HANYA via API terproteksi di dalam app setelah login (teknisi pemilik unit / portal
+   pelanggan bila dibangun). Scanner in-app = UX cepat, bukan mekanisme keamanan.
+PENYEMPURNAAN:
+ - "Pelanggan via app = info lengkap" butuh PORTAL PELANGGAN (belum ada; pelanggan kini via WA+booking).
+   Saran: sekarang pelanggan cukup public view; portal pelanggan (riwayat+biaya sendiri) = nanti.
+   Biaya yg pelanggan lihat = yg DIA bayar (data sendiri); catatan internal teknisi = ranah tenant.
+ - URL PENDEK: domain pendek + kode pendek (mis. 7F3K9M2 ~34 miliar kombinasi). Trik density: QR
+   "mode alfanumerik" lebih rapat utk HURUF BESAR+angka → seluruh URL uppercase (HTTPS://ACN.ID/U/7F3K9M2)
+   = QR lebih kecil/mudah dibaca di stiker 4cm. Maka kode = UPPERCASE saja.
+ - Scanner in-app: validasi URL cocok pola domain kita sebelum ambil kode (QR asing → "kode tidak dikenal").
+ - Riwayat DESCENDING (terbaru di atas); tonjolkan baris "Perawatan terakhir: {tgl} — {aktivitas}".
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
