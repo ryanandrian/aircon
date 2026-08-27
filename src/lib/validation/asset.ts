@@ -24,6 +24,12 @@ export const createAssetSchema = z.object({
     .optional(),
   roomLocation: z.string().trim().optional(),
   serial: z.string().trim().optional(),
+  quantity: z
+    .number()
+    .int("Jumlah unit harus bilangan bulat")
+    .min(1, "Jumlah unit minimal 1")
+    .max(100, "Jumlah unit maksimal 100")
+    .optional(),
   installedAt: z.coerce.date().optional(),
   maintenanceIntervalDays: z
     .number()

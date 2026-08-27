@@ -303,6 +303,7 @@ model Asset {
   capacityPk              Float?
   roomLocation            String?
   serial                  String?
+  quantity                Int       @default(1)
   installedAt             DateTime?
   maintenanceIntervalDays Int?
   nextServiceDate         DateTime?

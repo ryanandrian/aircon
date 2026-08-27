@@ -175,6 +175,7 @@ export async function createAsset(
         capacityPk: input.capacityPk ?? null,
         roomLocation: input.roomLocation ?? null,
         serial: input.serial ?? null,
+        quantity: input.quantity ?? 1,
         installedAt: input.installedAt ?? null,
         maintenanceIntervalDays: input.maintenanceIntervalDays ?? null,
         deviceId: input.deviceId ?? null,
@@ -187,6 +188,62 @@ export async function createAsset(
       err instanceof Error ? err.message : String(err),
     );
   }
+}
+
+/**
+ * Saran lokasi ruangan: distinct roomLocation yang PERNAH dipakai.
+ * Prioritas lokasi milik pelanggan ini dulu, lalu lokasi lain di tenant (dedupe, case-insensitive).
+ * Untuk combobox anti-duplikat ("kamar depan" vs "k.tamu").
+ */
+export async function suggestLocations(
+  tenantId: string,
+  customerId?: string,
+): Promise<string[]> {
+  const rows = await prisma.asset.findMany({
+    where: { tenantId, deletedAt: null, roomLocation: { not: null } },
+    select: { roomLocation: true, customerId: true },
+    orderBy: { updatedAt: "desc" },
+    take: 500,
+  });
+  const seen = new Set<string>();
+  const mine: string[] = [];
+  const others: string[] = [];
+  for (const r of rows) {
+    const loc = (r.roomLocation ?? "").trim();
+    if (!loc) continue;
+    const key = loc.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (customerId && r.customerId === customerId) mine.push(loc);
+    else others.push(loc);
+  }
+  return [...mine, ...others].slice(0, 30);
+}
+
+/**
+ * Cari unit yang MIRIP untuk pelanggan (dedup-warning LUNAK — bukan blokir).
+ * Kriteria: brand + capacityPk + roomLocation cocok (case-insensitive) di pelanggan yang sama.
+ * Unit kembar itu SAH; ini hanya peringatan agar teknisi sadar mungkin sudah terdaftar.
+ */
+export async function findPossibleDuplicates(
+  tenantId: string,
+  customerId: string,
+  candidate: { brand?: string | null; capacityPk?: number | null; roomLocation?: string | null },
+): Promise<Asset[]> {
+  const existing = await prisma.asset.findMany({
+    where: { tenantId, customerId, deletedAt: null },
+  });
+  const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
+  const cb = norm(candidate.brand);
+  const cl = norm(candidate.roomLocation);
+  const cp = candidate.capacityPk ?? null;
+  return existing.filter((a) => {
+    const brandMatch = cb !== "" && norm(a.brand) === cb;
+    const locMatch = cl !== "" && norm(a.roomLocation) === cl;
+    const pkMatch = cp !== null && a.capacityPk === cp;
+    // dianggap "mirip" bila lokasi sama DAN (brand sama atau PK sama)
+    return locMatch && (brandMatch || pkMatch);
+  });
 }
 
 /** Update asset milik tenant. Throw NOT_FOUND bila milik tenant lain/terhapus. */
@@ -228,6 +285,7 @@ export async function updateAsset(
   if (input.capacityPk !== undefined) data.capacityPk = input.capacityPk;
   if (input.roomLocation !== undefined) data.roomLocation = input.roomLocation;
   if (input.serial !== undefined) data.serial = input.serial;
+  if (input.quantity !== undefined) data.quantity = input.quantity;
   if (input.installedAt !== undefined) data.installedAt = input.installedAt;
   if (input.maintenanceIntervalDays !== undefined) {
     data.maintenanceIntervalDays = input.maintenanceIntervalDays;
