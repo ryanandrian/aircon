@@ -123,3 +123,68 @@ export async function unbindCode(tenantId: string, rawCode: string): Promise<voi
     data: { status: "POOL", assetId: null, boundAt: null },
   });
 }
+
+/**
+ * PUBLIC VIEW kode (halaman /u/{code} TANPA login). STRIPPED — hanya info MESIN + riwayat servis.
+ * BUANG: tenant, teknisi, biaya, identitas pelanggan (nama/alamat/HP). Riwayat DESCENDING.
+ * Mengembalikan null bila kode tak dikenal / belum bound.
+ */
+export interface PublicUnitView {
+  code: string;
+  brand: string | null;
+  model: string | null;
+  type: string;
+  capacityPk: number | null;
+  roomLocation: string | null;
+  history: { date: string; activity: string }[]; // tanggal ISO + label serviceType
+}
+
+export async function getPublicUnitByCode(
+  rawCode: string,
+  serviceLabel: (t: string) => string,
+): Promise<PublicUnitView | null> {
+  const code = rawCode.trim().toUpperCase();
+  const uc = await prisma.unitCode.findUnique({
+    where: { code },
+    include: {
+      asset: {
+        include: {
+          jobs: {
+            where: { status: "COMPLETED", deletedAt: null },
+            orderBy: { completedAt: "desc" },
+            take: 50,
+            select: { completedAt: true, createdAt: true, serviceType: true },
+          },
+        },
+      },
+    },
+  });
+  if (!uc || uc.status !== "BOUND" || !uc.asset) return null;
+  const a = uc.asset;
+  return {
+    code,
+    brand: a.brand,
+    model: a.model,
+    type: a.type,
+    capacityPk: a.capacityPk,
+    roomLocation: a.roomLocation,
+    history: a.jobs.map((j) => ({
+      date: (j.completedAt ?? j.createdAt).toISOString(),
+      activity: serviceLabel(j.serviceType),
+    })),
+  };
+}
+
+/** Untuk scan in-app teknisi: kode → assetId milik tenant (fn2). null bila tak bound/milik tenant. */
+export async function resolveCodeForTenant(tenantId: string, rawCode: string): Promise<{ assetId: string | null; status: string } | null> {
+  const code = rawCode.trim().toUpperCase();
+  const uc = await prisma.unitCode.findUnique({ where: { code } });
+  if (!uc) return null;
+  // kode BOUND ke unit tenant ini → buka detail; POOL (milik tenant/global) → boleh bind
+  if (uc.status === "BOUND") {
+    if (uc.tenantId !== tenantId) return { assetId: null, status: "BOUND_OTHER" };
+    return { assetId: uc.assetId, status: "BOUND" };
+  }
+  if (uc.tenantId !== null && uc.tenantId !== tenantId) return { assetId: null, status: "POOL_OTHER" };
+  return { assetId: null, status: "POOL" };
+}

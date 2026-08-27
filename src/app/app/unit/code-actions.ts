@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { tryGetServerContext } from "@/lib/auth/context";
 import {
   generateBatch, listCodes, exportCodesCsv, bindCode, unbindCode,
+  resolveCodeForTenant,
 } from "@/lib/services/unit-code-service";
 
 /** Base URL untuk QR (no-hardcode: env, fallback subdomain lumite). */
@@ -63,4 +64,19 @@ export async function actionUnbindCode(code: string): Promise<{ ok: boolean; err
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal lepas kode" };
   }
+}
+
+/**
+ * Scan in-app: resolve kode → aksi. BOUND(tenant ini)=buka unit; POOL=boleh bind; lainnya=tolak.
+ */
+export async function actionResolveScan(code: string): Promise<
+  { ok: false; error: string } | { ok: true; status: string; assetId: string | null }
+> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  const res = await resolveCodeForTenant(ctx.tenantId, code);
+  if (!res) return { ok: false, error: "Kode tidak dikenal" };
+  if (res.status === "BOUND_OTHER") return { ok: false, error: "Kode milik unit usaha lain" };
+  if (res.status === "POOL_OTHER") return { ok: false, error: "Kode milik usaha lain" };
+  return { ok: true, status: res.status, assetId: res.assetId };
 }

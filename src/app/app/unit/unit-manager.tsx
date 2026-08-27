@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,9 @@ import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/empty-state";
 import { AssetForm } from "./asset-form";
 import { CodeManager } from "./code-manager";
+import { QrScanner } from "./qr-scanner";
+import { actionResolveScan, actionBindCode } from "./code-actions";
+import { useRouter } from "next/navigation";
 
 type Unit = {
   id: string;
@@ -27,8 +31,11 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export function UnitManager({ units }: { units: Unit[] }) {
+  const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [showCodes, setShowCodes] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [bindCodeVal, setBindCodeVal] = useState<string | null>(null); // kode POOL menunggu dipilih unitnya
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -39,18 +46,61 @@ export function UnitManager({ units }: { units: Unit[] }) {
     );
   }, [units, q]);
 
+  async function handleScanned(code: string) {
+    setScanning(false);
+    const res = await actionResolveScan(code);
+    if (!res.ok) { toast.error(res.error); return; }
+    if (res.status === "BOUND" && res.assetId) {
+      toast.success("Unit ditemukan");
+      // fokus ke unit (scroll/refresh); detail unit dibuka di halaman ini
+      router.refresh();
+    } else if (res.status === "POOL") {
+      // kode belum terikat → minta pilih unit untuk di-bind
+      setBindCodeVal(code);
+      toast.info(`Kode ${code} belum terpasang. Pilih unit untuk ditautkan.`);
+    }
+  }
+
+  async function doBind(assetId: string) {
+    if (!bindCodeVal) return;
+    const res = await actionBindCode(bindCodeVal, assetId);
+    if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
+    toast.success(`Kode ${bindCodeVal} terpasang ke unit`);
+    setBindCodeVal(null);
+    router.refresh();
+  }
+
   return (
     <div className="space-y-5">
+      {scanning && <QrScanner onCode={handleScanned} onClose={() => setScanning(false)} />}
+
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">{units.length} unit AC terdaftar</p>
         </div>
-        {!adding && (
-          <Button size="sm" onClick={() => setAdding(true)}>
-            <Icon.AC className="h-4 w-4" aria-hidden /> Tambah Unit
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setScanning(true)}>
+            <Icon.Web className="h-4 w-4" aria-hidden /> Scan QR
           </Button>
-        )}
+          {!adding && (
+            <Button size="sm" onClick={() => setAdding(true)}>
+              <Icon.AC className="h-4 w-4" aria-hidden /> Tambah Unit
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Mode pilih unit untuk bind kode hasil scan */}
+      {bindCodeVal && (
+        <Card className="border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-foreground">Tautkan kode <span className="font-mono font-semibold">{bindCodeVal}</span> ke unit — pilih di bawah:</p>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setBindCodeVal(null)}>Batal</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {adding && <AssetForm onDone={() => setAdding(false)} />}
 
@@ -96,6 +146,11 @@ export function UnitManager({ units }: { units: Unit[] }) {
                 <div className="mt-1 text-xs text-muted-foreground">
                   Servis berikutnya: {fmtDate(u.nextServiceDate)}
                 </div>
+                {bindCodeVal && (
+                  <Button type="button" size="sm" className="mt-3 w-full" onClick={() => doBind(u.id)}>
+                    Tautkan {bindCodeVal} ke unit ini
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
