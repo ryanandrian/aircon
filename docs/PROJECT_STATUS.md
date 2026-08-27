@@ -192,6 +192,25 @@ PENYEMPURNAAN:
         pelanggan (over-engineering; rumahan tak peduli riwayat).
    QR & link SALING LENGKAP: QR = "1 unit ini cepat"; link-pelanggan = "semua unit saya".
 
+### DETAIL LINK-PER-PELANGGAN (owner 26 Agu 2026) — statis/dinamis, distribusi, UI institusi
+STATIS tapi ISI DINAMIS: URL permanen per pelanggan (mis. ac.lumite.biz.id/riwayat/{TOKEN}); token
+TAK berubah (pelanggan bookmark sekali, pakai selamanya). Isi selalu data terbaru (unit/servis baru
+muncul otomatis). JANGAN link sekali-pakai/berubah (bikin bingung + tenant kirim ulang terus).
+Keamanan secukupnya: tanpa login, siapa pun PUNYA link bisa buka (wajar utk "kartu perawatan"; biaya
++ data pribadi tetap disembunyikan). Token acak = tak bisa ditebak; pelanggan boleh teruskan ke staf.
+DISTRIBUSI (JANGAN andalkan tenant ingat — otomatis di titik yg pasti terjadi):
+ (1) Sisipkan link di KAKI pesan WA yang SUDAH jalan (reminder/selesai/ulasan): "Lihat kartu perawatan
+     AC Anda: [link]". Pelanggan terima berulang alami, nyaris gratis (money-loop WA sudah hidup).
+     Tak menambah pesan baru → tak menambah risiko ban.
+ (2) Auto-kirim 1 WA saat servis PERTAMA selesai: "Servis selesai ✓ Kartu perawatan digital: [link]".
+ (3) Panel tenant: tombol "Salin link" / "Kirim via WA" per pelanggan (jaring pengaman on-demand;
+     link sama krn statis).
+UI HALAMAN (akomodir rumahan s/d korporat 40+ unit):
+ - Ringkasan atas: "40 unit • 3 jatuh tempo bulan ini".
+ - Daftar unit = tabel (desktop) / card (HP), klik/touch → detail unit + riwayat DESCENDING.
+ - PENCARIAN (lokasi/merek/kode unit) + SORTING (jatuh tempo terdekat / lokasi / terakhir servis).
+ - Responsif: card di HP, tabel di desktop (PIC kantor sering pakai laptop).
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
