@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/empty-state";
 import { AssetForm } from "./asset-form";
+import { CodeManager } from "./code-manager";
 
 type Unit = {
   id: string;
@@ -27,6 +28,7 @@ const fmtDate = (iso: string | null) =>
 
 export function UnitManager({ units }: { units: Unit[] }) {
   const [adding, setAdding] = useState(false);
+  const [showCodes, setShowCodes] = useState(false);
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -51,6 +53,13 @@ export function UnitManager({ units }: { units: Unit[] }) {
       </div>
 
       {adding && <AssetForm onDone={() => setAdding(false)} />}
+
+      <div>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setShowCodes((v) => !v)}>
+          {showCodes ? "Sembunyikan" : "Kelola"} Kode QR Sticker
+        </Button>
+      </div>
+      {showCodes && <CodeManager />}
 
       {units.length > 0 && (
         <Input placeholder="Cari unit (merek, lokasi, pelanggan)…" value={q} onChange={(e) => setQ(e.target.value)} />

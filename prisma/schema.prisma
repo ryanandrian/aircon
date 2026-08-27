@@ -316,6 +316,7 @@ model Asset {
   customer Customer   @relation(fields: [customerId], references: [id])
   jobs     JobOrder[]
   device   Device?    @relation(fields: [deviceId], references: [id])
+  unitCode UnitCode?
 
   @@index([tenantId, customerId])
   @@index([tenantId, nextServiceDate])
@@ -719,6 +720,29 @@ model Testimonial {
   updatedAt  DateTime @updatedAt
 
   @@index([published, sortOrder])
+}
+
+// Kode unit fisik (QR sticker) — POOL unik GLOBAL lintas tenant, di-BIND ke 1 Asset.
+// Kode ACAK uppercase (anti-crawl). Status: POOL (dicetak, belum dipakai) -> BOUND (kawin ke unit).
+// Kode TETAP saat unit pindah tenant (jangkar portabilitas masa depan).
+enum UnitCodeStatus {
+  POOL
+  BOUND
+}
+
+model UnitCode {
+  code      String         @id // acak uppercase, mis. "7F3K9M2" — jadi bagian URL /u/{code}
+  status    UnitCodeStatus @default(POOL)
+  tenantId  String? // null = pool global (Lumite); terisi saat digenerate utk tenant / saat bound
+  assetId   String?        @unique // terisi saat BOUND
+  batchId   String? // pengelompokan cetak/generate
+  createdAt DateTime       @default(now())
+  boundAt   DateTime?
+
+  asset Asset? @relation(fields: [assetId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([batchId])
 }
 
 // Profil perusahaan penyedia (Lumite) — untuk invoice/kwitansi & data merchant.
