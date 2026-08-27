@@ -105,6 +105,34 @@ sulit bedakan unit fisiknya):
 STATUS: konsep matang & disepakati arah; implementasi ditunda sampai pilot membuktikan kebutuhan
 (hindari kompleksitas skema spekulatif). Reminder-batch sudah live sebagai fondasi.
 
+### KEPUTUSAN QR STICKER + IDENTITAS UNIT — arah final disepakati owner (26 Agu 2026)
+Owner memutuskan: QR sticker unik (4x4/5x5cm) = identitas per-unit RECOMMENDED-OPTIONAL. Masjid 8 unit
+= tetap 8 KARTU per-unit (Pola A), notifikasi tetap 1 bila due bareng (sudah live). Sticker = pembeda
+fisik yang MEMBUAT per-unit feasible untuk unit kembar. Lumite jual sticker (bisnis sampingan); tenant
+besar boleh generate kode sendiri + export Excel + cetak sendiri.
+LIMA KEPUTUSAN TEKNIS PENENTU (hasil pertimbangan, jadi acuan implementasi):
+ A. Kode UNIK GLOBAL lintas semua tenant (bukan per-tenant) — cegah tabrakan + jadi jangkar
+    portabilitas atas-izin nanti (pelanggan pindah tenant, tunjukkan kode, riwayat ikut).
+ B. QR isi = kode buram + URL (mis. https://aircon.id/u/{CODE}), BUKAN ID database. Kode tak bermakna
+    sampai "di-bind" ke unit (seperti tag bagasi). Kamera HP biasa bisa scan (tak wajib buka app).
+ C. PRIVASI scan: publik/orang asing = tampil minimal ("terdaftar di [Tenant], hubungi utk servis");
+    terautentikasi (teknisi tenant itu / pelanggan via portal) = riwayat penuh. Cegah bocor harga/pola.
+ D. JANGAN kunci fitur di balik beli sticker. Kemampuan KODE gratis/termasuk; barang fisik = upsell.
+    Model: tenant kecil beli sticker praktis (margin Lumite), tenant besar generate+export+cetak sendiri
+    dari pool unik-global yang sama. Software gratis, sticker fisik monetisasi.
+ E. MATERIAL wajib tahan panas/lembab/UV (vinyl/polyester laminasi), tempel di UNIT INDOOR (adem,
+    terlindung, mudah dijangkau). Kertas biasa = gagal dalam bulanan.
+SINTESIS MODEL (best-of-both): utama per-unit (Pola A) + fitur "BUAT MASSAL" (isi form sekali:
+merek/PK/lokasi + jumlah 8 → app bikin 8 record terpisah otomatis → opsional scan 8 sticker berurutan
+utk bind). Cepat seperti Pola B saat input, hasil granular seperti Pola A. `quantity` murni jadi
+fallback bila pelanggan tolak sticker + banyak unit kembar.
+ALUR TEKNISI: kunjungan-1 = buat/buat-massal unit → tempel sticker → scan (3 dtk/unit, nol ketik).
+Kunjungan berikut (teknisi mana pun) = scan sticker → rekam medis unit langsung terbuka.
+BELUM DIBANGUN. Butuh: tabel UnitCode (kode unik-global + status pool/assigned/bound + batchId),
+generator batch + export Excel, scan QR via kamera HP (browser, tanpa app native), buat-massal unit,
+halaman publik /u/[code] dgn aturan privasi (C). Urutan bangun MENUNGGU keputusan profil pilot
+(rumahan vs institusi) — owner masih menimbang.
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
