@@ -4,6 +4,8 @@
  */
 import { prisma } from "@/lib/prisma";
 import { renderTemplate, normalizePhone } from "@/lib/wa/gateway";
+import { getOrCreateCardToken } from "@/lib/services/customer-card-service";
+import { customerCardUrl } from "@/lib/unit-code/urls";
 
 /** Reminder yang sudah waktunya ditindak (lead time terlewati, status QUEUED). */
 export async function listDueReminders(tenantId: string) {
@@ -92,6 +94,13 @@ export async function sendCustomerReminderWa(
   }
 
   const toPhone = normalizePhone(customer.phone);
+
+  // Sisipkan link kartu perawatan (statis-permanen) di kaki pesan — distribusi otomatis.
+  // Tak menambah pesan baru (hanya baris), jadi tak menambah risiko anti-ban.
+  try {
+    const token = await getOrCreateCardToken(tenantId, customerId);
+    if (token) body = `${body}\n\nLihat kartu perawatan AC Anda: ${customerCardUrl(token)}`;
+  } catch { /* footer opsional; jangan gagalkan reminder */ }
 
   // SATU MessageLog + tandai SEMUA reminder di grup SENT (atomik).
   const [msg] = await prisma.$transaction([

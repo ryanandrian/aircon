@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/empty-state";
 import { AssetForm } from "./asset-form";
 import { CodeManager } from "./code-manager";
 import { QrScanner } from "./qr-scanner";
+import { CustomerCards } from "./customer-cards";
 import { actionResolveScan, actionBindCode } from "./code-actions";
 import { useRouter } from "next/navigation";
 
@@ -34,6 +35,7 @@ export function UnitManager({ units }: { units: Unit[] }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [showCodes, setShowCodes] = useState(false);
+  const [showCards, setShowCards] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [bindCodeVal, setBindCodeVal] = useState<string | null>(null); // kode POOL menunggu dipilih unitnya
   const [q, setQ] = useState("");
@@ -104,12 +106,16 @@ export function UnitManager({ units }: { units: Unit[] }) {
 
       {adding && <AssetForm onDone={() => setAdding(false)} />}
 
-      <div>
+      <div className="flex flex-wrap gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={() => setShowCodes((v) => !v)}>
           {showCodes ? "Sembunyikan" : "Kelola"} Kode QR Sticker
         </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setShowCards((v) => !v)}>
+          {showCards ? "Sembunyikan" : "Kartu Perawatan Pelanggan"}
+        </Button>
       </div>
       {showCodes && <CodeManager />}
+      {showCards && <CustomerCards />}
 
       {units.length > 0 && (
         <Input placeholder="Cari unit (merek, lokasi, pelanggan)…" value={q} onChange={(e) => setQ(e.target.value)} />

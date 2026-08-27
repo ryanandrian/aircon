@@ -80,3 +80,19 @@ export async function actionResolveScan(code: string): Promise<
   if (res.status === "POOL_OTHER") return { ok: false, error: "Kode milik usaha lain" };
   return { ok: true, status: res.status, assetId: res.assetId };
 }
+
+/** Daftar pelanggan + link kartu perawatan (untuk tenant bagikan). */
+export async function actionListCustomerCards(): Promise<{ id: string; name: string; url: string }[]> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return [];
+  const { listCustomers } = await import("@/lib/services/customer-service");
+  const { getOrCreateCardToken } = await import("@/lib/services/customer-card-service");
+  const { customerCardUrl } = await import("@/lib/unit-code/urls");
+  const res = await listCustomers(ctx.tenantId, {});
+  const out: { id: string; name: string; url: string }[] = [];
+  for (const c of res.data) {
+    const token = await getOrCreateCardToken(ctx.tenantId, c.id);
+    if (token) out.push({ id: c.id, name: c.name, url: customerCardUrl(token) });
+  }
+  return out;
+}

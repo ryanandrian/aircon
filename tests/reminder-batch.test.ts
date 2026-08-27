@@ -55,6 +55,13 @@ vi.mock("@/lib/wa/gateway", () => ({
   normalizePhone: (p: string) => p,
 }));
 
+vi.mock("@/lib/services/customer-card-service", () => ({
+  getOrCreateCardToken: vi.fn(async () => null), // footer link opsional; null = tak menambah
+}));
+vi.mock("@/lib/unit-code/urls", () => ({
+  customerCardUrl: (t: string) => `https://x/riwayat/${t}`,
+}));
+
 import { sendCustomerReminderWa } from "../src/lib/services/reminder-service";
 
 beforeEach(() => {
