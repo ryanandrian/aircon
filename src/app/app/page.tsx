@@ -89,6 +89,7 @@ export default async function AppDashboard() {
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Menu</h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <NavCard href="/app/pekerjaan" icon={Icon.Job} title="Pekerjaan" desc="Atur & pantau job teknisi" primary />
+            <NavCard href="/app/unit" icon={Icon.AC} title="Unit AC" desc="Kartu perawatan tiap mesin" />
             <NavCard href="/app/teknisi" icon={Icon.Technician} title="Teknisi" desc="Undang & kelola tim" />
             <NavCard href="/app/perangkat" icon={Icon.Device} title="Pemantauan AC" desc="Sensor & peluang servis" badge={openAlerts > 0 ? openAlerts : undefined} />
             <NavCard href="/t" icon={Icon.Mobile} title="Mode Teknisi" desc="Kerjakan job di lapangan" />

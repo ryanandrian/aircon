@@ -27,14 +27,14 @@ export class QuotaError extends Error {
  * Pastikan tenant masih boleh menambah entitas `kind`. Lempar QuotaError bila penuh.
  * SECURITY: tenantId dari pemanggil ber-auth; plan diambil dari record tenant.
  */
-export async function assertQuota(tenantId: string, kind: QuotaKind): Promise<void> {
+export async function assertQuota(tenantId: string, kind: QuotaKind, additional = 1): Promise<void> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { plan: true },
   });
   if (!tenant) throw new QuotaError(kind, 0);
 
-  const res = await checkQuota(tenantId, tenant.plan, kind);
+  const res = await checkQuota(tenantId, tenant.plan, kind, additional);
   if (!res.allowed) {
     throw new QuotaError(kind, res.limit);
   }

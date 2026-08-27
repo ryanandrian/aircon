@@ -12,7 +12,18 @@ vi.mock("@/lib/prisma", () => ({
         if (where.roomLocation?.not === null) rows = rows.filter((a) => a.roomLocation !== null);
         return rows;
       }),
+      create: vi.fn(async ({ data }: any) => {
+        const row = { id: `new${store.assets.length + 1}`, ...data };
+        store.assets.push(row);
+        return row;
+      }),
     },
+    customer: {
+      findFirst: vi.fn(async ({ where }: any) =>
+        where.id === "c1" && where.tenantId === "t1" ? { id: "c1" } : null,
+      ),
+    },
+    $transaction: vi.fn(async (ops: any[]) => Promise.all(ops)),
   },
 }));
 
@@ -25,7 +36,7 @@ vi.mock("@/lib/services/customer-service", () => ({
   },
 }));
 
-import { suggestLocations, findPossibleDuplicates } from "../src/lib/services/asset-service";
+import { suggestLocations, findPossibleDuplicates, createAssetsBulk } from "../src/lib/services/asset-service";
 
 beforeEach(() => {
   store.assets = [
@@ -67,5 +78,29 @@ describe("findPossibleDuplicates (warning lunak)", () => {
   it("pelanggan lain tak tercampur", async () => {
     const dups = await findPossibleDuplicates("t1", "c1", { brand: "LG", capacityPk: 1, roomLocation: "Kantor" });
     expect(dups).toHaveLength(0); // Kantor milik c2, bukan c1
+  });
+});
+
+describe("createAssetsBulk (buat-massal unit kembar)", () => {
+  it("bikin N record terpisah dgn label posisi #1..#N", async () => {
+    const before = store.assets.length;
+    const created = await createAssetsBulk("t1", { customerId: "c1", type: "SPLIT" as any, brand: "Daikin", roomLocation: "Ruang Utama" }, 8);
+    expect(created).toHaveLength(8);
+    expect(store.assets.length).toBe(before + 8);
+    const locs = created.map((a: any) => a.roomLocation);
+    expect(locs).toContain("Ruang Utama #1");
+    expect(locs).toContain("Ruang Utama #8");
+  });
+
+  it("count=1 tak diberi nomor", async () => {
+    const created = await createAssetsBulk("t1", { customerId: "c1", type: "SPLIT" as any, brand: "LG", roomLocation: "Kamar" }, 1);
+    expect(created).toHaveLength(1);
+    expect(created[0].roomLocation).toBe("Kamar");
+  });
+
+  it("tolak pelanggan tak valid", async () => {
+    await expect(
+      createAssetsBulk("t1", { customerId: "zzz", type: "SPLIT" as any }, 3),
+    ).rejects.toThrow();
   });
 });

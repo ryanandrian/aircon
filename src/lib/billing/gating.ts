@@ -39,6 +39,7 @@ export async function checkQuota(
   tenantId: string,
   plan: TenantPlan,
   kind: QuotaKind,
+  additional = 1,
 ): Promise<QuotaCheck> {
   const cfg = await getPlanConfig(plan);
   const limit = cfg ? quotaLimit(cfg, kind) : null;
@@ -65,7 +66,9 @@ export async function checkQuota(
       break;
   }
 
-  return { allowed: withinQuota(limit, current), limit, current, kind };
+  // allowed bila menambah `additional` entitas tak melewati limit.
+  const allowed = limit === null || current + additional <= limit;
+  return { allowed, limit, current, kind };
 }
 
 /** Ambil trialDays terkini dari policy. */

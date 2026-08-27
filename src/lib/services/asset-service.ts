@@ -191,6 +191,61 @@ export async function createAsset(
 }
 
 /**
+ * Buat BANYAK unit sekaligus (buat-massal) untuk unit kembar (mis. masjid 8 AC).
+ * Menghasilkan N record TERPISAH (Pola A) dengan label posisi "{roomLocation} #1..#N" bila count>1.
+ * Hormati kuota paket (acUnits) untuk seluruh N. Transaksi: semua atau tidak sama sekali.
+ */
+export async function createAssetsBulk(
+  tenantId: string,
+  input: CreateAssetInput,
+  count: number,
+): Promise<Asset[]> {
+  const n = Math.max(1, Math.min(Math.floor(count), 100));
+  // Kuota: pastikan menambah N unit tak melewati batas paket.
+  await assertQuota(tenantId, "acUnits", n);
+
+  // SECURITY: tenant-scoped — pastikan customer milik tenant ini.
+  const customer = await prisma.customer.findFirst({
+    where: { id: input.customerId, tenantId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!customer) {
+    throw new ServiceError("CONFLICT", "Pelanggan tidak valid untuk tenant ini");
+  }
+
+  const baseLoc = (input.roomLocation ?? "").trim();
+  try {
+    const created = await prisma.$transaction(
+      Array.from({ length: n }, (_, i) => {
+        const loc = n > 1 && baseLoc ? `${baseLoc} #${i + 1}` : baseLoc || null;
+        return prisma.asset.create({
+          data: {
+            tenantId,
+            customerId: input.customerId,
+            type: input.type,
+            brand: input.brand ?? null,
+            model: input.model ?? null,
+            capacityPk: input.capacityPk ?? null,
+            roomLocation: loc,
+            serial: null, // serial per-unit diisi belakangan (kembar)
+            quantity: 1,
+            installedAt: input.installedAt ?? null,
+            maintenanceIntervalDays: input.maintenanceIntervalDays ?? null,
+          },
+        });
+      }),
+    );
+    return created;
+  } catch (err) {
+    throw new ServiceError(
+      "UNEXPECTED",
+      "Gagal membuat unit massal",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
+/**
  * Saran lokasi ruangan: distinct roomLocation yang PERNAH dipakai.
  * Prioritas lokasi milik pelanggan ini dulu, lalu lokasi lain di tenant (dedupe, case-insensitive).
  * Untuk combobox anti-duplikat ("kamar depan" vs "k.tamu").
