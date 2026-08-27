@@ -5,6 +5,7 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { createAssetSchema } from "@/lib/validation/asset";
 import {
   createAsset, createAssetsBulk, suggestLocations, findPossibleDuplicates,
+  updateAsset, softDeleteAsset,
 } from "@/lib/services/asset-service";
 import { listCustomers } from "@/lib/services/customer-service";
 
@@ -78,5 +79,40 @@ export async function actionCreateAsset(raw: {
     return { ok: true, createdCount: 1 };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal menyimpan unit" };
+  }
+}
+
+/** Ubah unit AC (tenant-scoped). */
+export async function actionUpdateAsset(id: string, raw: {
+  type?: string; brand?: string; model?: string; capacityPk?: number; roomLocation?: string; serial?: string;
+}): Promise<Result> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  try {
+    await updateAsset(ctx.tenantId, id, {
+      type: raw.type as never,
+      brand: raw.brand ?? undefined,
+      model: raw.model ?? undefined,
+      capacityPk: raw.capacityPk,
+      roomLocation: raw.roomLocation ?? undefined,
+      serial: raw.serial ?? undefined,
+    });
+    revalidatePath("/app/unit");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal mengubah unit" };
+  }
+}
+
+/** Hapus (soft-delete) unit AC. Riwayat job tetap tersimpan. */
+export async function actionDeleteAsset(id: string): Promise<Result> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  try {
+    await softDeleteAsset(ctx.tenantId, id);
+    revalidatePath("/app/unit");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal menghapus unit" };
   }
 }

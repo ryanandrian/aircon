@@ -13,6 +13,7 @@ import { CodeManager } from "./code-manager";
 import { QrScanner } from "./qr-scanner";
 import { CustomerCards } from "./customer-cards";
 import { actionResolveScan, actionBindCode } from "./code-actions";
+import { actionUpdateAsset, actionDeleteAsset } from "./asset-actions";
 import { useRouter } from "next/navigation";
 
 type Unit = {
@@ -38,6 +39,7 @@ export function UnitManager({ units }: { units: Unit[] }) {
   const [showCards, setShowCards] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [bindCodeVal, setBindCodeVal] = useState<string | null>(null); // kode POOL menunggu dipilih unitnya
+  const [editId, setEditId] = useState<string | null>(null);
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -69,6 +71,29 @@ export function UnitManager({ units }: { units: Unit[] }) {
     if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
     toast.success(`Kode ${bindCodeVal} terpasang ke unit`);
     setBindCodeVal(null);
+    router.refresh();
+  }
+
+  async function saveEdit(e: React.FormEvent<HTMLFormElement>, id: string) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const res = await actionUpdateAsset(id, {
+      brand: String(fd.get("brand") ?? ""),
+      model: String(fd.get("model") ?? ""),
+      capacityPk: fd.get("pk") ? Number(fd.get("pk")) : undefined,
+      roomLocation: String(fd.get("loc") ?? ""),
+    });
+    if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
+    toast.success("Unit diperbarui");
+    setEditId(null);
+    router.refresh();
+  }
+
+  async function delUnit(u: Unit) {
+    if (!confirm(`Hapus unit "${(u.brand ?? "AC")}${u.roomLocation ? ` — ${u.roomLocation}` : ""}"? Riwayat servis tetap tersimpan.`)) return;
+    const res = await actionDeleteAsset(u.id);
+    if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
+    toast.success("Unit dihapus");
     router.refresh();
   }
 
@@ -136,26 +161,52 @@ export function UnitManager({ units }: { units: Unit[] }) {
           {filtered.map((u) => (
             <Card key={u.id} className="interactive">
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="truncate font-semibold text-foreground">
-                      {(u.brand ?? "AC")}{u.capacityPk ? ` ${u.capacityPk} PK` : ""}
+                {editId === u.id ? (
+                  <form onSubmit={(e) => saveEdit(e, u.id)} className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input name="brand" defaultValue={u.brand ?? ""} placeholder="Merek" />
+                      <Input name="pk" type="number" step="0.25" defaultValue={u.capacityPk ?? ""} placeholder="PK" />
                     </div>
-                    <div className="truncate text-sm text-muted-foreground">{u.roomLocation ?? "Lokasi belum diatur"}</div>
-                  </div>
-                  {u.quantity > 1 && <Badge variant="secondary">{u.quantity} unit</Badge>}
-                </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><Icon.Users className="h-3.5 w-3.5" aria-hidden /> {u.customerName}</span>
-                  <span>{u.jobCount} riwayat</span>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Servis berikutnya: {fmtDate(u.nextServiceDate)}
-                </div>
-                {bindCodeVal && (
-                  <Button type="button" size="sm" className="mt-3 w-full" onClick={() => doBind(u.id)}>
-                    Tautkan {bindCodeVal} ke unit ini
-                  </Button>
+                    <Input name="model" defaultValue={u.model ?? ""} placeholder="Model" />
+                    <Input name="loc" defaultValue={u.roomLocation ?? ""} placeholder="Lokasi" />
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm">Simpan</Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setEditId(null)}>Batal</Button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-foreground">
+                          {(u.brand ?? "AC")}{u.capacityPk ? ` ${u.capacityPk} PK` : ""}
+                        </div>
+                        <div className="truncate text-sm text-muted-foreground">{u.roomLocation ?? "Lokasi belum diatur"}</div>
+                      </div>
+                      {u.quantity > 1 && <Badge variant="secondary">{u.quantity} unit</Badge>}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1"><Icon.Users className="h-3.5 w-3.5" aria-hidden /> {u.customerName}</span>
+                      <span>{u.jobCount} riwayat</span>
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Servis berikutnya: {fmtDate(u.nextServiceDate)}
+                    </div>
+                    {bindCodeVal ? (
+                      <Button type="button" size="sm" className="mt-3 w-full" onClick={() => doBind(u.id)}>
+                        Tautkan {bindCodeVal} ke unit ini
+                      </Button>
+                    ) : (
+                      <div className="mt-3 flex gap-1">
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setEditId(u.id)}>
+                          <Icon.Note className="h-3.5 w-3.5" aria-hidden /> Ubah
+                        </Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => delUnit(u)}>
+                          <Icon.Close className="h-3.5 w-3.5 text-destructive" aria-hidden /> Hapus
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
