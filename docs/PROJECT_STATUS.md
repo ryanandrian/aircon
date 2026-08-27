@@ -211,6 +211,22 @@ UI HALAMAN (akomodir rumahan s/d korporat 40+ unit):
  - PENCARIAN (lokasi/merek/kode unit) + SORTING (jatuh tempo terdekat / lokasi / terakhir servis).
  - Responsif: card di HP, tabel di desktop (PIC kantor sering pakai laptop).
 
+### ✅ IMPLEMENTASI SELESAI & LIVE (27 Agu 2026) — commit 6fb5df9
+Rencana docs/PLAN_UNIT_IDENTITY_QR.md TUNTAS 5 fase. tsc 0, 199 test, build hijau, deploy READY.
+ - FASE 1: Asset.quantity + suggestLocations (combobox) + findPossibleDuplicates (dedup lunak).
+ - FASE 2: /app/unit (daftar+cari) + form tambah (combobox lokasi+saran, dedup-warning) +
+   createAssetsBulk (buat-massal N unit kembar, label #1..#N). NavCard "Unit AC".
+ - FASE 3: UnitCode (kode unik GLOBAL uppercase acak) + generateBatch + export CSV + bind/unbind.
+   Panel "Kode QR Sticker" di /app/unit.
+ - FASE 4: /u/{CODE} publik (identitas mesin+riwayat descending, STRIP tenant/teknisi/biaya/pelanggan)
+   + QrScanner (kamera HP BarcodeDetector + fallback manual) + bind via scan. LIVE terverifikasi.
+ - FASE 5: Customer.cardToken + /riwayat/{TOKEN} publik (ringkasan+cari+sort+detail unit, statis-
+   permanen) + footer link kartu OTOMATIS di tiap reminder WA + panel "Kartu Perawatan Pelanggan"
+   (salin/kirim). LIVE terverifikasi.
+ URL base configurable via env UNIT_CODE_BASE_URL (default app URL; ganti ke subdomain lumite nanti).
+ DITUNDA (tercatat): portabilitas atas-izin lintas-tenant (pakai UnitCode jangkar); portal pelanggan
+ login penuh (lihat biaya sendiri); cetak sticker fisik (operasional Lumite).
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
