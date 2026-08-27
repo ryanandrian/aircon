@@ -173,6 +173,25 @@ PENYEMPURNAAN:
  - Scanner in-app: validasi URL cocok pola domain kita sebelum ambil kode (QR asing → "kode tidak dikenal").
  - Riwayat DESCENDING (terbaru di atas); tonjolkan baris "Perawatan terakhir: {tgl} — {aktivitas}".
 
+### REVISI (owner 26 Agu 2026) — sederhanakan + akses riwayat TANPA QR
+1. TARIK over-engineering keamanan (owner: jangan over-protective utk info AC). Public view cukup:
+   tampilkan riwayat mesin, sembunyikan hanya yg jelas sensitif (BIAYA + data pribadi pelanggan).
+   TANPA lapisan otorisasi rumit. Login hanya utk EDIT/tulis (teknisi), bukan utk sekadar lihat.
+2. DOMAIN: lupakan acn.id (mahal). Pakai SUBDOMAIN lumite.biz.id yg sudah dimiliki (gratis, unlimited
+   subdomain), mis. ac.lumite.biz.id/u/{kode}. QR tetap terbaca di 4-5cm. Rp0.
+3. AKSES RIWAYAT TANPA QR — insight kunci: RIWAYAT TIDAK BERGANTUNG QR. QR hanya 1 jalan pintas;
+   data riwayat selalu ada di unit (ada/tanpa stiker). Unit tanpa stiker TETAP bisa dilihat riwayatnya.
+   TIGA PINTU ke riwayat (sama-data, beda-akses):
+    (1) Dalam app Aircon — teknisi/tenant (edit + full).
+    (2) QR per-unit (opsional) — buka cepat 1 unit di lapangan (di depan mesin).
+    (3) LINK-PER-PELANGGAN via WA (REKOMENDASI utk institusi) — tenant kirim 1 tautan
+        .../riwayat/{token-pelanggan} → daftar SEMUA unit pelanggan + kartu perawatan tiap unit.
+        Tanpa login/app/QR. INI pengganti "kartu perawatan gantung" fisik utk masjid/kantor (8 unit
+        dalam 1 halaman, riwayat descending). Murah: halaman publik di-key per-pelanggan (token),
+        bukan per-unit (kode). Ditolak: chatbot WA (riwayat panjang berantakan di chat) & app khusus
+        pelanggan (over-engineering; rumahan tak peduli riwayat).
+   QR & link SALING LENGKAP: QR = "1 unit ini cepat"; link-pelanggan = "semua unit saya".
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
