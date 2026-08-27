@@ -133,6 +133,27 @@ generator batch + export Excel, scan QR via kamera HP (browser, tanpa app native
 halaman publik /u/[code] dgn aturan privasi (C). Urutan bangun MENUNGGU keputusan profil pilot
 (rumahan vs institusi) — owner masih menimbang.
 
+### KLARIFIKASI — 1 KODE untuk 3 TUJUAN (privasi scan / poin C, 26 Agu 2026)
+Owner menetapkan 3 fungsi 1 QR: (1) pendaftaran unit pertama kali oleh teknisi via app;
+(2) pencarian cepat utk update kartu perawatan oleh teknisi via app; (3) info publik TANPA login
+utk pelanggan/siapa pun: (a) identitas AC (MESIN, bukan pemilik), (b) spek AC, (c) riwayat perawatan
+seluruh periode — HANYA daftar tanggal+aktivitas, TANPA tenant/teknisi/biaya.
+JAWABAN: YA, 1 kode 1 URL bisa 3 tujuan. Pembeda = SIAPA pembuka (sesi auth), bukan kode berbeda.
+ - PWA + sesi login: URL /u/{code} dirender beda per konteks. Teknisi login (unit milik tenant-nya):
+   kode belum-bind → "daftarkan unit" (fn1); sudah-bind → kartu perawatan + update (fn2).
+   Tanpa sesi (kamera HP orang asing) → halaman publik stripped (fn3).
+KEPUTUSAN TEKNIS TAMBAHAN (revisi poin C — owner benar, riwayat BOLEH publik asal stripped):
+ - Public view = MESIN + riwayat kesehatan saja. BUANG: tenant, teknisi, biaya, DAN identitas pelanggan
+   (nama/alamat/HP JANGAN publik). "Identitas AC" = merek/tipe/PK/kode unit, bukan pemilik.
+ - KODE HARUS ACAK ber-entropi tinggi (mis. 7F3K9M2), BUKAN berurutan → cegah enumeration/crawl massal
+   riwayat semua unit (karena fn3 publik). Nomor urut boleh utk cetak/Excel internal; yang di QR/URL acak.
+ - Otorisasi mode-teknisi = "login DAN unit milik tenant si teknisi" (bukan sekadar login). Teknisi
+   tenant lain scan → jatuh ke public view.
+ - Status kode: pool (dicetak, belum dipakai) → bound (kawin ke 1 unit, permanen) → pindah tenant via
+   izin nanti tapi kode TETAP (jangkar portabilitas).
+ - TIMBANG (belum diputus): riwayat-publik default ON atau toggle per-tenant? Cenderung default ON +
+   opsi tenant matikan (prinsip configurable). Owner belum tetapkan.
+
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
 - Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
