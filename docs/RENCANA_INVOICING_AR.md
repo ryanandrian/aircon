@@ -181,18 +181,19 @@ Test: agregasi insentif (%/nilai/multi-personel per item), filter periode, edge 
 
 ---
 
-## E. KEPUTUSAN YANG PERLU KONFIRMASI ANDA (sebelum eksekusi)
+## E. KEPUTUSAN (default diambil agent — sesuai disiplin modal & pilot-first; owner bisa override)
 
-1. **Urutan**: kerjakan Fase 1→7 berurutan (aman), atau prioritaskan sub-bagian tertentu dulu?
-2. **Pajak default**: setuju pajak **opt-in** (tenant kecil non-PKP = invoice tanpa pajak; PPN/PPh muncul
-   hanya bila relevan)? Ini sesuai prinsip anti-over-engineering Anda.
-3. **Kernet sebagai Role baru** vs sekadar "personel pendukung" di JobAssignment tanpa login sendiri —
-   apakah kernet perlu login ke app, atau cukup dicatat namanya untuk insentif?
-4. **Pembayaran pelanggan (CASH)**: QRIS/transfer — apakah pakai Midtrans tenant (butuh tiap tenant
-   punya akun Midtrans sendiri = berat), atau cukup **catat manual + upload bukti** (jauh lebih simpel,
-   cocok pilot)? Rekomendasi saya: catat manual + bukti dulu.
-5. **Estimasi**: ini ~3-4x lebih besar dari modul unit/QR kemarin. Kerjakan penuh, atau MVP dulu
-   (Fase 1-4: pelanggan+katalog+penugasan+invoice) lalu laporan/insentif menyusul?
+1. **Urutan**: Fase 1→7 berurutan. Boleh **MVP dulu = Fase 1-4** (pelanggan+katalog+penugasan+invoice),
+   lalu piutang/insentif/laporan (Fase 5-7) menyusul. → **KEPUTUSAN: MVP Fase 1-4 dulu.**
+2. **Pajak default**: **OPT-IN** — tenant kecil non-PKP + pelanggan rumahan = invoice tanpa pajak;
+   PPN muncul hanya bila tenant PKP, PPh23 info hanya bila pelanggan badan. → **KEPUTUSAN: opt-in.**
+3. **Kernet**: dicatat sebagai **personel di JobAssignment TANPA wajib login** (nama untuk insentif +
+   kartu perawatan). Bila kelak kernet perlu app sendiri, tambah login menyusul. → **KEPUTUSAN: kernet
+   tanpa login dulu (data personel), teknisi tetap login.**
+4. **Pembayaran CASH**: **catat manual + upload bukti + kwitansi WA** (TAK perlu Midtrans per-tenant).
+   Struktur disiapkan agar bisa integrasi QRIS otomatis nanti. → **KEPUTUSAN: manual+bukti, siap-QRIS.**
+5. **Scope**: kerjakan **MVP Fase 1-4** lebih dulu (deployable, sudah menutup alur inti Anda:
+   job→penugasan→invoice/proforma→kwitansi), sisanya menyusul. → menunggu lampu hijau owner.
 
 ---
 
