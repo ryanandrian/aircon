@@ -43,8 +43,8 @@ export default async function LanggananPage() {
     plans.find((p) => p.plan === tenant.plan)?.displayName ?? tenant.plan;
 
   const trialInfo =
-    tenant.status === "TRIAL" && tenant.trialEndsAt
-      ? `Masa coba gratis berakhir ${tenant.trialEndsAt.toLocaleDateString("id-ID")}.`
+    tenant.plan === "TRIAL" && !tenant.nextDueDate
+      ? "Anda di paket Basic — gratis selamanya. Upgrade kapan saja untuk menambah kuota pelanggan & unit."
       : tenant.nextDueDate
         ? `Jatuh tempo berikutnya ${tenant.nextDueDate.toLocaleDateString("id-ID")}.`
         : null;

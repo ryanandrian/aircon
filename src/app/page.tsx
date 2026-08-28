@@ -65,7 +65,7 @@ export default async function Home() {
           </p>
           <div className="animate-in-up delay-150 mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/login" className={buttonVariants({ size: "lg", className: "w-full shadow-lg shadow-sky-500/20 sm:w-auto" })}>
-              {c.heroCtaPrimary} {policy.trialDays} Hari
+              {c.heroCtaPrimary}
             </Link>
             <Link href="/demo" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full sm:w-auto" })}>
               {c.heroCtaSecondary}
@@ -182,7 +182,7 @@ export default async function Home() {
       {c.showPricing && (
       <section id="harga" className="mx-auto max-w-5xl scroll-mt-20 px-5 py-20">
         <h2 className="text-center text-3xl font-bold tracking-tight">Harga jujur, tanpa kejutan</h2>
-        <p className="mt-2 text-center text-muted-foreground">Coba gratis {policy.trialDays} hari. Tak perlu kartu kredit. Berhenti kapan saja.</p>
+        <p className="mt-2 text-center text-muted-foreground">Paket Basic gratis selamanya. Upgrade hanya bila usaha Anda tumbuh. Tanpa kartu kredit.</p>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((p, i) => {
             const t = withTax(p.priceMonthly, p.taxable ? policy.taxPercent : 0);
@@ -229,7 +229,7 @@ export default async function Home() {
             <Faq q="Ribet nggak?" a="Tidak. Aircon dibuat untuk teknisi & pemilik usaha. Semua dari HP, bahasa Indonesia, langsung bisa dipakai hari ini — tanpa pelatihan khusus." />
             <Faq q="HP saya biasa saja, muat nggak?" a="Muat. Aircon ringan dan berjalan di browser HP mana pun. Tidak perlu install aplikasi berat dari toko aplikasi." />
             <Faq q="Data pelanggan saya aman?" a="Aman. Data tersimpan terpisah per usaha, terenkripsi, dan hanya bisa diakses akun Anda. Foto bukti & rekening disimpan aman." />
-            <Faq q="Kalau saya berhenti bagaimana?" a="Bebas berhenti kapan saja tanpa penalti. Selama masa coba gratis, Anda tidak ditagih sama sekali." />
+            <Faq q="Kalau saya berhenti bagaimana?" a="Bebas berhenti kapan saja tanpa penalti. Paket Basic gratis selamanya — Anda hanya membayar bila memilih upgrade ke paket berbayar." />
             <Faq q="Bagaimana pelanggan tahu waktunya servis lagi?" a="Otomatis. Setiap pekerjaan selesai membuat pengingat, dan saat waktunya tiba pelanggan dikabari lewat WhatsApp — Anda tak perlu mengingat-ingat." />
           </div>
         </div>

@@ -22,10 +22,10 @@ export interface PlanSeed {
 export const PLAN_SEEDS: PlanSeed[] = [
   {
     plan: "TRIAL",
-    displayName: "Trial",
+    displayName: "Basic",
     priceMonthly: 0,
     taxable: false,
-    tagline: "Coba semua fitur gratis",
+    tagline: "Gratis selamanya untuk usaha AC kecil",
     sortOrder: 0,
     maxAdmins: 1,
     maxTechnicians: 2, // termasuk akun admin
