@@ -41,14 +41,14 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Fase aktif**: FASE 2 (in-progress) — F2.1+F2.2+F2.3 DONE.
-- **Item berikutnya**: F2.4 (layar harga khusus pelanggan, pola TAMBAH per item K21) → F2.5 Export CSV → F2.GATE.
-- **COMMIT TERAKHIR (baseline)**: `c75e00b` (F2.1+F2.2) + F2.3 (commit berikut).
+- **Fase aktif**: FASE 2 (in-progress) — F2.1–F2.4 DONE.
+- **Item berikutnya**: F2.5 (Export CSV harga khusus, K22) → F2.GATE.
+- **COMMIT TERAKHIR (baseline)**: `6fcaa22` (F2.3) + F2.4 (commit berikut).
 - **Baseline hijau**: tsc 0 · 229 test · build 0.
-- **CATATAN SERAH TERIMA**: F2.1/F2.2/F2.3 SELESAI. /app/layanan CRUD katalog + insentif + indikator harga khusus live.
-  BERIKUTNYA F2.4: layar khusus per pelanggan (route /app/pelanggan/[id]/harga) pola TAMBAH per item (K21):
-  tombol "Tambah harga khusus" → pilih layanan dari katalog → harga pre-fill standar → simpan; tampil daftar
-  override + pembanding standar (K22-B); pakai setCustomerPrice/removeCustomerPrice/listCustomerPricing (sudah ada di service).
+- **CATATAN SERAH TERIMA**: F2.1–F2.4 SELESAI. Katalog layanan + harga khusus pelanggan (layar terpisah,
+  pola tambah per item, resolvePrice terverifikasi) live. BERIKUTNYA F2.5: service exportCustomerPricingCsv
+  (semua override: kode,nama,harga standar,pelanggan,harga khusus,selisih) + tombol Export CSV di /app/layanan.
+  Lalu F2.GATE tutup Fase 2.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -206,18 +206,15 @@ Status fase: [ ] BELUM
 - [x] Dogfood: tambah jasa berinsentif → tampil di list + insentif tampil + PERSIST diverifikasi DB
       (standardPrice/techIncentive/kernetIncentive). 0 JS exception. tsc 0, 229 test, build 0. Visual world-class (screenshot). (data demo direset)
 
-### F2.4 — UI harga khusus pelanggan (LAYAR KHUSUS TERPISAH)  [ ]  ← penajaman owner
-- [ ] Halaman/route KHUSUS untuk kelola harga khusus per pelanggan (mis. `/app/pelanggan/[id]/harga`
-      atau modal layar-penuh) — BUKAN diselipkan di form pelanggan.
-- [ ] Pola **TAMBAH per item** (bukan tarik semua): admin menekan "Tambah harga khusus" → pilih layanan
-      dari katalog (kode/nama) → field harga pre-fill harga standar sbg titik awal → admin ubah → simpan.
-      Layar menampilkan HANYA daftar override yang sudah ada (pendek, mudah dirawat) — bukan seluruh katalog.
-- [ ] Tiap override = 1 row CustomerPricing (unique [customerId, serviceId]). Bisa edit / hapus override
-      (hapus → item kembali ikut harga standar).
-- [ ] Aturan pakai (K21/resolvePrice): saat buat invoice, cek CustomerPricing utk kode layanan itu →
-      ADA = pakai harga khusus; TAK ADA = pakai standardPrice katalog. (dikunci di F2.2 resolvePrice + dites)
-- [ ] Dogfood: tambah 1-2 harga khusus, edit, hapus → resolvePrice pakai harga khusus utk item itu &
-      standar utk item lain. Persist diverifikasi DB.
+### F2.4 — UI harga khusus pelanggan (LAYAR KHUSUS TERPISAH)  [x] DONE  ← penajaman owner
+- [x] Route KHUSUS `/app/pelanggan/[id]/harga` + CustomerPricingManager (shadcn). Link "Harga khusus"
+      (Icon.Billing) di kartu pelanggan.
+- [x] Pola TAMBAH per item (K21): "Tambah Harga Khusus" → Select layanan yg BELUM di-override → harga
+      pre-fill standar → simpan. Layar tampil HANYA daftar override (bukan seluruh katalog).
+- [x] Tiap override = 1 CustomerPricing; edit & hapus (hapus → kembali standar). Pembanding harga standar
+      (coret) + badge selisih (K22-B).
+- [x] resolvePrice (K21): dogfood — override 65rb vs standar 80rb → resolve cust-ini=65000 (diverifikasi DB).
+- [x] Dogfood: render+nama, pre-fill standar, simpan override, list+pembanding. 0 JS exception. tsc 0, 229 test, build 0. (data demo direset)
 
 ### F2.5 — Export CSV harga khusus (audit menyeluruh, K22)  [ ]
 - [ ] Service `exportCustomerPricingCsv(tenantId)` → semua override: kode, nama layanan, harga standar,

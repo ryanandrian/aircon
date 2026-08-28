@@ -311,6 +311,14 @@ export function CustomerManager({
                     >
                       <Icon.Message className="h-4 w-4" aria-hidden />
                     </a>
+                    <a
+                      href={`/app/pelanggan/${c.id}/harga`}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                      aria-label="Harga khusus"
+                      title="Harga khusus pelanggan"
+                    >
+                      <Icon.Billing className="h-4 w-4" aria-hidden />
+                    </a>
                     <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => openEdit(c)}>
                       <Icon.Note className="h-4 w-4" aria-hidden />
                     </Button>
