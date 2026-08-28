@@ -32,12 +32,12 @@ export default async function Home() {
     <main className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b bg-background/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-          <div className="flex items-center gap-2">
-            <Image src={logo} alt="Aircon" width={32} height={32} className="h-8 w-8 object-contain" priority />
-            <span className="text-lg font-bold tracking-tight">Aircon</span>
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2">
+            <Image src={logo} alt="Aircon" width={32} height={32} className="h-8 w-8 shrink-0 object-contain" priority />
+            <span className="truncate text-lg font-bold tracking-tight">Aircon</span>
           </div>
-          <nav className="flex items-center gap-1.5 text-sm">
+          <nav className="flex shrink-0 items-center gap-1 text-sm">
             {c.showPricing && <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Harga</Link>}
             <ThemeToggle />
             <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Demo</Link>
