@@ -1,5 +1,6 @@
 import { getPublicUnitByCode } from "@/lib/services/unit-code-service";
 import { SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
+import { TenantLogo } from "@/components/tenant-logo";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,15 @@ export default async function PublicUnitPage({ params }: { params: Promise<{ cod
           </Card>
         ) : (
           <>
+            {/* Branding tenant (pemilik usaha yang merawat) */}
+            <div className="mb-4 flex items-center gap-3">
+              <TenantLogo name={unit.tenantName} logoUrl={unit.tenantLogoUrl} size={44} className="border-2 border-background shadow" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Dirawat oleh</p>
+                <p className="truncate font-semibold text-foreground">{unit.tenantName}</p>
+              </div>
+            </div>
+
             {/* Identitas mesin (bukan pemilik) */}
             <Card>
               <CardContent className="p-6">
@@ -91,7 +101,7 @@ export default async function PublicUnitPage({ params }: { params: Promise<{ cod
             </div>
 
             <p className="mt-8 text-center text-xs text-muted-foreground">
-              Kartu perawatan digital · Ditenagai Aircon
+              Kartu perawatan digital · dibuat dengan Aircon
             </p>
           </>
         )}

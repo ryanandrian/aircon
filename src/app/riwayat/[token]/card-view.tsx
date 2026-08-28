@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Icon } from "@/components/icons";
+import { TenantLogo } from "@/components/tenant-logo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ type Unit = {
   lastService: { date: string; activity: string } | null;
   history: { date: string; activity: string }[];
 };
-type Card = { customerName: string; units: Unit[]; dueThisMonthCount: number };
+type Card = { customerName: string; tenantName: string; tenantLogoUrl: string; units: Unit[]; dueThisMonthCount: number };
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -57,6 +58,14 @@ export function CardView({ card }: { card: Card }) {
     <main className="min-h-screen bg-muted/30">
       <div aria-hidden className="h-24 bg-gradient-to-br from-sky-500 via-sky-600 to-cyan-500" />
       <div className="mx-auto -mt-12 w-full max-w-2xl px-4 pb-16 sm:px-5">
+        {/* Branding tenant */}
+        <div className="mb-4 flex items-center gap-3">
+          <TenantLogo name={card.tenantName} logoUrl={card.tenantLogoUrl} size={44} className="border-2 border-background shadow" />
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Dirawat oleh</p>
+            <p className="truncate font-semibold text-foreground">{card.tenantName}</p>
+          </div>
+        </div>
         {/* Ringkasan */}
         <Card>
           <CardContent className="p-5">

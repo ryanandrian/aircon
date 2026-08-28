@@ -136,6 +136,8 @@ export interface PublicUnitView {
   type: string;
   capacityPk: number | null;
   roomLocation: string | null;
+  tenantName: string;
+  tenantLogoUrl: string;
   history: { date: string; activity: string }[]; // tanggal ISO + label serviceType
 }
 
@@ -161,6 +163,9 @@ export async function getPublicUnitByCode(
   });
   if (!uc || uc.status !== "BOUND" || !uc.asset) return null;
   const a = uc.asset;
+  const tenant = uc.tenantId
+    ? await prisma.tenant.findUnique({ where: { id: uc.tenantId }, select: { name: true, logoUrl: true } })
+    : null;
   return {
     code,
     brand: a.brand,
@@ -168,6 +173,8 @@ export async function getPublicUnitByCode(
     type: a.type,
     capacityPk: a.capacityPk,
     roomLocation: a.roomLocation,
+    tenantName: tenant?.name ?? "Aircon",
+    tenantLogoUrl: tenant?.logoUrl ?? "",
     history: a.jobs.map((j) => ({
       date: (j.completedAt ?? j.createdAt).toISOString(),
       activity: serviceLabel(j.serviceType),

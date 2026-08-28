@@ -11,6 +11,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { normalizeBookingPhone } from "@/lib/validation/booking";
+import { TenantLogo } from "@/components/tenant-logo";
 import BookingForm from "./booking-form";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,7 @@ async function getTenant(slug: string) {
       name: true,
       slug: true,
       phone: true,
+      logoUrl: true,
       publicProfile: true,
       serviceArea: true,
     },
@@ -113,8 +115,8 @@ export default async function PublicTenantPage({ params }: PageProps) {
       <div className="mx-auto -mt-16 w-full max-w-lg px-5 pb-16">
         {/* Header usaha */}
         <header className="animate-in-up text-center">
-          <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-3xl border-4 border-background bg-sky-500 text-3xl font-bold text-white shadow-lg">
-            {tenant.name.charAt(0).toUpperCase()}
+          <div className="mx-auto mb-4 w-fit rounded-3xl border-4 border-background shadow-lg">
+            <TenantLogo name={tenant.name} logoUrl={tenant.logoUrl} size={80} className="rounded-[1.25rem]" />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
             {tenant.name}

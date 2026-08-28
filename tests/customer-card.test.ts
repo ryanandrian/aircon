@@ -25,6 +25,11 @@ vi.mock("@/lib/prisma", () => ({
           .map((a) => ({ ...a, unitCode: a.unitCode ?? null, jobs: a.jobs ?? [] })),
       ),
     },
+    tenant: {
+      findUnique: vi.fn(async ({ where }: any) =>
+        where.id === "t1" ? { name: "PT Sejuk", logoUrl: "" } : null,
+      ),
+    },
   },
 }));
 

@@ -41,12 +41,12 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Item berikutnya**: F1.6 (pasang TenantLogo di /p/[slug], /u/[code], /riwayat/[token]) → F1.7 GPS teknisi → F1.GATE.
-- **COMMIT TERAKHIR (baseline)**: `e57a0b7` (F1.3b) + F1.5 (commit berikut).
+- **Item berikutnya**: F1.7 (GPS koordinat pelanggan oleh teknisi) → F1.GATE (verifikasi fase 1).
+- **COMMIT TERAKHIR (baseline)**: `8c55e15` (F1.5) + F1.6 (commit berikut).
 - **Baseline hijau**: tsc 0 · 214 test · build 0.
-- **CATATAN SERAH TERIMA**: F1.0/1.1/1.2/1.3/1.3b/1.4/1.5 SELESAI & terverifikasi. Halaman /app/pengaturan
-  (logo+pajak+rekening+QRIS) live, persist diverifikasi DB, data demo direset. BERIKUTNYA F1.6: ganti avatar-huruf
-  di /p/[slug] & "Ditenagai Aircon" di /u/[code] & header /riwayat/[token] pakai <TenantLogo> (baca tenant.logoUrl).
+- **CATATAN SERAH TERIMA**: F1.0–F1.6 SELESAI & terverifikasi. Logo tenant kini tampil di /p, /u, /riwayat,
+  dashboard (fallback Aircon). BERIKUTNYA F1.7: tombol "Ambil lokasi GPS" di layar teknisi (/t) → simpan
+  geoLat/geoLng ke Customer via server action tenant-scoped. Lalu F1.GATE tutup Fase 1.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -148,12 +148,14 @@ Status fase: [ ] BELUM
 - [x] Dogfood: render 3 seksi, toggle PKP munculkan NPWP/PPN, simpan → PERSIST diverifikasi DB
       (isPkp/npwp/taxPercent/bank* tersimpan). 0 JS exception. tsc 0, 214 test, build 0. (data demo direset setelah tes)
 
-### F1.6 — Pasang TenantLogo di permukaan publik + dashboard  [ ]
-- [ ] `/p/[slug]` — ganti avatar-huruf → `<TenantLogo>`.
-- [ ] `/u/[code]` — ganti teks "Ditenagai Aircon" → logo tenant (boleh footer halus "dibuat dengan Aircon").
-- [ ] `/riwayat/[token]` — header pakai logo tenant.
-- [ ] Header dashboard `/app` — logo tenant.
-- [ ] Dogfood: keempat halaman render logo (fallback Aircon bila kosong), 0 exception.
+### F1.6 — Pasang TenantLogo di permukaan publik + dashboard  [x] DONE
+- [x] `/p/[slug]` — avatar-huruf → `<TenantLogo>` (select +logoUrl).
+- [x] `/u/[code]` — header branding "Dirawat oleh {tenant}" + `<TenantLogo>`; footer "dibuat dengan Aircon"
+      (getPublicUnitByCode +tenantName/tenantLogoUrl, fetch tenant terpisah).
+- [x] `/riwayat/[token]` — header branding tenant + `<TenantLogo>` (getCustomerCardByToken +tenant fields).
+- [x] Header dashboard `/app` — logo tenant (sudah via sidebar F1.0).
+- [x] Dogfood: /p render logo(fallback Aircon)+nama, /u & /riwayat graceful (200, tak 500), 0 exception.
+      tsc 0, 214 test (customer-card mock +tenant), build 0. Visual world-class diverifikasi (screenshot).
 
 ### F1.7 — UI: teknisi isi koordinat pelanggan saat di lokasi  [ ]
 - [ ] Tombol "Ambil lokasi GPS" (navigator.geolocation) di layar teknisi → simpan geoLat/geoLng ke Customer.

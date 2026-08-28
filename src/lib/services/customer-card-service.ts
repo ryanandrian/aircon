@@ -49,6 +49,8 @@ export interface CardUnit {
 
 export interface CustomerCard {
   customerName: string;
+  tenantName: string;
+  tenantLogoUrl: string;
   units: CardUnit[];
   dueThisMonthCount: number;
 }
@@ -63,6 +65,11 @@ export async function getCustomerCardByToken(
     select: { id: true, name: true, tenantId: true, deletedAt: true },
   });
   if (!customer || customer.deletedAt) return null;
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: customer.tenantId },
+    select: { name: true, logoUrl: true },
+  });
 
   const assets = await prisma.asset.findMany({
     where: { customerId: customer.id, tenantId: customer.tenantId, deletedAt: null },
@@ -102,5 +109,5 @@ export async function getCustomerCardByToken(
     };
   });
 
-  return { customerName: customer.name, units, dueThisMonthCount: dueThisMonth };
+  return { customerName: customer.name, tenantName: tenant?.name ?? "Aircon", tenantLogoUrl: tenant?.logoUrl ?? "", units, dueThisMonthCount: dueThisMonth };
 }
