@@ -284,6 +284,9 @@ model Tenant {
   serviceCatalog  ServiceCatalog[]
   customerPricing CustomerPricing[]
   jobAssignments  JobAssignment[]
+  workSessions    WorkSession[]
+  workItems       WorkItem[]
+  invoices        Invoice[]
 }
 
 model User {
@@ -341,6 +344,8 @@ model Customer {
   billingCustomer Customer?  @relation("CustomerBilling", fields: [billingCustomerId], references: [id])
   billedFor       Customer[] @relation("CustomerBilling")
   customerPricing CustomerPricing[]
+  workSessions    WorkSession[]
+  invoices        Invoice[]
 
   @@index([tenantId, phone])
   @@index([tenantId, source])
@@ -371,6 +376,7 @@ model Asset {
   jobs     JobOrder[]
   device   Device?    @relation(fields: [deviceId], references: [id])
   unitCode UnitCode?
+  workItems WorkItem[]
 
   @@index([tenantId, customerId])
   @@index([tenantId, nextServiceDate])
@@ -1253,4 +1259,134 @@ model JobAssignment {
   @@unique([jobId, personId])
   @@index([tenantId, jobId])
   @@index([tenantId, personId])
+}
+
+// ═══════ FASE 4 — WorkSession + Invoice/Proforma + Pajak (INTI UANG) ═══════
+
+enum DocType {
+  INVOICE
+  PROFORMA
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PayMethod {
+  CASH
+  TRANSFER
+  QRIS
+}
+
+enum CashRemitStatus {
+  HELD_BY_TECH
+  REMITTED
+}
+
+enum WorkSessionStatus {
+  OPEN
+  CLOSED
+}
+
+// Layar lapangan teknisi (K8): kumpulan pekerjaan per pelanggan yang dientry per unit, bisa dicicil.
+model WorkSession {
+  id         String            @id @default(cuid())
+  tenantId   String
+  jobId      String?
+  customerId String
+  status     WorkSessionStatus @default(OPEN)
+  openedById String
+  closedAt   DateTime?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  customer Customer   @relation(fields: [customerId], references: [id])
+  items    WorkItem[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+}
+
+// Baris pekerjaan pada WorkSession — per unit AC (K9), harga snapshot (K8), personel utk insentif (K18: tak di invoice).
+model WorkItem {
+  id                String   @id @default(cuid())
+  tenantId          String
+  workSessionId     String
+  assetId           String?
+  serviceId         String?
+  descSnapshot      String
+  category          String
+  qty               Decimal  @default(1) @db.Decimal(12, 2)
+  unit              String   @default("unit")
+  unitPriceSnapshot Decimal  @default(0) @db.Decimal(12, 2)
+  lineTotal         Decimal  @default(0) @db.Decimal(12, 2)
+  techIds           String[] @default([])
+  kernetIds         String[] @default([])
+  createdAt         DateTime @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  workSession WorkSession @relation(fields: [workSessionId], references: [id], onDelete: Cascade)
+  asset       Asset?      @relation(fields: [assetId], references: [id])
+
+  @@index([tenantId, workSessionId])
+}
+
+// Invoice (Cash) atau Proforma (Tempo). Snapshot lengkap; nama personel TIDAK disimpan di sini (K18).
+model Invoice {
+  id              String          @id @default(cuid())
+  tenantId        String
+  docType         DocType         @default(INVOICE)
+  number          String
+  customerId      String
+  billingCustomerId String?
+  workSessionId   String?
+  jobId           String?
+  status          InvoiceStatus   @default(DRAFT)
+  issueDate       DateTime        @default(now())
+  dueDate         DateTime?
+  subtotal        Decimal         @default(0) @db.Decimal(12, 2)
+  discountAmount  Decimal         @default(0) @db.Decimal(12, 2)
+  taxableService  Decimal         @default(0) @db.Decimal(12, 2)
+  taxableGoods    Decimal         @default(0) @db.Decimal(12, 2)
+  ppnPercent      Float           @default(0)
+  ppnAmount       Decimal         @default(0) @db.Decimal(12, 2)
+  total           Decimal         @default(0) @db.Decimal(12, 2)
+  payMethod       PayMethod?
+  paymentProofUrl String?
+  paidAt          DateTime?
+  cashRemitStatus CashRemitStatus?
+  createdById     String
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
+  items    InvoiceItem[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+  @@index([tenantId, dueDate])
+}
+
+// Baris invoice/proforma — per unit AC (K9). Snapshot harga (tak berubah walau katalog diubah).
+model InvoiceItem {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  assetId      String?
+  descSnapshot String
+  category     String
+  qty          Decimal  @default(1) @db.Decimal(12, 2)
+  unit         String   @default("unit")
+  unitPrice    Decimal  @default(0) @db.Decimal(12, 2)
+  lineTotal    Decimal  @default(0) @db.Decimal(12, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }

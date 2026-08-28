@@ -40,14 +40,15 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 3 SELESAI ✅ → berikutnya FASE 4 (WorkSession + Invoice/Proforma + Pajak — INTI UANG).
-- **Item berikutnya**: F4.1 (schema WorkSession+Invoice+Proforma) — lihat blok FASE 4. ⚠️ PALING SENSITIF (uang/pajak).
-- **COMMIT TERAKHIR (baseline)**: `f346e11` (F3.2) + F3.3/GATE (commit "FASE 3 DONE" berikut).
-- **Baseline hijau**: tsc 0 · 243 test · build 0.
-- **CATATAN SERAH TERIMA**: FASE 1-3 tuntas. Multi-personel peran cair (assign tim + deteksi bentrok + /t
-  kernet lihat job) live. BERIKUTNYA FASE 4 (INTI UANG): WorkSession (layar lapangan K8) + Invoice/Proforma +
-  pajak. WAJIB test angka eksplisit (computeInvoiceTotals: diskon→pajak K12, DPP jasa/barang K4, dueDate K19).
-  computeItemIncentive & resolvePrice sudah siap dari Fase 2. Baca K8/K9/K10/K12/K19 sebelum mulai.
+- **Fase aktif**: FASE 4 (in-progress) — F4.1+F4.2 DONE.
+- **Item berikutnya**: F4.3 (WorkSession UI teknisi K8) → F4.4 invoice/proforma tampilan+bayar+WA → F4.5 revisi+pajak → F4.GATE.
+- **COMMIT TERAKHIR (baseline)**: `8799895` (F3.3) + F4.1/F4.2 (commit berikut).
+- **Baseline hijau**: tsc 0 · 257 test · build 0.
+- **CATATAN SERAH TERIMA**: FASE 1-3 tuntas. F4.1 (schema WorkSession/WorkItem/Invoice/InvoiceItem, deploy) +
+  F4.2 (invoice-service: nextInvoiceNumber + computeInvoiceTotals + computeDueDate, 14 test uang eksplisit) SELESAI.
+  BERIKUTNYA F4.3: WorkSession UI teknisi (layar lapangan K8) — per pelanggan, entry per unit (pilih layanan katalog,
+  qty, harga auto resolvePrice+snapshot, tandai teknisi/kernet), bisa dicicil, tutup→auto-generate Invoice(Cash)/
+  Proforma(Tempo) sesuai customer.topType. Pakai resolvePrice (Fase2) + computeInvoiceTotals/nextInvoiceNumber/computeDueDate (F4.2).
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -263,23 +264,19 @@ Status fase: [x] SELESAI (F3.1–F3.3 + GATE)
 # ═══════ FASE 4 — WorkSession + Invoice/Proforma + Pajak (INTI UANG) ═══════
 Status fase: [ ] BELUM  ·  ⚠️ PALING SENSITIF — test angka eksplisit wajib.
 
-### F4.1 — Schema WorkSession + Invoice + Proforma (additive)  [ ]
-- [ ] enum `DocType` { INVOICE, PROFORMA }
-- [ ] enum `InvoiceStatus` { DRAFT, ISSUED, PAID, OVERDUE, CANCELLED }
-- [ ] enum `PayMethod` { CASH, TRANSFER, QRIS }
-- [ ] enum `CashRemitStatus` { HELD_BY_TECH, REMITTED } (K17)
-- [ ] model `WorkSession` { id, tenantId, jobId?, customerId, status (OPEN/CLOSED), openedById, closedAt, createdAt }
-- [ ] model `WorkItem` { id, tenantId, workSessionId, assetId (K9), serviceId?, descSnapshot, category, qty Decimal, unit, unitPriceSnapshot Decimal (K8 snapshot), lineTotal Decimal, techIds String[], kernetIds String[] (K18 tak di invoice) }
-- [ ] model `Invoice` { id, tenantId, docType DocType, number String, customerId, billingCustomerId?, workSessionId?, jobId?, status InvoiceStatus, issueDate, dueDate (K19), subtotal Decimal, discountAmount Decimal @default(0) (K12), taxableService Decimal, taxableGoods Decimal, ppnPercent Float @default(0), ppnAmount Decimal @default(0), total Decimal, payMethod PayMethod?, paymentProofUrl?, paidAt?, cashRemitStatus CashRemitStatus?, createdById, @@unique([tenantId, number]) }
-- [ ] model `InvoiceItem` { id, invoiceId, assetId (K9), descSnapshot, category, qty, unit, unitPrice, lineTotal }
-- DoD schema.
+### F4.1 — Schema WorkSession + Invoice + Proforma (additive)  [x] DONE (migrasi 20260828_invoicing_worksession, deploy OK)
+- [x] enum DocType, InvoiceStatus, PayMethod, CashRemitStatus, WorkSessionStatus.
+- [x] model WorkSession (K8), WorkItem (assetId K9, snapshot harga, techIds/kernetIds K18), Invoice
+      (nomor unik [tenantId,number], subtotal/diskon/DPP jasa+barang/ppn/total, payMethod/proof/paidAt/cashRemitStatus),
+      InvoiceItem (per unit K9, snapshot). Back-refs Tenant/Customer/Asset. 5 enum + 4 tabel additive.
 
-### F4.2 — Service penomoran + kalkulasi (MURNI, test berat)  [ ]
-- [ ] `nextInvoiceNumber(tenantId, docType, year)` transaksional anti-duplikat (unique + retry).
-- [ ] `computeInvoiceTotals({items, discountAmount, tenantIsPkp, taxPercent, customerType})` MURNI:
-      subtotal → dikurangi diskon → pajak SETELAH diskon (K12) → total. Pisah DPP jasa vs barang (K4/PPh info).
-- [ ] `computeDueDate(issueDate, topType)` (K19).
-- [ ] Test angka EKSPLISIT (Decimal): non-PKP tanpa pajak; PKP + PPN; diskon→pajak; TOP→dueDate; pembulatan; penomoran konkuren.
+### F4.2 — Service penomoran + kalkulasi (MURNI, test berat)  [x] DONE
+- [x] `nextInvoiceNumber` (INV/PRO/YYYY/urut-4-digit, cek tabrakan+retry).
+- [x] `computeInvoiceTotals` MURNI: subtotal→diskon→PPN setelah diskon (K12); DPP jasa vs barang proporsional (K4);
+      PPN hanya bila PKP; pembulatan Math.round; diskon dibatasi ≤subtotal & ≥0.
+- [x] `computeDueDate`+`topDays` (K19: CASH→null, TEMPO_n→+n hari).
+- [x] Test: tests/invoice-calc.test.ts (14 EKSPLISIT: non-PKP bersih, PPN 11/12%, diskon→pajak, diskon>subtotal,
+      DPP jasa/barang proporsional tanpa rupiah hilang, pembulatan, dueDate). 257 test, tsc 0, build 0.
 
 ### F4.3 — WorkSession UI teknisi (layar lapangan K8)  [ ]
 - [ ] Layar per pelanggan: daftar unit (pilih/ tambah), per unit pilih layanan dari katalog (minim ketik), qty, harga auto+snapshot, tandai teknisi/kernet (1+).
