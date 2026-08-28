@@ -40,7 +40,6 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 1 (in-progress).
 - **Fase aktif**: FASE 2 SELESAI ✅ → berikutnya FASE 3 (Multi-personel & Peran Cair + Penugasan).
 - **Item berikutnya**: F3.1 (lihat blok FASE 3).
 - **COMMIT TERAKHIR (baseline)**: `b75272c` (F2.4) + F2.5/GATE (commit "FASE 2 DONE" berikut).
