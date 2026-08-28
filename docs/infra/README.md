@@ -1,16 +1,21 @@
-# Infrastruktur Portofolio (VPS-INFRA + VPS-APP) — Indeks Dokumen
+# Infrastruktur Portofolio (VPS-INFRA) — Indeks Dokumen
+
+> 🏛️ **MULAI DARI SSOT:** [`00_SSOT_Gateway_Architecture.md`](00_SSOT_Gateway_Architecture.md) —
+> sumber kebenaran tunggal arsitektur + kontrak + precedence config + failure modes. Bila dokumen
+> lain bertentangan dengan SSOT, SSOT yang benar.
 
 Dokumentasi shared infrastructure untuk portofolio "12 SaaS": WhatsApp Gateway + MQTT/IoT
-bersama, dipakai banyak aplikasi. **Developer app lain: mulai dari sini.**
+bersama, dipakai banyak aplikasi. **Developer app lain: mulai dari SSOT lalu guide kanal yang dibutuhkan.**
 
 ## Baca sesuai kebutuhan
 | # | Dokumen | Untuk siapa |
 |---|---|---|
+| **00-SSOT** | [Arsitektur SSOT Gateway](00_SSOT_Gateway_Architecture.md) | **SEMUA — baca dulu** |
 | 00 | [Keputusan & Spek Infra](00_Infra_Decision_and_Specs.md) | Owner/arsitek — kenapa 2 VPS, spek, biaya |
 | 10 | [Integrasi WhatsApp Gateway](10_WhatsApp_Gateway_Integration_Guide.md) | **Developer app yang butuh kirim/terima WA** |
 | 20 | [Integrasi MQTT / IoT](20_MQTT_Integration_Guide.md) | **Developer app yang butuh device IoT** |
 | 30 | [Kapasitas & Spek](30_Capacity_and_Specs.md) | Sizing RAM/storage, kapan upgrade |
-| 40 | [Deploy & Rollout](40_Deploy_and_Rollout.md) | Admin infra — provision & operasikan VPS-INFRA |
+| 40 | [Deploy & Rollout](40_Deploy_and_Rollout.md) | Admin infra (⚠️ deploy NYATA = native/systemd, lihat SSOT §6) |
 
 ## Arsitektur singkat
 ```

@@ -24,7 +24,7 @@
 import express from "express";
 import { WaManager } from "./wa-manager.js";
 import { loadApps, authMiddleware } from "./auth.js";
-import { applyPolicyOverride } from "./policy.js";
+import { applyPolicyOverride, policy } from "./policy.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const apps = loadApps(); // registry app + API key + webhook + policyUrl
@@ -35,6 +35,7 @@ const wa = new WaManager({ apps });
  * aplikasi berlaku di gateway TANPA redeploy. Tiap app boleh punya policyUrl sendiri.
  */
 const POLICY_SYNC_MS = Number(process.env.WA_POLICY_SYNC_MS ?? 60000);
+let _lastPolicySig = "";
 async function syncPolicies() {
   for (const a of apps) {
     if (!a.policyUrl) continue;
@@ -44,6 +45,13 @@ async function syncPolicies() {
       const data = await r.json();
       if (data?.policy) applyPolicyOverride(data.policy);
     } catch (e) { console.error(`[gateway] sync policy ${a.id} gagal:`, e.message); }
+  }
+  // Log policy EFEKTIF hanya saat berubah — supaya override DB (mis. quiet-hour) TIDAK pernah "senyap".
+  // Ini yang dulu bikin bingung: .env server ditimpa InfraConfig DB tanpa jejak.
+  const sig = `${policy.quietStartHour}-${policy.quietEndHour}|${policy.maxPerMin}/${policy.maxPerDay}|warmup=${policy.warmupEnabled}`;
+  if (sig !== _lastPolicySig) {
+    console.log(`[gateway] POLICY EFEKTIF (sumber: InfraConfig DB via policyUrl → menimpa .env): quiet=${policy.quietStartHour}-${policy.quietEndHour} throttle=${policy.maxPerMin}/mnt harian=${policy.maxPerDay} warmup=${policy.warmupEnabled}`);
+    _lastPolicySig = sig;
   }
 }
 

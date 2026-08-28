@@ -17,6 +17,8 @@ import pkg from "whatsapp-web.js";
 import qrcodeTerminal from "qrcode-terminal";
 import QRCode from "qrcode";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import { webhookOf } from "./auth.js";
 import { policy, isQuietHour, dailyCap, dayKey } from "./policy.js";
 
@@ -24,6 +26,8 @@ const { Client, LocalAuth } = pkg;
 
 const SESSION_DIR = process.env.WA_SESSION_DIR ?? "./.wwebjs_auth";
 const TICK_MS = Number(process.env.WA_TICK_MS ?? 3000);
+// Antrean di-PERSIST ke disk agar tahan restart (in-memory saja rawan hilang saat service di-restart).
+const QUEUE_FILE = process.env.WA_QUEUE_FILE ?? path.join(SESSION_DIR, "queue.json");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => Math.floor(a + Math.random() * (b - a));
@@ -49,10 +53,33 @@ export class WaManager {
     this.sessions = new Map();      // sid -> state
     this.queue = [];                // { id, sid, appId, externalId, toPhone, message, hash }
     this.recentHashes = new Map();  // hash -> expiryMs (dedup)
+    this._loadQueue();              // pulihkan antrean yang belum terkirim dari restart sebelumnya
   }
 
   sessionCount() { return this.sessions.size; }
   _sid(appId, externalId) { return `${appId}:${externalId}`; }
+
+  /** Muat antrean dari disk (tahan restart). Aman bila file tak ada / rusak. */
+  _loadQueue() {
+    try {
+      if (!fs.existsSync(QUEUE_FILE)) return;
+      const arr = JSON.parse(fs.readFileSync(QUEUE_FILE, "utf8"));
+      if (Array.isArray(arr)) {
+        this.queue = arr;
+        if (arr.length) console.log(`[gateway] antrean dipulihkan dari disk: ${arr.length} pesan`);
+      }
+    } catch (e) { console.error("[gateway] gagal muat antrean:", e.message); }
+  }
+
+  /** Simpan antrean ke disk (atomic via tmp+rename) supaya tak korup saat crash. */
+  _saveQueue() {
+    try {
+      fs.mkdirSync(path.dirname(QUEUE_FILE), { recursive: true });
+      const tmp = `${QUEUE_FILE}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(this.queue));
+      fs.renameSync(tmp, QUEUE_FILE);
+    } catch (e) { console.error("[gateway] gagal simpan antrean:", e.message); }
+  }
 
   async _callback(appId, payload) {
     const url = webhookOf(this.apps, appId);
@@ -161,6 +188,7 @@ export class WaManager {
     if (!this.sessions.has(sid)) await this.initSession(appId, externalId);
     const id = `${now}-${Math.random().toString(36).slice(2, 8)}`;
     this.queue.push({ id, sid, appId, externalId, toPhone, message, hash });
+    this._saveQueue(); // persist agar tahan restart
     return { queued: true, messageId: id };
   }
 
@@ -230,5 +258,6 @@ export class WaManager {
       }
     }
     this.queue = remaining;
+    this._saveQueue(); // persist state antrean terkini (yang terkirim sudah keluar)
   }
 }

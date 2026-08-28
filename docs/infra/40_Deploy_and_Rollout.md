@@ -1,5 +1,10 @@
 # Deploy & Rollout VPS-INFRA (runbook)
 
+> ⚠️ **PENTING — deploy NYATA memakai NATIVE/systemd, BUKAN Docker.** Isi di bawah (Docker Compose)
+> adalah alternatif yang **TIDAK dipakai** di server aircon saat ini. Untuk operasi & deploy yang
+> sesungguhnya, ikuti: [`../../infra/vps-infra/native/README.md`](../../infra/vps-infra/native/README.md)
+> dan [SSOT §6](00_SSOT_Gateway_Architecture.md). Jangan campur Docker & native di satu VPS.
+
 ## 1. Provision VPS (BiznetGio Ubuntu 22.04)
 ```bash
 # sebagai root di VPS bersih
