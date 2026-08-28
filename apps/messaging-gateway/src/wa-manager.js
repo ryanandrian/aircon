@@ -29,6 +29,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => Math.floor(a + Math.random() * (b - a));
 const chatId = (phone) => `${String(phone).replace(/[^0-9]/g, "")}@c.us`;
 
+/**
+ * Bungkus promise dengan timeout. KRUSIAL: getNumberId/sendMessage whatsapp-web bisa
+ * MENGGANTUNG selamanya bila koneksi internal setengah-terbuka (mis. pasca-restart).
+ * Karena _drain di-await di loop, satu panggilan menggantung MEMBEKUKAN seluruh pengirim.
+ * Timeout mengubah "hang" jadi error yang tertangkap → loop tetap hidup.
+ */
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`timeout ${label} (${ms}ms)`)), ms)),
+  ]);
+}
+const SEND_TIMEOUT_MS = Number(process.env.WA_SEND_TIMEOUT_MS ?? 30000);
+
 export class WaManager {
   constructor({ apps }) {
     this.apps = apps;
@@ -191,13 +205,19 @@ export class WaManager {
         if (!this._underRate(st)) { remaining.push(m); continue; }     // batas per-menit
         try {
           // Validasi nomor terdaftar di WhatsApp (cegah "SENT" palsu ke nomor non-WA / self).
-          const numberId = await st.client.getNumberId(String(m.toPhone).replace(/[^0-9]/g, ""));
+          const numberId = await withTimeout(
+            st.client.getNumberId(String(m.toPhone).replace(/[^0-9]/g, "")),
+            SEND_TIMEOUT_MS, "getNumberId",
+          );
           if (!numberId) {
             await this._callback(m.appId, { type: "failed", externalId: m.externalId, messageId: m.id, error: "Nomor tidak terdaftar di WhatsApp" });
             console.error(`[gateway] FAILED ${m.id}: nomor ${m.toPhone} tidak terdaftar di WhatsApp`);
             continue;
           }
-          await st.client.sendMessage(numberId._serialized, m.message);
+          await withTimeout(
+            st.client.sendMessage(numberId._serialized, m.message),
+            SEND_TIMEOUT_MS, "sendMessage",
+          );
           st.sentTimestamps.push(Date.now());
           st.dayCount += 1; st.lastUsed = Date.now();
           console.log(`[gateway] SENT ${m.id} → ${m.toPhone} (${sid})`);

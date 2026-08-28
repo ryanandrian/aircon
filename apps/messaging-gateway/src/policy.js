@@ -44,6 +44,8 @@ export function applyPolicyOverride(p) {
 export function isQuietHour(now = new Date()) {
   const h = (now.getUTCHours() + policy.quietTzOffset + 24) % 24;
   const { quietStartHour: s, quietEndHour: e } = policy;
+  // start === end → jam tenang DINONAKTIFKAN (tak pernah tenang). Hindari bug 0-0 = "selalu tenang".
+  if (s === e) return false;
   return s < e ? (h >= s && h < e) : (h >= s || h < e); // tangani lewat tengah malam
 }
 
