@@ -7,6 +7,7 @@ import { getJobChecklist } from "@/lib/services/job-work-service";
 import { isStorageConfigured } from "@/lib/storage/s3";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { TechJobWork } from "./work";
+import { SaveLocationButton } from "./save-location";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -69,6 +70,9 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
                   <Icon.Navigate className="h-4 w-4" aria-hidden /> Navigasi
                 </a>
               ) : null}
+            </div>
+            <div className="mt-2">
+              <SaveLocationButton jobId={job.id} hasLocation={Boolean(job.customer.geoLat && job.customer.geoLng)} />
             </div>
           </CardContent>
         </Card>

@@ -146,3 +146,35 @@ export async function techAddPhoto(
     return { ok: false, error: "Gagal menyimpan foto." };
   }
 }
+
+/**
+ * Teknisi simpan koordinat GPS pelanggan (saat di lokasi) → memudahkan kunjungan berikutnya.
+ * SECURITY: tenant-scoped; teknisi hanya boleh mengisi lokasi pelanggan dari job yang ditugaskan padanya.
+ */
+export async function techSaveCustomerLocation(
+  jobId: string,
+  lat: number,
+  lng: number,
+): Promise<TechActionResult> {
+  try {
+    const { tenantId, technicianId } = await requireTechnician();
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return { ok: false, error: "Koordinat tidak valid" };
+    }
+    const job = await prisma.jobOrder.findFirst({
+      where: { id: jobId, tenantId, technicianId },
+      select: { customerId: true },
+    });
+    if (!job) return { ok: false, error: "Bukan tugas Anda" };
+    // updateMany dengan filter tenant memastikan isolasi (tak bisa menyentuh pelanggan tenant lain).
+    await prisma.customer.updateMany({
+      where: { id: job.customerId, tenantId },
+      data: { geoLat: lat, geoLng: lng },
+    });
+    revalidatePath(`/t/pekerjaan/${jobId}`);
+    return { ok: true };
+  } catch (err) {
+    console.error("[techSaveCustomerLocation] gagal:", err);
+    return { ok: false, error: "Gagal menyimpan lokasi." };
+  }
+}

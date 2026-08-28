@@ -41,12 +41,13 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Item berikutnya**: F1.7 (GPS koordinat pelanggan oleh teknisi) → F1.GATE (verifikasi fase 1).
-- **COMMIT TERAKHIR (baseline)**: `8c55e15` (F1.5) + F1.6 (commit berikut).
+- **Fase aktif**: FASE 1 SELESAI ✅ → berikutnya FASE 2 (ServiceCatalog + Harga Khusus Pelanggan).
+- **Item berikutnya**: F2.1 (schema ServiceCatalog + CustomerPricing, additive) — lihat blok FASE 2.
+- **COMMIT TERAKHIR (baseline)**: `57779bc` (F1.6) + F1.7/GATE (commit "FASE 1 DONE" berikut).
 - **Baseline hijau**: tsc 0 · 214 test · build 0.
-- **CATATAN SERAH TERIMA**: F1.0–F1.6 SELESAI & terverifikasi. Logo tenant kini tampil di /p, /u, /riwayat,
-  dashboard (fallback Aircon). BERIKUTNYA F1.7: tombol "Ambil lokasi GPS" di layar teknisi (/t) → simpan
-  geoLat/geoLng ke Customer via server action tenant-scoped. Lalu F1.GATE tutup Fase 1.
+- **CATATAN SERAH TERIMA**: FASE 1 TUNTAS (F1.0 shell, F1.1 schema, F1.2 service, F1.3/1.3b lazy-load
+  pelanggan+unit, F1.4 form diperkaya, F1.5 pengaturan logo/pajak/rekening, F1.6 logo publik, F1.7 GPS teknisi).
+  Catatan hardware: GPS (F1.7) & scanner QR wajib tes device nyata saat pilot. BERIKUTNYA FASE 2 mulai F2.1.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -90,7 +91,7 @@ Sumber lengkap: RENCANA_INVOICING_AR.md §E,E2,E3. Ringkas paku mati:
 ---
 
 # ═══════ FASE 1 — Pelanggan diperkaya + Logo & Rekening Tenant ═══════
-Status fase: [ ] BELUM
+Status fase: [x] SELESAI (F1.0–F1.7 + GATE) — commit "FASE 1 DONE"
 
 ### F1.1 — Schema: enum + kolom (migrasi additive)  [x] DONE (migrasi 20260828, deploy OK)
 - [x] enum `CustomerCategory` { RUMAH, SEKOLAH_KAMPUS, MASJID_MUSHOLA, TOKO_OUTLET, RUKO_RUKAN, KANTOR_PERUSAHAAN, LAINNYA }
@@ -157,15 +158,17 @@ Status fase: [ ] BELUM
 - [x] Dogfood: /p render logo(fallback Aircon)+nama, /u & /riwayat graceful (200, tak 500), 0 exception.
       tsc 0, 214 test (customer-card mock +tenant), build 0. Visual world-class diverifikasi (screenshot).
 
-### F1.7 — UI: teknisi isi koordinat pelanggan saat di lokasi  [ ]
-- [ ] Tombol "Ambil lokasi GPS" (navigator.geolocation) di layar teknisi → simpan geoLat/geoLng ke Customer.
-- [ ] Server action tenant-scoped; hormati bila pelanggan sudah punya koordinat (konfirmasi timpa).
-- [ ] Test action + dogfood.
+### F1.7 — UI: teknisi isi koordinat pelanggan saat di lokasi  [x] DONE
+- [x] Tombol "Simpan/Perbarui Lokasi" (navigator.geolocation) di /t/pekerjaan/[id] → save geoLat/geoLng ke Customer.
+- [x] Server action `techSaveCustomerLocation` tenant-scoped (verifikasi job milik teknisi; updateMany filter tenant;
+      validasi koordinat) + konfirmasi timpa bila sudah ada lokasi.
+- [x] tsc 0, 214 test, build 0. CATATAN: capture GPS = HARDWARE (kamera/GPS) → TAK bisa divalidasi dogfood
+      headless; wajib tes device nyata saat pilot (sesuai memory). Struktur/aksi/guard terverifikasi via build+tsc.
 
-### F1.GATE — Verifikasi Fase 1  [ ]
-- [ ] tsc 0 · seluruh vitest lulus · build 0 · deploy READY.
-- [ ] Regresi: 201 test lama tetap lulus. Money-loop tak tersentuh.
-- [ ] Update file ini + commit "FASE 1 DONE".
+### F1.GATE — Verifikasi Fase 1  [x] DONE
+- [x] tsc 0 · 214 vitest lulus (201 lama + 13 baru) · build 0.
+- [x] Regresi: seluruh test lama tetap lulus; money-loop tak tersentuh (hanya additive).
+- [x] Commit "FASE 1 DONE" + deploy READY (diverifikasi Vercel).
 
 ---
 
