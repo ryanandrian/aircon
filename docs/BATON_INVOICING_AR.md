@@ -87,6 +87,9 @@ Sumber lengkap: RENCANA_INVOICING_AR.md §E,E2,E3. Ringkas paku mati:
 - **K18** Nama teknisi/kernet TIDAK muncul di invoice/proforma (hanya untuk insentif + kartu perawatan).
 - **K19** Tempo→dueDate dihitung dari TOP pelanggan (CASH/TEMPO_30/45/60/90) sejak tanggal invoice terbit.
 - **K20** MVP = Fase 1→4 dulu; Fase 5→7 menyusul. Tiap fase deployable & hijau sendiri.
+- **K21** Harga khusus pelanggan (penajaman owner): LAYAR KHUSUS TERPISAH, sumber = daftar layanan
+  (pre-fill harga standar, tinggal up/down), simpan hanya yang di-override. Saat invoice: cek harga khusus
+  utk kode layanan → ada=pakai, tak ada=harga standar katalog.
 
 ---
 
@@ -192,9 +195,17 @@ Status fase: [ ] BELUM
 - [ ] Halaman + form (shadcn), field insentif tech & kernet dengan teks bantu aturan bagi-rata (K6/K7).
 - [ ] Dogfood: tambah item jasa + item sparepart berinsentif → persist.
 
-### F2.4 — UI harga khusus pelanggan  [ ]
-- [ ] Kelola CustomerPricing per pelanggan (pilih layanan → harga khusus).
-- [ ] Dogfood: set harga khusus → resolvePrice pakai harga khusus.
+### F2.4 — UI harga khusus pelanggan (LAYAR KHUSUS TERPISAH)  [ ]  ← penajaman owner
+- [ ] Halaman/route KHUSUS untuk kelola harga khusus per pelanggan (mis. `/app/pelanggan/[id]/harga`
+      atau modal layar-penuh) — BUKAN diselipkan di form pelanggan.
+- [ ] SUMBER = daftar layanan (ServiceCatalog): tampilkan SEMUA item aktif; tiap baris pre-fill dgn
+      **harga standar katalog** sebagai default; tenant tinggal naik/turunkan yang mau di-override.
+- [ ] Simpan HANYA baris yang di-override (≠ standar) sebagai CustomerPricing; baris tak diubah = ikut standar
+      (tak perlu row). Boleh hapus override → kembali ke standar.
+- [ ] Aturan pakai (K8/resolvePrice): saat buat invoice, cek CustomerPricing utk kode layanan itu →
+      ADA = pakai harga khusus; TAK ADA = pakai standardPrice katalog. (dikunci di F2.2 resolvePrice + dites)
+- [ ] Dogfood: buka layar, ubah 1-2 harga, simpan → resolvePrice pakai harga khusus utk item itu &
+      standar utk item lain. Persist diverifikasi DB.
 
 ### F2.GATE — Verifikasi Fase 2  [ ] (tsc/test/build/deploy/regresi + update file ini + commit)
 
