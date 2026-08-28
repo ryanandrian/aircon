@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,170 +9,328 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/submit-button";
 import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/empty-state";
-import { actionCreateCustomer, actionUpdateCustomer, actionDeleteCustomer } from "./actions";
+import {
+  actionCreateCustomer, actionUpdateCustomer, actionDeleteCustomer, actionLoadCustomers,
+  type CustomerFormInput,
+} from "./actions";
 
-type Cust = {
+export type CustomerRow = {
   id: string; name: string; phone: string; address: string | null;
-  source: string; notes: string | null; assetCount: number; jobCount: number;
+  source: string; category: string | null; customerType: string; topType: string;
+  assetCount: number; jobCount: number;
 };
 
 const SOURCE_LABEL: Record<string, string> = {
   REFERRAL: "Referensi", WHATSAPP: "WhatsApp", WALK_IN: "Datang langsung", MARKETING: "Marketing",
   WEBSITE: "Booking online", IOT_ALERT: "Alert IoT", REPEAT: "Servis ulang", OTHER: "Lainnya",
 };
-const SOURCE_OPTIONS = Object.entries(SOURCE_LABEL);
+const CATEGORY_LABEL: Record<string, string> = {
+  RUMAH: "Rumah / Perorangan", SEKOLAH_KAMPUS: "Sekolah / Kampus", MASJID_MUSHOLA: "Masjid / Mushola",
+  TOKO_OUTLET: "Toko / Outlet", RUKO_RUKAN: "Ruko / Rukan", KANTOR_PERUSAHAAN: "Kantor / Perusahaan", LAINNYA: "Lainnya",
+};
+const TOP_LABEL: Record<string, string> = {
+  CASH: "Tunai (Cash)", TEMPO_7: "Tempo 7 hari", TEMPO_14: "Tempo 14 hari", TEMPO_30: "Tempo 30 hari",
+  TEMPO_45: "Tempo 45 hari", TEMPO_60: "Tempo 60 hari", TEMPO_90: "Tempo 90 hari",
+};
 
-export function CustomerManager({ customers }: { customers: Cust[] }) {
+const SOURCE_OPTIONS = Object.entries(SOURCE_LABEL);
+const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABEL);
+const TOP_OPTIONS = Object.entries(TOP_LABEL);
+
+type FormState = CustomerFormInput;
+
+function emptyForm(): FormState {
+  return {
+    name: "", phone: "", address: "", source: "OTHER", notes: "",
+    category: "RUMAH", customerType: "PERORANGAN", topType: "CASH", npwp: "",
+    isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "",
+    picFinanceName: "", picFinancePhone: "",
+  };
+}
+
+export function CustomerManager({
+  initialRows,
+  initialCursor,
+}: {
+  initialRows: CustomerRow[];
+  initialCursor: string | null;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [rows, setRows] = useState<CustomerRow[]>(initialRows);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [q, setQ] = useState("");
-  const [editing, setEditing] = useState<Cust | null>(null);
+  const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const showingForm = adding || editing !== null;
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return customers;
-    return customers.filter((c) =>
-      [c.name, c.phone, c.address].some((f) => (f ?? "").toLowerCase().includes(s)),
-    );
-  }, [customers, q]);
+  // Pencarian server-side (debounce): reset daftar.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      const res = await actionLoadCustomers({ search: q.trim() || undefined });
+      if (res.ok && res.rows) { setRows(res.rows); setCursor(res.nextCursor ?? null); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  function save(e: React.FormEvent<HTMLFormElement>, id?: string) {
+  const loadMore = useCallback(async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    const res = await actionLoadCustomers({ search: q.trim() || undefined, cursor });
+    if (res.ok && res.rows) {
+      setRows((prev) => [...prev, ...res.rows!]);
+      setCursor(res.nextCursor ?? null);
+    }
+    setLoadingMore(false);
+  }, [cursor, loadingMore, q]);
+
+  // Infinite scroll via IntersectionObserver.
+  useEffect(() => {
+    if (showingForm) return;
+    const el = sentinelRef.current;
+    if (!el || !cursor) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) loadMore();
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cursor, loadMore, showingForm]);
+
+  function openAdd() { setForm(emptyForm()); setAdding(true); setEditing(null); }
+  function openEdit(c: CustomerRow) {
+    setForm({
+      name: c.name, phone: c.phone, address: c.address ?? "", source: c.source, notes: "",
+      category: c.category ?? "RUMAH", customerType: c.customerType, topType: c.topType,
+      npwp: "", isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "",
+      picFinanceName: "", picFinancePhone: "",
+    });
+    setEditing(c); setAdding(false);
+  }
+  function closeForm() { setEditing(null); setAdding(false); }
+
+  function set<K extends keyof FormState>(k: K, v: FormState[K]) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const payload = {
-      name: String(fd.get("name") ?? ""),
-      phone: String(fd.get("phone") ?? ""),
-      address: String(fd.get("address") ?? ""),
-      source: String(fd.get("source") ?? "OTHER"),
-      notes: String(fd.get("notes") ?? ""),
-    };
+    const id = editing?.id;
     start(async () => {
-      const res = id ? await actionUpdateCustomer(id, payload) : await actionCreateCustomer(payload);
+      const res = id ? await actionUpdateCustomer(id, form) : await actionCreateCustomer(form);
       if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
       toast.success(id ? "Pelanggan diperbarui" : "Pelanggan ditambahkan");
-      setEditing(null); setAdding(false);
+      closeForm();
       router.refresh();
+      const fresh = await actionLoadCustomers({ search: q.trim() || undefined });
+      if (fresh.ok && fresh.rows) { setRows(fresh.rows); setCursor(fresh.nextCursor ?? null); }
     });
   }
 
-  function del(c: Cust) {
+  function del(c: CustomerRow) {
     if (!confirm(`Hapus pelanggan "${c.name}"? Data unit & riwayat tetap tersimpan.`)) return;
     start(async () => {
       const res = await actionDeleteCustomer(c.id);
       if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
       toast.success("Pelanggan dihapus");
-      router.refresh();
+      setRows((prev) => prev.filter((x) => x.id !== c.id));
     });
   }
 
-  const form = (c: Cust | null) => (
-    <Card>
-      <CardContent className="p-6">
-        <form onSubmit={(e) => save(e, c?.id)} className="space-y-4">
-          <h2 className="text-lg font-semibold">{c ? "Ubah Pelanggan" : "Tambah Pelanggan"}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="c-name">Nama <span className="text-red-500">*</span></Label>
-              <Input id="c-name" name="name" defaultValue={c?.name ?? ""} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-phone">No. WhatsApp <span className="text-red-500">*</span></Label>
-              <Input id="c-phone" name="phone" defaultValue={c?.phone ?? ""} placeholder="0812…" required />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="c-address">Alamat</Label>
-            <Textarea id="c-address" name="address" defaultValue={c?.address ?? ""} rows={2} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="c-source">Sumber</Label>
-              <select id="c-source" name="source" defaultValue={c?.source ?? "OTHER"} className="min-h-[44px] w-full rounded-xl border bg-card px-3 text-sm">
-                {SOURCE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="c-notes">Catatan</Label>
-              <Input id="c-notes" name="notes" defaultValue={c?.notes ?? ""} placeholder="opsional" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <SubmitButton pending={pending} pendingLabel="Menyimpan…">Simpan</SubmitButton>
-            <Button type="button" variant="ghost" onClick={() => { setEditing(null); setAdding(false); }}>Batal</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  );
+  const isBadan = form.customerType === "BADAN";
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{customers.length} pelanggan</p>
-        {!adding && !editing && (
-          <Button size="sm" onClick={() => setAdding(true)}>
+        <p className="text-sm text-muted-foreground">Kelola data pelanggan usaha Anda</p>
+        {!showingForm && (
+          <Button size="sm" onClick={openAdd}>
             <Icon.Users className="h-4 w-4" aria-hidden /> Tambah Pelanggan
           </Button>
         )}
       </div>
 
-      {adding && form(null)}
-      {editing && form(editing)}
+      {showingForm && (
+        <Card>
+          <CardContent className="p-6">
+            <form onSubmit={submit} className="space-y-4">
+              <h2 className="text-lg font-semibold">{editing ? "Ubah Pelanggan" : "Tambah Pelanggan"}</h2>
 
-      {!adding && !editing && customers.length > 0 && (
-        <Input placeholder="Cari pelanggan (nama, nomor, alamat)…" value={q} onChange={(e) => setQ(e.target.value)} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-name">Nama <span className="text-red-500">*</span></Label>
+                  <Input id="c-name" value={form.name} onChange={(e) => set("name", e.target.value)} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="c-phone">No. WhatsApp <span className="text-red-500">*</span></Label>
+                  <Input id="c-phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0812…" required />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="c-address">Alamat</Label>
+                <Textarea id="c-address" value={form.address} onChange={(e) => set("address", e.target.value)} rows={2} />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Kategori</Label>
+                  <Select value={form.category} onValueChange={(v) => set("category", v as string)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Jenis Pelanggan</Label>
+                  <Select value={form.customerType} onValueChange={(v) => set("customerType", v as string)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PERORANGAN">Perorangan</SelectItem>
+                      <SelectItem value="BADAN">Badan / Perusahaan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Termin Pembayaran (TOP)</Label>
+                  <Select value={form.topType} onValueChange={(v) => set("topType", v as string)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {TOP_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Sumber</Label>
+                  <Select value={form.source} onValueChange={(v) => set("source", v as string)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {SOURCE_OPTIONS.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Data pajak & PIC — hanya untuk pelanggan Badan (B2B) */}
+              {isBadan && (
+                <div className="space-y-4 rounded-xl border border-dashed p-4">
+                  <p className="text-xs font-medium text-muted-foreground">Data Badan / Perusahaan (opsional)</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-npwp">NPWP</Label>
+                      <Input id="c-npwp" value={form.npwp} onChange={(e) => set("npwp", e.target.value)} placeholder="00.000.000.0-000.000" />
+                    </div>
+                    <label className="flex items-center gap-2 self-end pb-2 text-sm">
+                      <input type="checkbox" checked={!!form.isPphWithholder} onChange={(e) => set("isPphWithholder", e.target.checked)} className="h-4 w-4 rounded border-input" />
+                      Pemotong PPh 23 (badan)
+                    </label>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pw-name">PIC Pekerjaan</Label>
+                      <Input id="c-pw-name" value={form.picWorkName} onChange={(e) => set("picWorkName", e.target.value)} placeholder="Nama" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pw-phone">HP PIC Pekerjaan</Label>
+                      <Input id="c-pw-phone" value={form.picWorkPhone} onChange={(e) => set("picWorkPhone", e.target.value)} placeholder="0812…" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pw-role">Jabatan/Divisi</Label>
+                      <Input id="c-pw-role" value={form.picWorkRole} onChange={(e) => set("picWorkRole", e.target.value)} placeholder="mis. Building Mgmt" />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pf-name">PIC Keuangan</Label>
+                      <Input id="c-pf-name" value={form.picFinanceName} onChange={(e) => set("picFinanceName", e.target.value)} placeholder="Nama (untuk tagihan)" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pf-phone">HP PIC Keuangan</Label>
+                      <Input id="c-pf-phone" value={form.picFinancePhone} onChange={(e) => set("picFinancePhone", e.target.value)} placeholder="0812…" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <SubmitButton pending={pending} pendingLabel="Menyimpan…">Simpan</SubmitButton>
+                <Button type="button" variant="ghost" onClick={closeForm}>Batal</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      {!adding && !editing && (
-        filtered.length === 0 ? (
-          customers.length === 0 ? (
-            <EmptyState
-              icon={Icon.Users}
-              title="Belum ada pelanggan"
-              desc="Tambahkan pelanggan pertama Anda. Pelanggan juga otomatis masuk saat ada booking online atau saat teknisi membuat pekerjaan."
-            />
+      {!showingForm && (
+        <>
+          <Input placeholder="Cari pelanggan (nama, nomor, alamat)…" value={q} onChange={(e) => setQ(e.target.value)} />
+
+          {rows.length === 0 ? (
+            q.trim() ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Tidak ada pelanggan cocok.</p>
+            ) : (
+              <EmptyState
+                icon={Icon.Users}
+                title="Belum ada pelanggan"
+                desc="Tambahkan pelanggan pertama Anda. Pelanggan juga otomatis masuk saat ada booking online atau saat teknisi membuat pekerjaan."
+              />
+            )
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">Tidak ada pelanggan cocok.</p>
-          )
-        ) : (
-          <div className="space-y-2">
-            {filtered.map((c) => (
-              <Card key={c.id}>
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">
-                    {c.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-semibold text-foreground">{c.name}</span>
-                      <Badge variant="secondary" className="shrink-0">{SOURCE_LABEL[c.source] ?? c.source}</Badge>
+            <div className="space-y-2">
+              {rows.map((c) => (
+                <Card key={c.id}>
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">
+                      {c.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="truncate text-sm text-muted-foreground">{c.phone}{c.address ? ` · ${c.address}` : ""}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">{c.assetCount} unit AC · {c.jobCount} pekerjaan</div>
-                  </div>
-                  <a
-                    href={`https://wa.me/${c.phone.replace(/^0/, "62")}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                    aria-label="Chat WhatsApp"
-                  >
-                    <Icon.Message className="h-4 w-4" aria-hidden />
-                  </a>
-                  <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => setEditing(c)}>
-                    <Icon.Note className="h-4 w-4" aria-hidden />
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon" aria-label="Hapus" disabled={pending} onClick={() => del(c)}>
-                    <Icon.Close className="h-4 w-4 text-destructive" aria-hidden />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-semibold text-foreground">{c.name}</span>
+                        {c.category && <Badge variant="secondary" className="shrink-0">{CATEGORY_LABEL[c.category] ?? c.category}</Badge>}
+                        {c.topType && c.topType !== "CASH" && <Badge variant="outline" className="shrink-0">{TOP_LABEL[c.topType]}</Badge>}
+                      </div>
+                      <div className="truncate text-sm text-muted-foreground">{c.phone}{c.address ? ` · ${c.address}` : ""}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">{c.assetCount} unit AC · {c.jobCount} pekerjaan</div>
+                    </div>
+                    <a
+                      href={`https://wa.me/${c.phone.replace(/^0/, "62")}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                      aria-label="Chat WhatsApp"
+                    >
+                      <Icon.Message className="h-4 w-4" aria-hidden />
+                    </a>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => openEdit(c)}>
+                      <Icon.Note className="h-4 w-4" aria-hidden />
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Hapus" disabled={pending} onClick={() => del(c)}>
+                      <Icon.Close className="h-4 w-4 text-destructive" aria-hidden />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+
+              {/* Sentinel infinite-scroll + skeleton */}
+              {cursor && (
+                <div ref={sentinelRef} className="space-y-2 pt-1">
+                  <Skeleton className="h-[76px] w-full rounded-xl" />
+                  {loadingMore && <Skeleton className="h-[76px] w-full rounded-xl" />}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

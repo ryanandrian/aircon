@@ -41,12 +41,13 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Item berikutnya**: F1.3 (lazy-load daftar pelanggan) → lalu F1.4 form diperkaya, F1.5 upload logo/profil, F1.6 logo publik, F1.7 GPS.
-- **COMMIT TERAKHIR (baseline)**: `3a5acf5` (F1.1+F1.2) + app-shell (commit berikut).
+- **Item berikutnya**: F1.3b (lazy-load daftar UNIT AC — arahan owner) → lalu F1.5 upload logo/profil, F1.6 logo publik, F1.7 GPS.
+- **COMMIT TERAKHIR (baseline)**: `391a931` (F1.0 app-shell) + F1.3/F1.4 (commit berikut).
 - **Baseline hijau**: tsc 0 · 210 test · build 0.
-- **CATATAN SERAH TERIMA**: F1.1, F1.2, F1.0(app-shell) SELESAI & terverifikasi. Shell: sidebar desktop +
-  drawer mobile (shadcn Sheet), TenantLogo reusable (dipakai sidebar; F1.6 sisa pasang di /p,/u,/riwayat).
-  Dashboard sudah ramping (metrik + aksi cepat). Semua /app pakai AppHeader (hamburger otomatis).
+- **CATATAN SERAH TERIMA**: F1.1, F1.2, F1.0, F1.3, F1.4 SELESAI & terverifikasi. Pelanggan kini lazy-load
+  (listCustomerRows cursor + IntersectionObserver) + form diperkaya (shadcn Select, PIC/pajak conditional BADAN,
+  persist diverifikasi DB). BERIKUTNYA F1.3b: terapkan pola lazy-load yang SAMA ke /app/unit (daftar unit bisa
+  ratusan) — service listAssetRows + action load-more + wire ke unit-manager.tsx TANPA memecah scan/bulk/edit/delete.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -119,15 +120,22 @@ Status fase: [ ] BELUM
 - [x] DoD: tsc 0 · 210 test · build 0 · dogfood desktop(sidebar 9 link, active-state) + mobile(drawer,
       auto-close) 0 JS exception. Visual world-class diverifikasi (screenshot).
 
-### F1.3 — UI: lazy-load daftar pelanggan (ratusan card)  [ ]
-- [ ] Ganti `take: 300` statis → infinite scroll pakai `listCustomers` cursor yang SUDAH ADA.
-- [ ] Komponen client "load more"/IntersectionObserver; skeleton saat load.
-- [ ] Dogfood: render + scroll memuat batch berikutnya, 0 exception.
+### F1.3 — UI: lazy-load daftar pelanggan (ratusan card)  [x] DONE
+- [x] Service `listCustomerRows` (cursor id desc + _count assets/jobs + search server-side).
+- [x] Server action `actionLoadCustomers` (batch berikutnya / pencarian).
+- [x] customer-manager.tsx: IntersectionObserver infinite-scroll + Skeleton; page kirim batch pertama.
+- [x] Dogfood: list render, search server-side cocok, 0 JS exception.
 
-### F1.4 — UI: form pelanggan diperkaya (kategori/TOP/tipe/pajak/PIC)  [ ]
-- [ ] Field baru di form tambah/edit; PIC ganda muncul hanya bila `customerType=BADAN`.
-- [ ] Perorangan: wajib nama+HP saja. Badan: PIC opsional.
-- [ ] Dogfood: tambah pelanggan badan + PIC → persist.
+### F1.3b — UI: lazy-load daftar UNIT AC (ratusan) [ ]  ← arahan owner (institusi besar)
+- [ ] /app/unit: daftar unit bisa ratusan → cursor pagination + infinite scroll (pola sama F1.3).
+- [ ] Service `listAssetRows` (cursor + info pelanggan/lokasi), server action load-more.
+- [ ] Dogfood + regresi (scan QR, buat-massal, edit/hapus tetap jalan).
+
+### F1.4 — UI: form pelanggan diperkaya (kategori/TOP/tipe/pajak/PIC)  [x] DONE
+- [x] Field baru di form (shadcn Select: kategori/jenis/TOP/sumber — seragam). PIC+pajak muncul hanya bila BADAN.
+- [x] Perorangan: wajib nama+HP. Badan: NPWP/PPh/PIC pekerjaan+keuangan opsional.
+- [x] Dogfood: tambah pelanggan BADAN + PIC + TOP → tampil (badge Tempo) + PERSIST diverifikasi via DB
+      (customerType/topType/npwp/picWorkName/picFinanceName tersimpan benar). 0 JS exception.
 
 ### F1.5 — Logo tenant: upload + komponen TenantLogo  [ ]
 - [ ] `presignTenantLogo` di s3.ts (pola presignLandingAsset). Validasi 512×512 (atau resize sisi klien) + tipe gambar.

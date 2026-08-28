@@ -47,6 +47,85 @@ export interface ListCustomersResult {
   nextCursor: string | null;
 }
 
+/** Baris pelanggan untuk UI daftar (dengan jumlah unit & pekerjaan). */
+export interface CustomerRow {
+  id: string;
+  name: string;
+  phone: string;
+  address: string | null;
+  source: string;
+  category: string | null;
+  customerType: string;
+  topType: string;
+  assetCount: number;
+  jobCount: number;
+}
+
+export interface ListCustomerRowsResult {
+  rows: CustomerRow[];
+  nextCursor: string | null;
+}
+
+/**
+ * List pelanggan untuk UI (lazy-load): cursor pagination + jumlah unit/pekerjaan.
+ * Urutan id desc (cuid ~ monoton waktu → terbaru dulu) agar cursor stabil & unik.
+ * Antisipasi ratusan pelanggan tanpa membebani satu halaman.
+ */
+export async function listCustomerRows(
+  tenantId: string,
+  params: { search?: string; cursor?: string; limit?: number } = {},
+): Promise<ListCustomerRowsResult> {
+  const limit = clampLimit(params.limit);
+  const search = params.search?.trim();
+  const where: Prisma.CustomerWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { phone: { contains: search } },
+            { address: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  try {
+    const rows = await prisma.customer.findMany({
+      where,
+      orderBy: { id: "desc" },
+      take: limit + 1,
+      ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
+      include: { _count: { select: { assets: true, jobs: true } } },
+    });
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+    return {
+      rows: page.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        address: c.address,
+        source: c.source,
+        category: c.category,
+        customerType: c.customerType,
+        topType: c.topType,
+        assetCount: c._count.assets,
+        jobCount: c._count.jobs,
+      })),
+      nextCursor,
+    };
+  } catch (err) {
+    throw new ServiceError(
+      "UNEXPECTED",
+      "Gagal memuat daftar pelanggan",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
 /**
  * List pelanggan aktif (belum dihapus) milik tenant, dengan cursor pagination.
  * Urutan stabil berdasarkan id agar cursor konsisten.
