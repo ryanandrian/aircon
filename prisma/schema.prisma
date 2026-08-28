@@ -287,6 +287,8 @@ model Tenant {
   workSessions    WorkSession[]
   workItems       WorkItem[]
   invoices        Invoice[]
+  teamIncentiveMode TeamIncentiveMode @default(BAGI_RATA)
+  incentiveBasis    IncentiveBasis    @default(LUNAS)
 }
 
 model User {
@@ -1290,6 +1292,18 @@ enum CashRemitStatus {
 enum WorkSessionStatus {
   OPEN
   CLOSED
+}
+
+// Mode pembagian insentif tim bila 1 layanan dikeroyok >1 personel peran sama (K7).
+enum TeamIncentiveMode {
+  BAGI_RATA
+  PENUH
+}
+
+// Acuan periode perhitungan insentif (K5).
+enum IncentiveBasis {
+  LUNAS  // dihitung saat invoice LUNAS dalam periode [default]
+  TERBIT // dihitung saat invoice TERBIT dalam periode
 }
 
 // Layar lapangan teknisi (K8): kumpulan pekerjaan per pelanggan yang dientry per unit, bisa dicicil.

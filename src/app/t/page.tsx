@@ -32,6 +32,15 @@ export default async function TechnicianHome() {
 
   const jobs = await listTechnicianJobsToday(ctx.tenantId, tech.id);
 
+  // Insentif teknisi bulan ini (K5/K6, F6.3).
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const { computeIncentives } = await import("@/lib/services/incentive-service");
+  const allInc = await computeIncentives(ctx.tenantId, monthStart, monthEnd);
+  const myInc = allInc.find((i) => i.personId === tech.id);
+  const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
+
   return (
     <main className="min-h-screen bg-muted/40 pb-20">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
@@ -44,6 +53,16 @@ export default async function TechnicianHome() {
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
+        {/* Insentif bulan ini (F6.3) */}
+        <Card className="border-sky-200 bg-sky-50/60 dark:border-sky-900/40 dark:bg-sky-950/20">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Insentif bulan ini</p>
+              <p className="text-xl font-bold text-sky-600">{rp(myInc?.amount ?? 0)}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">{myInc?.itemCount ?? 0} pekerjaan</p>
+          </CardContent>
+        </Card>
         {jobs.length === 0 ? (
           <Card className="border-dashed text-center">
             <CardContent className="p-8">

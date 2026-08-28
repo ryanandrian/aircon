@@ -13,6 +13,8 @@ export const tenantProfileSchema = z.object({
   bankAccountNo: z.string().trim().max(60).optional(),
   bankAccountName: z.string().trim().max(120).optional(),
   qrisImageUrl: z.string().trim().max(500).optional(),
+  teamIncentiveMode: z.enum(["BAGI_RATA", "PENUH"]).optional(),
+  incentiveBasis: z.enum(["LUNAS", "TERBIT"]).optional(),
 });
 
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>;

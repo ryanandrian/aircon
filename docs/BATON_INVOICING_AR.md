@@ -40,14 +40,14 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 4 SELESAI ✅ (MVP Fase 1-4 TUNTAS!) → berikutnya FASE 5 (Piutang/AR — post-MVP).
-- **Item berikutnya**: F5.1 (query piutang/aging/penerimaan) — lihat blok FASE 5.
-- **COMMIT TERAKHIR (baseline)**: `80ba5a5` (F4.3+F4.4a) + F4.4+F4.5/GATE (commit "FASE 4 DONE" berikut).
-- **Baseline hijau**: tsc 0 · 268 test · build 0.
-- **CATATAN SERAH TERIMA**: 🎉 MVP FASE 1-4 TUNTAS. Money loop invoicing lengkap: WorkSession lapangan →
-  auto Invoice(Cash)/Proforma(Tempo) → bayar/kwitansi → proforma→invoice admin+diskon → cancel. 19 test uang eksplisit.
-  BERIKUTNYA FASE 5 (post-MVP): AR/piutang (aging, penerimaan per periode, OVERDUE), setoran kas teknisi K17
-  (remitted + laporan kas belum disetor), notif admin overdue, UI laporan tenant.
+- **Fase aktif**: FASE 5 & 6 SELESAI ✅ → berikutnya FASE 7 (Kartu perawatan diperkaya + BUG TESTING FINAL).
+- **Item berikutnya**: F7.1 (kartu perawatan terakhir dilayani apa/siapa/kapan) → F7.2 BUG TESTING MENYELURUH → F7.3 audit isolasi tenant → F7.GATE.
+- **COMMIT TERAKHIR (baseline)**: `af2868c` (FASE 4) + F5+F6 (commit berikut).
+- **Baseline hijau**: tsc 0 · 283 test · build 0.
+- **CATATAN SERAH TERIMA**: Fase 1-6 tuntas. AR/piutang + setoran kas (K17) + insentif (K5/K6/K7 configurable) live.
+  BERIKUTNYA FASE 7: F7.1 kartu perawatan unit (terakhir dilayani apa/siapa/kapan dari WorkItem, tanpa biaya).
+  F7.2 BUG TESTING MENYELURUH (dogfood publik + login teknisi/owner + alur uang e2e + regresi). F7.3 audit isolasi
+  tenant tabel uang baru. F7.GATE final: 0 CRITICAL/HIGH, laporan final.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -306,19 +306,21 @@ Status fase: [x] SELESAI (F4.1–F4.5 + GATE)  ·  ⚠️ PALING SENSITIF — te
 ---
 
 # ═══════ FASE 5 — Piutang (AR), Penerimaan, Setoran Kas ═══════ (post-MVP)
-Status fase: [ ] BELUM
-- [ ] F5.1 Service query: piutang s/d tanggal (aging), penerimaan per periode, invoice jatuh tempo.
-- [ ] F5.2 Setoran kas teknisi (K17): tandai remitted, laporan kas belum disetor per teknisi.
-- [ ] F5.3 Notif admin: invoice OVERDUE (bukan auto ke pelanggan).
-- [ ] F5.4 UI laporan tenant: piutang, penerimaan, closing.
-- [ ] F5.GATE verifikasi.
+Status fase: [x] SELESAI (F5.1–F5.4 + GATE)
+- [x] F5.1 ar-service: getAccountsReceivable (aging bucket murni + queried), getOverdueInvoices, getReceipts,
+      refreshOverdueStatus. bucketAging MURNI (8 test: current/1-30/31-60/61-90/90+/dueNull→issue/campuran/kosong).
+- [x] F5.2 Setoran kas K17: getUnremittedCashByTech (grup per teknisi createdById) + markCashRemitted + RemitButton.
+- [x] F5.3 Notif admin OVERDUE: refreshOverdueStatus (ISSUED→OVERDUE saat buka laporan) + daftar jatuh tempo di /app/laporan.
+- [x] F5.4 UI /app/laporan: piutang total, aging, jatuh tempo, penerimaan bulan, kas belum disetor. Nav "Laporan Keuangan".
+- [x] F5.GATE: bagian dari commit fase 5+6.
 
 # ═══════ FASE 6 — Insentif & Laporan Kinerja ═══════ (post-MVP)
-Status fase: [ ] BELUM
-- [ ] F6.1 `computeIncentives(period, acuan=LUNAS|TERBIT K5)`: agregasi item→personel→insentif (K6/K7).
-- [ ] F6.2 Laporan tenant: kinerja personil/periode, job belum ditugaskan, penugasan berlangsung, proforma belum jadi invoice.
-- [ ] F6.3 Laporan teknisi (/t): penugasan belum close, selesai/periode, insentif/periode.
-- [ ] F6.GATE verifikasi.
+Status fase: [x] SELESAI (F6.1–F6.3 + GATE)
+- [x] F6.1 incentive-service: computeIncentives(period, acuan LUNAS|TERBIT K5) + aggregateIncentives MURNI (K6/K7).
+      Config Tenant.teamIncentiveMode/incentiveBasis (additive, migrasi 20260828_incentive_config). +7 test (bagi-rata/penuh/percent/0/akumulasi).
+- [x] F6.2 Laporan tenant /app/laporan: insentif personel/periode (nama+jumlah+item). Config di Pengaturan (acuan+mode tim).
+- [x] F6.3 Laporan teknisi /t: kartu "Insentif bulan ini" (jumlah + jumlah pekerjaan).
+- [x] F6.GATE: bagian dari commit fase 5+6. tsc 0, 283 test, build 0.
 
 # ═══════ FASE 7 — Kartu Perawatan diperkaya + Bug Testing Final ═══════
 Status fase: [ ] BELUM

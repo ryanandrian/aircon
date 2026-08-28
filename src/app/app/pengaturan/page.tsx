@@ -21,6 +21,8 @@ export default async function PengaturanPage() {
     bankAccountNo: p.bankAccountNo ?? "",
     bankAccountName: p.bankAccountName ?? "",
     qrisImageUrl: p.qrisImageUrl ?? "",
+    teamIncentiveMode: p.teamIncentiveMode ?? "BAGI_RATA",
+    incentiveBasis: p.incentiveBasis ?? "LUNAS",
   };
 
   return (

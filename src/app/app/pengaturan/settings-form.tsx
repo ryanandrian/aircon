@@ -15,6 +15,7 @@ import { actionPresignTenantAsset, actionSaveTenantProfile } from "./actions";
 type Profile = {
   name: string; logoUrl: string; isPkp: boolean; npwp: string; taxPercent: number;
   bankName: string; bankAccountNo: string; bankAccountName: string; qrisImageUrl: string;
+  teamIncentiveMode: "BAGI_RATA" | "PENUH"; incentiveBasis: "LUNAS" | "TERBIT";
 };
 
 /** Upload gambar aset tenant (logo/QRIS) via presigned PUT. Seragam dgn pola admin ImageUpload. */
@@ -82,6 +83,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
       logoUrl: f.logoUrl, isPkp: f.isPkp, npwp: f.npwp, taxPercent: Number(f.taxPercent) || 0,
       bankName: f.bankName, bankAccountNo: f.bankAccountNo, bankAccountName: f.bankAccountName,
       qrisImageUrl: f.qrisImageUrl,
+      teamIncentiveMode: f.teamIncentiveMode, incentiveBasis: f.incentiveBasis,
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
@@ -156,6 +158,36 @@ export function SettingsForm({ profile }: { profile: Profile }) {
           </div>
           <TenantImageField scope="qris" label="Gambar QRIS (opsional)" value={f.qrisImageUrl} onChange={(u) => set("qrisImageUrl", u)}
             hint="Unggah QRIS statis usaha Anda agar pelanggan bisa scan saat bayar." />
+        </CardContent>
+      </Card>
+
+      {/* Insentif Tim (K5/K7) */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div>
+            <h2 className="text-lg font-semibold">Insentif Tim</h2>
+            <p className="text-sm text-muted-foreground">Atur bagaimana insentif teknisi & kernet dihitung. Berlaku untuk semua laporan insentif.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="basis">Acuan perhitungan</Label>
+              <select id="basis" value={f.incentiveBasis} onChange={(e) => set("incentiveBasis", e.target.value as "LUNAS" | "TERBIT")}
+                className="min-h-[44px] w-full rounded-xl border bg-background px-3 text-sm">
+                <option value="LUNAS">Saat invoice LUNAS (disarankan)</option>
+                <option value="TERBIT">Saat invoice TERBIT</option>
+              </select>
+              <p className="text-xs text-muted-foreground">LUNAS: insentif dihitung setelah pelanggan bayar.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="teammode">Mode bila dikeroyok banyak orang</Label>
+              <select id="teammode" value={f.teamIncentiveMode} onChange={(e) => set("teamIncentiveMode", e.target.value as "BAGI_RATA" | "PENUH")}
+                className="min-h-[44px] w-full rounded-xl border bg-background px-3 text-sm">
+                <option value="BAGI_RATA">Bagi rata (disarankan)</option>
+                <option value="PENUH">Penuh tiap orang</option>
+              </select>
+              <p className="text-xs text-muted-foreground">Bagi rata: 1 layanan dikerjakan 2 teknisi → insentif dibagi 2. Penuh: masing-masing dapat penuh.</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

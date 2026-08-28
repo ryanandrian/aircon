@@ -14,6 +14,7 @@ export async function getTenantProfile(tenantId: string) {
     select: {
       name: true, logoUrl: true, isPkp: true, npwp: true, taxPercent: true,
       bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
+      teamIncentiveMode: true, incentiveBasis: true,
     },
   });
   if (!t) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
@@ -34,6 +35,8 @@ export async function updateTenantProfile(
   if (input.bankAccountNo !== undefined) data.bankAccountNo = input.bankAccountNo;
   if (input.bankAccountName !== undefined) data.bankAccountName = input.bankAccountName;
   if (input.qrisImageUrl !== undefined) data.qrisImageUrl = input.qrisImageUrl;
+  if (input.teamIncentiveMode !== undefined) data.teamIncentiveMode = input.teamIncentiveMode;
+  if (input.incentiveBasis !== undefined) data.incentiveBasis = input.incentiveBasis;
   try {
     return await prisma.tenant.update({ where: { id: tenantId }, data });
   } catch (err) {
