@@ -50,6 +50,7 @@ export const Icon = {
   Package: Package,           // produk IoT / paket
   Send: Send,                 // kirim
   Menu: Menu,                 // hamburger navigasi mobile
+  Catalog: Wrench,            // daftar layanan / katalog
   Settings: Settings,         // pengaturan
   Dashboard: LayoutDashboard, // ringkasan / dashboard
 };

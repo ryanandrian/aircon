@@ -83,6 +83,40 @@ export async function listCatalog(
   });
 }
 
+/** Katalog + jumlah harga khusus per item (K22-A indikator "N harga khusus"). */
+export async function listCatalogWithOverrideCount(tenantId: string) {
+  const rows = await prisma.serviceCatalog.findMany({
+    where: { tenantId },
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    include: { _count: { select: { customerPricing: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    category: r.category,
+    standardPrice: Number(r.standardPrice),
+    unit: r.unit,
+    description: r.description,
+    active: r.active,
+    techIncentiveType: r.techIncentiveType,
+    techIncentiveValue: Number(r.techIncentiveValue),
+    kernetIncentiveType: r.kernetIncentiveType,
+    kernetIncentiveValue: Number(r.kernetIncentiveValue),
+    overrideCount: r._count.customerPricing,
+  }));
+}
+
+/** Daftar pelanggan yang punya harga khusus untuk 1 layanan (K22-A drill-down). */
+export async function listOverridesForService(tenantId: string, serviceId: string) {
+  const rows = await prisma.customerPricing.findMany({
+    where: { tenantId, serviceId },
+    include: { customer: { select: { name: true } } },
+    orderBy: { price: "asc" },
+  });
+  return rows.map((r) => ({ customerName: r.customer?.name ?? "—", price: Number(r.price) }));
+}
+
 export async function createCatalogItem(tenantId: string, input: CatalogInput): Promise<ServiceCatalog> {
   try {
     return await prisma.serviceCatalog.create({

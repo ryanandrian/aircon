@@ -41,14 +41,14 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Fase aktif**: FASE 2 (in-progress) — F2.1+F2.2 DONE.
-- **Item berikutnya**: F2.3 (UI /app/layanan CRUD katalog + indikator "N harga khusus") → F2.4 layar harga khusus (pola tambah) → F2.5 Export CSV → F2.GATE.
-- **COMMIT TERAKHIR (baseline)**: `7889171` (baton K22) + F2.1/F2.2 (commit berikut).
+- **Fase aktif**: FASE 2 (in-progress) — F2.1+F2.2+F2.3 DONE.
+- **Item berikutnya**: F2.4 (layar harga khusus pelanggan, pola TAMBAH per item K21) → F2.5 Export CSV → F2.GATE.
+- **COMMIT TERAKHIR (baseline)**: `c75e00b` (F2.1+F2.2) + F2.3 (commit berikut).
 - **Baseline hijau**: tsc 0 · 229 test · build 0.
-- **CATATAN SERAH TERIMA**: FASE 1 tuntas. F2.1 (schema ServiceCatalog+CustomerPricing, migrasi deploy) &
-  F2.2 (service-catalog-service: CRUD + resolvePrice K21 + computeItemIncentive murni, 15 test) SELESAI.
-  BERIKUTNYA F2.3: halaman /app/layanan (CRUD katalog pakai shadcn; field insentif tech+kernet dgn teks bantu
-  bagi-rata; indikator N harga khusus per item K22-A). Menu "Layanan" sudah ADA? cek APP_NAV — BELUM, perlu tambah.
+- **CATATAN SERAH TERIMA**: F2.1/F2.2/F2.3 SELESAI. /app/layanan CRUD katalog + insentif + indikator harga khusus live.
+  BERIKUTNYA F2.4: layar khusus per pelanggan (route /app/pelanggan/[id]/harga) pola TAMBAH per item (K21):
+  tombol "Tambah harga khusus" → pilih layanan dari katalog → harga pre-fill standar → simpan; tampil daftar
+  override + pembanding standar (K22-B); pakai setCustomerPrice/removeCustomerPrice/listCustomerPricing (sudah ada di service).
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -197,11 +197,14 @@ Status fase: [ ] BELUM
 - [x] `computeItemIncentive(item, role, unitPrice, qty, personCount, teamMode)` MURNI (K6 semua kategori, K7 bagi-rata/penuh, insentif=0).
 - [x] Test: tests/service-catalog.test.ts (15 test: VALUE/PERCENT, qty, bagi-rata 2-3, penuh, insentif=0, sparepart, resolvePrice ada/tak-ada). 229 test total, tsc 0, build 0.
 
-### F2.3 — UI /app/layanan (CRUD katalog + visibilitas harga sisi-layanan)  [ ]
-- [ ] Halaman + form (shadcn), field insentif tech & kernet dengan teks bantu aturan bagi-rata (K6/K7).
-- [ ] K22-A: tiap item tampil harga standar + indikator "N harga khusus"; klik item → daftar pelanggan
-      yang punya harga khusus utk item itu + nilainya.
-- [ ] Dogfood: tambah item jasa + item sparepart berinsentif → persist; indikator harga khusus muncul.
+### F2.3 — UI /app/layanan (CRUD katalog + visibilitas harga sisi-layanan)  [x] DONE
+- [x] Halaman /app/layanan + CatalogManager (shadcn Card/Input/Select/Badge); form add/edit dgn kategori
+      (Select) + insentif tech & kernet (type Rp/%  + nilai) + teks bantu aturan bagi-rata (K6/K7).
+- [x] K22-A: tiap item tampil harga standar + insentif + indikator "N harga khusus"; klik → drill-down
+      daftar pelanggan+harga (actionListOverrides). Service listCatalogWithOverrideCount + listOverridesForService.
+- [x] Menu "Daftar Layanan" ditambah ke APP_NAV (Icon.Catalog). Actions CRUD (owner/admin guard, sanitize).
+- [x] Dogfood: tambah jasa berinsentif → tampil di list + insentif tampil + PERSIST diverifikasi DB
+      (standardPrice/techIncentive/kernetIncentive). 0 JS exception. tsc 0, 229 test, build 0. Visual world-class (screenshot). (data demo direset)
 
 ### F2.4 — UI harga khusus pelanggan (LAYAR KHUSUS TERPISAH)  [ ]  ← penajaman owner
 - [ ] Halaman/route KHUSUS untuk kelola harga khusus per pelanggan (mis. `/app/pelanggan/[id]/harga`

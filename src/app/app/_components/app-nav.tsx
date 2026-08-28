@@ -11,6 +11,7 @@ export const APP_NAV: NavItem[] = [
   { href: "/app", label: "Ringkasan", icon: Icon.Dashboard, exact: true },
   { href: "/app/pelanggan", label: "Pelanggan", icon: Icon.Users },
   { href: "/app/unit", label: "Unit AC", icon: Icon.AC },
+  { href: "/app/layanan", label: "Daftar Layanan", icon: Icon.Catalog },
   { href: "/app/pekerjaan", label: "Pekerjaan", icon: Icon.Job },
   { href: "/app/teknisi", label: "Teknisi", icon: Icon.Technician },
   { href: "/app/perangkat", label: "Pemantauan AC", icon: Icon.Device },
