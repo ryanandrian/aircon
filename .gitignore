@@ -48,3 +48,4 @@ next-env.d.ts
 apps/wa-worker/.wwebjs_auth/
 apps/wa-worker/node_modules/
 .secrets/
+dogfood-output/
