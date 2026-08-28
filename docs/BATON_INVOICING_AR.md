@@ -41,13 +41,12 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Item berikutnya**: F1.5 (upload logo tenant + profil pajak/rekening/QRIS) → F1.6 logo publik → F1.7 GPS.
-- **COMMIT TERAKHIR (baseline)**: `f03446d` (F1.3+F1.4) + F1.3b (commit berikut).
-- **Baseline hijau**: tsc 0 · 210 test · build 0.
-- **CATATAN SERAH TERIMA**: F1.1, F1.2, F1.0, F1.3, F1.4, F1.3b SELESAI & terverifikasi. Pelanggan & Unit AC
-  kini keduanya lazy-load (cursor + IntersectionObserver + search server-side). Form pelanggan diperkaya.
-  BERIKUTNYA F1.5: presignTenantLogo (s3.ts pola presignLandingAsset) + halaman /app/pengaturan (upload logo
-  512×512 + isi isPkp/npwp/taxPercent + rekening + qrisImageUrl). TenantLogo komponen sudah ada (dipakai sidebar).
+- **Item berikutnya**: F1.6 (pasang TenantLogo di /p/[slug], /u/[code], /riwayat/[token]) → F1.7 GPS teknisi → F1.GATE.
+- **COMMIT TERAKHIR (baseline)**: `e57a0b7` (F1.3b) + F1.5 (commit berikut).
+- **Baseline hijau**: tsc 0 · 214 test · build 0.
+- **CATATAN SERAH TERIMA**: F1.0/1.1/1.2/1.3/1.3b/1.4/1.5 SELESAI & terverifikasi. Halaman /app/pengaturan
+  (logo+pajak+rekening+QRIS) live, persist diverifikasi DB, data demo direset. BERIKUTNYA F1.6: ganti avatar-huruf
+  di /p/[slug] & "Ditenagai Aircon" di /u/[code] & header /riwayat/[token] pakai <TenantLogo> (baca tenant.logoUrl).
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -139,12 +138,15 @@ Status fase: [ ] BELUM
 - [x] Dogfood: tambah pelanggan BADAN + PIC + TOP → tampil (badge Tempo) + PERSIST diverifikasi via DB
       (customerType/topType/npwp/picWorkName/picFinanceName tersimpan benar). 0 JS exception.
 
-### F1.5 — Logo tenant: upload + komponen TenantLogo  [ ]
-- [ ] `presignTenantLogo` di s3.ts (pola presignLandingAsset). Validasi 512×512 (atau resize sisi klien) + tipe gambar.
-- [ ] Komponen `<TenantLogo tenant/size>` reusable: logo tenant, fallback logo Aircon bila `logoUrl` kosong.
-- [ ] Halaman `/app/pengaturan` (baru) atau seksi di /app/langganan: upload logo + profil pajak (isPkp/npwp/taxPercent) + rekening + QRIS.
-- [ ] Test: fallback logo Aircon saat kosong; presign menghasilkan URL.
-- [ ] Dogfood: upload logo → tampil.
+### F1.5 — Logo tenant: upload + komponen TenantLogo  [x] DONE
+- [x] `createTenantAssetUploadUrl` di s3.ts (key `tenants/{tenantId}/logo|qris/` — isolasi tenant).
+- [x] Komponen `<TenantLogo>` (sudah dibuat di F1.0; fallback logo Aircon) — dipakai di form pengaturan + sidebar.
+- [x] Halaman `/app/pengaturan` (baru): upload logo + profil pajak (isPkp/npwp/taxPercent, PKP-conditional)
+      + rekening (bankName/No/Name) + QRIS upload. Service tenant-profile-service (whitelist) + Zod + actions (owner/admin).
+- [x] Menu "Pengaturan" ditambah ke APP_NAV (sidebar + drawer).
+- [x] Test: tests/tenant-profile.test.ts (4 test: kosong ok, PKP lengkap, tax>100 & negatif ditolak).
+- [x] Dogfood: render 3 seksi, toggle PKP munculkan NPWP/PPN, simpan → PERSIST diverifikasi DB
+      (isPkp/npwp/taxPercent/bank* tersimpan). 0 JS exception. tsc 0, 214 test, build 0. (data demo direset setelah tes)
 
 ### F1.6 — Pasang TenantLogo di permukaan publik + dashboard  [ ]
 - [ ] `/p/[slug]` — ganti avatar-huruf → `<TenantLogo>`.

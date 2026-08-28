@@ -17,6 +17,7 @@ export const APP_NAV: NavItem[] = [
   { href: "/app/langganan", label: "Langganan", icon: Icon.Billing },
   { href: "/app/pesan", label: "Template Pesan", icon: Icon.Message },
   { href: "/app/checklist", label: "Checklist Servis", icon: Icon.Checklist },
+  { href: "/app/pengaturan", label: "Pengaturan", icon: Icon.Settings },
 ];
 
 export function AppNav({ onNavigate }: { onNavigate?: () => void }) {

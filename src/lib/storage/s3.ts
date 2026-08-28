@@ -102,6 +102,35 @@ export async function deleteObject(key: string): Promise<void> {
 }
 
 /**
+ * Presigned PUT untuk aset milik TENANT (logo usaha, gambar QRIS).
+ * SECURITY: key diawali `tenants/{tenantId}/` → isolasi antar-tenant di level path.
+ * @param scope "logo" | "qris"
+ */
+export async function createTenantAssetUploadUrl(params: {
+  tenantId: string;
+  scope: "logo" | "qris";
+  filename: string;
+  contentType: string;
+}): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
+  if (!isStorageConfigured()) throw new Error("S3 storage belum dikonfigurasi");
+  if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
+
+  const ext = safeExt(params.filename);
+  const scope = params.scope === "qris" ? "qris" : "logo";
+  const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const key = `tenants/${params.tenantId}/${scope}/${rand}.${ext}`;
+
+  const cmd = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: params.contentType,
+    ACL: "public-read",
+  });
+  const uploadUrl = await getSignedUrl(client(), cmd, { expiresIn: 300 });
+  return { uploadUrl, publicUrl: publicUrl(key), key };
+}
+
+/**
  * Presigned PUT untuk aset publik (landing: logo, hero, OG, foto testimoni).
  * Bukan tenant-scoped — hanya dipanggil dari admin platform (guarded di server action).
  */
