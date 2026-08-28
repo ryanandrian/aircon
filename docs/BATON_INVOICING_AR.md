@@ -91,6 +91,10 @@ Sumber lengkap: RENCANA_INVOICING_AR.md §E,E2,E3. Ringkas paku mati:
   (admin pilih layanan dari katalog + set harga; hanya item yang ditambahkan yang jadi override; harga
   pre-fill standar sbg titik awal; layar hanya tampil daftar override, bukan seluruh katalog — ringan dirawat).
   Saat invoice: cek harga khusus utk kode layanan → ada=pakai, tak ada=harga standar katalog.
+- **K22** Visibilitas harga (owner setuju rekomendasi): DUA tampilan terfokus, BUKAN matriks raksasa —
+  (A) sisi layanan di /app/layanan: harga standar + indikator "N harga khusus", klik → daftar pelanggan+harga;
+  (B) sisi pelanggan (layar F2.4): daftar override + baris pembanding harga standar.
+  PLUS Export CSV semua override (kode,nama,harga standar,pelanggan,harga khusus,selisih) untuk audit menyeluruh.
 
 ---
 
@@ -192,9 +196,11 @@ Status fase: [ ] BELUM
 - [ ] `computeItemIncentive(catalogItem, roleOnJob, qty, personCountSameRole, teamMode)` MURNI → nilai per personel (hormati K6 semua kategori, K7 bagi-rata/penuh, insentif=0).
 - [ ] Test BANYAK: %/nilai, qty>1, bagi-rata 2-3 orang, penuh, insentif=0, kategori consumable/sparepart.
 
-### F2.3 — UI /app/layanan (CRUD katalog)  [ ]
+### F2.3 — UI /app/layanan (CRUD katalog + visibilitas harga sisi-layanan)  [ ]
 - [ ] Halaman + form (shadcn), field insentif tech & kernet dengan teks bantu aturan bagi-rata (K6/K7).
-- [ ] Dogfood: tambah item jasa + item sparepart berinsentif → persist.
+- [ ] K22-A: tiap item tampil harga standar + indikator "N harga khusus"; klik item → daftar pelanggan
+      yang punya harga khusus utk item itu + nilainya.
+- [ ] Dogfood: tambah item jasa + item sparepart berinsentif → persist; indikator harga khusus muncul.
 
 ### F2.4 — UI harga khusus pelanggan (LAYAR KHUSUS TERPISAH)  [ ]  ← penajaman owner
 - [ ] Halaman/route KHUSUS untuk kelola harga khusus per pelanggan (mis. `/app/pelanggan/[id]/harga`
@@ -208,6 +214,12 @@ Status fase: [ ] BELUM
       ADA = pakai harga khusus; TAK ADA = pakai standardPrice katalog. (dikunci di F2.2 resolvePrice + dites)
 - [ ] Dogfood: tambah 1-2 harga khusus, edit, hapus → resolvePrice pakai harga khusus utk item itu &
       standar utk item lain. Persist diverifikasi DB.
+
+### F2.5 — Export CSV harga khusus (audit menyeluruh, K22)  [ ]
+- [ ] Service `exportCustomerPricingCsv(tenantId)` → semua override: kode, nama layanan, harga standar,
+      nama pelanggan, harga khusus, selisih. Tenant-scoped.
+- [ ] Tombol "Export CSV" di /app/layanan (atau /app/pelanggan). Unduh file.
+- [ ] Dogfood/test: CSV berisi baris override yang benar; kosong bila belum ada override.
 
 ### F2.GATE — Verifikasi Fase 2  [ ] (tsc/test/build/deploy/regresi + update file ini + commit)
 
