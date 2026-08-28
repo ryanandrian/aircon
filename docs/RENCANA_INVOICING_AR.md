@@ -96,7 +96,7 @@ Sumber: pajak.go.id, online-pajak, klikpajak (diakses 28 Agu 2026).
 - Fitur baru **opt-in / additive** — sistem lama tetap jalan bila field baru kosong.
 - Uang & pajak: kalkulasi di service murni + test angka eksplisit (Decimal, bukan float).
 
-### FASE 1 — Pelanggan diperkaya (fondasi, risiko rendah)
+### FASE 1 — Pelanggan diperkaya + LOGO TENANT (fondasi, risiko rendah)
 Tambah kolom Customer (semua **nullable/optional**, tak rusak data lama):
 - `category` (enum: RUMAH, SEKOLAH_KAMPUS, MASJID_MUSHOLA, TOKO_OUTLET, RUKO_RUKAN, KANTOR_PERUSAHAAN, LAINNYA)
 - `topType` (enum: CASH, TEMPO_30/45/60/90, ...) — referensi TOP
@@ -105,7 +105,16 @@ Tambah kolom Customer (semua **nullable/optional**, tak rusak data lama):
 - Koordinat sudah ada → tambah UI teknisi "isi lokasi saat di tempat" (tombol ambil GPS)
 - **UI**: lazy-load daftar pelanggan (pakai `listCustomers` cursor yang sudah ada) — antisipasi ratusan card
 - CRUD pelanggan diperluas (form + edit) untuk field baru
-Test: validasi enum, billing-to resolution, kategori filter.
+
+**LOGO TENANT (amandemen [2]):**
+- Tambah `logoUrl String @default("")` di model **Tenant** + `isPkp`/`npwp`/`taxPercent` per-tenant (untuk Fase 4 invoice).
+- Upload logo **512×512** via S3 presign (pola `presignLandingAsset` di s3.ts) — validasi rasio/ukuran.
+- Komponen `<TenantLogo tenant={...} />` reusable: tampil logo tenant, fallback ke logo **Aircon** bila kosong.
+- Pasang di: /p/[slug] (ganti avatar-huruf), /u/[code] (ganti "Ditenagai Aircon"), /riwayat/[token],
+  dan header dashboard /app. (Invoice/proforma/kwitansi menyusul di Fase 4.)
+- Halaman **/app/pengaturan** (atau /app/langganan → profil usaha): owner upload logo + isi profil pajak.
+
+Test: validasi enum, billing-to resolution, kategori filter, presign logo, fallback logo Aircon.
 
 ### FASE 2 — ServiceCatalog (daftar layanan) + harga khusus pelanggan
 - Model **ServiceCatalog**: `code, name, category (MAINTENANCE/SERVICE/CONSUMABLE/SPAREPART/PAKET/...),
@@ -183,17 +192,30 @@ Test: agregasi insentif (%/nilai/multi-personel per item), filter periode, edge 
 
 ## E. KEPUTUSAN (default diambil agent — sesuai disiplin modal & pilot-first; owner bisa override)
 
-1. **Urutan**: Fase 1→7 berurutan. Boleh **MVP dulu = Fase 1-4** (pelanggan+katalog+penugasan+invoice),
-   lalu piutang/insentif/laporan (Fase 5-7) menyusul. → **KEPUTUSAN: MVP Fase 1-4 dulu.**
-2. **Pajak default**: **OPT-IN** — tenant kecil non-PKP + pelanggan rumahan = invoice tanpa pajak;
-   PPN muncul hanya bila tenant PKP, PPh23 info hanya bila pelanggan badan. → **KEPUTUSAN: opt-in.**
-3. **Kernet**: dicatat sebagai **personel di JobAssignment TANPA wajib login** (nama untuk insentif +
-   kartu perawatan). Bila kelak kernet perlu app sendiri, tambah login menyusul. → **KEPUTUSAN: kernet
-   tanpa login dulu (data personel), teknisi tetap login.**
-4. **Pembayaran CASH**: **catat manual + upload bukti + kwitansi WA** (TAK perlu Midtrans per-tenant).
-   Struktur disiapkan agar bisa integrasi QRIS otomatis nanti. → **KEPUTUSAN: manual+bukti, siap-QRIS.**
-5. **Scope**: kerjakan **MVP Fase 1-4** lebih dulu (deployable, sudah menutup alur inti Anda:
-   job→penugasan→invoice/proforma→kwitansi), sisanya menyusul. → menunggu lampu hijau owner.
+### AMANDEMEN OWNER (28 Agu 2026) — WAJIB IKUT
+- **[1] Midtrans HANYA tenant→Lumite** (langganan). Pembayaran pelanggan→tenant di v1 = **catat manual
+  + upload bukti + kwitansi WA**. TIDAK ada gateway pembayaran pelanggan→tenant di v1. (FINAL)
+- **[2] LOGO TENANT** (BARU — masuk Fase 1): tambah field `logoUrl` di **Tenant** (bukan hanya
+  CompanyProfile Lumite). Upload gambar **512×512** (persegi) ke S3 BiznetGio (presign pola s3.ts).
+  **Default = logo Aircon** sampai tenant upload. Logo tenant WAJIB tampil di SEMUA permukaan milik tenant,
+  dan **Aircon TIDAK boleh muncul** di sana:
+  1. Header **Invoice** & **Proforma-invoice** (PDF/print + web)
+  2. **Kwitansi** WA/PDF
+  3. Booking publik **/p/[slug]** (ganti avatar-huruf → logo)
+  4. Kartu unit publik **/u/[code]** (ganti "Ditenagai Aircon" → logo tenant; boleh "dibuat dengan
+     Aircon" halus di footer, TAPI brand utama = tenant)
+  5. Kartu perawatan **/riwayat/[token]**
+  6. (opsional) header dashboard tenant /app
+  → **KEPUTUSAN: logoUrl di Tenant, 512×512, default Aircon, dipakai di 5-6 permukaan di atas.**
+- **[3] KERNET login atau tidak** → MENUNGGU JAWABAN OWNER:
+  - Pilihan A: kernet TANPA login (nama dicatat saat penugasan → untuk insentif + kartu perawatan). SIMPEL.
+  - Pilihan B: kernet PUNYA akun+PIN (login, lihat tugas & insentif sendiri seperti teknisi).
+  - Rekomendasi agent: **A untuk v1** (kernet=asisten menempel teknisi), upgrade ke B bila perlu.
+
+### Keputusan default lain (tetap berlaku)
+1. **Urutan**: MVP **Fase 1-4** dulu (pelanggan+katalog+penugasan+invoice+**logo tenant**), lalu 5-7.
+2. **Pajak**: **OPT-IN** (non-PKP + rumahan = tanpa pajak; PPN bila tenant PKP; PPh23 info bila pelanggan badan).
+4. **Pembayaran CASH**: manual + bukti + kwitansi WA. Struktur siap-QRIS nanti (bukan v1).
 
 ---
 
