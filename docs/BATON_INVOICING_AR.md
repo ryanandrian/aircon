@@ -41,13 +41,14 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Fase aktif**: FASE 1 SELESAI ✅ → berikutnya FASE 2 (ServiceCatalog + Harga Khusus Pelanggan).
-- **Item berikutnya**: F2.1 (schema ServiceCatalog + CustomerPricing, additive) — lihat blok FASE 2.
-- **COMMIT TERAKHIR (baseline)**: `57779bc` (F1.6) + F1.7/GATE (commit "FASE 1 DONE" berikut).
-- **Baseline hijau**: tsc 0 · 214 test · build 0.
-- **CATATAN SERAH TERIMA**: FASE 1 TUNTAS (F1.0 shell, F1.1 schema, F1.2 service, F1.3/1.3b lazy-load
-  pelanggan+unit, F1.4 form diperkaya, F1.5 pengaturan logo/pajak/rekening, F1.6 logo publik, F1.7 GPS teknisi).
-  Catatan hardware: GPS (F1.7) & scanner QR wajib tes device nyata saat pilot. BERIKUTNYA FASE 2 mulai F2.1.
+- **Fase aktif**: FASE 2 (in-progress) — F2.1+F2.2 DONE.
+- **Item berikutnya**: F2.3 (UI /app/layanan CRUD katalog + indikator "N harga khusus") → F2.4 layar harga khusus (pola tambah) → F2.5 Export CSV → F2.GATE.
+- **COMMIT TERAKHIR (baseline)**: `7889171` (baton K22) + F2.1/F2.2 (commit berikut).
+- **Baseline hijau**: tsc 0 · 229 test · build 0.
+- **CATATAN SERAH TERIMA**: FASE 1 tuntas. F2.1 (schema ServiceCatalog+CustomerPricing, migrasi deploy) &
+  F2.2 (service-catalog-service: CRUD + resolvePrice K21 + computeItemIncentive murni, 15 test) SELESAI.
+  BERIKUTNYA F2.3: halaman /app/layanan (CRUD katalog pakai shadcn; field insentif tech+kernet dgn teks bantu
+  bagi-rata; indikator N harga khusus per item K22-A). Menu "Layanan" sudah ADA? cek APP_NAV — BELUM, perlu tambah.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -183,18 +184,18 @@ Status fase: [x] SELESAI (F1.0–F1.7 + GATE) — commit "FASE 1 DONE"
 # ═══════ FASE 2 — ServiceCatalog + Harga Khusus Pelanggan ═══════
 Status fase: [ ] BELUM
 
-### F2.1 — Schema ServiceCatalog + CustomerPricing (additive)  [ ]
-- [ ] enum `ServiceCategory` { MAINTENANCE, SERVICE, CONSUMABLE, SPAREPART, PAKET, SURVEI, GARANSI, LAINNYA }
-- [ ] enum `IncentiveType` { PERCENT, VALUE }
-- [ ] model `ServiceCatalog` { id, tenantId, code, name, category ServiceCategory, standardPrice Decimal @db.Decimal(12,2), unit String, description String?, active Boolean @default(true), techIncentiveType IncentiveType @default(VALUE), techIncentiveValue Decimal @default(0), kernetIncentiveType IncentiveType @default(VALUE), kernetIncentiveValue Decimal @default(0), createdAt, updatedAt, @@unique([tenantId, code]) }
-- [ ] model `CustomerPricing` { id, tenantId, customerId, serviceId, price Decimal, @@unique([customerId, serviceId]) }
-- DoD schema (validate/migrate/generate/tsc/build).
+### F2.1 — Schema ServiceCatalog + CustomerPricing (additive)  [x] DONE (migrasi 20260828_service_catalog_pricing, deploy OK)
+- [x] enum `ServiceCategory` { MAINTENANCE, SERVICE, CONSUMABLE, SPAREPART, PAKET, SURVEI, GARANSI, LAINNYA }
+- [x] enum `IncentiveType` { PERCENT, VALUE }
+- [x] model `ServiceCatalog` (Decimal 12,2, insentif tech+kernet, @@unique[tenantId,code]) + back-ref Tenant.
+- [x] model `CustomerPricing` (@@unique[customerId,serviceId], FK cascade) + back-ref Tenant/Customer/Service.
+- DoD: ✅ validate · migrate diff additive-only (2 tabel + 2 enum, 0 destruktif) · deploy · generate · tsc 0 · build 0.
 
-### F2.2 — Service catalog + resolusi harga + insentif murni  [ ]
-- [ ] `service-catalog-service.ts`: CRUD (tenant-scoped), list per kategori.
-- [ ] `resolvePrice(tenantId, customerId, serviceId)` → CustomerPricing.price ?? ServiceCatalog.standardPrice.
-- [ ] `computeItemIncentive(catalogItem, roleOnJob, qty, personCountSameRole, teamMode)` MURNI → nilai per personel (hormati K6 semua kategori, K7 bagi-rata/penuh, insentif=0).
-- [ ] Test BANYAK: %/nilai, qty>1, bagi-rata 2-3 orang, penuh, insentif=0, kategori consumable/sparepart.
+### F2.2 — Service catalog + resolusi harga + insentif murni  [x] DONE
+- [x] `service-catalog-service.ts`: CRUD (tenant-scoped, whitelist) + setCustomerPrice/removeCustomerPrice/listCustomerPricing.
+- [x] `resolvePrice(tenantId, customerId, serviceId)` → CustomerPricing.price ?? standardPrice (K21).
+- [x] `computeItemIncentive(item, role, unitPrice, qty, personCount, teamMode)` MURNI (K6 semua kategori, K7 bagi-rata/penuh, insentif=0).
+- [x] Test: tests/service-catalog.test.ts (15 test: VALUE/PERCENT, qty, bagi-rata 2-3, penuh, insentif=0, sparepart, resolvePrice ada/tak-ada). 229 test total, tsc 0, build 0.
 
 ### F2.3 — UI /app/layanan (CRUD katalog + visibilitas harga sisi-layanan)  [ ]
 - [ ] Halaman + form (shadcn), field insentif tech & kernet dengan teks bantu aturan bagi-rata (K6/K7).

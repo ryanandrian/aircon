@@ -281,6 +281,8 @@ model Tenant {
   invites      Invite[]
   iotOrders    IotOrder[]
   attribution  TenantAttribution?
+  serviceCatalog  ServiceCatalog[]
+  customerPricing CustomerPricing[]
 }
 
 model User {
@@ -337,6 +339,7 @@ model Customer {
   jobs            JobOrder[]
   billingCustomer Customer?  @relation("CustomerBilling", fields: [billingCustomerId], references: [id])
   billedFor       Customer[] @relation("CustomerBilling")
+  customerPricing CustomerPricing[]
 
   @@index([tenantId, phone])
   @@index([tenantId, source])
@@ -1153,4 +1156,66 @@ model CommissionLedger {
   @@unique([orderId, entryKind]) // idempotensi: 1 accrual + maks 1 reversal/order
   @@index([agentId, periodMonth, status])
   @@index([tenantId])
+}
+
+// ═══════ FASE 2 — Daftar layanan (katalog) + harga khusus pelanggan ═══════
+
+enum ServiceCategory {
+  MAINTENANCE
+  SERVICE
+  CONSUMABLE
+  SPAREPART
+  PAKET
+  SURVEI
+  GARANSI
+  LAINNYA
+}
+
+enum IncentiveType {
+  PERCENT
+  VALUE
+}
+
+// Katalog layanan per tenant. Harga & insentif standar. Insentif melekat di SEMUA kategori (K6).
+model ServiceCatalog {
+  id                   String          @id @default(cuid())
+  tenantId             String
+  code                 String
+  name                 String
+  category             ServiceCategory @default(SERVICE)
+  standardPrice        Decimal         @default(0) @db.Decimal(12, 2)
+  unit                 String          @default("unit")
+  description          String?
+  active               Boolean         @default(true)
+  techIncentiveType    IncentiveType   @default(VALUE)
+  techIncentiveValue   Decimal         @default(0) @db.Decimal(12, 2)
+  kernetIncentiveType  IncentiveType   @default(VALUE)
+  kernetIncentiveValue Decimal         @default(0) @db.Decimal(12, 2)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  customerPricing CustomerPricing[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, category])
+}
+
+// Harga khusus per pelanggan untuk item layanan tertentu (override harga standar). Pola TAMBAH per item (K21).
+model CustomerPricing {
+  id         String   @id @default(cuid())
+  tenantId   String
+  customerId String
+  serviceId  String
+  price      Decimal  @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  service  ServiceCatalog @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, serviceId])
+  @@index([tenantId])
+  @@index([serviceId])
 }
