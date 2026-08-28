@@ -38,9 +38,11 @@ export default async function Home() {
             <span className="truncate text-lg font-bold tracking-tight">Aircon</span>
           </div>
           <nav className="flex shrink-0 items-center gap-1 text-sm">
-            {c.showPricing && <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Harga</Link>}
+            <div className="hidden items-center gap-1 sm:flex">
+              {c.showPricing && <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm" })}>Harga</Link>}
+              <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm" })}>Demo</Link>
+            </div>
             <ThemeToggle />
-            <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm", className: "hidden sm:inline-flex" })}>Demo</Link>
             <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>Masuk</Link>
             <Link href="/login" className={buttonVariants({ size: "sm" })}>Mulai Gratis</Link>
           </nav>
