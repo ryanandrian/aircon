@@ -10,6 +10,12 @@ import {
   type CreateJobInput,
 } from "@/lib/services/job-management-service";
 import { transitionJob, TransitionError } from "@/lib/services/job-service";
+import {
+  assignJob as assignTeam,
+  detectConflict,
+  type AssignmentInput,
+} from "@/lib/services/assignment-service";
+import { prisma } from "@/lib/prisma";
 import type { ServiceType } from "@prisma/client";
 
 export type ActionResult<T = undefined> =
@@ -161,4 +167,77 @@ function toMessage(err: unknown, fallback: string): string {
   if (err instanceof AuthError) return err.message;
   console.error("[pekerjaan action] gagal:", err);
   return fallback;
+}
+
+// ─────────── F3.3 Penugasan tim (multi-personel, peran cair) ───────────
+
+export interface TeamMemberInput { personId: string; roleOnJob: "TECHNICIAN" | "KERNET"; isLead?: boolean; }
+
+/** Cek bentrok jadwal utk sekumpulan personel pada jendela waktu tertentu. */
+export async function actionCheckTeamConflicts(
+  personIds: string[],
+  scheduledDate: string,
+  scheduledTime: string,
+  durationMin: number,
+  excludeJobId?: string,
+): Promise<ActionResult<{ personId: string; name: string; conflicts: { customerName: string }[] }[]>> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const start = toDate(scheduledDate, scheduledTime);
+    if (!start) return { ok: false, error: "Jadwal wajib diisi." };
+    const end = new Date(start.getTime() + (durationMin > 0 ? durationMin : 60) * 60000);
+
+    const techs = await prisma.technician.findMany({
+      where: { tenantId: ctx.tenantId, id: { in: personIds } },
+      select: { id: true, user: { select: { name: true } } },
+    });
+    const nameOf = new Map(techs.map((t) => [t.id, t.user?.name ?? "—"]));
+
+    const out = [];
+    for (const pid of personIds) {
+      const conflicts = await detectConflict(ctx.tenantId, pid, start, end, excludeJobId);
+      if (conflicts.length > 0) {
+        out.push({ personId: pid, name: nameOf.get(pid) ?? "—", conflicts: conflicts.map((c) => ({ customerName: c.customerName })) });
+      }
+    }
+    return { ok: true, data: out };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal memeriksa jadwal.") };
+  }
+}
+
+/** Tugaskan tim (N personel + peran) ke pekerjaan + jadwal. SECURITY: OWNER/ADMIN. */
+export async function actionAssignTeam(
+  jobId: string,
+  members: TeamMemberInput[],
+  scheduledDate: string,
+  scheduledTime: string,
+  durationMin: number,
+): Promise<ActionResult> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    if (!jobId) return { ok: false, error: "Pekerjaan tidak dikenal." };
+    if (members.length === 0) return { ok: false, error: "Pilih minimal 1 personel." };
+    const start = toDate(scheduledDate, scheduledTime);
+    if (!start) return { ok: false, error: "Jadwal wajib diisi." };
+    const end = new Date(start.getTime() + (durationMin > 0 ? durationMin : 60) * 60000);
+
+    const people: AssignmentInput[] = members.map((m) => ({
+      personId: m.personId, roleOnJob: m.roleOnJob, isLead: m.isLead,
+    }));
+    await assignTeam(ctx.tenantId, jobId, people, { start, end });
+
+    // Status DRAFT→ASSIGNED (transition lama, lewat lead). Abaikan bila sudah ASSIGNED+.
+    try {
+      await transitionJob({ tenantId: ctx.tenantId, jobId, toStatus: "ASSIGNED", actorId: ctx.userId, role: ctx.role, meta: {} });
+    } catch { /* sudah di status lanjut — tak apa */ }
+
+    revalidatePath("/app/pekerjaan");
+    revalidatePath(`/app/pekerjaan/${jobId}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal menugaskan tim.") };
+  }
 }

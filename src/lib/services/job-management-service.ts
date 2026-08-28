@@ -190,20 +190,23 @@ export async function getJob(tenantId: string, jobId: string) {
   });
 }
 
-/** Pekerjaan hari ini untuk seorang teknisi (untuk app teknisi). */
+/** Pekerjaan hari ini untuk seorang teknisi (untuk app teknisi).
+ *  F3.3: termasuk job di mana person ditugaskan via JobAssignment (peran cair), bukan hanya technicianId. */
 export async function listTechnicianJobsToday(tenantId: string, technicianId: string) {
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const end = new Date(); end.setHours(23, 59, 59, 999);
+  const assigned = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: { jobId: true },
+  });
+  const assignedJobIds = assigned.map((a) => a.jobId);
   return prisma.jobOrder.findMany({
     where: {
       tenantId,
-      technicianId,
       deletedAt: null,
       status: { in: ACTIVE_STATUSES },
-      OR: [
-        { scheduledDate: { gte: start, lte: end } },
-        { scheduledDate: null },
-      ],
+      OR: [{ scheduledDate: { gte: start, lte: end } }, { scheduledDate: null }],
+      AND: [{ OR: [{ technicianId }, { id: { in: assignedJobIds } }] }],
     },
     include: {
       customer: { select: { name: true, phone: true, address: true } },

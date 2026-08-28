@@ -75,6 +75,10 @@ export default async function PekerjaanDetailPage({
   });
   const technicians = technicianRows.map((t) => ({ id: t.id, name: t.user.name }));
 
+  // Tim yang ditugaskan (multi-personel, peran cair — F3.3).
+  const { listAssignments } = await import("@/lib/services/assignment-service");
+  const team = await listAssignments(ctx.tenantId, id);
+
   const unit = job.asset
     ? [job.asset.brand, job.asset.model].filter(Boolean).join(" ").trim() || "Unit AC"
     : null;
@@ -141,7 +145,23 @@ export default async function PekerjaanDetailPage({
                 label="Jadwal"
                 value={`${fmtTanggal(job.scheduledDate)}${jam ? ` · ${jam}` : ""}`}
               />
-              <Row label="Teknisi" value={job.technician?.user.name ?? "Belum ditugaskan"} />
+              <div className="flex justify-between gap-4 py-0.5">
+                <dt className="shrink-0 text-muted-foreground">Tim</dt>
+                <dd className="text-right font-medium text-foreground">
+                  {team.length === 0 ? "Belum ditugaskan" : (
+                    <div className="flex flex-col items-end gap-0.5">
+                      {team.map((m) => (
+                        <span key={m.personId}>
+                          {m.name}
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({m.roleOnJob === "TECHNICIAN" ? "Teknisi" : "Kernet"}{m.isLead ? ", lead" : ""})
+                          </span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </dd>
+              </div>
               <Row label="Harga" value={job.price != null ? fmtRupiah(job.price) : "—"} />
             </dl>
             {job.notes && (
@@ -160,6 +180,7 @@ export default async function PekerjaanDetailPage({
           canCancel={CANCELLABLE.includes(job.status)}
           technicians={technicians}
           defaultDate={defaultDate}
+          initialTeam={team.map((m) => ({ personId: m.personId, roleOnJob: m.roleOnJob }))}
         />
 
         {/* Foto */}

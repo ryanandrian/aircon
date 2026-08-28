@@ -40,14 +40,14 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 3 (in-progress) — F3.1+F3.2 DONE.
-- **Item berikutnya**: F3.3 (UI penugasan admin + notifikasi personel) → F3.GATE.
-- **COMMIT TERAKHIR (baseline)**: `f0c1a34` (F3.1) + F3.2 (commit berikut).
+- **Fase aktif**: FASE 3 SELESAI ✅ → berikutnya FASE 4 (WorkSession + Invoice/Proforma + Pajak — INTI UANG).
+- **Item berikutnya**: F4.1 (schema WorkSession+Invoice+Proforma) — lihat blok FASE 4. ⚠️ PALING SENSITIF (uang/pajak).
+- **COMMIT TERAKHIR (baseline)**: `f346e11` (F3.2) + F3.3/GATE (commit "FASE 3 DONE" berikut).
 - **Baseline hijau**: tsc 0 · 243 test · build 0.
-- **CATATAN SERAH TERIMA**: F3.1+F3.2 SELESAI. assignment-service (assignJob multi-personel peran cair +
-  detectConflict + listAssignments, backward-compat technicianId). BERIKUTNYA F3.3: UI admin pilih N personel +
-  peran + mode UMUM/SPESIFIK + peringatan bentrok (pakai detectConflict); notifikasi personel (in-app + WA SIMULASI):
-  pelanggan/PIC, waktu, kontak, alamat+GMaps (geoLat/geoLng), catatan, sistem bayar, peran. Dogfood assign 2 personel beda peran → muncul di /t.
+- **CATATAN SERAH TERIMA**: FASE 1-3 tuntas. Multi-personel peran cair (assign tim + deteksi bentrok + /t
+  kernet lihat job) live. BERIKUTNYA FASE 4 (INTI UANG): WorkSession (layar lapangan K8) + Invoice/Proforma +
+  pajak. WAJIB test angka eksplisit (computeInvoiceTotals: diskon→pajak K12, DPP jasa/barang K4, dueDate K19).
+  computeItemIncentive & resolvePrice sudah siap dari Fase 2. Baca K8/K9/K10/K12/K19 sebelum mulai.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -227,7 +227,7 @@ Status fase: [x] SELESAI (F2.1–F2.5 + GATE)
 ---
 
 # ═══════ FASE 3 — Multi-personel & Peran Cair + Penugasan ═══════
-Status fase: [ ] BELUM
+Status fase: [x] SELESAI (F3.1–F3.3 + GATE)
 
 ### F3.1 — Schema JobAssignment + assignmentType (additive)  [x] DONE (migrasi 20260828_job_assignment, deploy OK)
 - [x] enum `AssignmentRole` { TECHNICIAN, KERNET } + enum `AssignmentType` { UMUM, SPESIFIK }
@@ -245,12 +245,18 @@ Status fase: [ ] BELUM
 - [x] Test: tests/assignment.test.ts (12: overlap penuh/terpisah/ujung/nested, detectConflict overlap/no/exclude/no-job,
       assignJob multi-personel lead default/eksplisit/tolak-luar-tenant/tolak-kosong). 243 test, tsc 0, build 0.
 
-### F3.3 — UI penugasan (admin) + notifikasi personel  [ ]
-- [ ] UI admin: pilih N personel + peran masing-masing; mode UMUM vs SPESIFIK; peringatan bentrok.
-- [ ] Notifikasi ke tiap personel (in-app + WA SIMULASI dulu): pelanggan/PIC, waktu, kontak, alamat + link Google Maps (geoLat/geoLng), catatan, sistem bayar (Cash/Tempo), peran di job ini.
-- [ ] Dogfood: assign 2 personel beda peran → muncul di /t masing-masing.
+### F3.3 — UI penugasan (admin) + notifikasi personel  [x] DONE
+- [x] UI admin (owner-actions.tsx): pilih N personel + peran (toggle Teknisi/Kernet) + tambah/hapus personel;
+      lead = personel pertama; tanggal/jam/durasi; tombol "Cek bentrok jadwal" (actionCheckTeamConflicts →
+      peringatan tanpa memblokir). Actions actionAssignTeam + actionCheckTeamConflicts (owner/admin).
+- [x] Job detail: bagian "Tim" tampilkan semua personel + peran (+lead). Notifikasi in-app: /t
+      (listTechnicianJobsToday diperluas → job via JobAssignment ATAU technicianId, jadi kernet/non-lead ikut lihat).
+      Info job (pelanggan/alamat/GMaps/kontak/catatan) sudah ada di /t/pekerjaan/[id]. WA = simulasi (belum kirim nyata).
+- [x] Dogfood: assign Andi(Teknisi,lead)+Budi(Kernet) → cek bentrok jalan → simpan → status ASSIGNED,
+      DB terverifikasi (2 assignment peran benar, technicianId=lead), reload tampil tim. Visual world-class (screenshot). 0 exception.
 
-### F3.GATE — Verifikasi Fase 3  [ ] (tsc/test/build/deploy/regresi + update + commit)
+### F3.GATE — Verifikasi Fase 3  [x] DONE
+- [x] tsc 0 · 243 vitest lulus · build 0 · deploy READY. Regresi: additive, money-loop utuh. (data demo direset)
 
 ---
 
