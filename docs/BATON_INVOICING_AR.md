@@ -40,13 +40,14 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 2 SELESAI ✅ → berikutnya FASE 3 (Multi-personel & Peran Cair + Penugasan).
-- **Item berikutnya**: F3.1 (lihat blok FASE 3).
-- **COMMIT TERAKHIR (baseline)**: `b75272c` (F2.4) + F2.5/GATE (commit "FASE 2 DONE" berikut).
+- **Fase aktif**: FASE 3 (in-progress) — F3.1 DONE.
+- **Item berikutnya**: F3.2 (service assignJob + detectConflict) → F3.3 UI penugasan + notifikasi → F3.GATE.
+- **COMMIT TERAKHIR (baseline)**: `61d2a62` (baton rapi) + F3.1 (commit berikut).
 - **Baseline hijau**: tsc 0 · 231 test · build 0.
-- **CATATAN SERAH TERIMA**: FASE 2 TUNTAS (katalog layanan + insentif tech/kernet + harga khusus pelanggan
-  layar terpisah pola-tambah + resolvePrice + Export CSV). BERIKUTNYA FASE 3: multi-personel & peran cair
-  (JobAssignment roleOnJob TECHNICIAN/KERNET, N personel/job) + deteksi bentrok jadwal + notifikasi penugasan.
+- **CATATAN SERAH TERIMA**: FASE 1 & 2 tuntas. F3.1 (schema JobAssignment+assignmentType, migrasi data
+  idempoten dari technicianId) SELESAI. BERIKUTNYA F3.2: service assignJob(jobId, personel[], window) +
+  detectConflict (overlap waktu personel) tenant-scoped; kode lama baca technicianId tetap jalan (backward-compat);
+  test conflict overlap/no-overlap/lintas-peran/multi-personel.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -228,13 +229,12 @@ Status fase: [x] SELESAI (F2.1–F2.5 + GATE)
 # ═══════ FASE 3 — Multi-personel & Peran Cair + Penugasan ═══════
 Status fase: [ ] BELUM
 
-### F3.1 — Schema JobAssignment + assignmentType (additive)  [ ]
-- [ ] enum `AssignmentRole` { TECHNICIAN, KERNET }
-- [ ] enum `AssignmentType` { UMUM, SPESIFIK }
-- [ ] model `JobAssignment` { id, tenantId, jobId, personId (→User/Technician), roleOnJob AssignmentRole, isLead Boolean @default(false), createdAt, @@index([tenantId, jobId]), @@index([tenantId, personId]) }
-- [ ] JobOrder + `assignmentType AssignmentType @default(SPESIFIK)` (backward-compat: job lama = SPESIFIK).
-- [ ] Migrasi data: isi JobAssignment dari `technicianId` lama (1 baris TECHNICIAN isLead) — script one-shot idempoten.
-- DoD schema + migrasi data terverifikasi (hitung baris).
+### F3.1 — Schema JobAssignment + assignmentType (additive)  [x] DONE (migrasi 20260828_job_assignment, deploy OK)
+- [x] enum `AssignmentRole` { TECHNICIAN, KERNET } + enum `AssignmentType` { UMUM, SPESIFIK }
+- [x] model `JobAssignment` (personId→Technician, roleOnJob, isLead, @@unique[jobId,personId]) + back-refs Tenant/JobOrder/Technician.
+- [x] JobOrder + `assignmentType @default(SPESIFIK)` (backward-compat: job lama = SPESIFIK).
+- [x] Migrasi data: scripts/migrate-job-assignments.mjs — backfill dari technicianId (1 baris TECHNICIAN isLead),
+      IDEMPOTEN terverifikasi (run1 created=2; run2 skipped=2, 0 duplikat). tsc 0, 231 test, build 0.
 
 ### F3.2 — Service penugasan multi-personel + deteksi bentrok  [ ]
 - [ ] `assignJob(jobId, [{personId, roleOnJob, isLead}], window)` tenant-scoped.

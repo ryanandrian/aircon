@@ -283,6 +283,7 @@ model Tenant {
   attribution  TenantAttribution?
   serviceCatalog  ServiceCatalog[]
   customerPricing CustomerPricing[]
+  jobAssignments  JobAssignment[]
 }
 
 model User {
@@ -388,6 +389,7 @@ model Technician {
   tenant Tenant     @relation(fields: [tenantId], references: [id])
   user   User       @relation(fields: [userId], references: [id])
   jobs   JobOrder[]
+  assignments JobAssignment[]
 
   @@index([tenantId, active])
 }
@@ -415,6 +417,7 @@ model JobOrder {
   createdById     String
   completedAt     DateTime?
   deletedAt       DateTime?
+  assignmentType  AssignmentType @default(SPESIFIK)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -424,6 +427,7 @@ model JobOrder {
   technician Technician?        @relation(fields: [technicianId], references: [id])
   events     JobProgressEvent[]
   photos     JobPhoto[]
+  assignments JobAssignment[]
 
   @@index([tenantId, status])
   @@index([tenantId, technicianId, scheduledDate])
@@ -1218,4 +1222,35 @@ model CustomerPricing {
   @@unique([customerId, serviceId])
   @@index([tenantId])
   @@index([serviceId])
+}
+
+// ═══════ FASE 3 — Multi-personel & Peran Cair (K3) ═══════
+
+enum AssignmentRole {
+  TECHNICIAN
+  KERNET
+}
+
+enum AssignmentType {
+  UMUM     // belum tahu detail (pelanggan baru) — dibahas di lokasi
+  SPESIFIK // unit & layanan sudah dicantumkan
+}
+
+// Penugasan N personel per job dgn peran CAIR per-penugasan (K3). Personel = Technician (login+PIN).
+model JobAssignment {
+  id        String         @id @default(cuid())
+  tenantId  String
+  jobId     String
+  personId  String         // → Technician.id
+  roleOnJob AssignmentRole @default(TECHNICIAN)
+  isLead    Boolean        @default(false)
+  createdAt DateTime       @default(now())
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id])
+  job    JobOrder   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  person Technician @relation(fields: [personId], references: [id])
+
+  @@unique([jobId, personId])
+  @@index([tenantId, jobId])
+  @@index([tenantId, personId])
 }
