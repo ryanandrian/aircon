@@ -89,11 +89,31 @@ export async function getCustomerCardByToken(
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
   let dueThisMonth = 0;
 
+  // F7.1: riwayat pekerjaan nyata per unit dari WorkItem (layanan spesifik yang dikerjakan), tanpa biaya.
+  const assetIds = assets.map((a) => a.id);
+  const workItems = assetIds.length
+    ? await prisma.workItem.findMany({
+        where: { tenantId: customer.tenantId, assetId: { in: assetIds } },
+        orderBy: { createdAt: "desc" },
+        take: 300,
+        select: { assetId: true, descSnapshot: true, createdAt: true },
+      })
+    : [];
+  const wiByAsset = new Map<string, { date: string; activity: string }[]>();
+  for (const wi of workItems) {
+    if (!wi.assetId) continue;
+    if (!wiByAsset.has(wi.assetId)) wiByAsset.set(wi.assetId, []);
+    wiByAsset.get(wi.assetId)!.push({ date: wi.createdAt.toISOString(), activity: wi.descSnapshot });
+  }
+
   const units: CardUnit[] = assets.map((a) => {
-    const history = a.jobs.map((j) => ({
+    // Gabung riwayat WorkItem (spesifik) + fallback JobOrder (serviceType) → urut terbaru dulu.
+    const wiHist = wiByAsset.get(a.id) ?? [];
+    const jobHist = a.jobs.map((j) => ({
       date: (j.completedAt ?? j.createdAt).toISOString(),
       activity: serviceLabel(j.serviceType),
     }));
+    const history = [...wiHist, ...jobHist].sort((x, y) => y.date.localeCompare(x.date));
     if (a.nextServiceDate && a.nextServiceDate <= monthEnd) dueThisMonth += 1;
     return {
       id: a.id,
