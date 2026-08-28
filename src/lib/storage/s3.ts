@@ -108,7 +108,7 @@ export async function deleteObject(key: string): Promise<void> {
  */
 export async function createTenantAssetUploadUrl(params: {
   tenantId: string;
-  scope: "logo" | "qris";
+  scope: "logo" | "qris" | "bukti";
   filename: string;
   contentType: string;
 }): Promise<{ uploadUrl: string; publicUrl: string; key: string }> {
@@ -116,7 +116,7 @@ export async function createTenantAssetUploadUrl(params: {
   if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
 
   const ext = safeExt(params.filename);
-  const scope = params.scope === "qris" ? "qris" : "logo";
+  const scope = params.scope === "qris" ? "qris" : params.scope === "bukti" ? "bukti" : "logo";
   const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const key = `tenants/${params.tenantId}/${scope}/${rand}.${ext}`;
 

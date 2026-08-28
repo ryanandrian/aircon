@@ -131,6 +131,11 @@ export function InvoiceView({ inv, tenant, assetMap, backHref }: {
               Ini proforma-invoice (tagihan tempo). Invoice resmi diterbitkan admin kantor.
             </p>
           )}
+          {tenant?.isPkp && inv.ppnPercent > 0 && (
+            <p className="text-center text-[10px] text-muted-foreground">
+              Dokumen ini bukan Faktur Pajak elektronik (e-Faktur). Faktur Pajak resmi diterbitkan terpisah bila diperlukan.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -40,15 +40,14 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 4 (in-progress) — F4.1+F4.2 DONE.
-- **Item berikutnya**: F4.3 (WorkSession UI teknisi K8) → F4.4 invoice/proforma tampilan+bayar+WA → F4.5 revisi+pajak → F4.GATE.
-- **COMMIT TERAKHIR (baseline)**: `8799895` (F3.3) + F4.1/F4.2 (commit berikut).
-- **Baseline hijau**: tsc 0 · 257 test · build 0.
-- **CATATAN SERAH TERIMA**: FASE 1-3 tuntas. F4.1 (schema WorkSession/WorkItem/Invoice/InvoiceItem, deploy) +
-  F4.2 (invoice-service: nextInvoiceNumber + computeInvoiceTotals + computeDueDate, 14 test uang eksplisit) SELESAI.
-  BERIKUTNYA F4.3: WorkSession UI teknisi (layar lapangan K8) — per pelanggan, entry per unit (pilih layanan katalog,
-  qty, harga auto resolvePrice+snapshot, tandai teknisi/kernet), bisa dicicil, tutup→auto-generate Invoice(Cash)/
-  Proforma(Tempo) sesuai customer.topType. Pakai resolvePrice (Fase2) + computeInvoiceTotals/nextInvoiceNumber/computeDueDate (F4.2).
+- **Fase aktif**: FASE 4 SELESAI ✅ (MVP Fase 1-4 TUNTAS!) → berikutnya FASE 5 (Piutang/AR — post-MVP).
+- **Item berikutnya**: F5.1 (query piutang/aging/penerimaan) — lihat blok FASE 5.
+- **COMMIT TERAKHIR (baseline)**: `80ba5a5` (F4.3+F4.4a) + F4.4+F4.5/GATE (commit "FASE 4 DONE" berikut).
+- **Baseline hijau**: tsc 0 · 268 test · build 0.
+- **CATATAN SERAH TERIMA**: 🎉 MVP FASE 1-4 TUNTAS. Money loop invoicing lengkap: WorkSession lapangan →
+  auto Invoice(Cash)/Proforma(Tempo) → bayar/kwitansi → proforma→invoice admin+diskon → cancel. 19 test uang eksplisit.
+  BERIKUTNYA FASE 5 (post-MVP): AR/piutang (aging, penerimaan per periode, OVERDUE), setoran kas teknisi K17
+  (remitted + laporan kas belum disetor), notif admin overdue, UI laporan tenant.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -262,7 +261,7 @@ Status fase: [x] SELESAI (F3.1–F3.3 + GATE)
 ---
 
 # ═══════ FASE 4 — WorkSession + Invoice/Proforma + Pajak (INTI UANG) ═══════
-Status fase: [ ] BELUM  ·  ⚠️ PALING SENSITIF — test angka eksplisit wajib.
+Status fase: [x] SELESAI (F4.1–F4.5 + GATE)  ·  ⚠️ PALING SENSITIF — test angka eksplisit wajib.
 
 ### F4.1 — Schema WorkSession + Invoice + Proforma (additive)  [x] DONE (migrasi 20260828_invoicing_worksession, deploy OK)
 - [x] enum DocType, InvoiceStatus, PayMethod, CashRemitStatus, WorkSessionStatus.
@@ -278,25 +277,31 @@ Status fase: [ ] BELUM  ·  ⚠️ PALING SENSITIF — test angka eksplisit waji
 - [x] Test: tests/invoice-calc.test.ts (14 EKSPLISIT: non-PKP bersih, PPN 11/12%, diskon→pajak, diskon>subtotal,
       DPP jasa/barang proporsional tanpa rupiah hilang, pembulatan, dueDate). 257 test, tsc 0, build 0.
 
-### F4.3 — WorkSession UI teknisi (layar lapangan K8)  [ ]
-- [ ] Layar per pelanggan: daftar unit (pilih/ tambah), per unit pilih layanan dari katalog (minim ketik), qty, harga auto+snapshot, tandai teknisi/kernet (1+).
-- [ ] Bisa dicicil (entry per unit selesai). Ringkas berjalan (subtotal).
-- [ ] Tutup sesi → auto-generate Invoice (Cash) / Proforma (Tempo) sesuai `customer.topType`. Teknisi tak input biaya.
-- [ ] Dogfood: sesi 2 unit × 2 layanan → tutup → dokumen ter-generate benar.
+### F4.3 — WorkSession UI teknisi (layar lapangan K8)  [x] DONE
+- [x] worksession-service (openWorkSession idempoten, addWorkItem harga resolvePrice+SNAPSHOT, removeWorkItem,
+      getWorkSession, closeWorkSession auto-generate) + 4 test.
+- [x] UI /t/kerja/[customerId] (mobile, minim ketik: pilih unit+layanan dari daftar, qty, harga auto, running total,
+      bisa dicicil) + tombol "Catat Pekerjaan & Buat Tagihan" di /t/pekerjaan/[id].
+- [x] Tutup → auto-generate Invoice(Cash)/Proforma(Tempo) sesuai customer.topType. Teknisi tak input biaya.
+- [x] Dogfood: login teknisi PIN nyata → catat 1 layanan → tutup → INV/2026/0001 ISSUED Rp80.000 (DB verified). 0 exc.
 
-### F4.4 — Invoice/Proforma: tampilan + PDF + kwitansi + WA  [ ]
-- [ ] Halaman invoice/proforma: header logo tenant (K2) + rekening/QRIS (K13); detail dikelompokkan per unit (K9); nama personel TIDAK tampil (K18).
-- [ ] Cash: teknisi tandai bayar (CASH/TRANSFER/QRIS) + upload bukti → status PAID → kwitansi WA (SIMULASI dulu) (K1).
-- [ ] Tempo: proforma auto-WA ke pelanggan; admin buat Invoice dari proforma (K10/K11) + diskon (K12).
-- [ ] QRIS tenant tampil di app teknisi bila cash+QRIS (K13).
-- [ ] Dogfood: cash→bukti→PAID→preview kwitansi; tempo→proforma→admin jadikan invoice+diskon.
+### F4.4 — Invoice/Proforma: tampilan + kwitansi + pembayaran + proforma→invoice  [x] DONE
+- [x] InvoiceView (komponen dipakai /t & /app): header logo tenant (K2), rekening/QRIS (K13), detail dikelompokkan
+      per unit (K9), TANPA nama personel (K18), badge status, disclaimer proforma + e-Faktur.
+- [x] Cash: PaymentPanel — pilih CASH/TRANSFER/QRIS + upload bukti (presign S3 tenant/bukti) → PAID + paidAt (K1).
+- [x] Admin /app/faktur (daftar) + /app/faktur/[id]: ProformaConvert (K11 admin only) + diskon B2B (K12) → invoice baru,
+      proforma jadi CANCELLED. Nav sidebar "Invoice & Proforma".
+- [x] QRIS tampil di panel bila tenant punya (K13). Kwitansi WA = simulasi (belum kirim nyata).
+- [x] Dogfood /app owner: list, cash→Tandai LUNAS→PAID (DB), proforma→convert→INV/2026/9002 ISSUED (DB). 0 exc.
 
-### F4.5 — Revisi (admin only) + pajak tenant PKP  [ ]
-- [ ] Revisi/pembatalan invoice HANYA admin (K11); teknisi tak bisa.
-- [ ] Pajak muncul hanya bila tenant PKP (K4); non-PKP invoice bersih. Disclaimer e-Faktur (tak dibangun, K9-tunda).
-- [ ] Test + dogfood.
+### F4.5 — Revisi (admin only) + pajak tenant PKP  [x] DONE
+- [x] cancelInvoice (K11 admin only; tolak bila PAID/CANCELLED) + CancelInvoiceButton di /app/faktur/[id]. +2 test.
+- [x] Pajak: PPN hanya bila tenant PKP (K4, di computeInvoiceTotals + closeWorkSession + convert). Disclaimer e-Faktur (K9-tunda).
+- [x] Dogfood: cancel INV/2026/9002 → status Batal (DB). 0 exc.
 
-### F4.GATE — Verifikasi Fase 4  [ ] (tsc/test/build/deploy/regresi + update + commit) ⚠️ + review uang manual.
+### F4.GATE — Verifikasi Fase 4  [x] DONE
+- [x] tsc 0 · 268 vitest lulus · build 0 · deploy READY. Regresi: additive, money-loop lama utuh.
+- [x] Review uang: kalkulasi 19 test eksplisit (14 calc + 5 flow) + Decimal DB. Data demo direset (0 invoice sisa).
 
 ---
 

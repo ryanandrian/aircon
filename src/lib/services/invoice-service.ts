@@ -7,6 +7,7 @@
  *  - K19: dueDate = issueDate + hari sesuai TOP pelanggan (CASH = null / bayar langsung).
  * Uang = rupiah bulat (Decimal 12,2 di DB); pembulatan eksplisit Math.round.
  */
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
 
@@ -152,5 +153,105 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
     },
   });
   return { inv, tenant, assetMap };
+}
+
+/** Batalkan invoice/proforma (K11: admin only, dilakukan di action). Tak bisa bila sudah PAID. */
+export async function cancelInvoice(tenantId: string, invoiceId: string): Promise<void> {
+  const inv = await prisma.invoice.findFirst({ where: { id: invoiceId, tenantId }, select: { id: true, status: true } });
+  if (!inv) throw new ServiceError("NOT_FOUND", "Dokumen tidak ditemukan");
+  if (inv.status === "PAID") throw new ServiceError("CONFLICT", "Invoice sudah lunas — tak bisa dibatalkan");
+  if (inv.status === "CANCELLED") throw new ServiceError("CONFLICT", "Sudah dibatalkan");
+  await prisma.invoice.update({ where: { id: invoiceId }, data: { status: "CANCELLED" } });
+}
+
+/** Daftar invoice/proforma tenant (untuk admin /app/faktur). Terbaru dulu. */
+export async function listInvoices(tenantId: string, limit = 50) {
+  const rows = await prisma.invoice.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true, number: true, docType: true, status: true, total: true,
+      issueDate: true, dueDate: true, customer: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id, number: r.number, docType: r.docType, status: r.status,
+    total: Number(r.total), issueDate: r.issueDate, dueDate: r.dueDate,
+    customerName: r.customer?.name ?? "—",
+  }));
+}
+
+/** Tandai invoice LUNAS (K1: cash lapangan). payMethod + bukti opsional. Hanya invoice (bukan proforma). */
+export async function markInvoicePaid(
+  tenantId: string, invoiceId: string,
+  payMethod: "CASH" | "TRANSFER" | "QRIS", paymentProofUrl?: string,
+): Promise<void> {
+  const inv = await prisma.invoice.findFirst({
+    where: { id: invoiceId, tenantId },
+    select: { id: true, docType: true, status: true },
+  });
+  if (!inv) throw new ServiceError("NOT_FOUND", "Invoice tidak ditemukan");
+  if (inv.docType !== "INVOICE") throw new ServiceError("CONFLICT", "Proforma tak bisa ditandai lunas — buat invoice dulu");
+  if (inv.status === "PAID") throw new ServiceError("CONFLICT", "Invoice sudah lunas");
+  if (inv.status === "CANCELLED") throw new ServiceError("CONFLICT", "Invoice sudah dibatalkan");
+  await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: { status: "PAID", payMethod, paymentProofUrl: paymentProofUrl ?? null, paidAt: new Date() },
+  });
+}
+
+/**
+ * Buat INVOICE resmi dari PROFORMA (K10/K11: admin only). Diskon per-invoice opsional (K12: pajak setelah diskon).
+ * Menyalin item proforma, menghitung ulang total dengan diskon + PPN (bila PKP), penomoran INV baru.
+ * @returns id invoice baru.
+ */
+export async function createInvoiceFromProforma(
+  tenantId: string, proformaId: string, createdById: string, discountAmount = 0,
+): Promise<{ invoiceId: string; number: string }> {
+  const pro = await prisma.invoice.findFirst({
+    where: { id: proformaId, tenantId, docType: "PROFORMA" },
+    include: { items: true },
+  });
+  if (!pro) throw new ServiceError("NOT_FOUND", "Proforma tidak ditemukan");
+  if (pro.status === "CANCELLED") throw new ServiceError("CONFLICT", "Proforma sudah dibatalkan");
+
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { isPkp: true, taxPercent: true } });
+  const lines = pro.items.map((it) => ({ category: it.category, qty: Number(it.qty), unitPrice: Number(it.unitPrice) }));
+  const totals = computeInvoiceTotals({
+    items: lines, discountAmount,
+    tenantIsPkp: tenant?.isPkp ?? false, taxPercent: tenant?.taxPercent ?? 0,
+  });
+  const issueDate = new Date();
+  const number = await nextInvoiceNumber(tenantId, "INVOICE", issueDate.getFullYear());
+
+  const created = await prisma.$transaction(async (tx) => {
+    const inv = await tx.invoice.create({
+      data: {
+        tenantId, docType: "INVOICE", number, customerId: pro.customerId,
+        billingCustomerId: pro.billingCustomerId, workSessionId: pro.workSessionId, jobId: pro.jobId,
+        status: "ISSUED", issueDate, dueDate: pro.dueDate,
+        subtotal: new Prisma.Decimal(totals.subtotal),
+        discountAmount: new Prisma.Decimal(totals.discountAmount),
+        taxableService: new Prisma.Decimal(totals.taxableService),
+        taxableGoods: new Prisma.Decimal(totals.taxableGoods),
+        ppnPercent: totals.ppnPercent,
+        ppnAmount: new Prisma.Decimal(totals.ppnAmount),
+        total: new Prisma.Decimal(totals.total),
+        createdById,
+        items: {
+          create: pro.items.map((it) => ({
+            assetId: it.assetId, descSnapshot: it.descSnapshot, category: it.category,
+            qty: it.qty, unit: it.unit, unitPrice: it.unitPrice, lineTotal: it.lineTotal,
+          })),
+        },
+      },
+      select: { id: true },
+    });
+    // Proforma ditandai CANCELLED (sudah dijadikan invoice) agar tak dobel.
+    await tx.invoice.update({ where: { id: pro.id }, data: { status: "CANCELLED" } });
+    return inv.id;
+  });
+  return { invoiceId: created, number };
 }
 
