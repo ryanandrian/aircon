@@ -267,6 +267,43 @@ Test: agregasi insentif (%/nilai/multi-personel per item), filter periode, edge 
 
 ---
 
+## E3. KEPUTUSAN OWNER FINAL (28 Agu) — jawaban atas 12 gap E2
+
+1. **Setoran kas teknisi**: ADA. Status kas "terkumpul (di teknisi)" → "disetor ke pemilik" + laporan
+   "kas belum disetor per teknisi".
+2. **Insentif**: default = **invoice LUNAS dalam periode**. Konfigurasi tenant "Acuan insentif":
+   (A) tanggal LUNAS [default], (B) tanggal invoice TERBIT (abaikan status bayar).
+3. **Layar kerja lapangan (WorkSession per pelanggan)** — INTI:
+   - Teknisi isi pekerjaan PER UNIT AC, **bisa dicicil** (entry tiap unit selesai).
+   - Minim ketik: pilih unit (dari daftar pelanggan / tambah baru) + pilih layanan (katalog). Harga
+     **auto**: harga khusus pelanggan bila ada, else standar. **Harga di-SNAPSHOT** saat entry (imun
+     terhadap perubahan harga katalog kemudian).
+   - Tiap baris layanan @unit tampung **1+ teknisi & 1+ kernet** (peran cair). Nama TIDAK di invoice.
+   - Tutup → sistem **generate otomatis** Invoice (Cash) / Proforma (Tempo). Teknisi tak input biaya.
+   - Sumber tunggal WorkSession mengalir ke: **invoice/proforma + kartu perawatan + insentif**.
+   - **Mapping**: 1 penugasan/kunjungan = 1 WorkSession = 1 Invoice/Proforma.
+4. **InvoiceItem.assetId** wajib (tiap baris → unit AC). Detail invoice dikelompokkan per unit:
+   `[kode unit + keterangan] → baris: layanan | qty | harga | satuan | total`.
+5. **Tempo lunas 1x** (TANPA cicilan di app; cicilan dicatat manual di luar). App = fasilitas penutupan
+   setelah lunas. **Revisi** invoice/proforma **hanya admin tenant** (teknisi minta admin bila salah).
+   **Diskon**: hanya B2B, hanya admin (saat proforma→invoice), **per-invoice** (bukan per-item),
+   **pajak dihitung SETELAH diskon**. Teknisi tak bisa diskon (invoice cash tanpa diskon).
+6. = 5.
+7. **Tenant**: field rekening (`bankName`, `bankAccountNo`, `bankAccountName`) + `qrisImageUrl` (opsional,
+   QRIS **statis** = upload gambar). Muncul di SETIAP invoice/proforma (tunai & tempo). App teknisi
+   tampilkan QRIS tenant bila pelanggan cash mau bayar QRIS.
+8. **Biaya survei/kunjungan** = cukup item layanan "survei" berharga, ditagihkan opsional. Servis gagal
+   (pelanggan tak ada) = tenant bebas tagih layanan kunjungan atau tidak. TAK dibuat ribet.
+9. Tanpa e-Faktur (bukan ERP). 10. Tanpa stok/inventory (bukan ERP).
+11. **Garansi** = item layanan harga Rp0, proses sama layanan lain.
+12. **PIC ganda**: Customer perorangan = data minimal wajib. Badan = opsional `picWork` (nama/HP/jabatan)
+    & `picFinance` (nama/HP) terpisah. Semua opsional kecuali minimal perorangan (nama+HP).
+
+**MENUNGGU 1 KEPUTUSAN UANG**: aturan pembagian insentif bila 1 baris layanan dikerjakan >1 personel
+peran sama (bagi rata vs penuh) — lihat pertanyaan ke owner.
+
+---
+
 ## F. RINGKAS SATU PARAGRAF
 Aplikasi **belum** mendukung alur bisnis nyata invoicing/piutang/insentif ini — sebagian besar (katalog
 layanan, invoice, proforma, multi-personel, kernet, insentif, TOP, kategori/pajak pelanggan, laporan AR)
