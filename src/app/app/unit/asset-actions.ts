@@ -5,7 +5,7 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { createAssetSchema } from "@/lib/validation/asset";
 import {
   createAsset, createAssetsBulk, suggestLocations, findPossibleDuplicates,
-  updateAsset, softDeleteAsset,
+  updateAsset, softDeleteAsset, listAssetRows, type ListAssetRowsResult,
 } from "@/lib/services/asset-service";
 import { listCustomers } from "@/lib/services/customer-service";
 
@@ -114,5 +114,19 @@ export async function actionDeleteAsset(id: string): Promise<Result> {
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal menghapus unit" };
+  }
+}
+
+/** Muat batch unit AC berikutnya (lazy-load / pencarian). */
+export async function actionLoadAssets(
+  params: { search?: string; cursor?: string },
+): Promise<{ ok: boolean; error?: string } & Partial<ListAssetRowsResult>> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  try {
+    const res = await listAssetRows(ctx.tenantId, { search: params.search, cursor: params.cursor });
+    return { ok: true, ...res };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal memuat unit" };
   }
 }

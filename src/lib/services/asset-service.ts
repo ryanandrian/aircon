@@ -33,6 +33,88 @@ export interface ListAssetsResult {
   nextCursor: string | null;
 }
 
+/** Baris unit AC untuk UI daftar (lazy-load): + nama pelanggan, jumlah riwayat, servis berikutnya. */
+export interface AssetRow {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  type: string;
+  capacityPk: number | null;
+  roomLocation: string | null;
+  quantity: number;
+  customerName: string;
+  jobCount: number;
+  nextServiceDate: string | null;
+}
+
+export interface ListAssetRowsResult {
+  rows: AssetRow[];
+  nextCursor: string | null;
+}
+
+/**
+ * List unit AC untuk UI (lazy-load): cursor pagination (id desc) + nama pelanggan & jumlah riwayat.
+ * Antisipasi ratusan unit (institusi besar) tanpa membebani satu halaman.
+ */
+export async function listAssetRows(
+  tenantId: string,
+  params: { search?: string; cursor?: string; limit?: number } = {},
+): Promise<ListAssetRowsResult> {
+  const limit = clampLimit(params.limit);
+  const search = params.search?.trim();
+  const where: Prisma.AssetWhereInput = {
+    tenantId,
+    deletedAt: null,
+    ...(search
+      ? {
+          OR: [
+            { brand: { contains: search, mode: "insensitive" } },
+            { model: { contains: search, mode: "insensitive" } },
+            { roomLocation: { contains: search, mode: "insensitive" } },
+            { customer: { is: { name: { contains: search, mode: "insensitive" } } } },
+          ],
+        }
+      : {}),
+  };
+
+  try {
+    const rows = await prisma.asset.findMany({
+      where,
+      orderBy: { id: "desc" },
+      take: limit + 1,
+      ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
+      include: {
+        customer: { select: { name: true } },
+        _count: { select: { jobs: true } },
+      },
+    });
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? page[page.length - 1].id : null;
+    return {
+      rows: page.map((a) => ({
+        id: a.id,
+        brand: a.brand,
+        model: a.model,
+        type: a.type,
+        capacityPk: a.capacityPk,
+        roomLocation: a.roomLocation,
+        quantity: a.quantity,
+        customerName: a.customer?.name ?? "—",
+        jobCount: a._count.jobs,
+        nextServiceDate: a.nextServiceDate ? a.nextServiceDate.toISOString() : null,
+      })),
+      nextCursor,
+    };
+  } catch (err) {
+    throw new ServiceError(
+      "UNEXPECTED",
+      "Gagal memuat daftar unit AC",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
 /**
  * List asset aktif milik tenant dengan cursor pagination.
  * Urutan stabil berdasarkan id agar cursor konsisten.

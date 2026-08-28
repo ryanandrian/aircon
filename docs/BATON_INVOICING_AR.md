@@ -41,13 +41,13 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Item berikutnya**: F1.3b (lazy-load daftar UNIT AC — arahan owner) → lalu F1.5 upload logo/profil, F1.6 logo publik, F1.7 GPS.
-- **COMMIT TERAKHIR (baseline)**: `391a931` (F1.0 app-shell) + F1.3/F1.4 (commit berikut).
+- **Item berikutnya**: F1.5 (upload logo tenant + profil pajak/rekening/QRIS) → F1.6 logo publik → F1.7 GPS.
+- **COMMIT TERAKHIR (baseline)**: `f03446d` (F1.3+F1.4) + F1.3b (commit berikut).
 - **Baseline hijau**: tsc 0 · 210 test · build 0.
-- **CATATAN SERAH TERIMA**: F1.1, F1.2, F1.0, F1.3, F1.4 SELESAI & terverifikasi. Pelanggan kini lazy-load
-  (listCustomerRows cursor + IntersectionObserver) + form diperkaya (shadcn Select, PIC/pajak conditional BADAN,
-  persist diverifikasi DB). BERIKUTNYA F1.3b: terapkan pola lazy-load yang SAMA ke /app/unit (daftar unit bisa
-  ratusan) — service listAssetRows + action load-more + wire ke unit-manager.tsx TANPA memecah scan/bulk/edit/delete.
+- **CATATAN SERAH TERIMA**: F1.1, F1.2, F1.0, F1.3, F1.4, F1.3b SELESAI & terverifikasi. Pelanggan & Unit AC
+  kini keduanya lazy-load (cursor + IntersectionObserver + search server-side). Form pelanggan diperkaya.
+  BERIKUTNYA F1.5: presignTenantLogo (s3.ts pola presignLandingAsset) + halaman /app/pengaturan (upload logo
+  512×512 + isi isPkp/npwp/taxPercent + rekening + qrisImageUrl). TenantLogo komponen sudah ada (dipakai sidebar).
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -126,10 +126,12 @@ Status fase: [ ] BELUM
 - [x] customer-manager.tsx: IntersectionObserver infinite-scroll + Skeleton; page kirim batch pertama.
 - [x] Dogfood: list render, search server-side cocok, 0 JS exception.
 
-### F1.3b — UI: lazy-load daftar UNIT AC (ratusan) [ ]  ← arahan owner (institusi besar)
-- [ ] /app/unit: daftar unit bisa ratusan → cursor pagination + infinite scroll (pola sama F1.3).
-- [ ] Service `listAssetRows` (cursor + info pelanggan/lokasi), server action load-more.
-- [ ] Dogfood + regresi (scan QR, buat-massal, edit/hapus tetap jalan).
+### F1.3b — UI: lazy-load daftar UNIT AC (ratusan) [x] DONE  ← arahan owner (institusi besar)
+- [x] Service `listAssetRows` (cursor id desc + customer name + _count jobs + nextServiceDate + search).
+- [x] Server action `actionLoadAssets`. unit-manager.tsx: state list + IntersectionObserver + Skeleton;
+      search server-side; mutasi (edit/hapus/tambah/bind) refresh list lokal. Fitur scan/bulk/edit/delete UTUH.
+- [x] Dogfood: list render + Scan/Tambah tetap ada (regresi OK), search nomatch benar, form Tambah terbuka,
+      0 JS exception. tsc 0, 210 test, build 0.
 
 ### F1.4 — UI: form pelanggan diperkaya (kategori/TOP/tipe/pajak/PIC)  [x] DONE
 - [x] Field baru di form (shadcn Select: kategori/jenis/TOP/sumber — seragam). PIC+pajak muncul hanya bila BADAN.
