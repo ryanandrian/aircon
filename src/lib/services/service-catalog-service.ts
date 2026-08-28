@@ -230,3 +230,34 @@ export async function resolvePrice(tenantId: string, customerId: string, service
   });
   return Number(override?.price ?? svc.standardPrice);
 }
+
+/** Escape 1 sel CSV (RFC4180): bungkus dgn kutip bila ada koma/kutip/newline. */
+function csvCell(v: string | number): string {
+  const s = String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/**
+ * Export CSV semua harga khusus pelanggan (K22, audit menyeluruh). tenant-scoped.
+ * Kolom: Kode, Nama Layanan, Harga Standar, Pelanggan, Harga Khusus, Selisih.
+ */
+export async function exportCustomerPricingCsv(tenantId: string): Promise<string> {
+  const rows = await prisma.customerPricing.findMany({
+    where: { tenantId },
+    include: {
+      service: { select: { code: true, name: true, standardPrice: true } },
+      customer: { select: { name: true } },
+    },
+    orderBy: [{ service: { code: "asc" } }, { customer: { name: "asc" } }],
+  });
+  const header = ["Kode", "Nama Layanan", "Harga Standar", "Pelanggan", "Harga Khusus", "Selisih"];
+  const lines = [header.map(csvCell).join(",")];
+  for (const r of rows) {
+    const std = Number(r.service.standardPrice);
+    const price = Number(r.price);
+    lines.push([
+      r.service.code, r.service.name, std, r.customer?.name ?? "—", price, price - std,
+    ].map(csvCell).join(","));
+  }
+  return lines.join("\r\n");
+}

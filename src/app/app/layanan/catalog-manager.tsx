@@ -108,7 +108,14 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Daftar layanan, harga standar & insentif</p>
-        {!showForm && <Button size="sm" onClick={openAdd}><Icon.Job className="h-4 w-4" aria-hidden /> Tambah Layanan</Button>}
+        {!showForm && (
+          <div className="flex gap-2">
+            <a href="/app/layanan/export" className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted" title="Unduh semua harga khusus (CSV)">
+              <Icon.Billing className="h-4 w-4" aria-hidden /> Export CSV
+            </a>
+            <Button size="sm" onClick={openAdd}><Icon.Job className="h-4 w-4" aria-hidden /> Tambah Layanan</Button>
+          </div>
+        )}
       </div>
 
       {showForm && (

@@ -87,11 +87,18 @@ vi.mock("@/lib/prisma", () => ({
         const k = where.customerId_serviceId;
         return store.pricing.find((p) => p.customerId === k.customerId && p.serviceId === k.serviceId) ?? null;
       }),
+      findMany: vi.fn(async () =>
+        store.pricing.map((p) => ({
+          price: p.price,
+          service: { code: p.code ?? "S1", name: p.name ?? "Cuci AC", standardPrice: p.std ?? 75000 },
+          customer: { name: p.custName ?? "PT Sejuk" },
+        })),
+      ),
     },
   },
 }));
 
-import { resolvePrice } from "../src/lib/services/service-catalog-service";
+import { resolvePrice, exportCustomerPricingCsv } from "../src/lib/services/service-catalog-service";
 
 beforeEach(() => {
   store.svc = [{ id: "s1", tenantId: "t1", standardPrice: 75000 }];
@@ -107,5 +114,22 @@ describe("resolvePrice (K21)", () => {
   });
   it("layanan tak ada → throw", async () => {
     await expect(resolvePrice("t1", "c1", "zzz")).rejects.toThrow();
+  });
+});
+
+describe("exportCustomerPricingCsv (K22)", () => {
+  it("header + baris override + selisih; escape koma", async () => {
+    store.pricing = [{ customerId: "c1", serviceId: "s1", price: 60000, code: "CUCI-1", name: "Cuci, AC Split", std: 75000, custName: "PT Sejuk" }];
+    const csv = await exportCustomerPricingCsv("t1");
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe("Kode,Nama Layanan,Harga Standar,Pelanggan,Harga Khusus,Selisih");
+    expect(lines[1]).toContain('"Cuci, AC Split"'); // dibungkus kutip krn ada koma
+    expect(lines[1]).toContain("60000");
+    expect(lines[1]).toContain("-15000"); // selisih 60000-75000
+  });
+  it("kosong → hanya header", async () => {
+    store.pricing = [];
+    const csv = await exportCustomerPricingCsv("t1");
+    expect(csv.split("\r\n")).toHaveLength(1);
   });
 });

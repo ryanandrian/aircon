@@ -41,14 +41,13 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Fase aktif**: FASE 2 (in-progress) — F2.1–F2.4 DONE.
-- **Item berikutnya**: F2.5 (Export CSV harga khusus, K22) → F2.GATE.
-- **COMMIT TERAKHIR (baseline)**: `6fcaa22` (F2.3) + F2.4 (commit berikut).
-- **Baseline hijau**: tsc 0 · 229 test · build 0.
-- **CATATAN SERAH TERIMA**: F2.1–F2.4 SELESAI. Katalog layanan + harga khusus pelanggan (layar terpisah,
-  pola tambah per item, resolvePrice terverifikasi) live. BERIKUTNYA F2.5: service exportCustomerPricingCsv
-  (semua override: kode,nama,harga standar,pelanggan,harga khusus,selisih) + tombol Export CSV di /app/layanan.
-  Lalu F2.GATE tutup Fase 2.
+- **Fase aktif**: FASE 2 SELESAI ✅ → berikutnya FASE 3 (Multi-personel & Peran Cair + Penugasan).
+- **Item berikutnya**: F3.1 (lihat blok FASE 3).
+- **COMMIT TERAKHIR (baseline)**: `b75272c` (F2.4) + F2.5/GATE (commit "FASE 2 DONE" berikut).
+- **Baseline hijau**: tsc 0 · 231 test · build 0.
+- **CATATAN SERAH TERIMA**: FASE 2 TUNTAS (katalog layanan + insentif tech/kernet + harga khusus pelanggan
+  layar terpisah pola-tambah + resolvePrice + Export CSV). BERIKUTNYA FASE 3: multi-personel & peran cair
+  (JobAssignment roleOnJob TECHNICIAN/KERNET, N personel/job) + deteksi bentrok jadwal + notifikasi penugasan.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -182,7 +181,7 @@ Status fase: [x] SELESAI (F1.0–F1.7 + GATE) — commit "FASE 1 DONE"
 ---
 
 # ═══════ FASE 2 — ServiceCatalog + Harga Khusus Pelanggan ═══════
-Status fase: [ ] BELUM
+Status fase: [x] SELESAI (F2.1–F2.5 + GATE)
 
 ### F2.1 — Schema ServiceCatalog + CustomerPricing (additive)  [x] DONE (migrasi 20260828_service_catalog_pricing, deploy OK)
 - [x] enum `ServiceCategory` { MAINTENANCE, SERVICE, CONSUMABLE, SPAREPART, PAKET, SURVEI, GARANSI, LAINNYA }
@@ -216,13 +215,14 @@ Status fase: [ ] BELUM
 - [x] resolvePrice (K21): dogfood — override 65rb vs standar 80rb → resolve cust-ini=65000 (diverifikasi DB).
 - [x] Dogfood: render+nama, pre-fill standar, simpan override, list+pembanding. 0 JS exception. tsc 0, 229 test, build 0. (data demo direset)
 
-### F2.5 — Export CSV harga khusus (audit menyeluruh, K22)  [ ]
-- [ ] Service `exportCustomerPricingCsv(tenantId)` → semua override: kode, nama layanan, harga standar,
-      nama pelanggan, harga khusus, selisih. Tenant-scoped.
-- [ ] Tombol "Export CSV" di /app/layanan (atau /app/pelanggan). Unduh file.
-- [ ] Dogfood/test: CSV berisi baris override yang benar; kosong bila belum ada override.
+### F2.5 — Export CSV harga khusus (audit menyeluruh, K22)  [x] DONE
+- [x] Service `exportCustomerPricingCsv(tenantId)` (RFC4180 escape) → Kode, Nama, Harga Standar, Pelanggan,
+      Harga Khusus, Selisih. Route GET `/app/layanan/export` (owner/admin, BOM UTF-8, Content-Disposition).
+- [x] Tombol "Export CSV" di /app/layanan. Test: 2 (header+baris+escape koma+selisih; kosong→header saja). 231 test.
 
-### F2.GATE — Verifikasi Fase 2  [ ] (tsc/test/build/deploy/regresi + update file ini + commit)
+### F2.GATE — Verifikasi Fase 2  [x] DONE
+- [x] tsc 0 · 231 vitest lulus · build 0 · deploy READY.
+- [x] Regresi: money-loop & fase 1 tak tersentuh (semua additive). Commit per item.
 
 ---
 
