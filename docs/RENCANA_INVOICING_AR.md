@@ -125,16 +125,20 @@ Test: validasi enum, billing-to resolution, kategori filter, presign logo, fallb
 - **UI**: /app/layanan (CRUD) + kelola harga khusus per pelanggan.
 Test: resolusi harga (khusus vs standar), CRUD, kalkulasi insentif per item.
 
-### FASE 3 — Multi-personel & Kernet (perluas penugasan)
-- Tambah peran **KERNET** (Role enum) + model **JobAssignment**: `jobId, userId, role (TECHNICIAN/KERNET),
-  isLead` — **N personel per job** (ganti/augment `technicianId` tunggal, tetap backward-compatible).
+### FASE 3 — Multi-personel & Peran Cair (perluas penugasan)
+- **Personel lapangan = satu entitas** (Technician yang sudah ada, punya login+PIN). TIDAK ada tipe
+  akun kernet terpisah. Peran teknisi/kernet ditentukan **per penugasan**, bukan per orang.
+- Model **JobAssignment**: `jobId, personId (userId/technicianId), roleOnJob (TECHNICIAN | KERNET),
+  isLead` — **N personel per job**, peran cair (orang sama bisa teknisi di job A, kernet di job B).
+  Additive di atas `technicianId` tunggal (backward-compatible; migrasi isi assignment dari technicianId lama).
 - Penugasan **UMUM** (tanpa unit/layanan detail — pelanggan baru) vs **SPESIFIK** (dgn unit+layanan):
   tambah `assignmentType` di JobOrder.
-- **Deteksi bentrok**: service `detectConflict(userId, windowStart, windowEnd)` — tolak/peringatkan
-  penugasan tumpang-tindih waktu. (Manfaatkan index `[tenantId, technicianId, scheduledDate]`.)
+- **Deteksi bentrok**: service `detectConflict(personId, windowStart, windowEnd)` — tolak/peringatkan
+  penugasan tumpang-tindih waktu untuk personel yang sama (berlaku ke peran apa pun).
 - **Notifikasi penugasan**: ke HP tiap personel (WA + in-app), isi: pelanggan/PIC, waktu, kontak,
-  alamat + link Google Maps (dari geoLat/geoLng), catatan, **sistem bayar (Cash/Tempo dari Customer)**.
-Test: conflict detection (overlap/no-overlap), assignment multi-personel, notif payload.
+  alamat + link Google Maps (geoLat/geoLng), catatan, **sistem bayar (Cash/Tempo dari Customer)**,
+  **peran-nya di job ini (teknisi/kernet)**.
+Test: conflict detection (overlap/no-overlap, lintas-peran), assignment multi-personel peran cair, notif payload.
 
 ### FASE 4 — Invoice & Proforma (INTI, paling sensitif)
 - Model **Invoice**: `number, tenantId, customerId, billingCustomerId, jobId?, status (DRAFT/ISSUED/PAID/
@@ -207,10 +211,19 @@ Test: agregasi insentif (%/nilai/multi-personel per item), filter periode, edge 
   5. Kartu perawatan **/riwayat/[token]**
   6. (opsional) header dashboard tenant /app
   → **KEPUTUSAN: logoUrl di Tenant, 512×512, default Aircon, dipakai di 5-6 permukaan di atas.**
-- **[3] KERNET login atau tidak** → MENUNGGU JAWABAN OWNER:
-  - Pilihan A: kernet TANPA login (nama dicatat saat penugasan → untuk insentif + kartu perawatan). SIMPEL.
-  - Pilihan B: kernet PUNYA akun+PIN (login, lihat tugas & insentif sendiri seperti teknisi).
-  - Rekomendasi agent: **A untuk v1** (kernet=asisten menempel teknisi), upgrade ke B bila perlu.
+- **[3] KERNET login atau tidak** → **DIPUTUSKAN OWNER (28 Agu): PERAN CAIR PER-PENUGASAN.**
+  Realita lapangan: pada proyek besar, teknisi kadang ditugaskan sebagai kernet, dan kernet yang sudah
+  bisa cuci AC kadang menangani kerja teknisi. Jadi **teknisi/kernet BUKAN peran tetap per-orang**,
+  melainkan **peran per-penugasan**.
+  → **DESAIN FINAL:**
+  - **Satu entitas "personel lapangan"** (punya login + PIN, seperti Technician sekarang). TIDAK ada
+    tipe akun kernet terpisah.
+  - **Peran ditentukan per penugasan** di `JobAssignment.roleOnJob` (TECHNICIAN | KERNET). Orang sama
+    bisa TECHNICIAN di job A, KERNET di job B.
+  - **Insentif ikut peran per-penugasan**: si personel dapat insentif-teknisi bila ditugaskan sebagai
+    teknisi, insentif-kernet bila sebagai kernet (nilai dari ServiceCatalog per item).
+  - **Semua personel login** & lihat tugas + insentifnya sendiri (tak ada kernet-tanpa-login).
+  - Dampak: pertanyaan "kernet login atau tidak" GUGUR — semua login, peran fleksibel.
 
 ### Keputusan default lain (tetap berlaku)
 1. **Urutan**: MVP **Fase 1-4** dulu (pelanggan+katalog+penugasan+invoice+**logo tenant**), lalu 5-7.
