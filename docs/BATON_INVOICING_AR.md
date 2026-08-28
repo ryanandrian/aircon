@@ -40,14 +40,14 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 3 (in-progress) — F3.1 DONE.
-- **Item berikutnya**: F3.2 (service assignJob + detectConflict) → F3.3 UI penugasan + notifikasi → F3.GATE.
-- **COMMIT TERAKHIR (baseline)**: `61d2a62` (baton rapi) + F3.1 (commit berikut).
-- **Baseline hijau**: tsc 0 · 231 test · build 0.
-- **CATATAN SERAH TERIMA**: FASE 1 & 2 tuntas. F3.1 (schema JobAssignment+assignmentType, migrasi data
-  idempoten dari technicianId) SELESAI. BERIKUTNYA F3.2: service assignJob(jobId, personel[], window) +
-  detectConflict (overlap waktu personel) tenant-scoped; kode lama baca technicianId tetap jalan (backward-compat);
-  test conflict overlap/no-overlap/lintas-peran/multi-personel.
+- **Fase aktif**: FASE 3 (in-progress) — F3.1+F3.2 DONE.
+- **Item berikutnya**: F3.3 (UI penugasan admin + notifikasi personel) → F3.GATE.
+- **COMMIT TERAKHIR (baseline)**: `f0c1a34` (F3.1) + F3.2 (commit berikut).
+- **Baseline hijau**: tsc 0 · 243 test · build 0.
+- **CATATAN SERAH TERIMA**: F3.1+F3.2 SELESAI. assignment-service (assignJob multi-personel peran cair +
+  detectConflict + listAssignments, backward-compat technicianId). BERIKUTNYA F3.3: UI admin pilih N personel +
+  peran + mode UMUM/SPESIFIK + peringatan bentrok (pakai detectConflict); notifikasi personel (in-app + WA SIMULASI):
+  pelanggan/PIC, waktu, kontak, alamat+GMaps (geoLat/geoLng), catatan, sistem bayar, peran. Dogfood assign 2 personel beda peran → muncul di /t.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -236,11 +236,14 @@ Status fase: [ ] BELUM
 - [x] Migrasi data: scripts/migrate-job-assignments.mjs — backfill dari technicianId (1 baris TECHNICIAN isLead),
       IDEMPOTEN terverifikasi (run1 created=2; run2 skipped=2, 0 duplikat). tsc 0, 231 test, build 0.
 
-### F3.2 — Service penugasan multi-personel + deteksi bentrok  [ ]
-- [ ] `assignJob(jobId, [{personId, roleOnJob, isLead}], window)` tenant-scoped.
-- [ ] `detectConflict(personId, windowStart, windowEnd, excludeJobId?)` MURNI/queried → overlap waktu.
-- [ ] Kode lama baca `technicianId` tetap jalan (backward-compat).
-- [ ] Test: conflict overlap/no-overlap/lintas-peran, multi-personel, migrasi data.
+### F3.2 — Service penugasan multi-personel + deteksi bentrok  [x] DONE
+- [x] `assignJob(tenantId, jobId, people[], window?)` tenant-scoped (replace-set; validasi personel milik tenant;
+      tepat 1 lead; backward-compat set JobOrder.technicianId=lead). `listAssignments`.
+- [x] `detectConflict(tenantId, personId, start, end, excludeJobId?)` — job aktif (bukan COMPLETED/CANCELLED)
+      via JobAssignment ATAU technicianId lama; `windowsOverlap` murni (ujung bersentuhan ≠ bentrok).
+- [x] Backward-compat: kode lama baca technicianId tetap jalan.
+- [x] Test: tests/assignment.test.ts (12: overlap penuh/terpisah/ujung/nested, detectConflict overlap/no/exclude/no-job,
+      assignJob multi-personel lead default/eksplisit/tolak-luar-tenant/tolak-kosong). 243 test, tsc 0, build 0.
 
 ### F3.3 — UI penugasan (admin) + notifikasi personel  [ ]
 - [ ] UI admin: pilih N personel + peran masing-masing; mode UMUM vs SPESIFIK; peringatan bentrok.
