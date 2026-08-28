@@ -299,8 +299,13 @@ Test: agregasi insentif (%/nilai/multi-personel per item), filter periode, edge 
 12. **PIC ganda**: Customer perorangan = data minimal wajib. Badan = opsional `picWork` (nama/HP/jabatan)
     & `picFinance` (nama/HP) terpisah. Semua opsional kecuali minimal perorangan (nama+HP).
 
-**MENUNGGU 1 KEPUTUSAN UANG**: aturan pembagian insentif bila 1 baris layanan dikerjakan >1 personel
-peran sama (bagi rata vs penuh) — lihat pertanyaan ke owner.
+**KEPUTUSAN UANG (default agent — configurable, konsisten no-hardcode)**: pembagian insentif bila 1 baris
+layanan dikerjakan >1 personel peran sama = konfigurasi tenant "Mode insentif tim":
+- **BAGI_RATA [default]**: insentif layanan dibagi rata antar personel peran sama (2 teknisi → @50%).
+  Pos teknisi & pos kernet TERPISAH; masing-masing dibagi rata di dalam perannya.
+- **PENUH**: tiap personel dapat penuh (biaya insentif tenant naik sesuai jumlah orang).
+Alasan default bagi-rata: biaya insentif tenant = tetap per layanan (tak membengkak tak terduga saat
+dikeroyok), lebih aman untuk usaha kecil. Tenant bisa ubah ke PENUH bila mau.
 
 ---
 
