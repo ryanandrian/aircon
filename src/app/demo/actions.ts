@@ -1,18 +1,41 @@
 "use server";
 
 import { getDemoTenant } from "@/lib/demo";
-import { sendReminderWa, createRepeatJob } from "@/lib/services/reminder-service";
+import { createRepeatJob } from "@/lib/services/reminder-service";
 import { transitionJob } from "@/lib/services/job-service";
 import { prisma } from "@/lib/prisma";
+import { renderTemplate } from "@/lib/wa/gateway";
 import { revalidatePath } from "next/cache";
 
+/**
+ * DEMO: JANGAN kirim WhatsApp nyata. Halaman /demo publik & tanpa auth — memicu gateway WA
+ * sungguhan dari sini = celah abuse (spam WA, bakar kuota/reputasi nomor saat warm-up).
+ * Jadi ini hanya MENSIMULASIKAN: render teks pesan dari template + data reminder, kembalikan preview.
+ */
 export async function actionSendReminder(reminderId: string) {
   const tenant = await getDemoTenant();
   if (!tenant) return { error: "Tenant demo tidak ada" };
   try {
-    const res = await sendReminderWa(tenant.id, reminderId);
+    const reminder = await prisma.repeatReminder.findFirst({ where: { id: reminderId, tenantId: tenant.id } });
+    if (!reminder) return { error: "Reminder tidak ditemukan" };
+    const asset = await prisma.asset.findUnique({
+      where: { id: reminder.assetId },
+      select: { brand: true, roomLocation: true, customer: { select: { name: true } } },
+    });
+    const template = await prisma.messageTemplate.findUnique({
+      where: { tenantId_key: { tenantId: tenant.id, key: "reminder" } },
+    });
+    const preview = renderTemplate(
+      template?.body ?? "Halo {{customer}}, saatnya servis AC {{unit}}. Balas untuk jadwalkan. — {{usaha}}",
+      {
+        customer: asset?.customer?.name ?? "Pelanggan",
+        unit: `${asset?.brand ?? ""} ${asset?.roomLocation ?? ""}`.trim() || "AC",
+        usaha: tenant.name ?? "",
+      },
+    );
     revalidatePath("/demo");
-    return { ok: true, ...res };
+    // demo=true menandakan ke UI bahwa ini simulasi (tak benar-benar terkirim)
+    return { ok: true, demo: true, preview };
   } catch (e) {
     return { error: (e as Error).message };
   }

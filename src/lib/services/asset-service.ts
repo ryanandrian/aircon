@@ -146,6 +146,17 @@ export async function getAssetWithHistory(
  * Buat asset baru. Memvalidasi bahwa customerId milik tenant yang sama.
  * Throw CONFLICT bila pelanggan tidak valid.
  */
+/** SECURITY: pastikan device milik tenant. Cegah penautan device lintas tenant (hijack). */
+async function assertDeviceOwnedByTenant(tenantId: string, deviceId: string): Promise<void> {
+  const device = await prisma.device.findFirst({
+    where: { id: deviceId, tenantId },
+    select: { id: true },
+  });
+  if (!device) {
+    throw new ServiceError("CONFLICT", "Perangkat tidak valid untuk usaha ini");
+  }
+}
+
 export async function createAsset(
   tenantId: string,
   input: CreateAssetInput,
@@ -162,6 +173,11 @@ export async function createAsset(
       "CONFLICT",
       "Pelanggan tidak valid untuk tenant ini",
     );
+  }
+
+  // SECURITY: bila deviceId disertakan, pastikan device milik tenant ini (cegah device-hijack lintas tenant).
+  if (input.deviceId) {
+    await assertDeviceOwnedByTenant(tenantId, input.deviceId);
   }
 
   try {
@@ -346,6 +362,8 @@ export async function updateAsset(
     data.maintenanceIntervalDays = input.maintenanceIntervalDays;
   }
   if (input.deviceId !== undefined) {
+    // SECURITY: pastikan device milik tenant ini sebelum ditautkan (cegah hijack lintas tenant).
+    if (input.deviceId) await assertDeviceOwnedByTenant(tenantId, input.deviceId);
     data.device = { connect: { id: input.deviceId } };
   }
 

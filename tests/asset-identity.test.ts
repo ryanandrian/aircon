@@ -23,6 +23,11 @@ vi.mock("@/lib/prisma", () => ({
         where.id === "c1" && where.tenantId === "t1" ? { id: "c1" } : null,
       ),
     },
+    device: {
+      findFirst: vi.fn(async ({ where }: any) =>
+        where.id === "dev-t1" && where.tenantId === "t1" ? { id: "dev-t1" } : null,
+      ),
+    },
     $transaction: vi.fn(async (ops: any[]) => Promise.all(ops)),
   },
 }));
@@ -36,7 +41,7 @@ vi.mock("@/lib/services/customer-service", () => ({
   },
 }));
 
-import { suggestLocations, findPossibleDuplicates, createAssetsBulk } from "../src/lib/services/asset-service";
+import { suggestLocations, findPossibleDuplicates, createAssetsBulk, createAsset } from "../src/lib/services/asset-service";
 
 beforeEach(() => {
   store.assets = [
@@ -102,5 +107,17 @@ describe("createAssetsBulk (buat-massal unit kembar)", () => {
     await expect(
       createAssetsBulk("t1", { customerId: "zzz", type: "SPLIT" as any }, 3),
     ).rejects.toThrow();
+  });
+});
+
+describe("createAsset device-ownership guard (anti-hijack lintas tenant)", () => {
+  it("tolak deviceId milik tenant lain", async () => {
+    await expect(
+      createAsset("t1", { customerId: "c1", type: "SPLIT" as any, deviceId: "dev-OTHER" }),
+    ).rejects.toThrow(/Perangkat tidak valid/);
+  });
+  it("terima deviceId milik tenant sendiri", async () => {
+    const a = await createAsset("t1", { customerId: "c1", type: "SPLIT" as any, deviceId: "dev-t1" });
+    expect(a.deviceId).toBe("dev-t1");
   });
 });

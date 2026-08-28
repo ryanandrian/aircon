@@ -18,7 +18,7 @@ export function ReminderActions({ reminderId }: { reminderId: string }) {
           onClick={() =>
             start(async () => {
               const r = await actionSendReminder(reminderId);
-              setMsg(r.error ? `Gagal: ${r.error}` : "WA diantre ke worker");
+              setMsg(r.error ? `Gagal: ${r.error}` : `Contoh pesan WA:\n"${r.preview}"`);
             })
           }
           className="bg-green-500 text-white hover:bg-green-600"
