@@ -153,10 +153,21 @@ Deploy Docker Compose (`docker-compose.yml`) = **alternatif tidak dipakai**; jan
 ## 8. Kanal MQTT/IoT — status & arah multi-app
 
 - **Sekarang**: Mosquitto (auth wajib, anonymous off, 127.0.0.1:1883 lokal / 8883 TLS publik) + `iot-bridge` subscribe → POST ingest app.
-- **⚠️ Gap multi-app**: `iot-bridge` yang berjalan MASIH aircon-only (hardcode topik `aircon/+/telemetry` + ingest ke aircon).
-  Untuk app IoT lain: jalankan **instance bridge terpisah** (env sendiri: `MQTT_*`, `INGEST_URL`, `TOKEN`, prefix topik app-nya)
-  ATAU generalisasi bridge agar baca daftar `{appId, topicPrefix, ingestUrl, token}`. Konvensi topik `{appId}/{deviceId}/...` sudah SSOT (dok §20); bridge tinggal mengikutinya.
+- **⚠️ Gap multi-app (FUTURE WORK — ditunda, tak ada konsumen)**: `iot-bridge` yang berjalan MASIH aircon-only
+  (hardcode topik `aircon/+/telemetry` + ingest ke aircon). **Sengaja DITUNDA** (prinsip YAGNI) sampai ada app IoT
+  kedua yang benar-benar butuh MQTT. Saat itu tiba: jalankan **instance bridge terpisah** (env sendiri: `MQTT_*`,
+  `INGEST_URL`, `TOKEN`, prefix topik app-nya) ATAU generalisasi bridge agar baca daftar `{appId, topicPrefix, ingestUrl, token}`.
+  Konvensi topik `{appId}/{deviceId}/...` sudah SSOT (dok §20); bridge tinggal mengikutinya.
 - Pola wajib: app **tidak** subscribe MQTT langsung dari serverless — selalu via bridge → HTTP ingest (app tetap stateless).
+
+### 8a. MQTT ≠ untuk semua device IoT (pelajaran ACTrack, 2026-08-29)
+MQTT gateway ini **hanya cocok bila perangkatnya bicara MQTT.** Jangan berasumsi setiap app IoT portofolio memakainya.
+Contoh nyata **ACTrack** (fleet tracking, GPS Teltonika) — aplikasi TERPISAH, **TIDAK memakai gateway/MQTT ini**:
+- **Telemetry masuk**: device → GPRS soket TCP langsung ke `url:port` server ACTrack (protokol biner Teltonika), **bukan MQTT**.
+- **Kontrol mesin keluar** (engine on/off): perintah **Codec12 lewat soket TCP yang sudah dipegang server telemetry ACTrack**
+  (VPS sendiri, persisten), atau **SMS** ke SIM device (format firmware). **Bukan MQTT, bukan gateway bersama.**
+- Pelajaran: sebelum mengarahkan app ke gateway ini, pastikan transport device-nya benar-benar MQTT. Bila device pakai
+  TCP-biner/GPRS/SMS (tracker GPS umumnya begitu), kontrolnya ada di server app itu sendiri — bukan di infra bersama.
 
 ---
 
