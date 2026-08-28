@@ -127,3 +127,30 @@ export async function nextInvoiceNumber(tenantId: string, docType: DocType, year
   }
   throw new ServiceError("CONFLICT", "Gagal membuat nomor dokumen, coba lagi");
 }
+
+/** Ambil invoice/proforma lengkap (tenant-scoped) untuk tampilan. Termasuk info tenant (branding/rekening) & pelanggan. */
+export async function getInvoiceForView(tenantId: string, invoiceId: string) {
+  const inv = await prisma.invoice.findFirst({
+    where: { id: invoiceId, tenantId },
+    include: {
+      items: true,
+      customer: { select: { name: true, phone: true, address: true, customerType: true, npwp: true } },
+    },
+  });
+  if (!inv) throw new ServiceError("NOT_FOUND", "Dokumen tidak ditemukan");
+  // Label unit per item (assetId scalar → ambil terpisah).
+  const assetIds = [...new Set(inv.items.map((i) => i.assetId).filter(Boolean) as string[])];
+  const assets = assetIds.length
+    ? await prisma.asset.findMany({ where: { id: { in: assetIds }, tenantId }, select: { id: true, brand: true, roomLocation: true, capacityPk: true } })
+    : [];
+  const assetMap = new Map(assets.map((a) => [a.id, [a.brand, a.capacityPk ? `${a.capacityPk}PK` : null, a.roomLocation].filter(Boolean).join(" · ") || "Unit AC"]));
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      name: true, logoUrl: true, isPkp: true, npwp: true,
+      bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
+    },
+  });
+  return { inv, tenant, assetMap };
+}
+

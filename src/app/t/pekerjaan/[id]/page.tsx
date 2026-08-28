@@ -77,6 +77,12 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
           </CardContent>
         </Card>
 
+        {/* Mulai pengerjaan → WorkSession (K8): entry per unit → invoice/proforma */}
+        <a href={`/t/kerja/${job.customerId}?job=${job.id}`}
+          className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-sky-500 font-semibold text-white hover:bg-sky-600">
+          <Icon.Job className="h-5 w-5" aria-hidden /> Catat Pekerjaan & Buat Tagihan
+        </a>
+
         {job.notes && (
           <Card>
             <CardContent className="p-4">
