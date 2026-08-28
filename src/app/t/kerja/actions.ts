@@ -41,7 +41,16 @@ export async function actionAddWorkItem(
 ): Promise<Result> {
   try {
     const ctx = await getServerContext();
-    await addWorkItem(ctx.tenantId, workSessionId, input);
+    // Default: teknisi yang sedang login otomatis jadi pelaksana (agar insentif terhitung).
+    let techIds = input.techIds;
+    if (!techIds || techIds.length === 0) {
+      const { prisma } = await import("@/lib/prisma");
+      const tech = await prisma.technician.findFirst({
+        where: { tenantId: ctx.tenantId, userId: ctx.userId }, select: { id: true },
+      });
+      techIds = tech ? [tech.id] : [];
+    }
+    await addWorkItem(ctx.tenantId, workSessionId, { ...input, techIds });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal menambah pekerjaan") };

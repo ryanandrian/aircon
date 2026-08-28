@@ -40,14 +40,14 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: FASE 5 & 6 SELESAI ✅ → berikutnya FASE 7 (Kartu perawatan diperkaya + BUG TESTING FINAL).
-- **Item berikutnya**: F7.1 (kartu perawatan terakhir dilayani apa/siapa/kapan) → F7.2 BUG TESTING MENYELURUH → F7.3 audit isolasi tenant → F7.GATE.
-- **COMMIT TERAKHIR (baseline)**: `af2868c` (FASE 4) + F5+F6 (commit berikut).
-- **Baseline hijau**: tsc 0 · 283 test · build 0.
-- **CATATAN SERAH TERIMA**: Fase 1-6 tuntas. AR/piutang + setoran kas (K17) + insentif (K5/K6/K7 configurable) live.
-  BERIKUTNYA FASE 7: F7.1 kartu perawatan unit (terakhir dilayani apa/siapa/kapan dari WorkItem, tanpa biaya).
-  F7.2 BUG TESTING MENYELURUH (dogfood publik + login teknisi/owner + alur uang e2e + regresi). F7.3 audit isolasi
-  tenant tabel uang baru. F7.GATE final: 0 CRITICAL/HIGH, laporan final.
+- **Fase aktif**: SEMUA FASE (1–7) SELESAI ✅✅ — modul Invoicing/AR/Insentif TUNTAS 100%.
+- **Item berikutnya**: (tak ada item kode tersisa) — hanya pilot device nyata + warm-up WA (di luar jangkauan headless).
+- **COMMIT TERAKHIR (baseline)**: `9e049d1` (F7.1) + F7.2/F7.3/GATE (commit "FASE 7 DONE" berikut).
+- **Baseline hijau**: tsc 0 · 283 test · build 0 · deploy READY.
+- **CATATAN SERAH TERIMA**: 🎉 SELURUH 7 FASE TUNTAS. Fase 1-4 (MVP: pelanggan/katalog/personel/invoicing) +
+  Fase 5-6 (AR/setoran kas/insentif) + Fase 7 (kartu perawatan + bug testing final: 1 bug HIGH diperbaiki,
+  audit isolasi tenant SAFE). Laporan final docs/LAPORAN_BUG_TESTING_FINAL.md. Sisa HANYA pilot lapangan
+  (device nyata: kamera/GPS/PWA/upload) + warm-up WA — tak bisa dituntaskan headless.
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -323,13 +323,16 @@ Status fase: [x] SELESAI (F6.1–F6.3 + GATE)
 - [x] F6.GATE: bagian dari commit fase 5+6. tsc 0, 283 test, build 0.
 
 # ═══════ FASE 7 — Kartu Perawatan diperkaya + Bug Testing Final ═══════
-Status fase: [ ] BELUM
-- [ ] F7.1 Kartu perawatan unit: "terakhir dilayani APA, oleh SIAPA, TANGGAL" (dari WorkItem, tanpa biaya).
-- [ ] F7.2 **BUG TESTING MENYELURUH** (skill dogfood + audit keamanan subagent):
-      publik + login (teknisi/owner/admin) + alur uang end-to-end + regresi money-loop.
-      Chrome headless+Playwright; sesi dev lokal untuk area login; bersihkan artefak setelah.
-- [ ] F7.3 Audit isolasi-tenant khusus tabel uang baru (Invoice/WorkSession/Catalog): tak bocor antar tenant.
-- [ ] F7.GATE final: 0 CRITICAL/HIGH, semua test hijau, deploy READY, laporan final ditulis.
+Status fase: [x] SELESAI (F7.1–F7.3 + GATE)
+- [x] F7.1 Kartu perawatan unit: riwayat layanan spesifik dari WorkItem (apa dikerjakan, kapan) digabung
+      JobOrder history, urut terbaru, tanpa biaya. customer-card-service diperkaya + test mock disesuaikan.
+- [x] F7.2 BUG TESTING MENYELURUH (skill dogfood): 3 sesi paralel (publik/teknisi-PIN/owner-SSO), alur uang
+      e2e (WorkSession→invoice→bayar→laporan), 0 JS exception di jalur uang. **1 bug HIGH ditemukan+diperbaiki**:
+      insentif tak terhitung krn WorkItem tak menandai personel → actionAddWorkItem auto-tag teknisi login.
+      Diverifikasi: laporan menampilkan insentif Rp15.000 benar. Data demo direset.
+- [x] F7.3 Audit isolasi tenant (subagent) tabel uang baru: **SAFE 0 CRITICAL/0 HIGH**. 2 MEDIUM defensive
+      (assignment deleteMany diperkeras +tenantId; ar user-lookup diterima). Semua tenantId dari session.
+- [x] F7.GATE: tsc 0, 283 test, build 0, deploy READY. Laporan final: docs/LAPORAN_BUG_TESTING_FINAL.md.
 
 ---
 

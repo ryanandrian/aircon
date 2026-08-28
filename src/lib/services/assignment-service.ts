@@ -106,7 +106,7 @@ export async function assignJob(
   const lead = hasLead ? people.find((p) => p.isLead)! : people[0];
 
   await prisma.$transaction(async (tx) => {
-    await tx.jobAssignment.deleteMany({ where: { jobId } });
+    await tx.jobAssignment.deleteMany({ where: { jobId, tenantId } });
     await tx.jobAssignment.createMany({
       data: people.map((p) => ({
         tenantId, jobId, personId: p.personId, roleOnJob: p.roleOnJob,
