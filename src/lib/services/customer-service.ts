@@ -130,6 +130,18 @@ export async function createCustomer(
         source: input.source ?? "OTHER",
         referredById: input.referredById ?? null,
         notes: input.notes ?? null,
+        // Fase 1 invoicing/AR — field opsional (whitelist eksplisit, anti mass-assignment).
+        category: input.category ?? null,
+        customerType: input.customerType ?? "PERORANGAN",
+        topType: input.topType ?? "CASH",
+        npwp: input.npwp ?? null,
+        isPphWithholder: input.isPphWithholder ?? false,
+        billingCustomerId: input.billingCustomerId ?? null,
+        picWorkName: input.picWorkName ?? null,
+        picWorkPhone: input.picWorkPhone ?? null,
+        picWorkRole: input.picWorkRole ?? null,
+        picFinanceName: input.picFinanceName ?? null,
+        picFinancePhone: input.picFinancePhone ?? null,
       },
     });
   } catch (err) {
@@ -168,6 +180,22 @@ export async function updateCustomer(
   if (input.source !== undefined) data.source = input.source;
   if (input.referredById !== undefined) data.referredById = input.referredById;
   if (input.notes !== undefined) data.notes = input.notes;
+  // Fase 1 invoicing/AR — field opsional (whitelist eksplisit).
+  if (input.category !== undefined) data.category = input.category;
+  if (input.customerType !== undefined) data.customerType = input.customerType;
+  if (input.topType !== undefined) data.topType = input.topType;
+  if (input.npwp !== undefined) data.npwp = input.npwp;
+  if (input.isPphWithholder !== undefined) data.isPphWithholder = input.isPphWithholder;
+  if (input.billingCustomerId !== undefined) {
+    data.billingCustomer = input.billingCustomerId
+      ? { connect: { id: input.billingCustomerId } }
+      : { disconnect: true };
+  }
+  if (input.picWorkName !== undefined) data.picWorkName = input.picWorkName;
+  if (input.picWorkPhone !== undefined) data.picWorkPhone = input.picWorkPhone;
+  if (input.picWorkRole !== undefined) data.picWorkRole = input.picWorkRole;
+  if (input.picFinanceName !== undefined) data.picFinanceName = input.picFinanceName;
+  if (input.picFinancePhone !== undefined) data.picFinancePhone = input.picFinancePhone;
 
   try {
     return await prisma.customer.update({ where: { id }, data });
@@ -209,4 +237,24 @@ export async function softDeleteCustomer(
       err instanceof Error ? err.message : String(err),
     );
   }
+}
+
+/**
+ * Resolusi entitas penagihan (bill-to). Bila customer punya billingCustomerId (mis. kantor pusat),
+ * kembalikan customer penagihan itu; bila kosong, tagih ke customer itu sendiri.
+ * SECURITY: tenant-scoped — billing customer wajib milik tenant yang sama; bila tidak, fallback ke diri sendiri.
+ */
+export async function resolveBillingCustomer(
+  tenantId: string,
+  customerId: string,
+): Promise<Customer> {
+  const self = await prisma.customer.findFirst({
+    where: { id: customerId, tenantId, deletedAt: null },
+  });
+  if (!self) throw new ServiceError("NOT_FOUND", "Pelanggan tidak ditemukan");
+  if (!self.billingCustomerId) return self;
+  const billTo = await prisma.customer.findFirst({
+    where: { id: self.billingCustomerId, tenantId, deletedAt: null },
+  });
+  return billTo ?? self;
 }

@@ -40,11 +40,26 @@
 ---
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
-- **Fase aktif**: BELUM MULAI (menunggu owner "mulai Fase 1").
-- **Item berikutnya**: F1.1 (enum + migrasi Customer & Tenant).
-- **COMMIT TERAKHIR (baseline)**: `29dfce1` (docs insentif semua kategori).
-- **Baseline hijau**: tsc 0 · 201 test · build 0 (per sesi 28 Agu 2026).
-- **CATATAN SERAH TERIMA**: belum ada kode ditulis. Semua di bawah masih `[ ]`.
+- **Fase aktif**: FASE 1 (in-progress).
+- **Item berikutnya**: F1.2 (validasi Zod + service, pakai temuan analisa dampak di bawah).
+- **COMMIT TERAKHIR (baseline)**: `f94f28d` + migrasi `20260828_customer_tenant_invoicing` (deployed).
+- **Baseline hijau**: tsc 0 · 201 test · build 0.
+- **CATATAN SERAH TERIMA**: F1.1 SELESAI (schema+migrasi additive+deploy+generate, tsc 0). Belum commit git
+  (schema.prisma + migration.sql belum di-commit — commit bersama F1.2 atau segera).
+
+## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
+- **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
+  `purgeMarkedTenants` hard-delete `prisma.customer.deleteMany({tenantId})` — dengan self-FK, SET NULL
+  menangani ref antar-customer sesama tenant. WAJIB test: purge tenant yang punya billingCustomer tak error.
+- **BE**: `createCustomer`/`updateCustomer` WHITELIST field (bukan spread) → field baru HARUS ditambah
+  eksplisit (aman anti mass-assignment). `createCustomerSchema` dipakai server-action DAN REST API
+  (`api/customers`) → tambah field OPTIONAL = backward-compatible dua-duanya.
+- **FE konsumen Customer**: pelanggan/page.tsx (map eksplisit→tambah field), customer-manager.tsx (form
+  raw `<select>`+FormData→extend+pakai shadcn Select), pekerjaan/baru/page.tsx (dropdown, additive),
+  asset-actions/code-actions listCustomers (additive). Tenant logo dibaca /p/[slug],/u/[code],/riwayat,/app.
+- **UI LIBRARY (mandat owner: seragam)**: shadcn `ui/select.tsx` ADA → pakai untuk dropdown baru
+  (kategori/TOP/tipe) + rapikan `<select>` lama. Radix Select = controlled (bukan FormData otomatis) →
+  kelola via state/controlled, jangan pecahkan submit yang sudah jalan.
 
 ---
 
@@ -76,19 +91,31 @@ Sumber lengkap: RENCANA_INVOICING_AR.md §E,E2,E3. Ringkas paku mati:
 # ═══════ FASE 1 — Pelanggan diperkaya + Logo & Rekening Tenant ═══════
 Status fase: [ ] BELUM
 
-### F1.1 — Schema: enum + kolom (migrasi additive)  [ ]
-- [ ] enum `CustomerCategory` { RUMAH, SEKOLAH_KAMPUS, MASJID_MUSHOLA, TOKO_OUTLET, RUKO_RUKAN, KANTOR_PERUSAHAAN, LAINNYA }
-- [ ] enum `CustomerType` { PERORANGAN, BADAN }
-- [ ] enum `TopType` { CASH, TEMPO_7, TEMPO_14, TEMPO_30, TEMPO_45, TEMPO_60, TEMPO_90 }
-- [ ] Customer + kolom (semua nullable/optional): `category CustomerCategory?`, `customerType CustomerType @default(PERORANGAN)`, `topType TopType @default(CASH)`, `npwp String?`, `isPphWithholder Boolean @default(false)`, `billingCustomerId String?` (self-relation), `picWorkName/Phone/Role String?`, `picFinanceName/Phone String?`
-- [ ] Tenant + kolom: `logoUrl String @default("")`, `isPkp Boolean @default(false)`, `npwp String @default("")`, `taxPercent Float @default(0)`, `bankName String @default("")`, `bankAccountNo String @default("")`, `bankAccountName String @default("")`, `qrisImageUrl String @default("")`
-- DoD: `prisma validate` OK · migrate diff additive-only (cek: hanya ADD COLUMN/CREATE TYPE) · `migrate deploy` · `generate` · tsc 0 · build 0.
+### F1.1 — Schema: enum + kolom (migrasi additive)  [x] DONE (migrasi 20260828, deploy OK)
+- [x] enum `CustomerCategory` { RUMAH, SEKOLAH_KAMPUS, MASJID_MUSHOLA, TOKO_OUTLET, RUKO_RUKAN, KANTOR_PERUSAHAAN, LAINNYA }
+- [x] enum `CustomerType` { PERORANGAN, BADAN }
+- [x] enum `TopType` { CASH, TEMPO_7, TEMPO_14, TEMPO_30, TEMPO_45, TEMPO_60, TEMPO_90 }
+- [x] Customer + kolom (semua nullable/optional): `category`, `customerType`, `topType`, `npwp`, `isPphWithholder`, `billingCustomerId` (self-relation), PIC work/finance
+- [x] Tenant + kolom: `logoUrl`, `isPkp`, `npwp`, `taxPercent`, `bankName`, `bankAccountNo`, `bankAccountName`, `qrisImageUrl`
+- DoD: ✅ validate · migrate diff additive-only (19 ADD COLUMN + 3 enum, 0 destruktif) · deploy · generate · tsc 0 · build 0.
 
-### F1.2 — Validasi (Zod) + service Customer diperluas  [ ]
-- [ ] Perluas `src/lib/validation/customer.ts`: field baru optional, enum tervalidasi.
-- [ ] Perluas `customer-service.ts`: create/update terima field baru; `resolveBillingCustomer(customerId)` (kosong→diri sendiri).
-- [ ] Test: enum valid/invalid, billing-to resolution, backward-compat (data lama tanpa field baru tetap jalan).
-- DoD lengkap (lihat atas).
+### F1.2 — Validasi (Zod) + service Customer diperluas  [x] DONE
+- [x] Zod: field baru optional + enum tervalidasi (customer.ts)
+- [x] Service: create/update whitelist field baru; `resolveBillingCustomer` (tenant-scoped, fallback diri)
+- [x] Test: tests/customer-invoicing-fields.test.ts (9 test: enum valid/invalid, backward-compat, billing-to, isolasi tenant) → 210 test total lulus, tsc 0, build 0
+
+### F1.0 — APP SHELL responsif (sidebar tenant) [ ]  ← PRIORITAS BERIKUTNYA (arahan owner)
+> Owner: dashboard jangan sekadar launcher card; pakai menu samping responsif agar dashboard maksimal.
+- [ ] `src/app/app/layout.tsx` baru: shell dengan sidebar persisten (desktop md+) + drawer (mobile) pakai
+      shadcn Sheet/Dialog (Radix) — SERAGAM dgn pola /admin/admin-nav.tsx. JANGAN komponen baru bikin sendiri.
+- [ ] `app-nav.tsx` (client, usePathname, ikon Lucide, active-state) — menu: Ringkasan, Pelanggan, Unit AC,
+      Pekerjaan, Teknisi, Perangkat, Langganan, Pesan, (Pengaturan nanti F1.5).
+- [ ] Mobile: tombol hamburger di header → Sheet drawer kiri; tutup saat pilih menu.
+- [ ] Dashboard /app/page.tsx: kurangi peran launcher, maksimalkan ringkasan/metrik (NavCard boleh jadi
+      quick-action ringkas, bukan satu-satunya navigasi).
+- [ ] AppHeader: sesuaikan (tombol back tak lagi wajib karena ada sidebar; simpan judul + hamburger mobile).
+- [ ] Cek SEMUA halaman /app tetap render benar di dalam shell baru (tak ada dobel header).
+- DoD + dogfood: desktop sidebar + mobile drawer, active-state benar, 0 JS exception, semua /app render.
 
 ### F1.3 — UI: lazy-load daftar pelanggan (ratusan card)  [ ]
 - [ ] Ganti `take: 300` statis → infinite scroll pakai `listCustomers` cursor yang SUDAH ADA.

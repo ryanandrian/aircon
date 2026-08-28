@@ -68,6 +68,31 @@ enum CustomerSource {
   OTHER
 }
 
+enum CustomerCategory {
+  RUMAH
+  SEKOLAH_KAMPUS
+  MASJID_MUSHOLA
+  TOKO_OUTLET
+  RUKO_RUKAN
+  KANTOR_PERUSAHAAN
+  LAINNYA
+}
+
+enum CustomerType {
+  PERORANGAN
+  BADAN
+}
+
+enum TopType {
+  CASH
+  TEMPO_7
+  TEMPO_14
+  TEMPO_30
+  TEMPO_45
+  TEMPO_60
+  TEMPO_90
+}
+
 enum AssetType {
   SPLIT
   CASSETTE
@@ -234,6 +259,15 @@ model Tenant {
   onboardingCompleted     Boolean      @default(false)
   waDriver                WaDriver     @default(WEB)
   publicProfile           Json?
+  // Branding & profil bisnis tenant (Fase 1) — untuk invoice & permukaan publik tenant.
+  logoUrl                 String       @default("")
+  isPkp                   Boolean      @default(false)
+  npwp                    String       @default("")
+  taxPercent              Float        @default(0)
+  bankName                String       @default("")
+  bankAccountNo           String       @default("")
+  bankAccountName         String       @default("")
+  qrisImageUrl            String       @default("")
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
@@ -282,16 +316,31 @@ model Customer {
   referredById String?
   notes        String?
   cardToken    String?        @unique
+  // Modul invoicing/AR (Fase 1) — semua opsional, backward-compatible.
+  category         CustomerCategory?
+  customerType     CustomerType   @default(PERORANGAN)
+  topType          TopType        @default(CASH)
+  npwp             String?
+  isPphWithholder  Boolean        @default(false)
+  billingCustomerId String?       // kosong = tagih ke diri sendiri
+  picWorkName      String?
+  picWorkPhone     String?
+  picWorkRole      String?
+  picFinanceName   String?
+  picFinancePhone  String?
   deletedAt    DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  tenant Tenant     @relation(fields: [tenantId], references: [id])
-  assets Asset[]
-  jobs   JobOrder[]
+  tenant          Tenant     @relation(fields: [tenantId], references: [id])
+  assets          Asset[]
+  jobs            JobOrder[]
+  billingCustomer Customer?  @relation("CustomerBilling", fields: [billingCustomerId], references: [id])
+  billedFor       Customer[] @relation("CustomerBilling")
 
   @@index([tenantId, phone])
   @@index([tenantId, source])
+  @@index([tenantId, category])
 }
 
 model Asset {
