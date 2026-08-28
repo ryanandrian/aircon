@@ -232,6 +232,41 @@ Test: agregasi insentif (%/nilai/multi-personel per item), filter periode, edge 
 
 ---
 
+## E2. GAP DARI ARAHAN OWNER (masukan agent 28 Agu — MENUNGGU KEPUTUSAN OWNER)
+
+> Happy-path arahan owner sudah sangat lengkap. Gap ada di titik UANG & SENGKETA (paling mahal bila
+> ketinggalan). Diurut dari paling berisiko. #1-4 mengubah STRUKTUR DATA → sebaiknya diputus SEBELUM coding.
+
+### KRITIS (uang & kepercayaan)
+1. **Setoran kas teknisi (cash settlement)** — GAP TERBESAR. Uang tunai masuk kantong TEKNISI dulu.
+   "Invoice lunas" ≠ uang sampai ke pemilik. Perlu status "terkumpul (di teknisi)" vs "disetor ke pemilik"
+   + laporan "kas belum disetor per teknisi". Krusial untuk tim; tak perlu bila pemilik=teknisi.
+2. **Kapan insentif earned/dibayar?** Saat SELESAI atau saat LUNAS? Untuk tempo yang macet, bayar insentif
+   sebelum uang masuk = pemilik rugi. Rekomendasi: earned saat selesai, DIBAYAR saat invoice lunas. → KEPUTUSAN OWNER.
+3. **Invoice dirakit DI LOKASI** oleh teknisi (penugasan umum). Teknisi pilih item dari ServiceCatalog di HP
+   + tambah item tak terduga + qty on-site. Masuk eksplisit Fase 4 + daftar layanan harus akses teknisi.
+4. **Tiap InvoiceItem → assetId (unit AC tertentu).** 1 kunjungan = banyak unit. Kartu perawatan butuh
+   "unit INI dikerjakan apa, oleh siapa, kapan". Tambah `InvoiceItem.assetId` di Fase 4.
+
+### PENTING (sering terjadi — sebaiknya v1)
+5. **Pembayaran SEBAGIAN** (tempo B2B nyicil) + **revisi/pembatalan invoice** (nota kredit). "Lunas/belum" tak cukup.
+6. **Diskon** per-baris / per-invoice (nego lapangan).
+7. **Rekening bank tenant** tampil di invoice tempo (tujuan transfer). Tambah field rekening di Tenant.
+8. **Biaya kunjungan / servis gagal** (datang tapi batal / survei saja) — bagaimana dicatat.
+
+### DITUNDA (agent sarankan JANGAN v1 — anti over-engineering)
+9. **e-Faktur PKP (Faktur Pajak resmi + NSFP dari DJP)** — sistem berat & terpisah. v1 cukup PPN sederhana
+   + disclaimer "tenant PKP urus e-Faktur di aplikasi pajak sendiri". Mayoritas pilot non-PKP.
+10. **Stok consumable/sparepart (inventory)** — v1 perlakukan sebagai item invoice biasa (tanpa stok);
+    inventory modul tersendiri bila pilot minta.
+11. **Servis garansi/komplain (nilai Rp0)** tetap tercatat di kartu perawatan + mungkin insentif. Perlu definisi.
+12. **PIC ganda institusi** (PIC lapangan ≠ PIC keuangan). 2 kontak per pelanggan badan. Ringan.
+
+**Butuh keputusan owner sebelum Fase 4 (uang):** (a) timing insentif [#2], (b) fitur setoran kas [#1],
+(c) mana dari #5-8 masuk v1. #3, #4 sudah pasti masuk Fase 4 (struktur data).
+
+---
+
 ## F. RINGKAS SATU PARAGRAF
 Aplikasi **belum** mendukung alur bisnis nyata invoicing/piutang/insentif ini — sebagian besar (katalog
 layanan, invoice, proforma, multi-personel, kernet, insentif, TOP, kategori/pajak pelanggan, laporan AR)
