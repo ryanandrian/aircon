@@ -12,6 +12,7 @@ import {
   MessageSquare, ClipboardCheck, Globe, RefreshCw, Check, X, Copy, Printer,
   Phone, Navigation, MapPin, Calendar, Snowflake, Wind, Building2, DollarSign,
   Hand, FileText, PartyPopper, Clock, ShieldCheck, Users, Package, Send,
+  Menu, Settings, LayoutDashboard,
 } from "lucide-react";
 
 /** Pemetaan semantik nama-domain -> komponen ikon (agar konsisten lintas halaman). */
@@ -48,6 +49,9 @@ export const Icon = {
   Users: Users,               // tim / pelanggan
   Package: Package,           // produk IoT / paket
   Send: Send,                 // kirim
+  Menu: Menu,                 // hamburger navigasi mobile
+  Settings: Settings,         // pengaturan
+  Dashboard: LayoutDashboard, // ringkasan / dashboard
 };
 
 export type IconName = keyof typeof Icon;

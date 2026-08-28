@@ -4,11 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
 import { LogoutButton } from "./logout-button";
+import { AppHeader } from "./_components/app-header";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
-import Image from "next/image";
 import type { ComponentType } from "react";
 
 export const dynamic = "force-dynamic";
@@ -51,29 +50,13 @@ export default async function AppDashboard() {
   const roleLabel = { OWNER: "Pemilik", ADMIN: "Admin", TECHNICIAN: "Teknisi", CUSTOMER: "Pelanggan" }[ctx.role] ?? ctx.role;
 
   return (
-    <main className="min-h-screen bg-muted/40">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
-          <div className="flex items-center gap-2.5">
-            <Image src="/brand/aircon-logo.png" alt="Aircon" width={34} height={34} className="h-8 w-8 object-contain" priority />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold text-foreground">{tenant?.name ?? "Usaha Anda"}</div>
-              <div className="text-xs text-muted-foreground">{roleLabel}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <ThemeToggle />
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
-
+    <>
+      <AppHeader title="Ringkasan" action={<LogoutButton />} />
       <div className="mx-auto max-w-5xl space-y-6 p-5">
         {/* Greeting */}
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">{greeting}, {firstName} <Icon.Wave className="h-6 w-6 text-amber-500" aria-hidden /></h1>
-          <p className="mt-1 text-sm text-muted-foreground">Ringkasan usaha AC Anda hari ini.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Ringkasan usaha AC Anda hari ini — {roleLabel} di {tenant?.name ?? "usaha Anda"}.</p>
         </div>
 
         {/* Metrics */}
@@ -84,20 +67,14 @@ export default async function AppDashboard() {
           <Metric icon={Icon.Zap} label="Peluang IoT" value={openAlerts} tone={openAlerts > 0 ? "amber" : "slate"} href="/app/perangkat" />
         </section>
 
-        {/* Aksi cepat */}
+        {/* Aksi cepat — pintasan ringkas; navigasi utama via menu samping */}
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Menu</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <NavCard href="/app/pekerjaan" icon={Icon.Job} title="Pekerjaan" desc="Atur & pantau job teknisi" primary />
-            <NavCard href="/app/pelanggan" icon={Icon.Users} title="Pelanggan" desc="Kelola data pelanggan" />
-            <NavCard href="/app/unit" icon={Icon.AC} title="Unit AC" desc="Kartu perawatan tiap mesin" />
-            <NavCard href="/app/teknisi" icon={Icon.Technician} title="Teknisi" desc="Undang & kelola tim" />
-            <NavCard href="/app/perangkat" icon={Icon.Device} title="Pemantauan AC" desc="Sensor & peluang servis" badge={openAlerts > 0 ? openAlerts : undefined} />
-            <NavCard href="/t" icon={Icon.Mobile} title="Mode Teknisi" desc="Kerjakan job di lapangan" />
-            <NavCard href="/app/langganan" icon={Icon.Billing} title="Langganan" desc="Paket & pembayaran" />
-            <NavCard href="/app/pesan" icon={Icon.Message} title="Template Pesan" desc="Atur pesan WA ke pelanggan" />
-            <NavCard href="/app/checklist" icon={Icon.Check} title="Checklist Servis" desc="Langkah kerja teknisi" />
-            <NavCard href={`/p/${tenant?.slug ?? ""}`} icon={Icon.Web} title="Halaman Usaha" desc="Terima booking online" external />
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Aksi Cepat</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <NavCard href="/app/pekerjaan" icon={Icon.Job} title="Pekerjaan" desc="Atur & pantau job" primary />
+            <NavCard href="/app/pelanggan" icon={Icon.Users} title="Pelanggan" desc="Kelola data" />
+            <NavCard href="/app/unit" icon={Icon.AC} title="Unit AC" desc="Kartu perawatan" />
+            <NavCard href={`/p/${tenant?.slug ?? ""}`} icon={Icon.Web} title="Halaman Usaha" desc="Booking online" external />
           </div>
         </section>
 
@@ -116,7 +93,7 @@ export default async function AppDashboard() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </>
   );
 }
 

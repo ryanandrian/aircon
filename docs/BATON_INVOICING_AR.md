@@ -41,11 +41,12 @@
 
 ## 📌 STATUS SAAT INI  ← update tiap commit
 - **Fase aktif**: FASE 1 (in-progress).
-- **Item berikutnya**: F1.2 (validasi Zod + service, pakai temuan analisa dampak di bawah).
-- **COMMIT TERAKHIR (baseline)**: `f94f28d` + migrasi `20260828_customer_tenant_invoicing` (deployed).
-- **Baseline hijau**: tsc 0 · 201 test · build 0.
-- **CATATAN SERAH TERIMA**: F1.1 SELESAI (schema+migrasi additive+deploy+generate, tsc 0). Belum commit git
-  (schema.prisma + migration.sql belum di-commit — commit bersama F1.2 atau segera).
+- **Item berikutnya**: F1.3 (lazy-load daftar pelanggan) → lalu F1.4 form diperkaya, F1.5 upload logo/profil, F1.6 logo publik, F1.7 GPS.
+- **COMMIT TERAKHIR (baseline)**: `3a5acf5` (F1.1+F1.2) + app-shell (commit berikut).
+- **Baseline hijau**: tsc 0 · 210 test · build 0.
+- **CATATAN SERAH TERIMA**: F1.1, F1.2, F1.0(app-shell) SELESAI & terverifikasi. Shell: sidebar desktop +
+  drawer mobile (shadcn Sheet), TenantLogo reusable (dipakai sidebar; F1.6 sisa pasang di /p,/u,/riwayat).
+  Dashboard sudah ramping (metrik + aksi cepat). Semua /app pakai AppHeader (hamburger otomatis).
 
 ## 🔬 ANALISA DAMPAK F1 (DB→BE→FE) — WAJIB dipatuhi saat implement
 - **DB**: migrasi additive-only OK. Self-FK `billingCustomerId` ON DELETE SET NULL. ⚠️ RISIKO: dunning
@@ -104,18 +105,19 @@ Status fase: [ ] BELUM
 - [x] Service: create/update whitelist field baru; `resolveBillingCustomer` (tenant-scoped, fallback diri)
 - [x] Test: tests/customer-invoicing-fields.test.ts (9 test: enum valid/invalid, backward-compat, billing-to, isolasi tenant) → 210 test total lulus, tsc 0, build 0
 
-### F1.0 — APP SHELL responsif (sidebar tenant) [ ]  ← PRIORITAS BERIKUTNYA (arahan owner)
+### F1.0 — APP SHELL responsif (sidebar tenant) [x] DONE
 > Owner: dashboard jangan sekadar launcher card; pakai menu samping responsif agar dashboard maksimal.
-- [ ] `src/app/app/layout.tsx` baru: shell dengan sidebar persisten (desktop md+) + drawer (mobile) pakai
-      shadcn Sheet/Dialog (Radix) — SERAGAM dgn pola /admin/admin-nav.tsx. JANGAN komponen baru bikin sendiri.
-- [ ] `app-nav.tsx` (client, usePathname, ikon Lucide, active-state) — menu: Ringkasan, Pelanggan, Unit AC,
-      Pekerjaan, Teknisi, Perangkat, Langganan, Pesan, (Pengaturan nanti F1.5).
-- [ ] Mobile: tombol hamburger di header → Sheet drawer kiri; tutup saat pilih menu.
-- [ ] Dashboard /app/page.tsx: kurangi peran launcher, maksimalkan ringkasan/metrik (NavCard boleh jadi
-      quick-action ringkas, bukan satu-satunya navigasi).
-- [ ] AppHeader: sesuaikan (tombol back tak lagi wajib karena ada sidebar; simpan judul + hamburger mobile).
-- [ ] Cek SEMUA halaman /app tetap render benar di dalam shell baru (tak ada dobel header).
-- DoD + dogfood: desktop sidebar + mobile drawer, active-state benar, 0 JS exception, semua /app render.
+- [x] `src/app/app/layout.tsx`: shell sidebar persisten (desktop md+) + drawer (mobile) via shadcn Sheet
+      (`ui/sheet.tsx` baru, di atas @base-ui Dialog — seragam dgn ui/dialog.tsx).
+- [x] `_components/app-nav.tsx` (APP_NAV 1 sumber, usePathname, ikon Lucide, active-state) — 9 menu.
+- [x] `_components/mobile-nav.tsx` hamburger→Sheet drawer; tutup saat pilih menu (onNavigate).
+- [x] Hamburger dipasang di AppHeader (muncul di SEMUA halaman /app otomatis, md:hidden). Back button opsional.
+- [x] Dashboard /app/page.tsx: header lama diganti AppHeader; NavCard grid diringkas jadi "Aksi Cepat" 4
+      pintasan; metrik jadi fokus. Navigasi utama via sidebar.
+- [x] `components/tenant-logo.tsx` (reusable, fallback logo Aircon) — dipakai di sidebar (F1.6 lanjut ke publik).
+- [x] Icon set +Menu/Settings/Dashboard.
+- [x] DoD: tsc 0 · 210 test · build 0 · dogfood desktop(sidebar 9 link, active-state) + mobile(drawer,
+      auto-close) 0 JS exception. Visual world-class diverifikasi (screenshot).
 
 ### F1.3 — UI: lazy-load daftar pelanggan (ratusan card)  [ ]
 - [ ] Ganti `take: 300` statis → infinite scroll pakai `listCustomers` cursor yang SUDAH ADA.
