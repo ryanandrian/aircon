@@ -117,13 +117,22 @@ Tambah kolom Customer (semua **nullable/optional**, tak rusak data lama):
 Test: validasi enum, billing-to resolution, kategori filter, presign logo, fallback logo Aircon.
 
 ### FASE 2 — ServiceCatalog (daftar layanan) + harga khusus pelanggan
-- Model **ServiceCatalog**: `code, name, category (MAINTENANCE/SERVICE/CONSUMABLE/SPAREPART/PAKET/...),
-  standardPrice (Decimal), unit, description, active, techIncentiveType (PERCENT/VALUE), techIncentiveValue,
-  kernetIncentiveType, kernetIncentiveValue` — **CRUD per tenant** (flexible per kategori).
+- Model **ServiceCatalog**: `code, name, category (MAINTENANCE/SERVICE/CONSUMABLE/SPAREPART/PAKET/SURVEI/
+  GARANSI/LAINNYA — fleksibel), standardPrice (Decimal), unit (satuan bebas: unit/ls/pcs/kg/m/...),
+  description, active, techIncentiveType (PERCENT|VALUE), techIncentiveValue, kernetIncentiveType,
+  kernetIncentiveValue` — **CRUD per tenant**, sefleksibel mungkin untuk beragam layanan AC
+  (split, cassette, central, VRV, chiller, dll).
+- **INSENTIF melekat di SETIAP item, kategori APA PUN** (owner tegaskan): jasa, consumable, DAN sparepart
+  semua bisa punya insentif teknisi & kernet — karena teknisi/kernet berkontribusi memasang/mengganti/
+  menggunakan di lapangan. **Insentif = 0 → tak ada insentif** untuk item itu.
+- **UI penetapan insentif harus JELAS**: saat tenant isi nilai insentif per item, tampilkan aturan
+  bagi-rata (teks bantu: "bila 1 layanan dikerjakan >1 orang peran sama, insentif dibagi rata — mode
+  diatur di Pengaturan"). Tenant paham konsekuensi saat menetapkan angka.
 - Model **CustomerPricing**: `customerId, serviceId, price` (override harga standar; opsional).
 - Service: `resolvePrice(customerId, serviceId)` → harga khusus ?? standar.
 - **UI**: /app/layanan (CRUD) + kelola harga khusus per pelanggan.
-Test: resolusi harga (khusus vs standar), CRUD, kalkulasi insentif per item.
+Test: resolusi harga (khusus vs standar), CRUD, kalkulasi insentif per item (jasa/consumable/sparepart,
+%/nilai/0, bagi-rata multi-personel).
 
 ### FASE 3 — Multi-personel & Peran Cair (perluas penugasan)
 - **Personel lapangan = satu entitas** (Technician yang sudah ada, punya login+PIN). TIDAK ada tipe
