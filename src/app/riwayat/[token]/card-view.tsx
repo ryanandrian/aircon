@@ -58,7 +58,7 @@ export function CardView({ card }: { card: Card }) {
     <main className="min-h-screen bg-muted/30">
       {/* Header banner: branding tenant kontras di atas gradient (halaman publik utk pelanggan) */}
       <div className="bg-gradient-to-br from-sky-500 via-sky-600 to-cyan-500">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-4 py-5 sm:px-5">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-4 py-6 sm:px-5">
           <TenantLogo name={card.tenantName} logoUrl={card.tenantLogoUrl} size={48} className="border-2 border-white/70 shadow-md" />
           <div className="min-w-0">
             <p className="text-xs font-medium text-white/80">Dirawat oleh</p>
@@ -66,7 +66,7 @@ export function CardView({ card }: { card: Card }) {
           </div>
         </div>
       </div>
-      <div className="mx-auto -mt-6 w-full max-w-2xl px-4 pb-16 sm:px-5">
+      <div className="mx-auto w-full max-w-2xl px-4 py-6 pb-16 sm:px-5">
         {/* Ringkasan */}
         <Card>
           <CardContent className="p-5">
