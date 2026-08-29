@@ -160,15 +160,6 @@ Deploy Docker Compose (`docker-compose.yml`) = **alternatif tidak dipakai**; jan
   Konvensi topik `{appId}/{deviceId}/...` sudah SSOT (dok §20); bridge tinggal mengikutinya.
 - Pola wajib: app **tidak** subscribe MQTT langsung dari serverless — selalu via bridge → HTTP ingest (app tetap stateless).
 
-### 8a. MQTT ≠ untuk semua device IoT (pelajaran ACTrack, 2026-08-29)
-MQTT gateway ini **hanya cocok bila perangkatnya bicara MQTT.** Jangan berasumsi setiap app IoT portofolio memakainya.
-Contoh nyata **ACTrack** (fleet tracking, GPS Teltonika) — aplikasi TERPISAH, **TIDAK memakai gateway/MQTT ini**:
-- **Telemetry masuk**: device → GPRS soket TCP langsung ke `url:port` server ACTrack (protokol biner Teltonika), **bukan MQTT**.
-- **Kontrol mesin keluar** (engine on/off): perintah **Codec12 lewat soket TCP yang sudah dipegang server telemetry ACTrack**
-  (VPS sendiri, persisten), atau **SMS** ke SIM device (format firmware). **Bukan MQTT, bukan gateway bersama.**
-- Pelajaran: sebelum mengarahkan app ke gateway ini, pastikan transport device-nya benar-benar MQTT. Bila device pakai
-  TCP-biner/GPRS/SMS (tracker GPS umumnya begitu), kontrolnya ada di server app itu sendiri — bukan di infra bersama.
-
 ---
 
 ## 9. Invariants yang TIDAK BOLEH dilanggar (agar tak ada isu baru)
