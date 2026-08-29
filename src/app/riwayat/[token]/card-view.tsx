@@ -56,16 +56,17 @@ export function CardView({ card }: { card: Card }) {
 
   return (
     <main className="min-h-screen bg-muted/30">
-      <div aria-hidden className="h-24 bg-gradient-to-br from-sky-500 via-sky-600 to-cyan-500" />
-      <div className="mx-auto -mt-12 w-full max-w-2xl px-4 pb-16 sm:px-5">
-        {/* Branding tenant */}
-        <div className="mb-4 flex items-center gap-3">
-          <TenantLogo name={card.tenantName} logoUrl={card.tenantLogoUrl} size={44} className="border-2 border-background shadow" />
+      {/* Header banner: branding tenant kontras di atas gradient (halaman publik utk pelanggan) */}
+      <div className="bg-gradient-to-br from-sky-500 via-sky-600 to-cyan-500">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 px-4 py-5 sm:px-5">
+          <TenantLogo name={card.tenantName} logoUrl={card.tenantLogoUrl} size={48} className="border-2 border-white/70 shadow-md" />
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Dirawat oleh</p>
-            <p className="truncate font-semibold text-foreground">{card.tenantName}</p>
+            <p className="text-xs font-medium text-white/80">Dirawat oleh</p>
+            <p className="truncate text-lg font-bold text-white">{card.tenantName}</p>
           </div>
         </div>
+      </div>
+      <div className="mx-auto -mt-6 w-full max-w-2xl px-4 pb-16 sm:px-5">
         {/* Ringkasan */}
         <Card>
           <CardContent className="p-5">
@@ -91,13 +92,13 @@ export function CardView({ card }: { card: Card }) {
           </CardContent>
         </Card>
 
-        {/* Pencarian + sorting */}
+        {/* Pencarian + sorting — tinggi seragam 44px */}
         {card.units.length > 0 && (
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Input placeholder="Cari unit (merek, lokasi, kode)…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" />
+            <Input placeholder="Cari unit (merek, lokasi, kode)…" value={q} onChange={(e) => setQ(e.target.value)} className="h-11 flex-1 rounded-xl" />
             <select
               value={sort} onChange={(e) => setSort(e.target.value as SortKey)}
-              className="min-h-[44px] rounded-xl border bg-card px-3 text-sm"
+              className="h-11 rounded-xl border bg-card px-3 text-sm"
               aria-label="Urutkan"
             >
               <option value="due">Jatuh tempo terdekat</option>
