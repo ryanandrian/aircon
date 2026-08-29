@@ -118,7 +118,7 @@ export default async function Home() {
               {c.heroCtaPrimary}
             </Link>
             {c.showPreview && (
-              <Link href="/pratinjau" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full sm:w-auto" })}>
+              <Link href="/pratinjau" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-400 hover:bg-orange-100 hover:text-orange-800 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/50 sm:w-auto" })}>
                 {c.heroCtaSecondary}
               </Link>
             )}
@@ -177,7 +177,7 @@ export default async function Home() {
         </div>
         {c.showPreview && (
           <div className="mt-10 text-center">
-            <Link href="/pratinjau" className={buttonVariants({ variant: "outline", size: "lg", className: "gap-2" })}>
+            <Link href="/pratinjau" className={buttonVariants({ variant: "outline", size: "lg", className: "gap-2 border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-400 hover:bg-orange-100 hover:text-orange-800 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-orange-300 dark:hover:bg-orange-950/50" })}>
               <Icon.Web className="h-4.5 w-4.5" aria-hidden />
               Lihat Pratinjau Aplikasi
             </Link>
