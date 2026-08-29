@@ -290,7 +290,7 @@ export function CustomerManager({
           ) : (
             <div className="space-y-3">
               {rows.map((c) => (
-                <Card key={c.id} className="interactive">
+                <Card key={c.id} className="interactive py-0">
                   <CardContent className="flex items-center gap-3 p-4">
                     <Link href={`/app/pelanggan/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">

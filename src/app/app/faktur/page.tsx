@@ -37,7 +37,7 @@ export default async function FakturListPage() {
               const isProforma = inv.docType === "PROFORMA";
               return (
                 <Link key={inv.id} href={`/app/faktur/${inv.id}`}>
-                  <Card className="interactive">
+                  <Card className="interactive py-0">
                     <CardContent className="flex items-center gap-3 p-4">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
                         <Icon.Billing className="h-5 w-5" aria-hidden />
