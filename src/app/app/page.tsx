@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
 import { LogoutButton } from "./logout-button";
 import { AppHeader } from "./_components/app-header";
+import { ServicedTrendChart } from "./_components/serviced-trend-chart";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
@@ -23,9 +24,10 @@ export default async function AppDashboard() {
 
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+  const since30 = new Date(todayStart.getTime() - 29 * 24 * 60 * 60 * 1000); // termasuk hari ini = 30 hari
 
   // SECURITY: semua query tenant-scoped dari ctx.tenantId (session), bukan input.
-  const [tenant, metrics, dueReminders, openAlerts, todayJobs] = await Promise.all([
+  const [tenant, metrics, dueReminders, openAlerts, todayJobs, servicedJobs] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
     (async () => {
       const [customers, activeJobs, completed] = await Promise.all([
@@ -38,26 +40,47 @@ export default async function AppDashboard() {
     prisma.repeatReminder.count({ where: { tenantId: ctx.tenantId, status: "QUEUED" } }),
     prisma.alert.count({ where: { tenantId: ctx.tenantId, status: { in: ["OPEN", "ACK"] } } }),
     prisma.jobOrder.count({ where: { tenantId: ctx.tenantId, scheduledDate: { gte: todayStart, lte: todayEnd }, status: { notIn: ["CANCELLED", "COMPLETED"] } } }),
+    // Unit dilayani 30 hari terakhir: pekerjaan selesai (tenant-scoped).
+    prisma.jobOrder.findMany({
+      where: { tenantId: ctx.tenantId, status: "COMPLETED", completedAt: { gte: since30, lte: todayEnd } },
+      select: { completedAt: true },
+    }),
   ]);
+
+  // Agregasi harian unit dilayani (30 titik). Dihitung di server, bukan di klien.
+  const dayMs = 24 * 60 * 60 * 1000;
+  const trend: { label: string; value: number }[] = [];
+  const bucket = new Map<string, number>();
+  for (const j of servicedJobs) {
+    if (!j.completedAt) continue;
+    const d = new Date(j.completedAt); d.setHours(0, 0, 0, 0);
+    const key = d.toISOString().slice(0, 10);
+    bucket.set(key, (bucket.get(key) ?? 0) + 1);
+  }
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(since30.getTime() + i * dayMs);
+    const key = d.toISOString().slice(0, 10);
+    trend.push({ label: d.toLocaleDateString("id-ID", { day: "numeric", month: "short" }), value: bucket.get(key) ?? 0 });
+  }
+  const trendTotal = trend.reduce((s, t) => s + t.value, 0);
 
   if (tenant && !isTenantUsable(tenant.status)) {
     redirect("/app/langganan?status=nonaktif");
   }
 
-  const firstName = ctx.name.split(" ")[0];
-  const hour = new Date().getHours();
-  const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
   const roleLabel = { OWNER: "Pemilik", ADMIN: "Admin", TECHNICIAN: "Teknisi", CUSTOMER: "Pelanggan" }[ctx.role] ?? ctx.role;
 
   return (
     <>
       <AppHeader title="Ringkasan" action={<LogoutButton />} />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
-        {/* Greeting */}
+        {/* Judul halaman + grafik unit dilayani (profesional, tanpa sapaan) */}
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">{greeting}, {firstName} <Icon.Wave className="h-6 w-6 text-amber-500" aria-hidden /></h1>
-          <p className="mt-1 text-sm text-muted-foreground">Ringkasan usaha AC Anda hari ini — {roleLabel} di {tenant?.name ?? "usaha Anda"}.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Ringkasan Usaha</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Pantau operasional AC Anda — {roleLabel} di {tenant?.name ?? "usaha Anda"}.</p>
         </div>
+
+        <ServicedTrendChart data={trend} total={trendTotal} />
 
         {/* Metrics */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
