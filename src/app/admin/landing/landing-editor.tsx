@@ -89,6 +89,20 @@ export function LandingEditor({ initial }: { initial: Content }) {
         </CardContent>
       </Card>
 
+      {/* Kontak CS & Tier Full Custom */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <h2 className="text-lg font-semibold">Kontak CS &amp; Tier Full Custom</h2>
+          <div className="space-y-1.5">
+            <Label htmlFor="csWhatsapp">Nomor WhatsApp CS (format 62xxx)</Label>
+            <Input id="csWhatsapp" name="csWhatsapp" placeholder="6281234567890" defaultValue={s("csWhatsapp")} />
+            <p className="text-xs text-muted-foreground">Tombol &quot;Hubungi CS&quot; di tier Full Custom membuka WhatsApp ke nomor ini.</p>
+          </div>
+          <div className="space-y-1.5"><Label htmlFor="customTierTitle">Judul tier Full Custom</Label><Input id="customTierTitle" name="customTierTitle" defaultValue={s("customTierTitle")} /></div>
+          <div className="space-y-1.5"><Label htmlFor="customTierDesc">Deskripsi tier Full Custom</Label><Textarea id="customTierDesc" name="customTierDesc" defaultValue={s("customTierDesc")} rows={3} /></div>
+        </CardContent>
+      </Card>
+
       {/* Toggle section */}
       <Card>
         <CardContent className="space-y-3 p-6">
@@ -97,6 +111,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
             <Toggle name="showRoi" label="Bar ROI" defaultChecked={b("showRoi")} />
             <Toggle name="showHow" label="Cara kerja" defaultChecked={b("showHow")} />
             <Toggle name="showFeatures" label="Fitur unggulan" defaultChecked={b("showFeatures")} />
+            <Toggle name="showPreview" label="Pratinjau" defaultChecked={b("showPreview")} />
             <Toggle name="showSegments" label="Untuk siapa" defaultChecked={b("showSegments")} />
             <Toggle name="showPricing" label="Harga" defaultChecked={b("showPricing")} />
             <Toggle name="showTestimonials" label="Testimoni" defaultChecked={b("showTestimonials")} />

@@ -4,7 +4,7 @@
  * Jadi landing tak pernah kosong meski admin belum mengisi apa pun.
  */
 import { prisma } from "@/lib/prisma";
-import type { Testimonial } from "@prisma/client";
+import type { Testimonial, PreviewItem } from "@prisma/client";
 
 /** Default kode (fallback). Sama dengan copy yang tampil sekarang. */
 export const LANDING_DEFAULTS = {
@@ -13,8 +13,8 @@ export const LANDING_DEFAULTS = {
   heroTitleAccent: "datang lagi otomatis",
   heroSubtitle:
     "Terima booking online, atur pekerjaan teknisi, dan ingatkan pelanggan servis berkala lewat WhatsApp — semua otomatis. Fokus kerja, biar Aircon yang jaga usaha Anda tetap ramai.",
-  heroCtaPrimary: "Coba Gratis",
-  heroCtaSecondary: "Lihat Demo Dulu",
+  heroCtaPrimary: "Mulai Sekarang — Gratis Selamanya",
+  heroCtaSecondary: "Lihat Pratinjau",
   heroMicrocopy: "Tanpa kartu kredit · Bisa langsung dipakai · Berhenti kapan saja",
   heroImageUrl: "",
   logoUrl: "",
@@ -25,11 +25,15 @@ export const LANDING_DEFAULTS = {
   featuresSubtitle: "Dari mencatat pekerjaan sampai uang masuk — rapi, otomatis, dan terlihat profesional.",
   ctaTitle: "Siap bikin usaha AC Anda lebih ramai?",
   ctaSubtitle: "Coba gratis, tak perlu kartu kredit. Bisa langsung dipakai hari ini.",
-  ctaButton: "Mulai Sekarang — Gratis",
-  footerTagline: "Aircon — Operating System untuk usaha servis AC. Dari Lumite.",
+  ctaButton: "Mulai Sekarang — Gratis Selamanya",
+  footerTagline: "Aircon — Operating System untuk usaha servis AC. Dari PT. Lumite Automasi Indonesia.",
+  csWhatsapp: "",
+  customTierTitle: "Butuh yang benar-benar sesuai bisnis Anda?",
+  customTierDesc: "Kami bangun aplikasi khusus mengikuti proses kerja unik perusahaan Anda — dari alur, laporan, hingga integrasi. Solusi menyeluruh untuk skala yang lebih besar.",
   showRoi: true,
   showHow: true,
   showFeatures: true,
+  showPreview: true,
   showSegments: true,
   showPricing: true,
   showTestimonials: false,
@@ -66,7 +70,8 @@ export type LandingUpdateInput = Partial<{
   logoUrl: string; ogImageUrl: string; howTitle: string; howSubtitle: string;
   featuresTitle: string; featuresSubtitle: string;
   ctaTitle: string; ctaSubtitle: string; ctaButton: string; footerTagline: string;
-  showRoi: boolean; showHow: boolean; showFeatures: boolean; showSegments: boolean; showPricing: boolean;
+  csWhatsapp: string; customTierTitle: string; customTierDesc: string;
+  showRoi: boolean; showHow: boolean; showFeatures: boolean; showPreview: boolean; showSegments: boolean; showPricing: boolean;
   showTestimonials: boolean; showFaq: boolean;
 }>;
 
@@ -100,4 +105,28 @@ export async function updateTestimonial(id: string, data: Partial<TestimonialInp
 
 export async function deleteTestimonial(id: string) {
   return prisma.testimonial.delete({ where: { id } });
+}
+
+// ---- Pratinjau (CMS pengganti demo) ----
+export async function listPreviewItems(onlyPublished = false): Promise<PreviewItem[]> {
+  return prisma.previewItem.findMany({
+    where: onlyPublished ? { published: true } : undefined,
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+}
+
+export type PreviewItemInput = {
+  title: string; caption: string; imageUrl: string; category: string; sortOrder: number; published: boolean;
+};
+
+export async function createPreviewItem(data: PreviewItemInput) {
+  return prisma.previewItem.create({ data });
+}
+
+export async function updatePreviewItem(id: string, data: Partial<PreviewItemInput>) {
+  return prisma.previewItem.update({ where: { id }, data });
+}
+
+export async function deletePreviewItem(id: string) {
+  return prisma.previewItem.delete({ where: { id } });
 }

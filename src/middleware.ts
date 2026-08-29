@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Middleware: refresh session Supabase & lindungi route ber-auth.
- * Route publik: /, /login, /p/* (halaman tenant), /demo, /auth/*, /api/public/*
+ * Route publik: /, /login, /pratinjau, /p/* (halaman tenant), /auth/*, /api/public/*
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

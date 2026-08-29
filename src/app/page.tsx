@@ -7,12 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
-import { getLandingContent, listTestimonials } from "@/lib/services/landing-service";
+import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
   description:
-    "Aplikasi kasir & manajemen usaha AC dari HP. Terima booking online, atur teknisi, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis coba 14 hari.",
+    "Aplikasi kasir & manajemen usaha AC dari HP. Terima booking online, atur teknisi, buat invoice profesional, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis selamanya.",
 };
 
 export const dynamic = "force-dynamic";
@@ -20,16 +20,66 @@ export const dynamic = "force-dynamic";
 const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
 export default async function Home() {
-  const [plans, policy, c, testimonials] = await Promise.all([
+  const [plans, policy, c, testimonials, previews] = await Promise.all([
     getActivePlans(),
     getBillingPolicy(),
     getLandingContent(),
     listTestimonials(true),
+    listPreviewItems(true),
   ]);
   const logo = c.logoUrl || "/brand/aircon-logo.png";
+  const csWa = (c.csWhatsapp || "").replace(/[^0-9]/g, "");
+  const csWaUrl = csWa
+    ? `https://wa.me/${csWa}?text=${encodeURIComponent("Halo Lumite, saya tertarik dengan solusi Full Custom Aircon untuk perusahaan saya.")}`
+    : "";
+
+  // JSON-LD structured data — bantu Google rich results + rekomendasi AI memahami produk.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://aircon-peach.vercel.app/#org",
+        name: "PT. Lumite Automasi Indonesia",
+        url: "https://aircon-peach.vercel.app",
+        brand: { "@type": "Brand", name: "Aircon" },
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: "Aircon",
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web, Android, iOS (PWA)",
+        description:
+          "Aplikasi manajemen usaha servis AC: booking online, atur teknisi & jadwal, invoice profesional, pantau piutang, insentif teknisi, dan pengingat servis otomatis lewat WhatsApp.",
+        inLanguage: "id-ID",
+        url: "https://aircon-peach.vercel.app",
+        publisher: { "@id": "https://aircon-peach.vercel.app/#org" },
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "IDR",
+          description: "Paket Basic gratis selamanya untuk usaha kecil.",
+        },
+        featureList: [
+          "Booking online", "Manajemen teknisi & jadwal", "Invoice & kwitansi profesional",
+          "Pemantauan piutang", "Insentif teknisi otomatis", "Kartu riwayat AC online",
+          "Pengingat servis via WhatsApp",
+        ],
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: [
+          { "@type": "Question", name: "Apakah Aircon ribet dipakai?", acceptedAnswer: { "@type": "Answer", text: "Tidak. Aircon dibuat untuk teknisi & pemilik usaha AC. Semua dari HP, bahasa Indonesia, langsung bisa dipakai tanpa pelatihan khusus." } },
+          { "@type": "Question", name: "Apakah Aircon gratis?", acceptedAnswer: { "@type": "Answer", text: "Ya, paket Basic gratis selamanya. Anda hanya membayar bila memilih upgrade ke paket berbayar saat usaha tumbuh." } },
+          { "@type": "Question", name: "Bagaimana pelanggan tahu waktunya servis lagi?", acceptedAnswer: { "@type": "Answer", text: "Otomatis. Setiap pekerjaan selesai membuat pengingat, dan saat waktunya tiba pelanggan dikabari lewat WhatsApp." } },
+        ],
+      },
+    ],
+  };
 
   return (
     <main className="min-h-screen bg-background">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {/* Header */}
       <header className="sticky top-0 z-30 border-b bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-5">
@@ -40,7 +90,7 @@ export default async function Home() {
           <nav className="flex shrink-0 items-center gap-1 text-sm">
             <div className="hidden items-center gap-1 sm:flex">
               {c.showPricing && <Link href="#harga" className={buttonVariants({ variant: "ghost", size: "sm" })}>Harga</Link>}
-              <Link href="/demo" className={buttonVariants({ variant: "ghost", size: "sm" })}>Demo</Link>
+              {c.showPreview && <Link href="/pratinjau" className={buttonVariants({ variant: "ghost", size: "sm" })}>Pratinjau</Link>}
             </div>
             <ThemeToggle />
             <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm" })}>Masuk</Link>
@@ -67,11 +117,13 @@ export default async function Home() {
             <Link href="/login" className={buttonVariants({ size: "lg", className: "w-full shadow-lg shadow-sky-500/20 sm:w-auto" })}>
               {c.heroCtaPrimary}
             </Link>
-            <Link href="/demo" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full sm:w-auto" })}>
-              {c.heroCtaSecondary}
-            </Link>
+            {c.showPreview && (
+              <Link href="/pratinjau" className={buttonVariants({ size: "lg", variant: "outline", className: "w-full sm:w-auto" })}>
+                {c.heroCtaSecondary}
+              </Link>
+            )}
           </div>
-          <p className="animate-in-up delay-150 mt-3 text-xs text-muted-foreground">{c.heroMicrocopy}</p>
+          <p className="animate-in-up delay-150 mt-3 animate-pulse-soft text-xs font-medium text-sky-600 dark:text-sky-400">{c.heroMicrocopy}</p>
 
           {/* Product visual mock (atau gambar hero kustom) */}
           <div className="animate-in-up delay-300 mx-auto mt-14 max-w-4xl">
@@ -123,6 +175,15 @@ export default async function Home() {
           <Step n="2" icon={Icon.Wrench} title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
           <Step n="3" icon={Icon.Repeat} title="Pelanggan datang lagi" desc="Aircon otomatis ingatkan pelanggan saat waktunya servis lagi, lewat WhatsApp." />
         </div>
+        {c.showPreview && (
+          <div className="mt-10 text-center">
+            <Link href="/pratinjau" className={buttonVariants({ variant: "outline", size: "lg", className: "gap-2" })}>
+              <Icon.Web className="h-4.5 w-4.5" aria-hidden />
+              Lihat Pratinjau Aplikasi
+            </Link>
+            <p className="mt-2 text-xs text-muted-foreground">Intip tampilan & fitur Aircon sebelum mulai.</p>
+          </div>
+        )}
       </section>
       )}
 
@@ -188,35 +249,41 @@ export default async function Home() {
       </section>
       )}
 
-      {/* TESTIMONI (tampil bila diaktifkan & ada data) */}
+      {/* TESTIMONI — marquee 1 baris, auto-scroll perlahan, berhenti saat hover */}
       {c.showTestimonials && testimonials.length > 0 && (
-      <section className="mx-auto max-w-5xl px-5 py-20">
-        <h2 className="text-center text-3xl font-bold tracking-tight">Kata mereka yang sudah pakai</h2>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {testimonials.map((t) => (
-            <Card key={t.id} className="interactive">
-              <CardContent className="p-6">
-                <div className="flex gap-0.5 text-amber-500">
-                  {Array.from({ length: Math.max(1, Math.min(5, t.rating)) }).map((_, i) => (
-                    <Icon.Check key={i} className="h-4 w-4" aria-hidden />
-                  ))}
-                </div>
-                <p className="mt-3 text-sm text-foreground">&ldquo;{t.quote}&rdquo;</p>
-                <div className="mt-4 flex items-center gap-3">
-                  {t.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.photoUrl} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 font-bold text-white">{t.name.charAt(0).toUpperCase()}</div>
-                  )}
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">{t.name}</div>
-                    {t.business && <div className="text-xs text-muted-foreground">{t.business}</div>}
+      <section className="overflow-hidden py-20">
+        <h2 className="px-5 text-center text-3xl font-bold tracking-tight">Kata mereka yang sudah pakai</h2>
+        <div className="marquee-mask mt-12 w-full overflow-hidden">
+          <div className="marquee-track gap-5 pr-5">
+            {[...testimonials, ...testimonials].map((t, i) => (
+              <Card key={`${t.id}-${i}`} className="w-[19rem] shrink-0">
+                <CardContent className="p-6">
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, s) => (
+                      <Icon.Star
+                        key={s}
+                        className={`h-4 w-4 ${s < Math.max(1, Math.min(5, t.rating)) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`}
+                        aria-hidden
+                      />
+                    ))}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="mt-3 line-clamp-4 text-sm text-foreground">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="mt-4 flex items-center gap-3">
+                    {t.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.photoUrl} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 font-bold text-white">{t.name.charAt(0).toUpperCase()}</div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-foreground">{t.name}</div>
+                      {t.business && <div className="truncate text-xs text-muted-foreground">{t.business}</div>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
       )}
@@ -260,6 +327,31 @@ export default async function Home() {
             );
           })}
         </div>
+
+        {/* Tier Full Custom — melebar penuh, CTA ke WhatsApp CS Lumite */}
+        <Card className="mt-5 overflow-hidden border-sky-200 bg-gradient-to-br from-sky-50 to-cyan-50 dark:border-sky-900/40 dark:from-sky-950/30 dark:to-cyan-950/20">
+          <CardContent className="flex flex-col items-start gap-6 p-8 sm:flex-row sm:items-center sm:justify-between">
+            <div className="max-w-2xl">
+              <Badge className="mb-3 bg-sky-600 text-white hover:bg-sky-600">Full Custom</Badge>
+              <h3 className="text-xl font-bold text-foreground">{c.customTierTitle}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.customTierDesc}</p>
+            </div>
+            <div className="w-full shrink-0 text-left sm:w-auto sm:text-right">
+              <div className="text-2xl font-extrabold text-foreground">Hubungi CS Kami</div>
+              <div className="text-xs text-muted-foreground">Konsultasi gratis, tanpa komitmen</div>
+              {csWaUrl ? (
+                <a href={csWaUrl} target="_blank" rel="noopener noreferrer" className={buttonVariants({ className: "mt-4 w-full gap-2 bg-emerald-600 hover:bg-emerald-700 sm:w-auto" })}>
+                  <Icon.Message className="h-4.5 w-4.5" aria-hidden />
+                  Hubungi via WhatsApp
+                </a>
+              ) : (
+                <span className={buttonVariants({ variant: "outline", className: "mt-4 w-full cursor-not-allowed opacity-60 sm:w-auto" })}>
+                  Nomor CS belum diatur
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </section>
       )}
 

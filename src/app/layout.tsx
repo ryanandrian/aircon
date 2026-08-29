@@ -5,17 +5,57 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import NextTopLoader from "nextjs-toploader";
+import { appBaseUrl } from "@/lib/unit-code/urls";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
+const SITE_URL = appBaseUrl();
+
 export const metadata: Metadata = {
-  title: "Aircon — Operating System untuk Usaha Servis AC",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Aircon — Software Usaha Servis AC (Kasir, Invoice & Pengingat WhatsApp)",
+    template: "%s · Aircon",
+  },
   description:
-    "Dapatkan customer, atur teknisi & jadwal, dan buat customer kembali otomatis. Semua dari HP.",
+    "Aplikasi manajemen usaha servis AC dari HP: terima booking online, atur teknisi & jadwal, buat invoice profesional, pantau piutang, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis selamanya untuk mulai.",
+  keywords: [
+    "software usaha AC", "aplikasi servis AC", "manajemen teknisi AC", "aplikasi cuci AC",
+    "invoice servis AC", "kasir usaha AC", "reminder servis AC WhatsApp", "aplikasi HVAC Indonesia",
+    "booking servis AC online", "manajemen bengkel AC", "Aircon Lumite",
+  ],
+  authors: [{ name: "PT. Lumite Automasi Indonesia" }],
+  creator: "PT. Lumite Automasi Indonesia",
+  publisher: "PT. Lumite Automasi Indonesia",
   manifest: "/manifest.json",
+  applicationName: "Aircon",
+  category: "business",
+  alternates: { canonical: "/" },
   icons: {
     icon: "/icon-512.png",
     apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    type: "website",
+    locale: "id_ID",
+    url: SITE_URL,
+    siteName: "Aircon",
+    title: "Aircon — Software Usaha Servis AC dari HP",
+    description:
+      "Terima booking online, atur teknisi, buat invoice profesional, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis selamanya untuk mulai.",
+    images: [{ url: "/brand/aircon-logo.png", width: 512, height: 512, alt: "Aircon" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Aircon — Software Usaha Servis AC dari HP",
+    description:
+      "Kasir, invoice, jadwal teknisi, dan pengingat servis WhatsApp — semua dari HP. Gratis selamanya untuk mulai.",
+    images: ["/brand/aircon-logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
 };
 

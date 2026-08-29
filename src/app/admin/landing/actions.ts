@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin";
 import {
   updateLandingContent, createTestimonial, updateTestimonial, deleteTestimonial,
+  createPreviewItem, updatePreviewItem, deletePreviewItem,
   type LandingUpdateInput,
 } from "@/lib/services/landing-service";
 import { createAssetUploadUrl } from "@/lib/storage/s3";
@@ -30,6 +31,9 @@ export async function actionSaveLanding(fd: FormData): Promise<{ ok: boolean; er
       howSubtitle: str(fd, "howSubtitle"),
       featuresTitle: str(fd, "featuresTitle"),
       featuresSubtitle: str(fd, "featuresSubtitle"),
+      csWhatsapp: str(fd, "csWhatsapp"),
+      customTierTitle: str(fd, "customTierTitle"),
+      customTierDesc: str(fd, "customTierDesc"),
       ctaTitle: str(fd, "ctaTitle"),
       ctaSubtitle: str(fd, "ctaSubtitle"),
       ctaButton: str(fd, "ctaButton"),
@@ -37,6 +41,7 @@ export async function actionSaveLanding(fd: FormData): Promise<{ ok: boolean; er
       showRoi: bool(fd, "showRoi"),
       showHow: bool(fd, "showHow"),
       showFeatures: bool(fd, "showFeatures"),
+      showPreview: bool(fd, "showPreview"),
       showSegments: bool(fd, "showSegments"),
       showPricing: bool(fd, "showPricing"),
       showTestimonials: bool(fd, "showTestimonials"),
@@ -91,6 +96,42 @@ export async function actionDeleteTestimonial(id: string): Promise<{ ok: boolean
     await requirePlatformAdmin();
     await deleteTestimonial(id);
     revalidatePath("/");
+    revalidatePath("/admin/landing");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal menghapus" };
+  }
+}
+
+// ---- Pratinjau (CMS pengganti demo) ----
+export async function actionSavePreviewItem(fd: FormData): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await requirePlatformAdmin();
+    const id = str(fd, "id");
+    const data = {
+      title: str(fd, "title"),
+      caption: str(fd, "caption"),
+      imageUrl: str(fd, "imageUrl"),
+      category: str(fd, "category"),
+      sortOrder: Number(fd.get("sortOrder") ?? 0),
+      published: bool(fd, "published"),
+    };
+    if (!data.title || !data.imageUrl) return { ok: false, error: "Judul & gambar wajib diisi" };
+    if (id) await updatePreviewItem(id, data);
+    else await createPreviewItem(data);
+    revalidatePath("/pratinjau");
+    revalidatePath("/admin/landing");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal menyimpan pratinjau" };
+  }
+}
+
+export async function actionDeletePreviewItem(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await requirePlatformAdmin();
+    await deletePreviewItem(id);
+    revalidatePath("/pratinjau");
     revalidatePath("/admin/landing");
     return { ok: true };
   } catch (e) {

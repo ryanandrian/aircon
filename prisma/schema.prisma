@@ -763,10 +763,16 @@ model LandingContent {
   ctaSubtitle       String   @default("")
   ctaButton         String   @default("")
   footerTagline     String   @default("")
+  // Kontak CS (WhatsApp) untuk tier custom / "Hubungi CS". Nomor format 62xxx.
+  csWhatsapp        String   @default("")
+  // Section: custom tier (Full Custom)
+  customTierTitle   String   @default("")
+  customTierDesc    String   @default("")
   // Toggle tampil per-section
   showRoi           Boolean  @default(true)
   showHow           Boolean  @default(true)
   showFeatures      Boolean  @default(true)
+  showPreview       Boolean  @default(true)
   showSegments      Boolean  @default(true)
   showPricing       Boolean  @default(true)
   showTestimonials  Boolean  @default(false) // default off sampai ada testimoni jujur
@@ -783,6 +789,22 @@ model Testimonial {
   quote      String
   photoUrl   String   @default("")
   rating     Int      @default(5)
+  sortOrder  Int      @default(0)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([published, sortOrder])
+}
+
+// Item "Pratinjau" landing (pengganti demo) — CMS admin. Tiap item = 1 tangkapan layar/foto
+// + judul + keterangan singkat. Publik hanya lihat yang published, urut sortOrder.
+model PreviewItem {
+  id         String   @id @default(cuid())
+  title      String                        // judul/nama layar (mis. "Buat Invoice Otomatis")
+  caption    String   @default("")         // keterangan singkat
+  imageUrl   String                        // URL gambar (upload S3)
+  category   String   @default("")         // pengelompokan opsional (mis. "Invoice", "Teknisi")
   sortOrder  Int      @default(0)
   published  Boolean  @default(true)
   createdAt  DateTime @default(now())

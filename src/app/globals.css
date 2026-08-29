@@ -189,6 +189,29 @@
   }
   .interactive:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
   .interactive:active { transform: translateY(0) scale(0.99); }
+
+  /* Kedip lembut (lazy) untuk microcopy penekan nilai */
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+  .animate-pulse-soft { animation: pulse-soft 2.8s ease-in-out infinite; }
+
+  /* Marquee: auto-scroll horizontal terus-menerus, berhenti saat hover */
+  @keyframes marquee-x {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee-x 40s linear infinite;
+  }
+  .marquee-mask:hover .marquee-track { animation-play-state: paused; }
+  .marquee-mask {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+  }
 }
 
 /* Hormati preferensi kurangi gerak (aksesibilitas) */

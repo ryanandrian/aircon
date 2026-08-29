@@ -1,15 +1,17 @@
-import { getLandingContent, listTestimonials } from "@/lib/services/landing-service";
+import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
 import { isStorageConfigured } from "@/lib/storage/s3";
 import { LandingEditor } from "./landing-editor";
 import { TestimonialManager } from "./testimonial-manager";
+import { PreviewManager } from "./preview-manager";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLandingPage() {
-  const [content, testimonials, storageOn] = await Promise.all([
+  const [content, testimonials, previews, storageOn] = await Promise.all([
     getLandingContent(),
     listTestimonials(false),
+    listPreviewItems(false),
     Promise.resolve(isStorageConfigured()),
   ]);
 
@@ -34,6 +36,13 @@ export default async function AdminLandingPage() {
         items={testimonials.map((t) => ({
           id: t.id, name: t.name, business: t.business, quote: t.quote,
           photoUrl: t.photoUrl, rating: t.rating, sortOrder: t.sortOrder, published: t.published,
+        }))}
+      />
+
+      <PreviewManager
+        items={previews.map((p) => ({
+          id: p.id, title: p.title, caption: p.caption, imageUrl: p.imageUrl,
+          category: p.category, sortOrder: p.sortOrder, published: p.published,
         }))}
       />
     </div>

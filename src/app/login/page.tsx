@@ -95,8 +95,8 @@ export default async function LoginPage({
             <Link href="/masuk-teknisi" className={buttonVariants({ variant: "outline", className: "min-h-[48px] gap-2" })}>
               <Icon.Mobile className="h-4 w-4" aria-hidden /> Masuk sebagai Teknisi
             </Link>
-            <Link href="/demo" className={buttonVariants({ variant: "ghost", className: "min-h-[48px] text-sky-600" })}>
-              Lihat Demo tanpa login →
+            <Link href="/pratinjau" className={buttonVariants({ variant: "ghost", className: "min-h-[48px] text-sky-600" })}>
+              Lihat Pratinjau Aplikasi →
             </Link>
           </div>
 
