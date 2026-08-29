@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -291,34 +292,26 @@ export function CustomerManager({
               {rows.map((c) => (
                 <Card key={c.id}>
                   <CardContent className="flex items-center gap-3 p-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">
-                      {c.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-semibold text-foreground">{c.name}</span>
-                        {c.category && <Badge variant="secondary" className="shrink-0">{CATEGORY_LABEL[c.category] ?? c.category}</Badge>}
-                        {c.topType && c.topType !== "CASH" && <Badge variant="outline" className="shrink-0">{TOP_LABEL[c.topType]}</Badge>}
+                    <Link href={`/app/pelanggan/${c.id}`} className="interactive flex min-w-0 flex-1 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">
+                        {c.name.charAt(0).toUpperCase()}
                       </div>
-                      <div className="truncate text-sm text-muted-foreground">{c.phone}{c.address ? ` · ${c.address}` : ""}</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">{c.assetCount} unit AC · {c.jobCount} pekerjaan</div>
-                    </div>
-                    <a
-                      href={`https://wa.me/${c.phone.replace(/^0/, "62")}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                      aria-label="Chat WhatsApp"
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate font-semibold text-foreground">{c.name}</span>
+                          {c.category && <Badge variant="secondary" className="shrink-0">{CATEGORY_LABEL[c.category] ?? c.category}</Badge>}
+                          {c.topType && c.topType !== "CASH" && <Badge variant="outline" className="shrink-0">{TOP_LABEL[c.topType]}</Badge>}
+                        </div>
+                        <div className="truncate text-sm text-muted-foreground">{c.phone}{c.address ? ` · ${c.address}` : ""}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{c.assetCount} unit AC · {c.jobCount} pekerjaan</div>
+                      </div>
+                    </Link>
+                    <Link
+                      href={`/app/pelanggan/${c.id}`}
+                      className="hidden shrink-0 items-center gap-1 rounded-lg border bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted sm:inline-flex"
                     >
-                      <Icon.Message className="h-4 w-4" aria-hidden />
-                    </a>
-                    <a
-                      href={`/app/pelanggan/${c.id}/harga`}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40"
-                      aria-label="Harga khusus"
-                      title="Harga khusus pelanggan"
-                    >
-                      <Icon.Billing className="h-4 w-4" aria-hidden />
-                    </a>
+                      Lihat <Icon.ChevronRight className="h-4 w-4" aria-hidden />
+                    </Link>
                     <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => openEdit(c)}>
                       <Icon.Note className="h-4 w-4" aria-hidden />
                     </Button>

@@ -73,7 +73,7 @@ export default async function AppDashboard() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <NavCard href="/app/pekerjaan" icon={Icon.Job} title="Pekerjaan" desc="Atur & pantau job" primary />
             <NavCard href="/app/pelanggan" icon={Icon.Users} title="Pelanggan" desc="Kelola data" />
-            <NavCard href="/app/unit" icon={Icon.AC} title="Unit AC" desc="Kartu perawatan" />
+            <NavCard href="/app/unit" icon={Icon.Web} title="Kode QR" desc="Stiker & scan unit" />
             <NavCard href={`/p/${tenant?.slug ?? ""}`} icon={Icon.Web} title="Halaman Usaha" desc="Booking online" external />
           </div>
         </section>

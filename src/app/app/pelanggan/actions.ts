@@ -7,6 +7,8 @@ import {
   createCustomer, updateCustomer, softDeleteCustomer, listCustomerRows, ServiceError,
   type ListCustomerRowsResult,
 } from "@/lib/services/customer-service";
+import { getAssetWithHistory } from "@/lib/services/asset-service";
+import { SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 
 type Result = { ok: boolean; error?: string };
 
@@ -106,5 +108,31 @@ export async function actionLoadCustomers(
     return { ok: true, ...res };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal memuat pelanggan" };
+  }
+}
+
+export type UnitHistoryItem = {
+  id: string; serviceType: string; status: string; date: string | null; notes: string | null;
+};
+
+/** Riwayat servis satu unit (lazy saat kartu unit dibuka). tenant-scoped. */
+export async function actionUnitHistory(
+  assetId: string,
+): Promise<{ ok: boolean; error?: string; items?: UnitHistoryItem[] }> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  try {
+    const asset = await getAssetWithHistory(ctx.tenantId, assetId);
+    const items: UnitHistoryItem[] = asset.jobs.map((j) => ({
+      id: j.id,
+      serviceType: SERVICE_TYPE_LABEL[j.serviceType] ?? j.serviceType,
+      status: j.status,
+      date: (j.completedAt ?? j.scheduledDate ?? j.createdAt)?.toISOString() ?? null,
+      notes: j.notes ?? null,
+    }));
+    return { ok: true, items };
+  } catch (e) {
+    if (e instanceof ServiceError && e.code === "NOT_FOUND") return { ok: false, error: "Unit tidak ditemukan" };
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal memuat riwayat" };
   }
 }

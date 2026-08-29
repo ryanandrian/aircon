@@ -10,7 +10,7 @@ type NavItem = { href: string; label: string; icon: (typeof Icon)[keyof typeof I
 export const APP_NAV: NavItem[] = [
   { href: "/app", label: "Ringkasan", icon: Icon.Dashboard, exact: true },
   { href: "/app/pelanggan", label: "Pelanggan", icon: Icon.Users },
-  { href: "/app/unit", label: "Unit AC", icon: Icon.AC },
+  { href: "/app/unit", label: "Kode QR", icon: Icon.Web },
   { href: "/app/layanan", label: "Daftar Layanan", icon: Icon.Catalog },
   { href: "/app/pekerjaan", label: "Pekerjaan", icon: Icon.Job },
   { href: "/app/faktur", label: "Invoice & Proforma", icon: Icon.Billing },

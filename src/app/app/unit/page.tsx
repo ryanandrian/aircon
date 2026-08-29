@@ -15,7 +15,7 @@ export default async function UnitPage() {
 
   return (
     <main className="min-h-screen bg-muted/40">
-      <AppHeader title="Unit AC Pelanggan" />
+      <AppHeader title="Kode QR" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <UnitManager initialUnits={rows} initialCursor={nextCursor} />
       </div>
