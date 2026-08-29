@@ -15,7 +15,7 @@ export default async function LayananPage() {
   return (
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Daftar Layanan" />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CatalogManager items={items} />
       </div>
     </main>

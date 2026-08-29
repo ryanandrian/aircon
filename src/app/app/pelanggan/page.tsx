@@ -16,7 +16,7 @@ export default async function PelangganPage() {
   return (
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Pelanggan" />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CustomerManager initialRows={rows} initialCursor={nextCursor} />
       </div>
     </main>

@@ -39,7 +39,7 @@ export default async function CustomerPricingPage({ params }: { params: Promise<
   return (
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Harga Khusus Pelanggan" back="/app/pelanggan" />
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CustomerPricingManager
           customerId={id}
           customerName={customer.name}

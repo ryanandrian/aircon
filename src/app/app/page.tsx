@@ -52,7 +52,7 @@ export default async function AppDashboard() {
   return (
     <>
       <AppHeader title="Ringkasan" action={<LogoutButton />} />
-      <div className="mx-auto max-w-5xl space-y-6 p-5">
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         {/* Greeting */}
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">{greeting}, {firstName} <Icon.Wave className="h-6 w-6 text-amber-500" aria-hidden /></h1>
@@ -62,9 +62,9 @@ export default async function AppDashboard() {
         {/* Metrics */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric icon={Icon.Job} label="Pekerjaan Hari Ini" value={todayJobs} tone="sky" href="/app/pekerjaan" />
-          <Metric icon={Icon.Wrench} label="Sedang Berjalan" value={metrics.activeJobs} tone="slate" href="/app/pekerjaan" />
-          <Metric icon={Icon.Bell} label="Pengingat Aktif" value={dueReminders} tone="violet" />
-          <Metric icon={Icon.Zap} label="Peluang IoT" value={openAlerts} tone={openAlerts > 0 ? "amber" : "slate"} href="/app/perangkat" />
+          <Metric icon={Icon.Wrench} label="Sedang Berjalan" value={metrics.activeJobs} tone="sky" href="/app/pekerjaan" />
+          <Metric icon={Icon.Bell} label="Pengingat Aktif" value={dueReminders} tone="sky" />
+          <Metric icon={Icon.Zap} label="Peluang IoT" value={openAlerts} tone={openAlerts > 0 ? "amber" : "sky"} href="/app/perangkat" />
         </section>
 
         {/* Aksi cepat — pintasan ringkas; navigasi utama via menu samping */}
@@ -100,12 +100,7 @@ export default async function AppDashboard() {
 function Metric({ icon: IconCmp, label, value, tone, href }: {
   icon: ComponentType<{ className?: string }>; label: string; value: number; tone: "sky" | "violet" | "amber" | "slate"; href?: string;
 }) {
-  const tones = {
-    sky: "border-sky-100 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30",
-    violet: "border-violet-100 bg-violet-50 dark:border-violet-900/40 dark:bg-violet-950/30",
-    amber: "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30",
-    slate: "border-border bg-card",
-  };
+  // Kartu SERAGAM (latar netral) — hanya ikon yang berwarna, agar tak ada kartu yang menonjol beda.
   const iconTones = {
     sky: "text-sky-500",
     violet: "text-violet-500",
@@ -113,7 +108,7 @@ function Metric({ icon: IconCmp, label, value, tone, href }: {
     slate: "text-muted-foreground",
   };
   const inner = (
-    <div className={`rounded-2xl border p-4 ${tones[tone]} ${href ? "interactive" : ""}`}>
+    <div className={`rounded-2xl border border-border bg-card p-4 ${href ? "interactive" : ""}`}>
       <div className={iconTones[tone]}><IconCmp className="h-6 w-6" /></div>
       <div className="mt-2 text-2xl font-bold tabular-nums text-foreground">{value}</div>
       <div className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</div>

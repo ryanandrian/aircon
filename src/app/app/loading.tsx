@@ -9,7 +9,7 @@ export default function AppLoading() {
   return (
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Memuat…" />
-      <div className="mx-auto max-w-4xl space-y-4 p-6">
+      <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-9 w-32 rounded-xl" />

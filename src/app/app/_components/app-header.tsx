@@ -17,7 +17,7 @@ export function AppHeader({ title, back, backLabel = "Kembali", action }: {
 }) {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3">
+      <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-2">
           <MobileNav />
           {back && (

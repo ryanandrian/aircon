@@ -37,7 +37,7 @@ export default async function LaporanPage() {
   return (
     <>
       <AppHeader title="Laporan Keuangan" />
-      <div className="mx-auto max-w-4xl space-y-5 p-5">
+      <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
 
         {/* Ringkasan angka */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

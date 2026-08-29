@@ -36,7 +36,7 @@ export default async function PerangkatPage() {
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Pemantauan Perangkat" />
 
-      <div className="mx-auto max-w-4xl space-y-6 p-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         {/* PELUANG SERVIS dari IoT — inti demand generator */}
         {alerts.length > 0 && (
           <section className="space-y-3">

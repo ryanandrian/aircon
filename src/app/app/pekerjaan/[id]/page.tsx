@@ -91,7 +91,7 @@ export default async function PekerjaanDetailPage({
   return (
     <main className="min-h-screen bg-muted/40 pb-16">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-3">
           <div>
             <Link
               href="/app/pekerjaan"
@@ -107,7 +107,7 @@ export default async function PekerjaanDetailPage({
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
         {/* Pelanggan */}
         <Card>
           <CardContent className="p-5">

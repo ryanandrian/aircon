@@ -20,7 +20,7 @@ export default async function PesanPerangkatPage() {
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Pesan Perangkat" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
 
-      <div className="mx-auto max-w-2xl space-y-6 p-6">
+      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         {products.length === 0 ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
             Produk perangkat belum tersedia. Hubungi tim Aircon.

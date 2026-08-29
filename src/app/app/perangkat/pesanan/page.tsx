@@ -30,7 +30,7 @@ export default async function PesananPerangkatPage() {
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Pesanan Perangkat" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
 
-      <div className="mx-auto max-w-3xl space-y-4 p-6">
+      <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         {orders.length === 0 ? (
           <EmptyState
             icon={Icon.Package}

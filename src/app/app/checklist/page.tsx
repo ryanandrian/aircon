@@ -16,7 +16,7 @@ export default async function ChecklistPage() {
   return (
     <main className="min-h-screen bg-muted/40">
       <AppHeader title="Checklist Servis" />
-      <div className="mx-auto max-w-3xl space-y-5 p-6">
+      <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
         <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-foreground/80 dark:border-sky-900/40 dark:bg-sky-950/30">
           Atur daftar langkah yang harus dikerjakan &amp; difoto teknisi untuk tiap jenis servis.
           Item wajib harus dicentang teknisi sebelum pekerjaan bisa diselesaikan.

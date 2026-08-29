@@ -29,7 +29,7 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
 
   return (
     <main className="min-h-screen bg-muted/40 pb-16">
-      <div className="mx-auto max-w-2xl space-y-4 p-4">
+      <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         <InvoiceView inv={inv} tenant={data.tenant} assetMap={data.assetMap} backHref="/app/faktur" />
         {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}
         {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />}
