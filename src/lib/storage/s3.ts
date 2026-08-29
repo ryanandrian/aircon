@@ -106,6 +106,34 @@ export async function deleteObject(key: string): Promise<void> {
  * SECURITY: key diawali `tenants/{tenantId}/` → isolasi antar-tenant di level path.
  * @param scope "logo" | "qris"
  */
+/**
+ * Upload aset tenant LANGSUNG dari server (byte dikirim via server action).
+ * Menghindari CORS browser→S3. Cocok untuk file kecil (logo/QRIS < 4MB).
+ * SECURITY: key di-namespace per tenant + scope; contentType di-whitelist.
+ */
+export async function putTenantAsset(params: {
+  tenantId: string;
+  scope: "logo" | "qris";
+  filename: string;
+  contentType: string;
+  body: Buffer;
+}): Promise<{ publicUrl: string; key: string }> {
+  if (!isStorageConfigured()) throw new Error("S3 storage belum dikonfigurasi");
+  if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
+  const ext = safeExt(params.filename);
+  const scope = params.scope === "qris" ? "qris" : "logo";
+  const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const key = `tenants/${params.tenantId}/${scope}/${rand}.${ext}`;
+  await client().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: params.body,
+    ContentType: params.contentType,
+    ACL: "public-read",
+  }));
+  return { publicUrl: publicUrl(key), key };
+}
+
 export async function createTenantAssetUploadUrl(params: {
   tenantId: string;
   scope: "logo" | "qris" | "bukti";

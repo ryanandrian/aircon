@@ -14,6 +14,7 @@ type Inv = {
 };
 type Tenant = {
   name: string; logoUrl: string | null; isPkp: boolean; npwp: string | null;
+  phone?: string | null; address?: string | null; tagline?: string | null;
   bankName: string | null; bankAccountNo: string | null; bankAccountName: string | null; qrisImageUrl: string | null;
 } | null;
 
@@ -49,6 +50,9 @@ export function InvoiceView({ inv, tenant, assetMap, backHref }: {
               <TenantLogo name={tenant?.name ?? "Aircon"} logoUrl={tenant?.logoUrl ?? ""} size={48} />
               <div>
                 <div className="font-bold text-foreground">{tenant?.name ?? "—"}</div>
+                {tenant?.tagline && <div className="text-xs italic text-muted-foreground">{tenant.tagline}</div>}
+                {tenant?.address && <div className="text-xs text-muted-foreground">{tenant.address}</div>}
+                {tenant?.phone && <div className="text-xs text-muted-foreground">Telp: {tenant.phone}</div>}
                 {tenant?.isPkp && tenant?.npwp && <div className="text-xs text-muted-foreground">NPWP: {tenant.npwp}</div>}
               </div>
             </div>

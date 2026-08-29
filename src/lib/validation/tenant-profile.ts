@@ -5,6 +5,10 @@
 import { z } from "zod";
 
 export const tenantProfileSchema = z.object({
+  name: z.string().trim().min(2, "Nama usaha minimal 2 karakter").max(120).optional(),
+  phone: z.string().trim().min(6, "Nomor telepon tidak valid").max(30).optional(),
+  address: z.string().trim().max(300).optional(),
+  tagline: z.string().trim().max(160).optional(),
   logoUrl: z.string().trim().max(500).optional(),
   isPkp: z.boolean().optional(),
   npwp: z.string().trim().max(40).optional(),

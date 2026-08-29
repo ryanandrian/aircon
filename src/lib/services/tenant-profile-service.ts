@@ -12,7 +12,8 @@ export async function getTenantProfile(tenantId: string) {
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: {
-      name: true, logoUrl: true, isPkp: true, npwp: true, taxPercent: true,
+      name: true, phone: true, address: true, tagline: true,
+      logoUrl: true, isPkp: true, npwp: true, taxPercent: true,
       bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
       teamIncentiveMode: true, incentiveBasis: true,
     },
@@ -27,6 +28,10 @@ export async function updateTenantProfile(
   input: TenantProfileInput,
 ): Promise<Tenant> {
   const data: Prisma.TenantUpdateInput = {};
+  if (input.name !== undefined) data.name = input.name;
+  if (input.phone !== undefined) data.phone = input.phone;
+  if (input.address !== undefined) data.address = input.address;
+  if (input.tagline !== undefined) data.tagline = input.tagline;
   if (input.logoUrl !== undefined) data.logoUrl = input.logoUrl;
   if (input.isPkp !== undefined) data.isPkp = input.isPkp;
   if (input.npwp !== undefined) data.npwp = input.npwp;

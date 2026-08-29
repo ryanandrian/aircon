@@ -149,6 +149,7 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
     where: { id: tenantId },
     select: {
       name: true, logoUrl: true, isPkp: true, npwp: true,
+      phone: true, address: true, tagline: true,
       bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
     },
   });

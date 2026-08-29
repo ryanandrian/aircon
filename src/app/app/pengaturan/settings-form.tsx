@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { TenantLogo } from "@/components/tenant-logo";
-import { actionPresignTenantAsset, actionSaveTenantProfile } from "./actions";
+import { actionUploadTenantAsset, actionSaveTenantProfile } from "./actions";
 
 type Profile = {
-  name: string; logoUrl: string; isPkp: boolean; npwp: string; taxPercent: number;
+  name: string; phone: string; address: string; tagline: string;
+  logoUrl: string; isPkp: boolean; npwp: string; taxPercent: number;
   bankName: string; bankAccountNo: string; bankAccountName: string; qrisImageUrl: string;
   teamIncentiveMode: "BAGI_RATA" | "PENUH"; incentiveBasis: "LUNAS" | "TERBIT";
 };
@@ -30,11 +31,11 @@ function TenantImageField({
     if (file.size > 4 * 1024 * 1024) { toast.error("Ukuran maksimal 4 MB"); return; }
     setBusy(true);
     try {
-      const pre = await actionPresignTenantAsset(scope, file.name, file.type);
-      if (!pre.ok || !pre.uploadUrl || !pre.publicUrl) throw new Error(pre.error ?? "Gagal presign");
-      const put = await fetch(pre.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      if (!put.ok) throw new Error("Upload ke storage gagal");
-      onChange(pre.publicUrl);
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await actionUploadTenantAsset(scope, fd);
+      if (!res.ok || !res.publicUrl) throw new Error(res.error ?? "Gagal mengunggah");
+      onChange(res.publicUrl);
       toast.success("Gambar terunggah");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal mengunggah");
@@ -80,6 +81,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
     e.preventDefault();
     setSaving(true);
     const res = await actionSaveTenantProfile({
+      name: f.name, phone: f.phone, address: f.address, tagline: f.tagline,
       logoUrl: f.logoUrl, isPkp: f.isPkp, npwp: f.npwp, taxPercent: Number(f.taxPercent) || 0,
       bankName: f.bankName, bankAccountNo: f.bankAccountNo, bankAccountName: f.bankAccountName,
       qrisImageUrl: f.qrisImageUrl,
@@ -93,6 +95,36 @@ export function SettingsForm({ profile }: { profile: Profile }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {/* Identitas Usaha */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div>
+            <h2 className="text-lg font-semibold">Identitas Usaha</h2>
+            <p className="text-sm text-muted-foreground">Nama, moto, kontak & alamat ini tampil di seluruh aplikasi dan pada invoice/kwitansi.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bizname">Nama Usaha</Label>
+              <Input id="bizname" value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="mis. AC Jaya Teknik" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bizphone">Telepon / WhatsApp Usaha</Label>
+              <Input id="bizphone" value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="0812xxxxxxx" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="biztagline">Moto / Slogan Usaha</Label>
+            <Input id="biztagline" value={f.tagline} onChange={(e) => set("tagline", e.target.value)} placeholder="mis. Dingin Cepat, Harga Bersahabat" maxLength={160} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bizaddr">Alamat Usaha</Label>
+            <textarea id="bizaddr" value={f.address} onChange={(e) => set("address", e.target.value)} rows={2}
+              placeholder="Jl. Contoh No. 123, Kota" maxLength={300}
+              className="w-full rounded-xl border bg-background px-3 py-2 text-sm" />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Branding */}
       <Card>
         <CardContent className="space-y-4 p-6">

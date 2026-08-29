@@ -242,7 +242,7 @@ model Tenant {
   id                      String       @id @default(cuid())
   name                    String
   slug                    String       @unique
-  phone                   String       @unique
+  phone                   String
   workingHoursDefault     Json
   serviceArea             Json
   bufferMinutes           Int          @default(15)
@@ -265,6 +265,8 @@ model Tenant {
   publicProfile           Json?
   // Branding & profil bisnis tenant (Fase 1) — untuk invoice & permukaan publik tenant.
   logoUrl                 String       @default("")
+  address                 String       @default("")  // alamat usaha (tampil di invoice/kwitansi)
+  tagline                 String       @default("")  // moto/slogan usaha
   isPkp                   Boolean      @default(false)
   npwp                    String       @default("")
   taxPercent              Float        @default(0)
