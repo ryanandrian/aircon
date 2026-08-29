@@ -126,6 +126,49 @@ export default async function Home() {
       </section>
       )}
 
+      {/* Fitur unggulan (Fase 2-7) */}
+      {c.showFeatures && (
+      <section className="mx-auto max-w-6xl px-5 py-20">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight">{c.featuresTitle}</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">{c.featuresSubtitle}</p>
+        </div>
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <FeatureCard
+            icon={Icon.Note}
+            title="Invoice & kwitansi profesional"
+            desc="Selesai kerja, faktur rapi ber-logo usaha Anda langsung jadi dan bisa dikirim ke pelanggan lewat WhatsApp — tak perlu lagi nota tulis tangan."
+          />
+          <FeatureCard
+            icon={Icon.Chart}
+            title="Pantau pembayaran & piutang"
+            desc="Lihat sekilas siapa yang sudah bayar dan mana yang belum jatuh tempo. Tak ada lagi tagihan yang terlewat."
+          />
+          <FeatureCard
+            icon={Icon.Money}
+            title="Insentif teknisi otomatis"
+            desc="Bonus tiap teknisi dihitung otomatis dari pekerjaan yang lunas — adil dan transparan, tanpa hitung manual."
+          />
+          <FeatureCard
+            icon={Icon.Web}
+            title="Kartu riwayat AC online untuk pelanggan"
+            desc="Setiap unit AC punya halaman riwayat yang bisa dibuka pelanggan: kapan terakhir diservis dan apa yang dikerjakan. Menambah kepercayaan tanpa repot."
+            featured
+          />
+          <FeatureCard
+            icon={Icon.Catalog}
+            title="Daftar layanan & harga rapi"
+            desc="Simpan layanan beserta harganya — bahkan harga khusus untuk pelanggan langganan. Teknisi tinggal pilih, harga selalu konsisten."
+          />
+          <FeatureCard
+            icon={Icon.Users}
+            title="Kelola tim & jadwal"
+            desc="Tugaskan beberapa teknisi dalam satu pekerjaan, atur peran, dan pantau semuanya dari satu layar."
+          />
+        </div>
+      </section>
+      )}
+
       {/* Untuk siapa */}
       {c.showSegments && (
       <section className="bg-muted/30">
@@ -138,7 +181,7 @@ export default async function Home() {
           <SegmentCard
             icon={Icon.Business}
             title="Perusahaan Servis AC"
-            points={["Atur banyak teknisi & jadwal dalam satu layar", "Pantau performa & pekerjaan real-time", "Pemantauan AC pintar (IoT) → peluang servis otomatis"]}
+            points={["Kelola banyak teknisi, jadwal, invoice, dan piutang dalam satu layar", "Insentif teknisi terhitung otomatis, laporan keuangan rapi", "Pemantauan AC pintar (IoT) membuka peluang servis berkala"]}
             featured
           />
         </div>
@@ -303,6 +346,20 @@ function SegmentCard({ icon: IconCmp, title, points, featured }: { icon: Compone
             </li>
           ))}
         </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FeatureCard({ icon: IconCmp, title, desc, featured }: { icon: ComponentType<{ className?: string }>; title: string; desc: string; featured?: boolean }) {
+  return (
+    <Card className={`interactive h-full ${featured ? "ring-1 ring-sky-200 dark:ring-sky-900/50" : ""}`}>
+      <CardContent className="p-6">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
+          <IconCmp className="h-6 w-6" aria-hidden />
+        </div>
+        <h3 className="mt-4 font-semibold text-foreground">{title}</h3>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
       </CardContent>
     </Card>
   );

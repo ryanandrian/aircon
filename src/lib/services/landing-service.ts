@@ -21,12 +21,15 @@ export const LANDING_DEFAULTS = {
   ogImageUrl: "",
   howTitle: "Cara kerjanya sederhana",
   howSubtitle: "Dirancang untuk teknisi & pemilik usaha.",
+  featuresTitle: "Semua yang usaha AC Anda butuhkan, dalam satu aplikasi",
+  featuresSubtitle: "Dari mencatat pekerjaan sampai uang masuk — rapi, otomatis, dan terlihat profesional.",
   ctaTitle: "Siap bikin usaha AC Anda lebih ramai?",
   ctaSubtitle: "Coba gratis, tak perlu kartu kredit. Bisa langsung dipakai hari ini.",
   ctaButton: "Mulai Sekarang — Gratis",
   footerTagline: "Aircon — Operating System untuk usaha servis AC. Dari Lumite.",
   showRoi: true,
   showHow: true,
+  showFeatures: true,
   showSegments: true,
   showPricing: true,
   showTestimonials: false,
@@ -61,8 +64,9 @@ export type LandingUpdateInput = Partial<{
   heroBadge: string; heroTitle: string; heroTitleAccent: string; heroSubtitle: string;
   heroCtaPrimary: string; heroCtaSecondary: string; heroMicrocopy: string; heroImageUrl: string;
   logoUrl: string; ogImageUrl: string; howTitle: string; howSubtitle: string;
+  featuresTitle: string; featuresSubtitle: string;
   ctaTitle: string; ctaSubtitle: string; ctaButton: string; footerTagline: string;
-  showRoi: boolean; showHow: boolean; showSegments: boolean; showPricing: boolean;
+  showRoi: boolean; showHow: boolean; showFeatures: boolean; showSegments: boolean; showPricing: boolean;
   showTestimonials: boolean; showFaq: boolean;
 }>;
 

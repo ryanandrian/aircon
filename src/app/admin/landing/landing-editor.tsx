@@ -77,6 +77,10 @@ export function LandingEditor({ initial }: { initial: Content }) {
             <div className="space-y-1.5"><Label htmlFor="howSubtitle">Sub-judul &quot;Cara kerja&quot;</Label><Input id="howSubtitle" name="howSubtitle" defaultValue={s("howSubtitle")} /></div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5"><Label htmlFor="featuresTitle">Judul &quot;Fitur unggulan&quot;</Label><Input id="featuresTitle" name="featuresTitle" defaultValue={s("featuresTitle")} /></div>
+            <div className="space-y-1.5"><Label htmlFor="featuresSubtitle">Sub-judul &quot;Fitur unggulan&quot;</Label><Input id="featuresSubtitle" name="featuresSubtitle" defaultValue={s("featuresSubtitle")} /></div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5"><Label htmlFor="ctaTitle">Judul CTA akhir</Label><Input id="ctaTitle" name="ctaTitle" defaultValue={s("ctaTitle")} /></div>
             <div className="space-y-1.5"><Label htmlFor="ctaButton">Tombol CTA akhir</Label><Input id="ctaButton" name="ctaButton" defaultValue={s("ctaButton")} /></div>
           </div>
@@ -92,6 +96,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
           <div className="grid gap-2 sm:grid-cols-2">
             <Toggle name="showRoi" label="Bar ROI" defaultChecked={b("showRoi")} />
             <Toggle name="showHow" label="Cara kerja" defaultChecked={b("showHow")} />
+            <Toggle name="showFeatures" label="Fitur unggulan" defaultChecked={b("showFeatures")} />
             <Toggle name="showSegments" label="Untuk siapa" defaultChecked={b("showSegments")} />
             <Toggle name="showPricing" label="Harga" defaultChecked={b("showPricing")} />
             <Toggle name="showTestimonials" label="Testimoni" defaultChecked={b("showTestimonials")} />

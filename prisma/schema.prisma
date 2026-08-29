@@ -755,6 +755,9 @@ model LandingContent {
   // Section: cara kerja
   howTitle          String   @default("")
   howSubtitle       String   @default("")
+  // Section: fitur unggulan (Fase 2-7)
+  featuresTitle     String   @default("")
+  featuresSubtitle  String   @default("")
   // Section: booking hook / CTA akhir / footer
   ctaTitle          String   @default("")
   ctaSubtitle       String   @default("")
@@ -763,6 +766,7 @@ model LandingContent {
   // Toggle tampil per-section
   showRoi           Boolean  @default(true)
   showHow           Boolean  @default(true)
+  showFeatures      Boolean  @default(true)
   showSegments      Boolean  @default(true)
   showPricing       Boolean  @default(true)
   showTestimonials  Boolean  @default(false) // default off sampai ada testimoni jujur
