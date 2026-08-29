@@ -68,17 +68,11 @@ export default async function AppDashboard() {
     redirect("/app/langganan?status=nonaktif");
   }
 
-  const roleLabel = { OWNER: "Pemilik", ADMIN: "Admin", TECHNICIAN: "Teknisi", CUSTOMER: "Pelanggan" }[ctx.role] ?? ctx.role;
-
   return (
     <>
       <AppHeader title="Ringkasan" action={<LogoutButton />} />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
-        {/* Judul halaman + grafik unit dilayani (profesional, tanpa sapaan) */}
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Ringkasan Usaha</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Pantau operasional AC Anda — {roleLabel} di {tenant?.name ?? "usaha Anda"}.</p>
-        </div>
+        <p className="text-sm text-muted-foreground">Ringkasan Kinerja Operasional Bisnis Anda</p>
 
         <ServicedTrendChart data={trend} total={trendTotal} />
 
