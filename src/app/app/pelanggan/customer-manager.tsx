@@ -288,11 +288,11 @@ export function CustomerManager({
               />
             )
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {rows.map((c) => (
-                <Card key={c.id}>
+                <Card key={c.id} className="interactive">
                   <CardContent className="flex items-center gap-3 p-4">
-                    <Link href={`/app/pelanggan/${c.id}`} className="interactive flex min-w-0 flex-1 items-center gap-3">
+                    <Link href={`/app/pelanggan/${c.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">
                         {c.name.charAt(0).toUpperCase()}
                       </div>
