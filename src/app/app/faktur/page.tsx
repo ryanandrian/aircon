@@ -21,7 +21,7 @@ export default async function FakturListPage() {
   return (
     <>
       <AppHeader title="Invoice & Proforma" />
-      <div className="mx-auto max-w-4xl space-y-3 px-5 py-6">
+      <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         {invoices.length === 0 ? (
           <Card className="border-dashed text-center">
             <CardContent className="p-8 text-sm text-muted-foreground">

@@ -8,6 +8,7 @@ import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
+import { AppHeader } from "../_components/app-header";
 
 export const dynamic = "force-dynamic";
 
@@ -69,22 +70,17 @@ export default async function PekerjaanPage() {
 
   return (
     <main className="min-h-screen bg-muted/40 pb-16">
-      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-3">
-          <div>
-            <Link href="/app" className="text-xs text-muted-foreground hover:text-foreground">
-              ← Ringkasan
-            </Link>
-            <h1 className="text-lg font-bold text-foreground">Pekerjaan</h1>
-          </div>
+      <AppHeader
+        title="Pekerjaan"
+        action={
           <Link
             href="/app/pekerjaan/baru"
-            className={buttonVariants({ size: "lg", className: "min-h-[44px] bg-sky-500 text-white hover:bg-sky-600" })}
+            className={buttonVariants({ size: "sm", className: "bg-sky-500 text-white hover:bg-sky-600" })}
           >
             + Pekerjaan
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <div className="mx-auto max-w-4xl space-y-8 px-5 py-6">
         {jobs.length === 0 ? (
