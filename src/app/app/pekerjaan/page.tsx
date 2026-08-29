@@ -37,13 +37,16 @@ function formatJam(d: Date | null): string | null {
   return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 }
 
-export default async function PekerjaanPage() {
+export default async function PekerjaanPage({ searchParams }: { searchParams: Promise<{ customer?: string }> }) {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/pekerjaan");
   if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") redirect("/app");
 
+  const { customer: customerId } = await searchParams;
+
   // SECURITY: tenantId dari sesi; service sudah tenant-scoped.
-  const { jobs } = await listJobs(ctx.tenantId, { limit: 100 });
+  const { jobs } = await listJobs(ctx.tenantId, { limit: 100, ...(customerId ? { customerId } : {}) });
+  const customerName = customerId && jobs.length > 0 ? jobs[0].customer.name : null;
 
   const today = startOfToday();
   const tomorrow = new Date(today.getTime() + DAY_MS);
@@ -83,6 +86,12 @@ export default async function PekerjaanPage() {
       />
 
       <div className="mx-auto max-w-4xl space-y-8 px-5 py-6">
+        {customerId && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm dark:border-sky-900/40 dark:bg-sky-950/30">
+            <span className="text-foreground">Pekerjaan pelanggan: <span className="font-semibold">{customerName ?? "—"}</span></span>
+            <Link href="/app/pekerjaan" className="shrink-0 font-medium text-sky-600 hover:underline dark:text-sky-400">Tampilkan semua</Link>
+          </div>
+        )}
         {jobs.length === 0 ? (
           <EmptyState
             icon={Icon.Job}

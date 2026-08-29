@@ -54,7 +54,7 @@ export function CustomerHub({
               target="_blank" rel="noopener noreferrer"
               className="inline-flex min-h-[40px] shrink-0 items-center gap-2 rounded-lg bg-emerald-500 px-3 text-sm font-medium text-white hover:bg-emerald-600"
             >
-              <Icon.Web className="h-4 w-4" aria-hidden /> WhatsApp
+              <Icon.Message className="h-4 w-4" aria-hidden /> WhatsApp
             </a>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-3 border-t pt-4 text-center">
@@ -73,7 +73,7 @@ export function CustomerHub({
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link href={`/app/pelanggan/${customer.id}/harga`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
-              <Icon.Catalog className="h-4 w-4" aria-hidden /> Harga Khusus
+              <Icon.Billing className="h-4 w-4" aria-hidden /> Harga Khusus
             </Link>
             <Link href={`/app/pekerjaan?customer=${customer.id}`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
               <Icon.Job className="h-4 w-4" aria-hidden /> Pekerjaan
@@ -119,14 +119,14 @@ function MaintenanceCardShare({ url }: { url: string }) {
         </div>
         <div className="mt-3 flex gap-2">
           <Button type="button" size="sm" variant="outline" onClick={copy} className="gap-1.5">
-            <Icon.Catalog className="h-4 w-4" aria-hidden /> Salin Link
+            <Icon.Copy className="h-4 w-4" aria-hidden /> Salin Link
           </Button>
           <a
             href={`https://wa.me/?text=${encodeURIComponent(`Kartu perawatan AC Anda: ${url}`)}`}
             target="_blank" rel="noopener noreferrer"
             className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-sm font-medium text-white hover:bg-emerald-600"
           >
-            <Icon.Web className="h-4 w-4" aria-hidden /> Kirim via WhatsApp
+            <Icon.Message className="h-4 w-4" aria-hidden /> Kirim via WhatsApp
           </a>
         </div>
       </CardContent>

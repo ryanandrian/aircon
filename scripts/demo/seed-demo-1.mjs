@@ -28,6 +28,19 @@ const D = (n) => new Prisma.Decimal(n);
 const FIRST = ["Ibu Sari","Bpk Andre","Ibu Rina","Bpk Hendra","Ibu Dewi","Bpk Joko","Ibu Maya","Bpk Rudi","Ibu Lina","Bpk Agus","Ibu Wati","Bpk Bayu","Ibu Nita","Bpk Eko","Ibu Fitri","Bpk Gunawan","Ibu Hesti","Bpk Irfan","Ibu Kartika","Bpk Lukman"];
 const INSTANSI = ["Kantor PT Maju Jaya","Kos Melati","Ruko Sentra Niaga","Restoran Nusantara","Klinik Sehat Bunda","Kos Putri Anggrek","Kantor Notaris Wijaya","Toko Elektronik Cahaya","Apotek Sehat","Warung Kopi Senja","Kos Bahagia","Kantor Desa Sukamaju","Salon Cantik","Bimbel Cerdas","Gudang Logistik Prima","Masjid Al-Ikhlas","Sekolah Tunas Bangsa","Hotel Melati Indah","Cafe Kopi Kita","Dealer Motor Jaya"];
 const BRANDS = ["Daikin","Panasonic","Sharp","LG","Samsung","Gree","Midea","Changhong"];
+
+/** Kategori pelanggan diturunkan dari NAMA (agar masuk akal di UI, bukan acak). */
+function catFromName(name) {
+  const n = name.toLowerCase();
+  if (n.includes("masjid") || n.includes("mushola")) return "MASJID_MUSHOLA";
+  if (n.includes("sekolah") || n.includes("bimbel") || n.includes("kampus")) return "SEKOLAH_KAMPUS";
+  if (n.includes("ruko") || n.includes("notaris") || n.includes("dealer")) return "RUKO_RUKAN";
+  if (n.includes("toko") || n.includes("apotek") || n.includes("salon") || n.includes("warung") ||
+      n.includes("cafe") || n.includes("kopi") || n.includes("restoran")) return "TOKO_OUTLET";
+  if (n.includes("kantor") || n.includes("pt ") || n.includes("gudang") || n.includes("logistik") ||
+      n.includes("kos") || n.includes("hotel") || n.includes("klinik") || n.includes("desa")) return "KANTOR_PERUSAHAAN";
+  return "LAINNYA";
+}
 const ROOMS = ["R. Tamu","R. Keluarga","Kamar Utama","Kamar 1","Kamar 2","Kamar 3","R. Kerja","R. Meeting","Lobby","Dapur","Kasir","Gudang"];
 const PKS = [0.5, 0.75, 1, 1.5, 2, 2.5];
 
@@ -120,7 +133,7 @@ async function main() {
   for (let i = 0; i < custNames.length; i++) {
     const name = custNames[i];
     const isBadan = i >= FIRST.length;
-    const cat = isBadan ? pick(["KANTOR_PERUSAHAAN","RUKO_RUKAN","TOKO_OUTLET","SEKOLAH_KAMPUS"]) : "RUMAH";
+    const cat = isBadan ? catFromName(name) : "RUMAH";
     const top = isBadan ? pick(["CASH","TEMPO_14","TEMPO_30"]) : "CASH";
     const c = await prisma.customer.create({
       data: {
