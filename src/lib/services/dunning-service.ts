@@ -127,6 +127,39 @@ async function queueDunningReminder(
  * run BERBEDA — memberi jendela nyata untuk membayar sebelum data hilang permanen.
  * Dipanggil terpisah (cron). Transaksi child->tenant. Idempoten.
  */
+/**
+ * Hapus PERMANEN seluruh data satu tenant (child tenant-scoped lalu tenant), dalam satu transaksi.
+ * Dipakai bersama oleh dunning (purgeMarkedTenants) & sweeper inaktivitas. Idempoten.
+ * SECURITY: urutan hapus menghormati FK; SEMUA tabel anak tenant-scoped disertakan.
+ */
+export async function purgeTenantData(id: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.invoiceItem.deleteMany({ where: { invoice: { tenantId: id } } }),
+    prisma.invoice.deleteMany({ where: { tenantId: id } }),
+    prisma.workItem.deleteMany({ where: { tenantId: id } }),
+    prisma.workSession.deleteMany({ where: { tenantId: id } }),
+    prisma.messageLog.deleteMany({ where: { tenantId: id } }),
+    prisma.repeatReminder.deleteMany({ where: { tenantId: id } }),
+    prisma.jobProgressEvent.deleteMany({ where: { job: { tenantId: id } } }),
+    prisma.jobAssignment.deleteMany({ where: { tenantId: id } }),
+    prisma.jobOrder.deleteMany({ where: { tenantId: id } }),
+    prisma.customerPricing.deleteMany({ where: { tenantId: id } }),
+    prisma.serviceCatalog.deleteMany({ where: { tenantId: id } }),
+    prisma.asset.deleteMany({ where: { tenantId: id } }),
+    prisma.customer.deleteMany({ where: { tenantId: id } }),
+    prisma.invite.deleteMany({ where: { tenantId: id } }),
+    prisma.payment.deleteMany({ where: { tenantId: id } }),
+    prisma.iotOrderItem.deleteMany({ where: { order: { tenantId: id } } }),
+    prisma.iotOrder.deleteMany({ where: { tenantId: id } }),
+    prisma.technician.deleteMany({ where: { tenantId: id } }),
+    prisma.messageTemplate.deleteMany({ where: { tenantId: id } }),
+    prisma.checklistTemplate.deleteMany({ where: { tenantId: id } }),
+    prisma.subscription.deleteMany({ where: { tenantId: id } }),
+    prisma.user.deleteMany({ where: { tenantId: id } }),
+    prisma.tenant.delete({ where: { id } }),
+  ]);
+}
+
 export async function purgeMarkedTenants(
   now: Date = new Date(),
   purgeGraceHours: number = 24,
@@ -140,28 +173,9 @@ export async function purgeMarkedTenants(
 
   const purged: string[] = [];
   for (const t of marked) {
-    const id = t.id;
-    // SECURITY: hapus semua child tenant-scoped lalu tenant, dalam satu transaksi.
-    await prisma.$transaction([
-      prisma.messageLog.deleteMany({ where: { tenantId: id } }),
-      prisma.repeatReminder.deleteMany({ where: { tenantId: id } }),
-      prisma.jobProgressEvent.deleteMany({ where: { job: { tenantId: id } } }),
-      prisma.jobOrder.deleteMany({ where: { tenantId: id } }),
-      prisma.asset.deleteMany({ where: { tenantId: id } }),
-      prisma.customer.deleteMany({ where: { tenantId: id } }),
-      prisma.invite.deleteMany({ where: { tenantId: id } }),
-      prisma.payment.deleteMany({ where: { tenantId: id } }),
-      prisma.iotOrderItem.deleteMany({ where: { order: { tenantId: id } } }),
-      prisma.iotOrder.deleteMany({ where: { tenantId: id } }),
-      prisma.technician.deleteMany({ where: { tenantId: id } }),
-      prisma.messageTemplate.deleteMany({ where: { tenantId: id } }),
-      prisma.checklistTemplate.deleteMany({ where: { tenantId: id } }),
-      prisma.subscription.deleteMany({ where: { tenantId: id } }),
-      prisma.user.deleteMany({ where: { tenantId: id } }),
-      prisma.tenant.delete({ where: { id } }),
-    ]);
-    purged.push(id);
-    console.info(`[dunning] PURGE tenant ${id} (${t.name}) — data dihapus permanen`);
+    await purgeTenantData(t.id);
+    purged.push(t.id);
+    console.info(`[dunning] PURGE tenant ${t.id} (${t.name}) — data dihapus permanen`);
   }
   return { purged: purged.length, tenantIds: purged };
 }

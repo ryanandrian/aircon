@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { runDunningCycle, purgeMarkedTenants } from "@/lib/services/dunning-service";
+import { runInactivitySweep } from "@/lib/services/inactivity-sweeper-service";
 import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
 
 /** Cek otorisasi cron: header Bearer CRON_SECRET (dipakai Vercel Cron & pemanggilan manual). */
@@ -21,9 +22,10 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   try {
     const dunning = await runDunningCycle();
     const purge = await purgeMarkedTenants();
+    const inactivity = await runInactivitySweep();
     // Flush antrean WA dunning ke gateway (pesan penagihan benar-benar terkirim).
     const dispatch = await flushQueuedMessages();
-    return NextResponse.json({ ok: true, dunning, purge, dispatch });
+    return NextResponse.json({ ok: true, dunning, purge, inactivity, dispatch });
   } catch (err) {
     console.error("[cron/dunning] gagal:", err);
     return NextResponse.json({ error: "Gagal menjalankan dunning" }, { status: 500 });

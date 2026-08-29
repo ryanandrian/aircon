@@ -32,6 +32,11 @@ const validPolicy = {
   daysBeforeDelete: 7, dunningReminderDays: "0,1,3", deleteWarningDay: 3,
   dunningReminderTemplate: "Halo {nama}, tagihan menunggak {telat} hari.",
   dunningWarningTemplate: "Halo {nama}, menunggak {telat} hari, sisa {sisa} hari sebelum data dihapus.",
+  inactivitySweepEnabled: false, inactivityDryRun: true,
+  inactivityReminder1Days: 30, inactivityReminder2Days: 45, inactivityDeleteDays: 52,
+  inactivityMinCustomers: 5, inactivityMinJobs: 3, inactivityExemptPaid: true,
+  inactivityReminder1Template: "Halo {nama}, akun belum ada aktivitas {hari} hari.",
+  inactivityReminder2Template: "Halo {nama}, {hari} hari tanpa aktivitas, dihapus dalam {sisa} hari.",
 };
 
 describe("billingPolicySchema", () => {

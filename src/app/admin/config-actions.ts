@@ -70,6 +70,16 @@ export async function actionUpdatePolicy(fd: FormData): Promise<ActionResult> {
       deleteWarningDay: num(fd, "deleteWarningDay"),
       dunningReminderTemplate: String(fd.get("dunningReminderTemplate") ?? ""),
       dunningWarningTemplate: String(fd.get("dunningWarningTemplate") ?? ""),
+      inactivitySweepEnabled: boolean(fd, "inactivitySweepEnabled"),
+      inactivityDryRun: boolean(fd, "inactivityDryRun"),
+      inactivityReminder1Days: num(fd, "inactivityReminder1Days"),
+      inactivityReminder2Days: num(fd, "inactivityReminder2Days"),
+      inactivityDeleteDays: num(fd, "inactivityDeleteDays"),
+      inactivityMinCustomers: num(fd, "inactivityMinCustomers"),
+      inactivityMinJobs: num(fd, "inactivityMinJobs"),
+      inactivityExemptPaid: boolean(fd, "inactivityExemptPaid"),
+      inactivityReminder1Template: String(fd.get("inactivityReminder1Template") ?? ""),
+      inactivityReminder2Template: String(fd.get("inactivityReminder2Template") ?? ""),
     });
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
     await updateBillingPolicy(parsed.data, admin.email);

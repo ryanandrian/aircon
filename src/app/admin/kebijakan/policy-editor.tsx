@@ -17,6 +17,16 @@ interface Initial {
   deleteWarningDay: number;
   dunningReminderTemplate: string;
   dunningWarningTemplate: string;
+  inactivitySweepEnabled: boolean;
+  inactivityDryRun: boolean;
+  inactivityReminder1Days: number;
+  inactivityReminder2Days: number;
+  inactivityDeleteDays: number;
+  inactivityMinCustomers: number;
+  inactivityMinJobs: number;
+  inactivityExemptPaid: boolean;
+  inactivityReminder1Template: string;
+  inactivityReminder2Template: string;
 }
 
 export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updatedBy: string | null }) {
@@ -73,6 +83,59 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
         <div>
           <Label htmlFor="dunningWarningTemplate">Peringatan hapus data (mendekati batas)</Label>
           <Textarea id="dunningWarningTemplate" name="dunningWarningTemplate" defaultValue={initial.dunningWarningTemplate} rows={2} className="mt-1" />
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+        <p className="text-sm font-semibold text-foreground">Sweeper Akun Tidak Aktif (tenant gratis/telantar)</p>
+        <p className="text-xs text-muted-foreground">
+          Hapus otomatis akun yang benar-benar telantar (mis. coba-coba lalu ditinggal). Berbasis aktivitas NYATA
+          (pekerjaan/invoice/pelanggan/login). Aktivitas kembali → batal hapus. Semua ambang di bawah bisa diubah.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="inactivitySweepEnabled" defaultChecked={initial.inactivitySweepEnabled} className="h-4 w-4 accent-sky-500" />
+            Aktifkan sweeper
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="inactivityDryRun" defaultChecked={initial.inactivityDryRun} className="h-4 w-4 accent-amber-500" />
+            Mode simulasi (dry-run: hanya catat, TIDAK menghapus)
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="inactivityExemptPaid" defaultChecked={initial.inactivityExemptPaid} className="h-4 w-4 accent-sky-500" />
+            Kecualikan tenant yang pernah bayar
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="inactivityReminder1Days">Reminder #1 (hari tak aktif)</Label>
+            <Input id="inactivityReminder1Days" type="number" name="inactivityReminder1Days" defaultValue={initial.inactivityReminder1Days} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor="inactivityReminder2Days">Reminder #2 (hari tak aktif)</Label>
+            <Input id="inactivityReminder2Days" type="number" name="inactivityReminder2Days" defaultValue={initial.inactivityReminder2Days} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor="inactivityDeleteDays">Hapus permanen (hari tak aktif)</Label>
+            <Input id="inactivityDeleteDays" type="number" name="inactivityDeleteDays" defaultValue={initial.inactivityDeleteDays} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor="inactivityMinCustomers">Kecualikan bila ≥ pelanggan</Label>
+            <Input id="inactivityMinCustomers" type="number" name="inactivityMinCustomers" defaultValue={initial.inactivityMinCustomers} className="mt-1" />
+          </div>
+          <div>
+            <Label htmlFor="inactivityMinJobs">Kecualikan bila ≥ pekerjaan</Label>
+            <Input id="inactivityMinJobs" type="number" name="inactivityMinJobs" defaultValue={initial.inactivityMinJobs} className="mt-1" />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">Placeholder template: {"{nama}"} = nama usaha, {"{hari}"} = hari tak aktif, {"{sisa}"} = sisa hari sebelum dihapus.</p>
+        <div>
+          <Label htmlFor="inactivityReminder1Template">Template reminder #1</Label>
+          <Textarea id="inactivityReminder1Template" name="inactivityReminder1Template" defaultValue={initial.inactivityReminder1Template} rows={2} className="mt-1" />
+        </div>
+        <div>
+          <Label htmlFor="inactivityReminder2Template">Template reminder #2 (peringatan hapus)</Label>
+          <Textarea id="inactivityReminder2Template" name="inactivityReminder2Template" defaultValue={initial.inactivityReminder2Template} rows={2} className="mt-1" />
         </div>
       </div>
 

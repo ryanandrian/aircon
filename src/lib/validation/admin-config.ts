@@ -34,6 +34,16 @@ export const billingPolicySchema = z
     deleteWarningDay: z.number().int().min(0),
     dunningReminderTemplate: z.string().trim().min(10).max(1000),
     dunningWarningTemplate: z.string().trim().min(10).max(1000),
+    inactivitySweepEnabled: z.boolean(),
+    inactivityDryRun: z.boolean(),
+    inactivityReminder1Days: z.number().int().min(1),
+    inactivityReminder2Days: z.number().int().min(1),
+    inactivityDeleteDays: z.number().int().min(1),
+    inactivityMinCustomers: z.number().int().min(0),
+    inactivityMinJobs: z.number().int().min(0),
+    inactivityExemptPaid: z.boolean(),
+    inactivityReminder1Template: z.string().trim().min(10).max(1000),
+    inactivityReminder2Template: z.string().trim().min(10).max(1000),
   })
   .refine((d) => d.daysBeforeDelete > d.graceDaysBeforeSuspend, {
     message: "Hari hapus harus lebih besar dari hari suspend",
@@ -42,6 +52,14 @@ export const billingPolicySchema = z
   .refine((d) => d.deleteWarningDay < d.daysBeforeDelete, {
     message: "Hari peringatan hapus harus sebelum hari hapus",
     path: ["deleteWarningDay"],
+  })
+  .refine((d) => d.inactivityReminder2Days > d.inactivityReminder1Days, {
+    message: "Reminder #2 harus setelah reminder #1",
+    path: ["inactivityReminder2Days"],
+  })
+  .refine((d) => d.inactivityDeleteDays >= d.inactivityReminder2Days, {
+    message: "Hari hapus harus >= reminder #2",
+    path: ["inactivityDeleteDays"],
   });
 export type BillingPolicyInput = z.infer<typeof billingPolicySchema>;
 

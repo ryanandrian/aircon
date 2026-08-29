@@ -24,6 +24,16 @@ export default async function AdminKebijakanPage() {
           deleteWarningDay: p.deleteWarningDay,
           dunningReminderTemplate: p.dunningReminderTemplate,
           dunningWarningTemplate: p.dunningWarningTemplate,
+          inactivitySweepEnabled: p.inactivitySweepEnabled,
+          inactivityDryRun: p.inactivityDryRun,
+          inactivityReminder1Days: p.inactivityReminder1Days,
+          inactivityReminder2Days: p.inactivityReminder2Days,
+          inactivityDeleteDays: p.inactivityDeleteDays,
+          inactivityMinCustomers: p.inactivityMinCustomers,
+          inactivityMinJobs: p.inactivityMinJobs,
+          inactivityExemptPaid: p.inactivityExemptPaid,
+          inactivityReminder1Template: p.inactivityReminder1Template,
+          inactivityReminder2Template: p.inactivityReminder2Template,
         }}
         updatedBy={p.updatedBy}
       />

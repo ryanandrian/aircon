@@ -256,6 +256,10 @@ model Tenant {
   suspendedAt             DateTime?
   markedForDeletionAt     DateTime?
   lastDunningReminderAt   DateTime?
+  // Sweeper akun tidak aktif: kapan aktivitas nyata terakhir + kapan reminder inaktif terakhir dikirim.
+  lastActivityAt          DateTime?
+  inactivityReminderAt    DateTime?
+  inactivityReminderStage Int          @default(0) // 0=belum, 1=reminder#1 terkirim, 2=reminder#2 terkirim
   onboardingCompleted     Boolean      @default(false)
   waDriver                WaDriver     @default(WEB)
   publicProfile           Json?
@@ -933,6 +937,18 @@ model BillingPolicy {
   // Template pesan penagihan (platform->tenant). Placeholder: {nama} {telat} {sisa}. Editable admin.
   dunningReminderTemplate String @default("Halo {nama}, langganan Aircon Anda jatuh tempo dan menunggak {telat} hari. Mohon segera perpanjang agar layanan tidak terputus.")
   dunningWarningTemplate  String @default("Halo {nama}, langganan Aircon Anda menunggak {telat} hari. PERINGATAN: bila tidak dibayar dalam {sisa} hari lagi, data usaha Anda akan dihapus permanen. Segera perpanjang untuk menghindari kehilangan data.")
+  // ===== Sweeper AKUN TIDAK AKTIF (untuk tenant gratis/telantar). Semua editable admin, no hardcode. =====
+  inactivitySweepEnabled  Boolean @default(false) // master switch — default OFF (aman)
+  inactivityDryRun        Boolean @default(true)  // true = hanya log calon hapus, TIDAK menghapus
+  inactivityReminder1Days Int     @default(30)    // reminder #1: tak ada aktivitas N hari
+  inactivityReminder2Days Int     @default(45)    // reminder #2/terakhir: tak ada aktivitas N hari
+  inactivityDeleteDays    Int     @default(52)    // hapus permanen bila tak aktif sampai hari ke-N (>= reminder2)
+  inactivityMinCustomers  Int     @default(5)     // KECUALIKAN bila punya >= N pelanggan (usaha nyata)
+  inactivityMinJobs       Int     @default(3)     // KECUALIKAN bila punya >= N pekerjaan
+  inactivityExemptPaid    Boolean @default(true)  // KECUALIKAN tenant yang pernah bayar
+  // Template WA. Placeholder: {nama} {hari} {sisa}. Editable admin.
+  inactivityReminder1Template String @default("Halo {nama}, akun Aircon Anda belum ada aktivitas selama {hari} hari. Kami menantikan Anda kembali — buka aplikasi kapan saja untuk melanjutkan.")
+  inactivityReminder2Template String @default("Halo {nama}, akun Aircon Anda sudah {hari} hari tanpa aktivitas. PERINGATAN: bila tetap tidak digunakan, akun beserta seluruh data akan DIHAPUS PERMANEN dalam {sisa} hari. Buka aplikasi untuk membatalkan penghapusan.")
   updatedAt             DateTime @updatedAt
   updatedBy             String?
 }
