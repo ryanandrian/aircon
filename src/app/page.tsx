@@ -251,18 +251,18 @@ export default async function Home() {
 
       {/* TESTIMONI — marquee 1 baris, auto-scroll perlahan, berhenti saat hover */}
       {c.showTestimonials && testimonials.length > 0 && (
-      <section className="overflow-hidden py-20">
-        <h2 className="px-5 text-center text-3xl font-bold tracking-tight">Kata mereka yang sudah pakai</h2>
-        <div className="marquee-mask mt-12 w-full overflow-hidden">
-          <div className="marquee-track gap-5 pr-5">
+      <section className="py-20">
+        <h2 className="px-5 text-center text-3xl font-bold tracking-tight">Pendapat Mitra kami yang telah menggunakan Aircon</h2>
+        <div className="marquee-mask mt-12 w-full overflow-x-hidden py-4">
+          <div className="marquee-track gap-5 px-5">
             {[...testimonials, ...testimonials].map((t, i) => (
-              <Card key={`${t.id}-${i}`} className="w-[19rem] shrink-0">
+              <Card key={`${t.id}-${i}`} className="w-[19rem] shrink-0 shadow-sm">
                 <CardContent className="p-6">
                   <div className="flex gap-0.5">
                     {Array.from({ length: 5 }).map((_, s) => (
                       <Icon.Star
                         key={s}
-                        className={`h-4 w-4 ${s < Math.max(1, Math.min(5, t.rating)) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`}
+                        className={`h-4 w-4 ${s < Math.max(1, Math.min(5, t.rating)) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted-foreground/30"}`}
                         aria-hidden
                       />
                     ))}
@@ -273,7 +273,7 @@ export default async function Home() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={t.photoUrl} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
                     ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 font-bold text-white">{t.name.charAt(0).toUpperCase()}</div>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500 font-bold text-white">{t.name.charAt(0).toUpperCase()}</div>
                     )}
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-foreground">{t.name}</div>
