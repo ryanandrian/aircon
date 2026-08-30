@@ -29,6 +29,8 @@ export default async function TeknisiPage() {
             name: t.user.name,
             phone: t.user.phone,
             active: t.active,
+            position: t.position,
+            status: t.user.status,
           }))}
           invites={invites.map((i) => ({ id: i.id, name: i.name, phone: i.phone, token: i.token }))}
         />

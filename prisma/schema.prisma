@@ -57,6 +57,12 @@ enum UserStatus {
   DISABLED
 }
 
+/** Posisi default anggota tim di lapangan (bisa dioverride per pekerjaan). */
+enum TeamPosition {
+  TEKNISI
+  KERNET
+}
+
 enum CustomerSource {
   REFERRAL
   WHATSAPP
@@ -395,6 +401,7 @@ model Technician {
   tenantId     String
   userId       String   @unique
   skills       String[]
+  position     TeamPosition @default(TEKNISI)
   workingHours Json?
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())

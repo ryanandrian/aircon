@@ -4,7 +4,7 @@ import { loginTechnician, acceptInvite, TechAuthError } from "@/lib/services/tec
 import { setTechSession } from "@/lib/auth/tech-session";
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
-import { createInvite, revokeInvite } from "@/lib/services/technician-service";
+import { createInvite, revokeInvite, updateTechnician, resetTechnicianPin } from "@/lib/services/technician-service";
 import { getPlanConfig } from "@/lib/billing/config";
 import { prisma } from "@/lib/prisma";
 import { quotaLimit, withinQuota } from "@/lib/billing/gating-pure";
@@ -81,5 +81,38 @@ export async function ownerRevokeInvite(inviteId: string): Promise<Result> {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
     console.error("[ownerRevokeInvite] gagal:", err);
     return { ok: false, error: "Gagal membatalkan undangan." };
+  }
+}
+
+/** Owner memperbarui profil teknisi (nama/HP/posisi/status aktif). */
+export async function ownerUpdateTechnician(
+  technicianId: string,
+  data: { name?: string; phone?: string; position?: "TEKNISI" | "KERNET"; active?: boolean },
+): Promise<Result> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    await updateTechnician(ctx.tenantId, technicianId, data);
+    revalidatePath("/app/teknisi");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TechAuthError) return { ok: false, error: err.message };
+    console.error("[ownerUpdateTechnician] gagal:", err);
+    return { ok: false, error: "Gagal menyimpan perubahan." };
+  }
+}
+
+/** Owner reset PIN teknisi (mis. teknisi lupa PIN). */
+export async function ownerResetTechnicianPin(technicianId: string, newPin: string): Promise<Result> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    await resetTechnicianPin(ctx.tenantId, technicianId, newPin);
+    revalidatePath("/app/teknisi");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TechAuthError) return { ok: false, error: err.message };
+    console.error("[ownerResetTechnicianPin] gagal:", err);
+    return { ok: false, error: "Gagal reset PIN." };
   }
 }

@@ -165,7 +165,7 @@ export async function listTechniciansAndInvites(tenantId: string) {
   const [techs, invites] = await Promise.all([
     prisma.technician.findMany({
       where: { tenantId },
-      include: { user: { select: { name: true, phone: true, status: true } } },
+      include: { user: { select: { id: true, name: true, phone: true, status: true } } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.invite.findMany({
@@ -181,4 +181,68 @@ export async function revokeInvite(tenantId: string, inviteId: string): Promise<
   const invite = await prisma.invite.findFirst({ where: { id: inviteId, tenantId } });
   if (!invite) throw new TechAuthError("NOT_FOUND", "Undangan tidak ditemukan");
   await prisma.invite.update({ where: { id: invite.id }, data: { status: "REVOKED" } });
+}
+
+type TeamPositionValue = "TEKNISI" | "KERNET";
+
+/**
+ * Perbarui profil teknisi (owner): nama, HP, posisi default, status aktif.
+ * SECURITY: tenant-scoped — pastikan technician milik tenant sebelum update.
+ * Status aktif disinkronkan di User.status (ACTIVE/DISABLED) & Technician.active.
+ */
+export async function updateTechnician(
+  tenantId: string,
+  technicianId: string,
+  data: { name?: string; phone?: string; position?: TeamPositionValue; active?: boolean },
+): Promise<void> {
+  const tech = await prisma.technician.findFirst({
+    where: { id: technicianId, tenantId },
+    select: { id: true, userId: true, user: { select: { status: true } } },
+  });
+  if (!tech) throw new TechAuthError("NOT_FOUND", "Teknisi tidak ditemukan");
+
+  const name = data.name?.trim();
+  if (name !== undefined && name.length < 2) throw new TechAuthError("VALIDATION", "Nama minimal 2 karakter");
+  const phone = data.phone ? normalizePhone(data.phone) : undefined;
+
+  await prisma.$transaction(async (tx) => {
+    const userData: { name?: string; phone?: string; status?: "ACTIVE" | "DISABLED" } = {};
+    if (name) userData.name = name;
+    if (phone) userData.phone = phone;
+    // Jangan naikkan INVITED (belum set PIN) jadi ACTIVE lewat sini.
+    if (data.active !== undefined && tech.user.status !== "INVITED") {
+      userData.status = data.active ? "ACTIVE" : "DISABLED";
+    }
+    if (Object.keys(userData).length > 0) {
+      await tx.user.update({ where: { id: tech.userId }, data: userData });
+    }
+    const techData: { position?: TeamPositionValue; active?: boolean } = {};
+    if (data.position) techData.position = data.position;
+    if (data.active !== undefined) techData.active = data.active;
+    if (Object.keys(techData).length > 0) {
+      await tx.technician.update({ where: { id: tech.id }, data: techData });
+    }
+  });
+}
+
+/**
+ * Reset PIN teknisi (owner): set PIN baru langsung. tenant-scoped.
+ * Dipakai saat teknisi lupa PIN. PIN di-hash scrypt.
+ */
+export async function resetTechnicianPin(
+  tenantId: string,
+  technicianId: string,
+  newPin: string,
+): Promise<void> {
+  if (!isValidPin(newPin)) throw new TechAuthError("VALIDATION", "PIN harus 6 digit angka");
+  const tech = await prisma.technician.findFirst({
+    where: { id: technicianId, tenantId },
+    select: { userId: true, user: { select: { status: true } } },
+  });
+  if (!tech) throw new TechAuthError("NOT_FOUND", "Teknisi tidak ditemukan");
+  await prisma.user.update({
+    where: { id: tech.userId },
+    // Reset PIN sekaligus aktifkan bila sebelumnya masih INVITED (belum pernah set PIN).
+    data: { pinHash: hashPin(newPin), status: tech.user.status === "INVITED" ? "ACTIVE" : undefined },
+  });
 }
