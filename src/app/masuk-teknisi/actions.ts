@@ -4,7 +4,7 @@ import { loginTechnician, acceptInvite, TechAuthError } from "@/lib/services/tec
 import { setTechSession } from "@/lib/auth/tech-session";
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
-import { createInvite, revokeInvite, updateTechnician, resetTechnicianPin } from "@/lib/services/technician-service";
+import { createInvite, revokeInvite, updateTechnician, resetTechnicianPin, listTechnicianAssignments } from "@/lib/services/technician-service";
 import { getPlanConfig } from "@/lib/billing/config";
 import { prisma } from "@/lib/prisma";
 import { quotaLimit, withinQuota } from "@/lib/billing/gating-pure";
@@ -114,5 +114,25 @@ export async function ownerResetTechnicianPin(technicianId: string, newPin: stri
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
     console.error("[ownerResetTechnicianPin] gagal:", err);
     return { ok: false, error: "Gagal reset PIN." };
+  }
+}
+
+/** Owner: riwayat penugasan teknisi (filter periode YYYY-MM opsional). */
+export async function ownerTechnicianAssignments(
+  technicianId: string,
+  period?: string,
+): Promise<
+  | { ok: true; rows: { id: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string }[]; periods: string[] }
+  | { ok: false; error: string }
+> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const res = await listTechnicianAssignments(ctx.tenantId, technicianId, period || undefined);
+    return { ok: true, ...res };
+  } catch (err) {
+    if (err instanceof TechAuthError) return { ok: false, error: err.message };
+    console.error("[ownerTechnicianAssignments] gagal:", err);
+    return { ok: false, error: "Gagal memuat riwayat penugasan." };
   }
 }

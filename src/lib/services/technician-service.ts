@@ -176,6 +176,73 @@ export async function listTechniciansAndInvites(tenantId: string) {
   return { techs, invites };
 }
 
+/**
+ * Riwayat penugasan satu teknisi (owner): daftar pekerjaan yang pernah ditugaskan padanya,
+ * termasuk POSISI saat penugasan (teknisi/kernet) — bukan posisi default.
+ * Filter opsional per periode "YYYY-MM". tenant-scoped.
+ */
+export async function listTechnicianAssignments(
+  tenantId: string,
+  technicianId: string,
+  period?: string, // "YYYY-MM"
+): Promise<{
+  rows: {
+    id: string; date: string | null; customer: string; unit: string;
+    role: "TECHNICIAN" | "KERNET"; service: string; status: string;
+  }[];
+  periods: string[]; // daftar YYYY-MM tersedia (untuk dropdown filter)
+}> {
+  // Pastikan teknisi milik tenant.
+  const tech = await prisma.technician.findFirst({ where: { id: technicianId, tenantId }, select: { id: true } });
+  if (!tech) throw new TechAuthError("NOT_FOUND", "Teknisi tidak ditemukan");
+
+  const assignments = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: {
+      id: true, roleOnJob: true,
+      job: {
+        select: {
+          scheduledDate: true, completedAt: true, createdAt: true, serviceType: true, status: true,
+          customer: { select: { name: true } },
+          asset: { select: { brand: true, model: true, roomLocation: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const periodsSet = new Set<string>();
+
+  const all = assignments.map((a) => {
+    const j = a.job;
+    const dt = j.completedAt ?? j.scheduledDate ?? j.createdAt;
+    const d = dt ? new Date(dt) : null;
+    if (d) periodsSet.add(monthKey(d));
+    const unit = j.asset
+      ? ([j.asset.brand, j.asset.model].filter(Boolean).join(" ").trim() || j.asset.roomLocation || "Unit AC")
+      : "—";
+    return {
+      id: a.id,
+      date: d ? d.toISOString() : null,
+      _key: d ? monthKey(d) : "",
+      _ts: d ? d.getTime() : 0,
+      customer: j.customer?.name ?? "—",
+      unit,
+      role: a.roleOnJob as "TECHNICIAN" | "KERNET",
+      service: j.serviceType as string,
+      status: j.status as string,
+    };
+  });
+  // Default: urut TERBARU dulu berdasarkan tanggal tampil (bukan createdAt).
+  all.sort((x, y) => y._ts - x._ts);
+
+  const filtered = period ? all.filter((r) => r._key === period) : all;
+  const rows = filtered.map(({ _key, _ts, ...r }) => r); // buang field internal
+  const periods = [...periodsSet].sort().reverse();
+  return { rows, periods };
+}
+
 /** Batalkan undangan (owner). */
 export async function revokeInvite(tenantId: string, inviteId: string): Promise<void> {
   const invite = await prisma.invite.findFirst({ where: { id: inviteId, tenantId } });

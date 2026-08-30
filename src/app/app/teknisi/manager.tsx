@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -8,6 +8,7 @@ import {
   ownerRevokeInvite,
   ownerUpdateTechnician,
   ownerResetTechnicianPin,
+  ownerTechnicianAssignments,
 } from "@/app/masuk-teknisi/actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +48,7 @@ export function TechnicianManager({
   // Dialog state
   const [editTech, setEditTech] = useState<Tech | null>(null);
   const [pinTech, setPinTech] = useState<Tech | null>(null);
+  const [assignTech, setAssignTech] = useState<Tech | null>(null);
 
   function invite(e: React.FormEvent) {
     e.preventDefault();
@@ -195,6 +197,12 @@ export function TechnicianManager({
                     <p className="truncate text-sm text-muted-foreground">{t.phone}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    <Button type="button" variant="outline" size="sm" className="hidden gap-1.5 sm:inline-flex" onClick={() => setAssignTech(t)}>
+                      <Icon.Job className="h-4 w-4" aria-hidden /> Penugasan
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Penugasan" className="sm:hidden" onClick={() => setAssignTech(t)}>
+                      <Icon.Job className="h-4 w-4" aria-hidden />
+                    </Button>
                     <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => setEditTech(t)}>
                       <Icon.Note className="h-4 w-4" aria-hidden />
                     </Button>
@@ -223,6 +231,9 @@ export function TechnicianManager({
           onClose={() => setPinTech(null)}
           onDone={() => { setPinTech(null); router.refresh(); }}
         />
+      )}
+      {assignTech && (
+        <AssignmentDialog tech={assignTech} onClose={() => setAssignTech(null)} />
       )}
     </div>
   );
@@ -328,6 +339,113 @@ function ResetPinDialog({ tech, onClose, onDone }: { tech: Tech; onClose: () => 
           <Button onClick={submit} disabled={saving || !valid} className="bg-sky-500 text-white hover:bg-sky-600">
             {saving ? "Menyimpan…" : "Reset PIN"}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type AssignRow = { id: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string };
+
+const SERVICE_LABEL: Record<string, string> = {
+  CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
+  INSTALL: "Pasang Baru", DISMANTLE: "Bongkar", INSPECTION: "Pengecekan", OTHER: "Lainnya",
+};
+const JOB_STATUS: Record<string, string> = {
+  DRAFT: "Draf", ASSIGNED: "Ditugaskan", ACCEPTED: "Diterima", EN_ROUTE: "Menuju",
+  ARRIVED: "Tiba", IN_PROGRESS: "Dikerjakan", WAITING: "Menunggu", COMPLETED: "Selesai", CANCELLED: "Batal",
+};
+
+function fmtPeriod(p: string): string {
+  const [y, m] = p.split("-");
+  const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  return `${bulan[Number(m) - 1] ?? m} ${y}`;
+}
+const fmtRowDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+function AssignmentDialog({ tech, onClose }: { tech: Tech; onClose: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<AssignRow[]>([]);
+  const [periods, setPeriods] = useState<string[]>([]);
+  const [period, setPeriod] = useState<string>("ALL");
+
+  async function load(p: string) {
+    setLoading(true);
+    const res = await ownerTechnicianAssignments(tech.id, p === "ALL" ? undefined : p);
+    setLoading(false);
+    if (!res.ok) { toast.error(res.error); return; }
+    setRows(res.rows);
+    setPeriods(res.periods);
+  }
+
+  useEffect(() => { load("ALL"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  function changePeriod(p: string | null) { const v = p ?? "ALL"; setPeriod(v); load(v); }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-2xl">
+        <DialogHeader><DialogTitle>Penugasan — {tech.name}</DialogTitle></DialogHeader>
+
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{rows.length} pekerjaan</p>
+          <Select value={period} onValueChange={changePeriod}>
+            <SelectTrigger className="h-10 w-44 rounded-xl">
+              <SelectValue>{(v: string | null) => (v && v !== "ALL" ? fmtPeriod(v) : "Semua periode")}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Semua periode</SelectItem>
+              {periods.map((p) => <SelectItem key={p} value={p}>{fmtPeriod(p)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="-mx-6 overflow-auto px-6" style={{ maxHeight: "55vh" }}>
+          {loading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Memuat…</p>
+          ) : rows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Belum ada penugasan{period !== "ALL" ? " pada periode ini" : ""}.</p>
+          ) : (
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 bg-background">
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-2 font-medium">No</th>
+                  <th className="py-2 pr-2 font-medium">Tgl</th>
+                  <th className="py-2 pr-2 font-medium">Pelanggan</th>
+                  <th className="py-2 pr-2 font-medium">Unit</th>
+                  <th className="py-2 pr-2 font-medium">Posisi</th>
+                  <th className="py-2 pr-2 font-medium">Layanan</th>
+                  <th className="py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.id} className="border-b last:border-0 align-top">
+                    <td className="py-2 pr-2 tabular-nums text-muted-foreground">{i + 1}</td>
+                    <td className="py-2 pr-2 whitespace-nowrap">{fmtRowDate(r.date)}</td>
+                    <td className="py-2 pr-2">{r.customer}</td>
+                    <td className="py-2 pr-2">{r.unit}</td>
+                    <td className="py-2 pr-2">
+                      <Badge variant={r.role === "KERNET" ? "secondary" : "outline"} className="whitespace-nowrap">
+                        {r.role === "KERNET" ? "Kernet" : "Teknisi"}
+                      </Badge>
+                    </td>
+                    <td className="py-2 pr-2">{SERVICE_LABEL[r.service] ?? r.service}</td>
+                    <td className="py-2">
+                      <Badge variant={r.status === "COMPLETED" ? "secondary" : r.status === "CANCELLED" ? "outline" : "outline"} className="whitespace-nowrap">
+                        {JOB_STATUS[r.status] ?? r.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Tutup</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
