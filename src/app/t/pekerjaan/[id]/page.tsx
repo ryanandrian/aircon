@@ -49,7 +49,7 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
 
       <div className="mx-auto max-w-md space-y-4 p-4">
         {/* Info pelanggan */}
-        <Card>
+        <Card className="py-0">
           <CardContent className="p-4">
             <h2 className="text-sm font-semibold text-muted-foreground">Pelanggan</h2>
             <p className="mt-1 font-medium text-foreground">{job.customer.name}</p>
@@ -57,8 +57,8 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
             <div className="mt-3 grid grid-cols-3 gap-2">
               {job.customer.phone && (
                 <a href={`https://wa.me/${normalizePhone(job.customer.phone)}`} target="_blank" rel="noopener noreferrer"
-                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-emerald-500 text-xs font-medium text-white hover:bg-emerald-600">
-                  <Icon.Message className="h-5 w-5" aria-hidden /> WhatsApp
+                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-emerald-500 text-[11px] font-medium leading-none text-white hover:bg-emerald-600">
+                  <Icon.Message className="h-5 w-5" aria-hidden /> <span className="whitespace-nowrap">WhatsApp</span>
                 </a>
               )}
               {(job.geoLat && job.geoLng) || job.customer.address ? (
@@ -67,9 +67,9 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
                     ? `https://www.google.com/maps/search/?api=1&query=${job.geoLat},${job.geoLng}`
                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer.address ?? "")}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-sky-100 text-xs font-medium text-sky-700 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60"
+                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-sky-100 text-[11px] font-medium leading-none text-sky-700 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60"
                 >
-                  <Icon.Navigate className="h-5 w-5" aria-hidden /> Navigasi
+                  <Icon.Navigate className="h-5 w-5" aria-hidden /> <span className="whitespace-nowrap">Navigasi</span>
                 </a>
               ) : null}
               <SaveLocationButton jobId={job.id} hasLocation={Boolean(job.customer.geoLat && job.customer.geoLng)} />

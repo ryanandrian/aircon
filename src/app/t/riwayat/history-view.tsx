@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,6 +38,21 @@ export function JobHistoryView({
   const [total, setTotal] = useState(initialTotal);
   const [loading, setLoading] = useState(false);
 
+  // Lazy loading: render bertahap 10 baris, tambah saat sentinel terlihat (IntersectionObserver).
+  const PAGE = 10;
+  const [visible, setVisible] = useState(PAGE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) setVisible((v) => Math.min(v + PAGE, rows.length));
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [rows.length, visible]);
+
   async function changePeriod(p: string | null) {
     const v = p ?? "ALL";
     setPeriod(v);
@@ -47,6 +62,7 @@ export function JobHistoryView({
     if (!res.ok) { toast.error(res.error); return; }
     setRows(res.rows);
     setTotal(res.totalIncentive);
+    setVisible(PAGE); // reset saat ganti periode
   }
 
   return (
@@ -79,7 +95,7 @@ export function JobHistoryView({
         <p className="py-8 text-center text-sm text-muted-foreground">Belum ada pekerjaan{period !== "ALL" ? " pada periode ini" : ""}.</p>
       ) : (
         <ol className="space-y-2">
-          {rows.map((r, i) => (
+          {rows.slice(0, visible).map((r, i) => (
             <li key={r.id} className="rounded-xl border bg-background p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -102,6 +118,10 @@ export function JobHistoryView({
               </div>
             </li>
           ))}
+          {/* Sentinel lazy-load: memuat 10 baris berikutnya saat mendekati layar */}
+          {visible < rows.length && (
+            <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">Memuat lagi…</div>
+          )}
         </ol>
       )}
     </div>
