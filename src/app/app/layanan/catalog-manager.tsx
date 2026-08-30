@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/submit-button";
@@ -110,7 +110,7 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
         <p className="text-sm text-muted-foreground">Daftar layanan, harga standar & insentif</p>
         {!showForm && (
           <div className="flex gap-2">
-            <a href="/app/layanan/export" className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted" title="Unduh semua harga khusus (CSV)">
+            <a href="/app/layanan/export" className={buttonVariants({ variant: "outline", size: "sm" })} title="Unduh semua harga khusus (CSV)">
               <Icon.Billing className="h-4 w-4" aria-hidden /> Export CSV
             </a>
             <Button size="sm" onClick={openAdd}><Icon.Job className="h-4 w-4" aria-hidden /> Tambah Layanan</Button>
