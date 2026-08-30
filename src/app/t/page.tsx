@@ -49,7 +49,7 @@ export default async function TechnicianHome() {
             <h1 className="text-lg font-bold text-foreground">Halo, {ctx.name.split(" ")[0]}</h1>
             <p className="text-xs text-muted-foreground">Pekerjaan hari ini</p>
           </div>
-          <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{jobs.length}</span>
+          <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{jobs.length} tugas</span>
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
