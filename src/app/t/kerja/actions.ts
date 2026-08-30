@@ -41,16 +41,34 @@ export async function actionAddWorkItem(
 ): Promise<Result> {
   try {
     const ctx = await getServerContext();
-    // Default: teknisi yang sedang login otomatis jadi pelaksana (agar insentif terhitung).
+    const { prisma } = await import("@/lib/prisma");
     let techIds = input.techIds;
+    let kernetIds = input.kernetIds;
+
+    // B6 fix: bila roster tak diberikan, ambil dari JobAssignment job terkait sesi
+    // (TECHNICIAN→techIds, KERNET→kernetIds) agar kernet/rekan tim ikut dapat insentif.
     if (!techIds || techIds.length === 0) {
-      const { prisma } = await import("@/lib/prisma");
-      const tech = await prisma.technician.findFirst({
-        where: { tenantId: ctx.tenantId, userId: ctx.userId }, select: { id: true },
+      const ws = await prisma.workSession.findFirst({
+        where: { id: workSessionId, tenantId: ctx.tenantId }, select: { jobId: true },
       });
-      techIds = tech ? [tech.id] : [];
+      if (ws?.jobId) {
+        const roster = await prisma.jobAssignment.findMany({
+          where: { tenantId: ctx.tenantId, jobId: ws.jobId }, select: { personId: true, roleOnJob: true },
+        });
+        const rosterTech = roster.filter((r) => r.roleOnJob === "TECHNICIAN").map((r) => r.personId);
+        const rosterKernet = roster.filter((r) => r.roleOnJob === "KERNET").map((r) => r.personId);
+        if (rosterTech.length > 0) techIds = rosterTech;
+        if ((!kernetIds || kernetIds.length === 0) && rosterKernet.length > 0) kernetIds = rosterKernet;
+      }
+      // Fallback: teknisi yang sedang login (agar insentif tetap terhitung bila tak ada roster).
+      if (!techIds || techIds.length === 0) {
+        const tech = await prisma.technician.findFirst({
+          where: { tenantId: ctx.tenantId, userId: ctx.userId }, select: { id: true },
+        });
+        techIds = tech ? [tech.id] : [];
+      }
     }
-    await addWorkItem(ctx.tenantId, workSessionId, { ...input, techIds });
+    await addWorkItem(ctx.tenantId, workSessionId, { ...input, techIds, kernetIds });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal menambah pekerjaan") };

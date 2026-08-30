@@ -196,10 +196,13 @@ export async function markInvoicePaid(
   if (inv.docType !== "INVOICE") throw new ServiceError("CONFLICT", "Proforma tak bisa ditandai lunas — buat invoice dulu");
   if (inv.status === "PAID") throw new ServiceError("CONFLICT", "Invoice sudah lunas");
   if (inv.status === "CANCELLED") throw new ServiceError("CONFLICT", "Invoice sudah dibatalkan");
-  await prisma.invoice.update({
-    where: { id: invoiceId },
+  // B4 fix: update ATOMIK dengan guard status di WHERE — cegah double-mark pada race.
+  // Hanya ISSUED/OVERDUE yang boleh jadi PAID; bila 0 baris, status sudah berubah proses lain.
+  const res = await prisma.invoice.updateMany({
+    where: { id: invoiceId, tenantId, docType: "INVOICE", status: { in: ["ISSUED", "OVERDUE"] } },
     data: { status: "PAID", payMethod, paymentProofUrl: paymentProofUrl ?? null, paidAt: new Date() },
   });
+  if (res.count !== 1) throw new ServiceError("CONFLICT", "Status invoice sudah berubah. Muat ulang halaman.");
 }
 
 /**

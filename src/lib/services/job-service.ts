@@ -102,6 +102,32 @@ export async function transitionJob(input: TransitionInput) {
         });
       }
 
+      // B5 fix: unit TAMBAHAN yang dikerjakan on-site (WorkItem di WorkSession job ini)
+      // juga dapat next_service_date + reminder — bukan hanya job.assetId.
+      const leadDays = tenant?.reminderLeadDays ?? REPEAT_DEFAULTS.reminderLeadDays;
+      const sessions = await tx.workSession.findMany({
+        where: { tenantId, jobId: job.id },
+        select: { items: { select: { assetId: true } } },
+      });
+      const servicedAssetIds = new Set<string>();
+      for (const s of sessions) for (const it of s.items) if (it.assetId) servicedAssetIds.add(it.assetId);
+      if (job.assetId) servicedAssetIds.delete(job.assetId); // sudah ditangani di atas
+      if (servicedAssetIds.size > 0) {
+        const extraAssets = await tx.asset.findMany({
+          where: { id: { in: [...servicedAssetIds] }, tenantId },
+          select: { id: true, maintenanceIntervalDays: true },
+        });
+        for (const a of extraAssets) {
+          const due = computeNextServiceDate(completedAt, a.maintenanceIntervalDays, tenant?.maintenanceIntervalDays);
+          await tx.asset.update({ where: { id: a.id }, data: { nextServiceDate: due } });
+          await tx.repeatReminder.upsert({
+            where: { tenantId_assetId_dueDate: { tenantId, assetId: a.id, dueDate: due } },
+            create: { tenantId, assetId: a.id, dueDate: due, leadTimeDays: leadDays, status: "QUEUED" },
+            update: {},
+          });
+        }
+      }
+
       // Review request otomatis
       await tx.reviewRequest.create({
         data: { tenantId, jobId: job.id, channel: "WA", status: "REQUESTED" },

@@ -19,6 +19,7 @@ vi.mock("@/lib/prisma", () => ({
         return store.invoice ?? null;
       }),
       update: vi.fn(async ({ data }: any) => { updated = data; return {}; }),
+      updateMany: vi.fn(async ({ data }: any) => { updated = data; return { count: store.markCount ?? 1 }; }),
     },
     tenant: { findUnique: vi.fn(async () => store.tenant) },
     $transaction: vi.fn(async (fn: any) => fn({
@@ -57,6 +58,11 @@ describe("markInvoicePaid", () => {
   it("tolak sudah PAID", async () => {
     store.invoice = { id: "inv1", docType: "INVOICE", status: "PAID" };
     await expect(markInvoicePaid("t1", "inv1", "CASH")).rejects.toThrow();
+  });
+  it("B4: race double-mark → updateMany count 0 → tolak (cegah double-mark)", async () => {
+    store.markCount = 0; // status berubah proses lain di dalam window
+    await expect(markInvoicePaid("t1", "inv1", "CASH")).rejects.toThrow();
+    store.markCount = 1;
   });
 });
 
