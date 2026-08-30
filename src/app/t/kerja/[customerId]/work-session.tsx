@@ -13,19 +13,21 @@ import { actionAddWorkItem, actionRemoveWorkItem, actionCloseWorkSession } from 
 type Catalog = { id: string; name: string; unit: string; standardPrice: number; category: string };
 type Asset = { id: string; label: string };
 type Item = { id: string; desc: string; qty: number; unit: string; unitPrice: number; lineTotal: number; assetLabel: string | null };
+type Assignment = { assetId: string; assetLabel: string; serviceLabel: string } | null;
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
 export function WorkSessionScreen({
-  wsId, customerName, isTempo, catalog, assets, initialItems,
+  wsId, customerName, isTempo, catalog, assets, initialItems, assignment,
 }: {
   wsId: string; customerName: string; isTempo: boolean;
-  catalog: Catalog[]; assets: Asset[]; initialItems: Item[];
+  catalog: Catalog[]; assets: Asset[]; initialItems: Item[]; assignment?: Assignment;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [items, setItems] = useState<Item[]>(initialItems);
-  const [assetId, setAssetId] = useState<string>("");
+  // B2: prefill unit dari penugasan SPESIFIK (teknisi tetap bisa ganti / tambah unit lain).
+  const [assetId, setAssetId] = useState<string>(assignment?.assetId ?? "");
   const [serviceId, setServiceId] = useState<string>("");
   const [qty, setQty] = useState<number>(1);
 
@@ -79,6 +81,17 @@ export function WorkSessionScreen({
       </header>
 
       <div className="mx-auto max-w-md space-y-4 p-4">
+        {/* B2: banner konteks penugasan spesifik — unit & layanan yang diminta */}
+        {assignment && (assignment.assetLabel || assignment.serviceLabel) && (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm dark:border-sky-900/40 dark:bg-sky-950/20">
+            <p className="font-medium text-sky-800 dark:text-sky-300">Penugasan spesifik</p>
+            <p className="mt-0.5 text-xs text-sky-700 dark:text-sky-400">
+              {assignment.assetLabel && <>Unit: <span className="font-medium">{assignment.assetLabel}</span> · </>}
+              Layanan diminta: <span className="font-medium">{assignment.serviceLabel}</span>
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Unit sudah dipilih otomatis. Anda tetap bisa mengganti atau menambah pekerjaan lain.</p>
+          </div>
+        )}
         {/* Form tambah — minim ketik */}
         <Card>
           <CardContent className="space-y-3 p-4">

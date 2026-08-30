@@ -22,6 +22,17 @@ export default async function KerjaPage({ params, searchParams }: {
   });
   if (!customer) notFound();
 
+  // B2: muat konteks penugasan (bila dibuka dari job spesifik) untuk prefill unit + banner.
+  const jobCtx = job
+    ? await prisma.jobOrder.findFirst({
+        where: { id: job, tenantId: ctx.tenantId },
+        select: {
+          assignmentType: true, assetId: true, serviceType: true,
+          asset: { select: { brand: true, roomLocation: true } },
+        },
+      })
+    : null;
+
   const wsId = await openWorkSession(ctx.tenantId, customerId, ctx.userId, job);
   const [ws, catalogRows, assetRows] = await Promise.all([
     getWorkSession(ctx.tenantId, wsId),
@@ -35,6 +46,18 @@ export default async function KerjaPage({ params, searchParams }: {
 
   const catalog = catalogRows.map((c) => ({ id: c.id, name: c.name, unit: c.unit, standardPrice: Number(c.standardPrice), category: c.category }));
   const assets = assetRows.map((a) => ({ id: a.id, label: [a.brand, a.capacityPk ? `${a.capacityPk}PK` : null, a.roomLocation].filter(Boolean).join(" · ") || "Unit AC" }));
+  const SERVICE_TYPE_LABEL: Record<string, string> = {
+    CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
+    INSTALL: "Pasang Baru", DISMANTLE: "Bongkar", INSPECTION: "Pengecekan", OTHER: "Lainnya",
+  };
+  // B2: prefill unit hanya untuk penugasan SPESIFIK + info layanan yang diminta.
+  const assignment = jobCtx && jobCtx.assignmentType === "SPESIFIK"
+    ? {
+        assetId: jobCtx.assetId ?? "",
+        assetLabel: jobCtx.asset ? [jobCtx.asset.brand, jobCtx.asset.roomLocation].filter(Boolean).join(" · ") || "Unit AC" : "",
+        serviceLabel: SERVICE_TYPE_LABEL[jobCtx.serviceType as string] ?? String(jobCtx.serviceType),
+      }
+    : null;
   const items = ws.items.map((it) => ({
     id: it.id, desc: it.descSnapshot, qty: Number(it.qty), unit: it.unit,
     unitPrice: Number(it.unitPriceSnapshot), lineTotal: Number(it.lineTotal),
@@ -50,6 +73,7 @@ export default async function KerjaPage({ params, searchParams }: {
         catalog={catalog}
         assets={assets}
         initialItems={items}
+        assignment={assignment}
       />
     </main>
   );

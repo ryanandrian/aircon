@@ -39,7 +39,7 @@ vi.mock("@/lib/prisma", () => ({
     },
     $transaction: vi.fn(async (fn: any) => fn({
       invoice: { create: vi.fn(async ({ data }: any) => { created = data; return { id: "inv1" }; }) },
-      workSession: { update: vi.fn(async () => ({})) },
+      workSession: { updateMany: vi.fn(async () => ({ count: store.claimCount ?? 1 })) },
     })),
   },
 }));
@@ -86,5 +86,11 @@ describe("closeWorkSession", () => {
   it("sesi kosong → tolak", async () => {
     store.ws.items = [];
     await expect(closeWorkSession("t1", "ws1", "u1")).rejects.toThrow();
+  });
+
+  it("B3: race penutupan ganda → klaim atomik gagal (count 0) → tolak, cegah dobel invoice", async () => {
+    store.claimCount = 0; // simulasikan sesi sudah ditutup proses lain di dalam transaksi
+    await expect(closeWorkSession("t1", "ws1", "u1")).rejects.toThrow();
+    store.claimCount = 1;
   });
 });

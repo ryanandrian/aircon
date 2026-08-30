@@ -6,6 +6,7 @@ import { listTechnicianJobsToday } from "@/lib/services/job-management-service";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,10 @@ export default async function TechnicianHome() {
             <h1 className="text-lg font-bold text-foreground">Halo, {ctx.name.split(" ")[0]}</h1>
             <p className="text-xs text-muted-foreground">Pekerjaan hari ini</p>
           </div>
-          <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{jobs.length} tugas</span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{jobs.length} tugas</span>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">

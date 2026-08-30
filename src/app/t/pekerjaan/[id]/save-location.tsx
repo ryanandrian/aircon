@@ -42,7 +42,7 @@ export function SaveLocationButton({ jobId, hasLocation }: { jobId: string; hasL
       type="button"
       onClick={save}
       disabled={busy}
-      className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-muted text-[11px] font-medium leading-none text-foreground hover:bg-muted/70 disabled:opacity-60"
+      className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-white text-[11px] font-medium leading-none text-neutral-900 hover:bg-white/90 disabled:opacity-60"
     >
       <Icon.Location className="h-5 w-5" aria-hidden />
       <span className="whitespace-nowrap">{busy ? "Mengambil…" : hasLocation ? "Perbarui" : "Simpan Lokasi"}</span>

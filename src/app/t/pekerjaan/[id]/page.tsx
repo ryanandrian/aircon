@@ -48,34 +48,32 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
       </header>
 
       <div className="mx-auto max-w-md space-y-4 p-4">
-        {/* Info pelanggan */}
-        <Card className="py-0">
-          <CardContent className="p-4">
-            <h2 className="text-sm font-semibold text-muted-foreground">Pelanggan</h2>
-            <p className="mt-1 font-medium text-foreground">{job.customer.name}</p>
-            {job.customer.address && <p className="mt-0.5 text-sm text-muted-foreground">{job.customer.address}</p>}
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {job.customer.phone && (
-                <a href={`https://wa.me/${normalizePhone(job.customer.phone)}`} target="_blank" rel="noopener noreferrer"
-                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-emerald-500 text-[11px] font-medium leading-none text-white hover:bg-emerald-600">
-                  <Icon.Message className="h-5 w-5" aria-hidden /> <span className="whitespace-nowrap">WhatsApp</span>
-                </a>
-              )}
-              {(job.geoLat && job.geoLng) || job.customer.address ? (
-                <a
-                  href={job.geoLat && job.geoLng
-                    ? `https://www.google.com/maps/search/?api=1&query=${job.geoLat},${job.geoLng}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer.address ?? "")}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-sky-100 text-[11px] font-medium leading-none text-sky-700 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60"
-                >
-                  <Icon.Navigate className="h-5 w-5" aria-hidden /> <span className="whitespace-nowrap">Navigasi</span>
-                </a>
-              ) : null}
-              <SaveLocationButton jobId={job.id} hasLocation={Boolean(job.customer.geoLat && job.customer.geoLng)} />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Info pelanggan — kartu biru gradasi seragam dgn kartu insentif */}
+        <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 p-4 text-white shadow-sm">
+          <h2 className="text-sm font-semibold text-white/80">Pelanggan</h2>
+          <p className="mt-1 font-semibold text-white">{job.customer.name}</p>
+          {job.customer.address && <p className="mt-0.5 text-sm text-white/80">{job.customer.address}</p>}
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {job.customer.phone && (
+              <a href={`https://wa.me/${normalizePhone(job.customer.phone)}`} target="_blank" rel="noopener noreferrer"
+                className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-white text-[11px] font-medium leading-none text-neutral-900 hover:bg-white/90">
+                <Icon.Message className="h-5 w-5" aria-hidden /> <span className="whitespace-nowrap">WhatsApp</span>
+              </a>
+            )}
+            {(job.geoLat && job.geoLng) || job.customer.address ? (
+              <a
+                href={job.geoLat && job.geoLng
+                  ? `https://www.google.com/maps/search/?api=1&query=${job.geoLat},${job.geoLng}`
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer.address ?? "")}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-white text-[11px] font-medium leading-none text-neutral-900 hover:bg-white/90"
+              >
+                <Icon.Navigate className="h-5 w-5" aria-hidden /> <span className="whitespace-nowrap">Navigasi</span>
+              </a>
+            ) : null}
+            <SaveLocationButton jobId={job.id} hasLocation={Boolean(job.customer.geoLat && job.customer.geoLng)} />
+          </div>
+        </div>
 
         {/* Mulai pengerjaan → WorkSession (K8): entry per unit → invoice/proforma */}
         <a href={`/t/kerja/${job.customerId}?job=${job.id}`}

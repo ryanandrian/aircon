@@ -20,9 +20,15 @@ export async function openWorkSession(
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId }, select: { id: true } });
   if (!customer) throw new ServiceError("NOT_FOUND", "Pelanggan tidak ditemukan");
   const existing = await prisma.workSession.findFirst({
-    where: { tenantId, customerId, status: "OPEN" }, select: { id: true },
+    where: { tenantId, customerId, status: "OPEN" }, select: { id: true, jobId: true },
   });
-  if (existing) return existing.id;
+  if (existing) {
+    // B1 fix: bila sesi OPEN lama belum tertaut job & sekarang dibuka dari sebuah job, taut-kan.
+    if (jobId && !existing.jobId) {
+      await prisma.workSession.update({ where: { id: existing.id }, data: { jobId } });
+    }
+    return existing.id;
+  }
   const ws = await prisma.workSession.create({
     data: { tenantId, customerId, openedById, jobId: jobId ?? null, status: "OPEN" },
     select: { id: true },
@@ -127,6 +133,15 @@ export async function closeWorkSession(
   const number = await nextInvoiceNumber(tenantId, docType, issueDate.getFullYear());
 
   const result = await prisma.$transaction(async (tx) => {
+    // B3 fix: klaim sesi secara atomik (OPEN→CLOSED) di dalam transaksi.
+    // Bila 0 baris terpengaruh, sesi sudah ditutup proses lain → batalkan (cegah dobel invoice).
+    const claimed = await tx.workSession.updateMany({
+      where: { id: ws.id, tenantId, status: "OPEN" },
+      data: { status: "CLOSED", closedAt: new Date() },
+    });
+    if (claimed.count !== 1) {
+      throw new ServiceError("CONFLICT", "Sesi sudah ditutup. Muat ulang halaman.");
+    }
     const inv = await tx.invoice.create({
       data: {
         tenantId, docType, number, customerId: ws.customer.id,
@@ -155,7 +170,6 @@ export async function closeWorkSession(
       },
       select: { id: true },
     });
-    await tx.workSession.update({ where: { id: ws.id }, data: { status: "CLOSED", closedAt: new Date() } });
     return inv.id;
   });
 
