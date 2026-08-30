@@ -237,6 +237,32 @@ function csvCell(v: string | number): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+const CSV_CATEGORY_LABEL: Record<string, string> = {
+  MAINTENANCE: "Perawatan", SERVICE: "Servis", CONSUMABLE: "Consumable", SPAREPART: "Sparepart",
+  PAKET: "Paket", SURVEI: "Survei", GARANSI: "Garansi", LAINNYA: "Lainnya",
+};
+
+/**
+ * Export CSV DAFTAR LAYANAN (sesuai yang tampil di /app/layanan). tenant-scoped.
+ * Kolom: Kode, Nama, Kategori, Harga Standar, Satuan, Insentif Teknisi, Insentif Kernet, Jml Harga Khusus, Status.
+ */
+export async function exportCatalogCsv(tenantId: string): Promise<string> {
+  const items = await listCatalogWithOverrideCount(tenantId);
+  const fmtInc = (type: string, val: number) => (type === "PERCENT" ? `${val}%` : String(val));
+  const header = ["Kode", "Nama", "Kategori", "Harga Standar", "Satuan", "Insentif Teknisi", "Insentif Kernet", "Jml Harga Khusus", "Status"];
+  const lines = [header.map(csvCell).join(",")];
+  for (const i of items) {
+    lines.push([
+      i.code, i.name, CSV_CATEGORY_LABEL[i.category] ?? i.category,
+      i.standardPrice, i.unit,
+      fmtInc(i.techIncentiveType, i.techIncentiveValue),
+      fmtInc(i.kernetIncentiveType, i.kernetIncentiveValue),
+      i.overrideCount, i.active ? "Aktif" : "Nonaktif",
+    ].map(csvCell).join(","));
+  }
+  return lines.join("\r\n");
+}
+
 /**
  * Export CSV semua harga khusus pelanggan (K22, audit menyeluruh). tenant-scoped.
  * Kolom: Kode, Nama Layanan, Harga Standar, Pelanggan, Harga Khusus, Selisih.
