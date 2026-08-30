@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { hashPin, verifyPin, isValidPin } from "@/lib/auth/tech-crypto";
 import { normalizePhone } from "@/lib/wa/gateway";
+import { computeItemIncentive, type IncentiveCatalogItem } from "@/lib/services/service-catalog-service";
 
 export { isValidPin };
 
@@ -241,6 +242,157 @@ export async function listTechnicianAssignments(
   const rows = filtered.map(({ _key, _ts, ...r }) => r); // buang field internal
   const periods = [...periodsSet].sort().reverse();
   return { rows, periods };
+}
+
+/**
+ * Riwayat pekerjaan teknisi + INSENTIF yang didapat (untuk panel TEKNISI melihat dirinya sendiri).
+ * Insentif dihitung dari WorkItem di WorkSession yang invoice-nya LUNAS (basis LUNAS) atau TERBIT
+ * (basis TERBIT) — mengikuti Tenant.incentiveBasis. Belum lunas → insentif 0 (belum "muncul").
+ * Filter periode "YYYY-MM" mengacu tanggal insentif (paidAt/issueDate) agar konsisten dgn laporan.
+ */
+export async function listTechnicianJobHistory(
+  tenantId: string,
+  technicianId: string,
+  period?: string,
+): Promise<{
+  rows: {
+    id: string; date: string | null; customer: string; unit: string;
+    role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number;
+  }[];
+  periods: string[];
+  totalIncentive: number;
+}> {
+  const tech = await prisma.technician.findFirst({ where: { id: technicianId, tenantId }, select: { id: true } });
+  if (!tech) throw new TechAuthError("NOT_FOUND", "Teknisi tidak ditemukan");
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId }, select: { teamIncentiveMode: true, incentiveBasis: true },
+  });
+  const basis = tenant?.incentiveBasis ?? "LUNAS";
+  const teamMode = (tenant?.teamIncentiveMode ?? "BAGI_RATA") as "BAGI_RATA" | "PENUH";
+
+  // Pekerjaan yang ditugaskan ke teknisi ini.
+  const assignments = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: {
+      id: true, roleOnJob: true, jobId: true,
+      job: {
+        select: {
+          scheduledDate: true, completedAt: true, createdAt: true, serviceType: true, status: true,
+          customer: { select: { name: true } },
+          asset: { select: { brand: true, model: true, roomLocation: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const jobIds = assignments.map((a) => a.jobId);
+  // WorkSession per job (jobId opsional di WorkSession).
+  const sessions = jobIds.length
+    ? await prisma.workSession.findMany({
+        where: { tenantId, jobId: { in: jobIds } },
+        select: {
+          id: true, jobId: true,
+          items: { select: { serviceId: true, unitPriceSnapshot: true, qty: true, techIds: true, kernetIds: true } },
+        },
+      })
+    : [];
+  const sessionByJob = new Map<string, (typeof sessions)[number]>();
+  for (const s of sessions) if (s.jobId) sessionByJob.set(s.jobId, s);
+
+  // Invoice per workSession (untuk cek acuan LUNAS/TERBIT).
+  const wsIds = sessions.map((s) => s.id);
+  const invoices = wsIds.length
+    ? await prisma.invoice.findMany({
+        where: { tenantId, workSessionId: { in: wsIds }, docType: "INVOICE" },
+        select: { workSessionId: true, status: true, paidAt: true, issueDate: true },
+      })
+    : [];
+  const invoicesByWs = new Map<string, typeof invoices>();
+  for (const inv of invoices) {
+    if (!inv.workSessionId) continue;
+    const arr = invoicesByWs.get(inv.workSessionId) ?? [];
+    arr.push(inv); invoicesByWs.set(inv.workSessionId, arr);
+  }
+
+  // Kumpulkan serviceId untuk config insentif katalog.
+  const serviceIds = new Set<string>();
+  for (const s of sessions) for (const it of s.items) if (it.serviceId) serviceIds.add(it.serviceId);
+  const catalog = serviceIds.size
+    ? await prisma.serviceCatalog.findMany({
+        where: { id: { in: [...serviceIds] }, tenantId },
+        select: { id: true, standardPrice: true, techIncentiveType: true, techIncentiveValue: true, kernetIncentiveType: true, kernetIncentiveValue: true },
+      })
+    : [];
+  const catalogById = new Map<string, IncentiveCatalogItem>(
+    catalog.map((c) => [c.id, {
+      standardPrice: Number(c.standardPrice),
+      techIncentiveType: c.techIncentiveType, techIncentiveValue: Number(c.techIncentiveValue),
+      kernetIncentiveType: c.kernetIncentiveType, kernetIncentiveValue: Number(c.kernetIncentiveValue),
+    }]),
+  );
+
+  const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const periodsSet = new Set<string>();
+
+  const all = assignments.map((a) => {
+    const j = a.job;
+    const ws = sessionByJob.get(a.jobId) ?? null;
+    const wsInvoices = ws ? (invoicesByWs.get(ws.id) ?? []) : [];
+    // Cek invoice memenuhi acuan → insentif "muncul".
+    let incentiveDate: Date | null = null;
+    let qualifies = false;
+    for (const inv of wsInvoices) {
+      if (basis === "LUNAS") {
+        if (inv.status === "PAID" && inv.paidAt) { qualifies = true; incentiveDate = inv.paidAt; }
+      } else {
+        if (["ISSUED", "PAID", "OVERDUE"].includes(inv.status) && inv.issueDate) { qualifies = true; incentiveDate = inv.issueDate; }
+      }
+    }
+
+    // Hitung insentif teknisi ini utk pekerjaan ini (hanya bila memenuhi acuan).
+    let incentive = 0;
+    if (qualifies && ws) {
+      for (const it of ws.items) {
+        if (!it.serviceId) continue;
+        const cat = catalogById.get(it.serviceId);
+        if (!cat) continue;
+        const inTech = it.techIds.includes(technicianId);
+        const inKernet = it.kernetIds.includes(technicianId);
+        if (inTech) incentive += computeItemIncentive(cat, "TECHNICIAN", Number(it.unitPriceSnapshot), Number(it.qty), it.techIds.length, teamMode);
+        if (inKernet) incentive += computeItemIncentive(cat, "KERNET", Number(it.unitPriceSnapshot), Number(it.qty), it.kernetIds.length, teamMode);
+      }
+    }
+
+    // Tanggal tampil: pakai tanggal insentif bila ada (agar filter periode konsisten dgn kapan insentif muncul),
+    // jika belum lunas pakai tanggal kerja.
+    const shownDate = incentiveDate ?? j.completedAt ?? j.scheduledDate ?? j.createdAt;
+    const d = shownDate ? new Date(shownDate) : null;
+    if (d) periodsSet.add(monthKey(d));
+    const unit = j.asset
+      ? ([j.asset.brand, j.asset.model].filter(Boolean).join(" ").trim() || j.asset.roomLocation || "Unit AC")
+      : "—";
+    return {
+      id: a.id,
+      date: d ? d.toISOString() : null,
+      _key: d ? monthKey(d) : "",
+      _ts: d ? d.getTime() : 0,
+      customer: j.customer?.name ?? "—",
+      unit,
+      role: a.roleOnJob as "TECHNICIAN" | "KERNET",
+      service: j.serviceType as string,
+      status: j.status as string,
+      incentive,
+    };
+  });
+  all.sort((x, y) => y._ts - x._ts);
+
+  const filtered = period ? all.filter((r) => r._key === period) : all;
+  const rows = filtered.map(({ _key, _ts, ...r }) => r);
+  const totalIncentive = rows.reduce((s, r) => s + r.incentive, 0);
+  const periods = [...periodsSet].sort().reverse();
+  return { rows, periods, totalIncentive };
 }
 
 /** Batalkan undangan (owner). */

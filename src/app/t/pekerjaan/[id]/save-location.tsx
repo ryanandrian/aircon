@@ -42,10 +42,10 @@ export function SaveLocationButton({ jobId, hasLocation }: { jobId: string; hasL
       type="button"
       onClick={save}
       disabled={busy}
-      className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-muted text-sm font-medium text-foreground disabled:opacity-60"
+      className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-muted text-xs font-medium text-foreground hover:bg-muted/70 disabled:opacity-60"
     >
-      <Icon.Location className="h-4 w-4" aria-hidden />
-      {busy ? "Mengambil…" : hasLocation ? "Perbarui Lokasi" : "Simpan Lokasi"}
+      <Icon.Location className="h-5 w-5" aria-hidden />
+      {busy ? "Mengambil…" : hasLocation ? "Perbarui" : "Simpan Lokasi"}
     </button>
   );
 }

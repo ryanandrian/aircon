@@ -5,6 +5,7 @@
 import type { Tenant, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
+import { normalizePhone } from "@/lib/wa/gateway";
 import type { TenantProfileInput } from "@/lib/validation/tenant-profile";
 
 /** Ambil profil usaha (field yang relevan untuk pengaturan). */
@@ -29,7 +30,7 @@ export async function updateTenantProfile(
 ): Promise<Tenant> {
   const data: Prisma.TenantUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
-  if (input.phone !== undefined) data.phone = input.phone;
+  if (input.phone !== undefined) data.phone = input.phone ? normalizePhone(input.phone) : input.phone;
   if (input.address !== undefined) data.address = input.address;
   if (input.tagline !== undefined) data.tagline = input.tagline;
   if (input.logoUrl !== undefined) data.logoUrl = input.logoUrl;

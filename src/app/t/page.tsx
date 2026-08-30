@@ -53,16 +53,19 @@ export default async function TechnicianHome() {
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
-        {/* Insentif bulan ini (F6.3) */}
-        <Card className="border-sky-200 bg-sky-50/60 dark:border-sky-900/40 dark:bg-sky-950/20">
-          <CardContent className="flex items-center justify-between p-4">
+        {/* Insentif bulan ini (F6.3) → ketuk untuk riwayat lengkap + insentif per pekerjaan */}
+        <Link href="/t/riwayat" className="block">
+          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 p-4 text-white shadow-sm transition active:brightness-95">
             <div>
-              <p className="text-xs text-muted-foreground">Insentif bulan ini</p>
-              <p className="text-xl font-bold text-sky-600">{rp(myInc?.amount ?? 0)}</p>
+              <p className="text-xs text-white/80">Insentif bulan ini</p>
+              <p className="text-2xl font-bold tabular-nums">{rp(myInc?.amount ?? 0)}</p>
             </div>
-            <p className="text-xs text-muted-foreground">{myInc?.itemCount ?? 0} pekerjaan</p>
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-1.5 text-sm text-white/90">
+              Lihat riwayat
+              <Icon.ChevronRight className="h-4 w-4" aria-hidden />
+            </div>
+          </div>
+        </Link>
         {jobs.length === 0 ? (
           <Card className="border-dashed text-center">
             <CardContent className="p-8">

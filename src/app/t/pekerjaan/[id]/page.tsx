@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getJob } from "@/lib/services/job-management-service";
 import { getJobChecklist } from "@/lib/services/job-work-service";
 import { isStorageConfigured } from "@/lib/storage/s3";
+import { normalizePhone } from "@/lib/wa/gateway";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { TechJobWork } from "./work";
 import { SaveLocationButton } from "./save-location";
@@ -53,10 +54,11 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
             <h2 className="text-sm font-semibold text-muted-foreground">Pelanggan</h2>
             <p className="mt-1 font-medium text-foreground">{job.customer.name}</p>
             {job.customer.address && <p className="mt-0.5 text-sm text-muted-foreground">{job.customer.address}</p>}
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 grid grid-cols-3 gap-2">
               {job.customer.phone && (
-                <a href={`tel:${job.customer.phone}`} className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-muted text-sm font-medium text-foreground">
-                  <Icon.Phone className="h-4 w-4" aria-hidden /> Telepon
+                <a href={`https://wa.me/${normalizePhone(job.customer.phone)}`} target="_blank" rel="noopener noreferrer"
+                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-emerald-500 text-xs font-medium text-white hover:bg-emerald-600">
+                  <Icon.Message className="h-5 w-5" aria-hidden /> WhatsApp
                 </a>
               )}
               {(job.geoLat && job.geoLng) || job.customer.address ? (
@@ -65,13 +67,11 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
                     ? `https://www.google.com/maps/search/?api=1&query=${job.geoLat},${job.geoLng}`
                     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.customer.address ?? "")}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl bg-sky-100 text-sm font-medium text-sky-700 dark:bg-sky-950/50 dark:text-sky-300"
+                  className="flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl bg-sky-100 text-xs font-medium text-sky-700 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/60"
                 >
-                  <Icon.Navigate className="h-4 w-4" aria-hidden /> Navigasi
+                  <Icon.Navigate className="h-5 w-5" aria-hidden /> Navigasi
                 </a>
               ) : null}
-            </div>
-            <div className="mt-2">
               <SaveLocationButton jobId={job.id} hasLocation={Boolean(job.customer.geoLat && job.customer.geoLng)} />
             </div>
           </CardContent>

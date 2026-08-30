@@ -62,6 +62,8 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/services/quota-guard", () => ({ assertQuota: vi.fn(async () => {}) }));
+// normalizePhone dipakai customer-service saat create/update — mock pass-through agar resolusi alias @/ tak gagal di test.
+vi.mock("@/lib/wa/gateway", () => ({ normalizePhone: (s: string) => s }));
 
 import { resolveBillingCustomer } from "../src/lib/services/customer-service";
 

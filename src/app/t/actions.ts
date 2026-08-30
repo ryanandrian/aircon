@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { transitionJob, TransitionError } from "@/lib/services/job-service";
 import { setChecklistItem, addJobPhoto } from "@/lib/services/job-work-service";
 import { JobError } from "@/lib/services/job-management-service";
+import { listTechnicianJobHistory } from "@/lib/services/technician-service";
 import { createPhotoUploadUrl, isStorageConfigured, isOwnedPhotoUrl } from "@/lib/storage/s3";
 import { clearTechSession } from "@/lib/auth/tech-session";
 import type { JobStatus } from "@prisma/client";
@@ -176,5 +177,25 @@ export async function techSaveCustomerLocation(
   } catch (err) {
     console.error("[techSaveCustomerLocation] gagal:", err);
     return { ok: false, error: "Gagal menyimpan lokasi." };
+  }
+}
+
+/** Riwayat pekerjaan + insentif teknisi (dirinya sendiri), filter periode YYYY-MM. */
+export async function techJobHistory(period?: string): Promise<
+  | { ok: true; rows: { id: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number }[]; periods: string[]; totalIncentive: number }
+  | { ok: false; error: string }
+> {
+  try {
+    const ctx = await getServerContext();
+    if (ctx.role !== "TECHNICIAN") return { ok: false, error: "Akses ditolak" };
+    const tech = await prisma.technician.findFirst({
+      where: { tenantId: ctx.tenantId, userId: ctx.userId }, select: { id: true },
+    });
+    if (!tech) return { ok: false, error: "Teknisi tidak ditemukan" };
+    const res = await listTechnicianJobHistory(ctx.tenantId, tech.id, period || undefined);
+    return { ok: true, ...res };
+  } catch (err) {
+    console.error("[techJobHistory] gagal:", err);
+    return { ok: false, error: "Gagal memuat riwayat." };
   }
 }

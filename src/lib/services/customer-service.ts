@@ -6,6 +6,7 @@
 import type { Customer, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { assertQuota } from "@/lib/services/quota-guard";
+import { normalizePhone } from "@/lib/wa/gateway";
 import type {
   CreateCustomerInput,
   UpdateCustomerInput,
@@ -202,7 +203,7 @@ export async function createCustomer(
       data: {
         tenantId,
         name: input.name,
-        phone: input.phone,
+        phone: normalizePhone(input.phone),
         address: input.address ?? null,
         geoLat: input.geoLat ?? null,
         geoLng: input.geoLng ?? null,
@@ -252,7 +253,7 @@ export async function updateCustomer(
 
   const data: Prisma.CustomerUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
-  if (input.phone !== undefined) data.phone = input.phone;
+  if (input.phone !== undefined) data.phone = normalizePhone(input.phone);
   if (input.address !== undefined) data.address = input.address;
   if (input.geoLat !== undefined) data.geoLat = input.geoLat;
   if (input.geoLng !== undefined) data.geoLng = input.geoLng;
