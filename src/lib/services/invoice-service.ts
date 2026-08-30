@@ -165,22 +165,74 @@ export async function cancelInvoice(tenantId: string, invoiceId: string): Promis
   await prisma.invoice.update({ where: { id: invoiceId }, data: { status: "CANCELLED" } });
 }
 
-/** Daftar invoice/proforma tenant (untuk admin /app/faktur). Terbaru dulu. */
-export async function listInvoices(tenantId: string, limit = 50) {
+/** Daftar dokumen per tab (proforma/unpaid/paid/all) — antisipasi data besar per tenant. */
+export type InvoiceBucket = "proforma" | "unpaid" | "paid" | "all";
+
+/** WHERE per-tab dokumen. proforma=proforma perlu ditagih; unpaid=invoice belum lunas (piutang); paid=lunas. */
+function invoiceBucketWhere(tenantId: string, bucket: InvoiceBucket, search?: string): Prisma.InvoiceWhereInput {
+  const where: Prisma.InvoiceWhereInput = { tenantId };
+  if (bucket === "proforma") {
+    where.docType = "PROFORMA";
+    where.status = { notIn: ["CANCELLED"] };
+  } else if (bucket === "unpaid") {
+    where.docType = "INVOICE";
+    where.status = { in: ["ISSUED", "OVERDUE"] };
+  } else if (bucket === "paid") {
+    where.docType = "INVOICE";
+    where.status = "PAID";
+  }
+  const q = search?.trim();
+  if (q) {
+    where.OR = [
+      { number: { contains: q, mode: "insensitive" } },
+      { customer: { name: { contains: q, mode: "insensitive" } } },
+      { customer: { phone: { contains: q } } },
+    ];
+  }
+  return where;
+}
+
+/** Daftar dokumen per tab + pencarian + cursor pagination. Antisipasi data besar per tenant. */
+export async function listInvoicesByBucket(
+  tenantId: string,
+  bucket: InvoiceBucket,
+  opts: { search?: string; cursor?: string; limit?: number } = {},
+) {
+  const where = invoiceBucketWhere(tenantId, bucket, opts.search);
+  const limit = Math.min(opts.limit ?? 20, 50);
   const rows = await prisma.invoice.findMany({
-    where: { tenantId },
-    orderBy: { createdAt: "desc" },
-    take: limit,
+    where,
+    orderBy: [{ createdAt: "desc" }],
+    take: limit + 1,
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     select: {
       id: true, number: true, docType: true, status: true, total: true,
       issueDate: true, dueDate: true, customer: { select: { name: true } },
     },
   });
-  return rows.map((r) => ({
-    id: r.id, number: r.number, docType: r.docType, status: r.status,
-    total: Number(r.total), issueDate: r.issueDate, dueDate: r.dueDate,
-    customerName: r.customer?.name ?? "—",
-  }));
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  return {
+    items: page.map((r) => ({
+      id: r.id, number: r.number, docType: r.docType as string, status: r.status as string,
+      total: Number(r.total),
+      issueDate: r.issueDate ? r.issueDate.toISOString() : null,
+      dueDate: r.dueDate ? r.dueDate.toISOString() : null,
+      customerName: r.customer?.name ?? "—",
+    })),
+    nextCursor: hasMore ? page[page.length - 1].id : null,
+  };
+}
+
+/** Hitungan dokumen per tab (untuk badge). */
+export async function countInvoicesByBucket(tenantId: string, search?: string) {
+  const [proforma, unpaid, paid, all] = await Promise.all([
+    prisma.invoice.count({ where: invoiceBucketWhere(tenantId, "proforma", search) }),
+    prisma.invoice.count({ where: invoiceBucketWhere(tenantId, "unpaid", search) }),
+    prisma.invoice.count({ where: invoiceBucketWhere(tenantId, "paid", search) }),
+    prisma.invoice.count({ where: invoiceBucketWhere(tenantId, "all", search) }),
+  ]);
+  return { proforma, unpaid, paid, all };
 }
 
 /** Tandai invoice LUNAS (K1: cash lapangan). payMethod + bukti opsional. Hanya invoice (bukan proforma). */

@@ -75,7 +75,7 @@ export function CustomerHub({
             <Link href={`/app/pelanggan/${customer.id}/harga`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
               <Icon.Billing className="h-4 w-4" aria-hidden /> Harga Khusus
             </Link>
-            <Link href={`/app/pekerjaan?customer=${customer.id}`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
+            <Link href={`/app/pekerjaan?q=${encodeURIComponent(customer.phone || customer.name)}`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
               <Icon.Job className="h-4 w-4" aria-hidden /> Pekerjaan
             </Link>
           </div>

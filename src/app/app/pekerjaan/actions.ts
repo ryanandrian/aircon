@@ -7,7 +7,10 @@ import {
   createJob,
   assignJob,
   JobError,
+  listJobsByBucket,
+  countJobsByBucket,
   type CreateJobInput,
+  type JobBucket,
 } from "@/lib/services/job-management-service";
 import { transitionJob, TransitionError } from "@/lib/services/job-service";
 import {
@@ -239,5 +242,52 @@ export async function actionAssignTeam(
     return { ok: true };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal menugaskan tim.") };
+  }
+}
+
+export type JobListItem = {
+  id: string; customerName: string; address: string | null;
+  serviceType: string; status: string; scheduledDate: string | null;
+  unit: string | null; technician: string | null;
+};
+
+/** Load pekerjaan per tab (today/upcoming/done) + pencarian + cursor. Untuk UI bertab + infinite scroll. */
+export async function actionLoadJobs(
+  bucket: JobBucket,
+  opts: { search?: string; cursor?: string } = {},
+): Promise<{ ok: true; items: JobListItem[]; nextCursor: string | null } | { ok: false; error: string }> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const { jobs, nextCursor } = await listJobsByBucket(ctx.tenantId, bucket, {
+      search: opts.search, cursor: opts.cursor,
+    });
+    const items: JobListItem[] = jobs.map((j) => ({
+      id: j.id,
+      customerName: j.customer.name,
+      address: j.customer.address,
+      serviceType: j.serviceType as string,
+      status: j.status as string,
+      scheduledDate: j.scheduledDate ? j.scheduledDate.toISOString() : null,
+      unit: j.asset ? ([j.asset.brand, j.asset.model].filter(Boolean).join(" ").trim() || j.asset.roomLocation || "Unit AC") : null,
+      technician: j.technician?.user.name ?? null,
+    }));
+    return { ok: true, items, nextCursor };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal memuat pekerjaan.") };
+  }
+}
+
+/** Hitungan pekerjaan per tab (untuk badge tab, ikut pencarian). */
+export async function actionCountJobs(
+  search?: string,
+): Promise<{ ok: true; counts: { today: number; upcoming: number; done: number } } | { ok: false; error: string }> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const counts = await countJobsByBucket(ctx.tenantId, search);
+    return { ok: true, counts };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal menghitung pekerjaan.") };
   }
 }

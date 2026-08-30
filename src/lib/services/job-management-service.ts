@@ -176,6 +176,83 @@ export async function listJobs(tenantId: string, filter: JobListFilter = {}) {
   return { jobs: hasMore ? jobs.slice(0, limit) : jobs, nextCursor: hasMore ? jobs[limit - 1].id : null };
 }
 
+export type JobBucket = "today" | "upcoming" | "done";
+
+/** WHERE clause per-tab (bucket) — dipakai daftar & hitungan agar konsisten. */
+function bucketWhere(tenantId: string, bucket: JobBucket, search?: string): Prisma.JobOrderWhereInput {
+  const now = new Date();
+  const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
+  const startTomorrow = new Date(startToday.getTime() + 24 * 60 * 60 * 1000);
+
+  const where: Prisma.JobOrderWhereInput = { tenantId, deletedAt: null };
+  if (bucket === "done") {
+    where.status = { in: ["COMPLETED", "CANCELLED"] };
+  } else if (bucket === "upcoming") {
+    where.status = { in: ACTIVE_STATUSES };
+    where.scheduledDate = { gte: startTomorrow };
+  } else {
+    // today: aktif & (terjadwal hari ini ATAU belum terjadwal ATAU sudah lewat) — butuh perhatian.
+    where.status = { in: ACTIVE_STATUSES };
+    where.OR = [{ scheduledDate: { lt: startTomorrow } }, { scheduledDate: null }];
+  }
+
+  const q = search?.trim();
+  if (q) {
+    const search$: Prisma.JobOrderWhereInput = {
+      OR: [
+        { customer: { name: { contains: q, mode: "insensitive" } } },
+        { customer: { phone: { contains: q } } },
+      ],
+    };
+    // Gabung dgn kondisi bucket (khusus 'today' yg sudah pakai OR) via AND.
+    if (where.OR) { where.AND = [{ OR: where.OR }, search$]; delete where.OR; }
+    else Object.assign(where, search$);
+  }
+  return where;
+}
+
+/**
+ * Daftar pekerjaan per TAB (today/upcoming/done) + pencarian + cursor pagination.
+ * Antisipasi data besar per tenant: query server-side per tab, bukan load-all lalu split.
+ */
+export async function listJobsByBucket(
+  tenantId: string,
+  bucket: JobBucket,
+  opts: { search?: string; cursor?: string; limit?: number } = {},
+) {
+  const where = bucketWhere(tenantId, bucket, opts.search);
+  const limit = Math.min(opts.limit ?? 20, 50);
+  // done: terbaru dulu; today/upcoming: terjadwal paling awal dulu.
+  const orderBy: Prisma.JobOrderOrderByWithRelationInput[] =
+    bucket === "done"
+      ? [{ completedAt: "desc" }, { updatedAt: "desc" }]
+      : [{ scheduledDate: "asc" }, { createdAt: "desc" }];
+
+  const jobs = await prisma.jobOrder.findMany({
+    where,
+    include: {
+      customer: { select: { name: true, phone: true, address: true } },
+      asset: { select: { brand: true, model: true, roomLocation: true } },
+      technician: { select: { id: true, user: { select: { name: true } } } },
+    },
+    orderBy,
+    take: limit + 1,
+    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+  });
+  const hasMore = jobs.length > limit;
+  return { jobs: hasMore ? jobs.slice(0, limit) : jobs, nextCursor: hasMore ? jobs[limit - 1].id : null };
+}
+
+/** Hitungan pekerjaan per tab (untuk badge di tab). Tenant-scoped. */
+export async function countJobsByBucket(tenantId: string, search?: string) {
+  const [today, upcoming, done] = await Promise.all([
+    prisma.jobOrder.count({ where: bucketWhere(tenantId, "today", search) }),
+    prisma.jobOrder.count({ where: bucketWhere(tenantId, "upcoming", search) }),
+    prisma.jobOrder.count({ where: bucketWhere(tenantId, "done", search) }),
+  ]);
+  return { today, upcoming, done };
+}
+
 /** Ambil satu pekerjaan lengkap (tenant-scoped). */
 export async function getJob(tenantId: string, jobId: string) {
   return prisma.jobOrder.findFirst({

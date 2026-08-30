@@ -15,7 +15,7 @@ const STATUS_STYLE: Record<string, string> = {
   RESCHEDULED: "bg-fuchsia-100 text-fuchsia-800",
 };
 
-export function StatusBadge({ status }: { status: JobStatus }) {
+export function StatusBadge({ status }: { status: JobStatus | string }) {
   const style = STATUS_STYLE[status] ?? "bg-slate-100 text-slate-700";
   return (
     <span
