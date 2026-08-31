@@ -5,11 +5,11 @@ import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { actionPresignAsset } from "./actions";
+import { actionUploadAsset } from "./actions";
 
 /**
- * Upload gambar ke S3 via presigned PUT, lalu isi hidden input `name` dengan public URL.
- * Menampilkan preview. URL juga bisa ditempel manual.
+ * Upload gambar ke S3 LEWAT SERVER (server action putAsset) — hindari CORS browser→S3.
+ * Mengisi hidden input `name` dengan public URL. URL juga bisa ditempel manual.
  */
 export function ImageUpload({ name, label, scope, defaultUrl }: { name: string; label: string; scope: string; defaultUrl?: string }) {
   const [url, setUrl] = useState(defaultUrl ?? "");
@@ -26,11 +26,12 @@ export function ImageUpload({ name, label, scope, defaultUrl }: { name: string; 
     }
     setBusy(true);
     try {
-      const pre = await actionPresignAsset(scope, file.name, file.type);
-      if (!pre.ok || !pre.uploadUrl || !pre.publicUrl) throw new Error(pre.error ?? "Gagal presign");
-      const put = await fetch(pre.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      if (!put.ok) throw new Error("Upload ke storage gagal");
-      setUrl(pre.publicUrl);
+      const fd = new FormData();
+      fd.set("scope", scope);
+      fd.set("file", file);
+      const res = await actionUploadAsset(fd);
+      if (!res.ok || !res.publicUrl) throw new Error(res.error ?? "Gagal mengunggah");
+      setUrl(res.publicUrl);
       toast.success("Gambar terunggah");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal mengunggah");

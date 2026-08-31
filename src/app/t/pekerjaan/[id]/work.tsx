@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { techTransition, techSetChecklist, techAddPhoto, techRequestUploadUrl } from "../../actions";
+import { techTransition, techSetChecklist, techUploadPhoto } from "../../actions";
 import { nextTechAction } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,20 +65,12 @@ export function TechJobWork({
     setUploading(true); setMsg(null);
     try {
       const kind = status === "IN_PROGRESS" || status === "WAITING" ? "after" : "before";
-      // 1) minta presigned URL dari server (key di-namespace per tenant/job)
-      const presign = await techRequestUploadUrl(jobId, kind, file.name, file.type || "image/jpeg");
-      if (!presign.ok) { setMsg(presign.error); return; }
-      // 2) upload file langsung ke S3 (BiznetGio) via PUT
-      const put = await fetch(presign.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type || "image/jpeg" },
-        body: file,
-      });
-      if (!put.ok) throw new Error(`upload gagal ${put.status}`);
-      // 3) catat URL publik ke DB
-      const res = await techAddPhoto(jobId, kind as "before" | "after", presign.publicUrl);
+      // Upload LEWAT SERVER (hindari CORS browser→S3) + catat ke DB sekaligus.
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await techUploadPhoto(jobId, kind as "before" | "after", fd);
       if (!res.ok) { setMsg(res.error); return; }
-      setPics((prev) => [...prev, { id: genEventId(), kind, url: presign.publicUrl }]);
+      setPics((prev) => [...prev, { id: genEventId(), kind, url: res.publicUrl }]);
     } catch (err) {
       setMsg("Gagal mengunggah foto. Coba lagi.");
       console.error(err);

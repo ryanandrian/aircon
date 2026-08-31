@@ -7,10 +7,30 @@ import {
   createPreviewItem, updatePreviewItem, deletePreviewItem,
   type LandingUpdateInput,
 } from "@/lib/services/landing-service";
-import { createAssetUploadUrl } from "@/lib/storage/s3";
+import { putAsset } from "@/lib/storage/s3";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const bool = (fd: FormData, k: string) => fd.get(k) === "on" || fd.get(k) === "true";
+
+/**
+ * Upload aset landing/pratinjau LANGSUNG lewat server (hindari CORS browser→S3).
+ * Terima File via FormData, unggah dengan putAsset. Guarded: platform admin.
+ */
+export async function actionUploadAsset(fd: FormData): Promise<{ ok: boolean; publicUrl?: string; error?: string }> {
+  try {
+    await requirePlatformAdmin();
+    const scope = str(fd, "scope") || "asset";
+    const file = fd.get("file");
+    if (!(file instanceof File)) return { ok: false, error: "File tidak ditemukan" };
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return { ok: false, error: "File harus JPG, PNG, atau WebP" };
+    if (file.size > 4 * 1024 * 1024) return { ok: false, error: "Ukuran maksimal 4 MB" };
+    const body = Buffer.from(await file.arrayBuffer());
+    const r = await putAsset({ scope, filename: file.name, contentType: file.type, body });
+    return { ok: true, publicUrl: r.publicUrl };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal mengunggah" };
+  }
+}
 
 /** Simpan konten landing (teks + URL gambar + toggle). */
 export async function actionSaveLanding(fd: FormData): Promise<{ ok: boolean; error?: string }> {
@@ -53,17 +73,6 @@ export async function actionSaveLanding(fd: FormData): Promise<{ ok: boolean; er
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal menyimpan" };
-  }
-}
-
-/** Presigned URL untuk upload gambar (dipanggil dari klien admin). */
-export async function actionPresignAsset(scope: string, filename: string, contentType: string): Promise<{ ok: boolean; uploadUrl?: string; publicUrl?: string; error?: string }> {
-  try {
-    await requirePlatformAdmin();
-    const r = await createAssetUploadUrl({ scope, filename, contentType });
-    return { ok: true, uploadUrl: r.uploadUrl, publicUrl: r.publicUrl };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Gagal menyiapkan upload" };
   }
 }
 

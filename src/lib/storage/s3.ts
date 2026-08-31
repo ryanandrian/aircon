@@ -95,6 +95,33 @@ export async function createPhotoUploadUrl(params: {
   return { uploadUrl, publicUrl: publicUrl(key), key };
 }
 
+/**
+ * Upload foto bukti LANGSUNG dari server (byte via server action) — hindari CORS browser→S3.
+ * Pola sama dengan putTenantAsset. SECURITY: key di-namespace per tenant+job.
+ */
+export async function putPhoto(params: {
+  tenantId: string;
+  jobId: string;
+  kind: "before" | "after" | "general";
+  filename: string;
+  contentType: string;
+  body: Buffer;
+}): Promise<{ publicUrl: string; key: string }> {
+  if (!isStorageConfigured()) throw new Error("S3 storage belum dikonfigurasi");
+  if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
+  const ext = safeExt(params.filename);
+  const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const key = `jobs/${params.tenantId}/${params.jobId}/${params.kind}-${rand}.${ext}`;
+  await client().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: params.body,
+    ContentType: params.contentType,
+    ACL: "public-read",
+  }));
+  return { publicUrl: publicUrl(key), key };
+}
+
 /** Hapus objek (mis. saat foto salah). */
 export async function deleteObject(key: string): Promise<void> {
   if (!isStorageConfigured()) return;
@@ -113,7 +140,7 @@ export async function deleteObject(key: string): Promise<void> {
  */
 export async function putTenantAsset(params: {
   tenantId: string;
-  scope: "logo" | "qris";
+  scope: "logo" | "qris" | "bukti";
   filename: string;
   contentType: string;
   body: Buffer;
@@ -121,7 +148,7 @@ export async function putTenantAsset(params: {
   if (!isStorageConfigured()) throw new Error("S3 storage belum dikonfigurasi");
   if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
   const ext = safeExt(params.filename);
-  const scope = params.scope === "qris" ? "qris" : "logo";
+  const scope = params.scope === "qris" ? "qris" : params.scope === "bukti" ? "bukti" : "logo";
   const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const key = `tenants/${params.tenantId}/${scope}/${rand}.${ext}`;
   await client().send(new PutObjectCommand({
@@ -156,6 +183,33 @@ export async function createTenantAssetUploadUrl(params: {
   });
   const uploadUrl = await getSignedUrl(client(), cmd, { expiresIn: 300 });
   return { uploadUrl, publicUrl: publicUrl(key), key };
+}
+
+/**
+ * Upload aset platform (landing/testimonial/pratinjau) LANGSUNG dari server — hindari CORS browser→S3.
+ * Pola sama dengan putTenantAsset: byte dikirim via server action, tak ada PUT browser→S3.
+ * SECURITY: key di-namespace per scope; contentType di-whitelist. Dipanggil dari admin platform (guarded).
+ */
+export async function putAsset(params: {
+  scope: string; // mis. "landing" | "testimonial" | "pratinjau"
+  filename: string;
+  contentType: string;
+  body: Buffer;
+}): Promise<{ publicUrl: string; key: string }> {
+  if (!isStorageConfigured()) throw new Error("S3 storage belum dikonfigurasi");
+  if (!ALLOWED_CT.has(params.contentType)) throw new Error("Tipe file harus JPG/PNG/WebP");
+  const ext = safeExt(params.filename);
+  const safeScope = params.scope.replace(/[^a-z0-9-]/gi, "").slice(0, 32) || "asset";
+  const rand = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const key = `assets/${safeScope}/${rand}.${ext}`;
+  await client().send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: params.body,
+    ContentType: params.contentType,
+    ACL: "public-read",
+  }));
+  return { publicUrl: publicUrl(key), key };
 }
 
 /**

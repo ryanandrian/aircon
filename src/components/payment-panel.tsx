@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icons";
-import { actionMarkPaid, actionPresignPaymentProof } from "@/app/t/faktur/actions";
+import { actionMarkPaid, actionUploadPaymentProof } from "@/app/t/faktur/actions";
 
 type PayMethod = "CASH" | "TRANSFER" | "QRIS";
 
@@ -23,11 +23,12 @@ export function PaymentPanel({ invoiceId, tenantHasQris }: { invoiceId: string; 
     if (!file) return;
     setUploading(true);
     try {
-      const pres = await actionPresignPaymentProof(file.name, file.type);
-      if (!pres.ok) { toast.error(pres.error); return; }
-      const put = await fetch(pres.data!.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
-      if (!put.ok) { toast.error("Upload gagal"); return; }
-      setProofUrl(pres.data!.publicUrl);
+      // Upload LEWAT SERVER (hindari CORS browser→S3).
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await actionUploadPaymentProof(fd);
+      if (!res.ok) { toast.error(res.error); return; }
+      setProofUrl(res.data!.publicUrl);
       toast.success("Bukti terunggah");
     } catch {
       toast.error("Upload gagal");

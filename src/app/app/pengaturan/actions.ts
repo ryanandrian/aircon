@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { tenantProfileSchema } from "@/lib/validation/tenant-profile";
 import { updateTenantProfile } from "@/lib/services/tenant-profile-service";
-import { createTenantAssetUploadUrl, putTenantAsset } from "@/lib/storage/s3";
+import { putTenantAsset } from "@/lib/storage/s3";
 import { ServiceError } from "@/lib/services/customer-service";
 
 type Result = { ok: boolean; error?: string };
@@ -12,23 +12,6 @@ type Result = { ok: boolean; error?: string };
 /** Hanya owner/admin tenant yang boleh ubah profil usaha. */
 function canManage(role: string): boolean {
   return role === "OWNER" || role === "ADMIN";
-}
-
-/** Presign upload aset tenant (logo/QRIS) — tenant-scoped, hanya owner/admin. */
-export async function actionPresignTenantAsset(
-  scope: "logo" | "qris",
-  filename: string,
-  contentType: string,
-): Promise<{ ok: boolean; error?: string; uploadUrl?: string; publicUrl?: string }> {
-  const ctx = await tryGetServerContext();
-  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
-  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
-  try {
-    const r = await createTenantAssetUploadUrl({ tenantId: ctx.tenantId, scope, filename, contentType });
-    return { ok: true, uploadUrl: r.uploadUrl, publicUrl: r.publicUrl };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Gagal presign" };
-  }
 }
 
 /** Upload aset tenant (logo/QRIS) LANGSUNG lewat server — anti-CORS. FormData: file. */
