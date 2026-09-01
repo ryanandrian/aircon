@@ -127,10 +127,26 @@ export default async function Home() {
           <p className="animate-in-up delay-150 mt-3 animate-pulse-soft text-xs font-medium text-sky-600 dark:text-sky-400">{c.heroMicrocopy}</p>
 
           {/* Product visual mock (atau gambar hero kustom) */}
-          <div className="animate-in-up delay-300 mx-auto mt-14 max-w-4xl">
+          <div className="animate-in-up delay-300 mx-auto mt-14 max-w-5xl">
             {c.heroImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={c.heroImageUrl} alt="Tampilan Aircon" className="w-full rounded-2xl border shadow-lg" />
+              // Screenshot asli dibungkus "browser chrome" elegan: bar titik + address bar, sudut membulat, shadow berlapis, glow.
+              <div className="group relative">
+                <div aria-hidden className="pointer-events-none absolute -inset-x-10 -top-8 bottom-0 -z-10 rounded-[2rem] bg-gradient-to-tr from-sky-400/20 via-cyan-300/10 to-transparent blur-2xl" />
+                <div className="overflow-hidden rounded-2xl border border-black/10 bg-card shadow-2xl shadow-sky-900/10 ring-1 ring-black/5 dark:border-white/10">
+                  {/* Bar browser */}
+                  <div className="flex items-center gap-2 border-b bg-muted/50 px-4 py-2.5">
+                    <span className="h-3 w-3 rounded-full bg-red-400" />
+                    <span className="h-3 w-3 rounded-full bg-amber-400" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-400" />
+                    <div className="ml-3 hidden flex-1 items-center gap-2 rounded-md bg-background/70 px-3 py-1 text-xs text-muted-foreground sm:flex">
+                      <Icon.Web className="h-3.5 w-3.5" aria-hidden />
+                      app.aircon.id
+                    </div>
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={c.heroImageUrl} alt="Tampilan Aircon" className="block w-full" />
+                </div>
+              </div>
             ) : (
             <div className="rounded-2xl border bg-card p-2 shadow-lg sm:p-3">
               <div className="rounded-xl border bg-muted/40 p-4 sm:p-6">
