@@ -37,7 +37,18 @@ ap.add_argument("--upload", action="store_true")
 ap.add_argument("--save-preview", dest="save_preview", action="store_true")
 ap.add_argument("--title"); ap.add_argument("--category", default="Umum")
 ap.add_argument("--caption", default=""); ap.add_argument("--sort", type=int, default=99)
+ap.add_argument("--mobile", action="store_true")  # layar HP teknisi: bingkai di kanvas 1920x1093
+ap.add_argument("--tech", default="")             # userId teknisi utk cookie (mode mobile /t)
 a = ap.parse_args()
+
+# Mode mobile: viewport HP + cookie teknisi. Hasil di-compose ke kanvas seragam nanti.
+if a.mobile:
+    a.vw = a.vw if "--vw" in " ".join(sys.argv) else 412
+    a.vh = a.vh if "--vh" in " ".join(sys.argv) else 900
+    a.dpr = a.dpr if "--dpr" in " ".join(sys.argv) else 2.0
+    if a.tech:
+        a.owner = a.tech  # cookie pakai userId teknisi (valid di /t)
+
 
 BASE = f"http://localhost:{a.port}"
 SECRET = os.environ.get("SESSION_SECRET") or os.environ.get("CRON_SECRET")
@@ -67,9 +78,47 @@ with sync_playwright() as p:
       ns.forEach(n=>n.nodeValue=n.nodeValue.replace(/https?:\\/\\/localhost:\\d+/g,'https://app.aircon.id'));
     }""")
     pg.wait_for_timeout(200)
-    pg.screenshot(path=a.out)  # VIEWPORT saja (bounded), BUKAN full_page
-    ctx.close()
-print(f"CAPTURE OK -> {a.out} | viewport {a.vw}x{a.vh}@{a.dpr}x (zoom {round(a.dpr*100)}%) | exceptions {len(errs)}")
+    if a.mobile:
+        raw = a.out.replace(".png", ".raw.png")
+        pg.screenshot(path=raw)  # HP: viewport tetap (proporsi wajar), bukan full_page
+        ctx.close()
+    else:
+        pg.screenshot(path=a.out)  # VIEWPORT saja (bounded), BUKAN full_page
+        ctx.close()
+
+# Mode mobile: compose screenshot HP ke kanvas 1920x1093 (HP di tengah, latar gradasi, sudut membulat + bayangan).
+if a.mobile:
+    from PIL import Image, ImageDraw, ImageFilter
+    CW, CH = 1920, 1093
+    phone = Image.open(raw).convert("RGBA")
+    # tinggi HP target ~ 92% kanvas
+    target_h = int(CH * 0.92)
+    scale = target_h / phone.height
+    target_w = int(phone.width * scale)
+    phone = phone.resize((target_w, target_h), Image.LANCZOS)
+    # sudut membulat
+    radius = 46
+    mask = Image.new("L", phone.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, phone.width, phone.height], radius=radius, fill=255)
+    # kanvas gradasi biru lembut
+    canvas = Image.new("RGB", (CW, CH), (238, 244, 251))
+    top, bot = (224, 238, 250), (243, 247, 252)
+    for y in range(CH):
+        t = y / CH
+        canvas.paste(tuple(int(top[i] + (bot[i] - top[i]) * t) for i in range(3)), [0, y, CW, y + 1])
+    px = (CW - phone.width) // 2
+    py = (CH - phone.height) // 2
+    # bayangan
+    shadow = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
+    sd = Image.new("RGBA", phone.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sd).rounded_rectangle([0, 0, phone.width, phone.height], radius=radius, fill=(15, 23, 42, 90))
+    shadow.paste(sd, (px, py + 14), sd)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(28))
+    canvas = Image.alpha_composite(canvas.convert("RGBA"), shadow)
+    canvas.paste(phone, (px, py), mask)
+    canvas.convert("RGB").save(a.out)
+    os.remove(raw)
+print(f"CAPTURE OK -> {a.out} | {'MOBILE frame 1920x1093' if a.mobile else f'viewport {a.vw}x{a.vh}@{a.dpr}x (zoom {round(a.dpr*100)}%)'} | exceptions {len(errs)}")
 for e in errs[:4]:
     print("ERR", e[:120])
 
@@ -109,9 +158,9 @@ if a.save_preview:
     if row:
         old_id, old_url = row
         if a.caption:
-            cur.execute('UPDATE "PreviewItem" SET "imageUrl"=%s, caption=%s WHERE id=%s', (public_url, a.caption, old_id))
+            cur.execute('UPDATE "PreviewItem" SET "imageUrl"=%s, caption=%s, "updatedAt"=now() WHERE id=%s', (public_url, a.caption, old_id))
         else:
-            cur.execute('UPDATE "PreviewItem" SET "imageUrl"=%s WHERE id=%s', (public_url, old_id))
+            cur.execute('UPDATE "PreviewItem" SET "imageUrl"=%s, "updatedAt"=now() WHERE id=%s', (public_url, old_id))
         print(f"PREVIEW UPDATED -> {old_id} | {a.title} [{a.category}]")
         if old_url and old_url != public_url and f"/{BUCKET}/" in old_url:
             try:
@@ -120,14 +169,13 @@ if a.save_preview:
             except Exception as e:
                 print("(gambar lama tak terhapus:", e, ")")
     else:
-        import uuid
-        cur.execute("SELECT gen_random_uuid()")  # fallback; PreviewItem id biasanya cuid — pakai default DB bila ada
-        # Buat via kolom minimal; asumsikan default id di DB. Jika tidak, isi id acak.
-        try:
-            cur.execute(
-                'INSERT INTO "PreviewItem" (title, category, caption, "imageUrl", "sortOrder", published) VALUES (%s,%s,%s,%s,%s,true) RETURNING id',
-                (a.title, a.category, a.caption, public_url, a.sort))
-            print(f"PREVIEW CREATED -> {cur.fetchone()[0]} | {a.title} [{a.category}]")
-        except Exception as e:
-            sys.exit(f"Gagal INSERT PreviewItem (mungkin butuh id manual): {e}")
+        # id: PreviewItem.id = @default(cuid()) di Prisma (bukan default DB) -> generate cuid-like di sini.
+        import base64 as _b64
+        ts = format(int(time.time() * 1000), "x")
+        rnd = "".join(random.choice("abcdefghijklmnopqrstuvwxyz0123456789") for _ in range(16))
+        new_id = ("c" + ts + rnd)[:25].ljust(25, "0")
+        cur.execute(
+            'INSERT INTO "PreviewItem" (id, title, category, caption, "imageUrl", "sortOrder", published, "updatedAt") VALUES (%s,%s,%s,%s,%s,%s,true,now()) RETURNING id',
+            (new_id, a.title, a.category, a.caption, public_url, a.sort))
+        print(f"PREVIEW CREATED -> {cur.fetchone()[0]} | {a.title} [{a.category}]")
     cur.close(); conn.close()
