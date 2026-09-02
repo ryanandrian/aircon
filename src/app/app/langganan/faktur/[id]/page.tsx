@@ -36,7 +36,7 @@ export default async function FakturPage({ params }: { params: Promise<{ id: str
   const dateStr = (payment.paidAt ?? payment.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <main className="min-h-screen bg-background py-8 print:bg-white print:py-0">
+    <main className="min-h-screen bg-slate-100 py-8 print:bg-white print:py-0">
       {/* Toolbar (disembunyikan saat cetak) */}
       <div className="mx-auto mb-4 flex max-w-2xl items-center justify-between px-6 print:hidden">
         <a href="/app/langganan" className="text-sm text-slate-500 hover:text-slate-800">← Langganan</a>

@@ -29,7 +29,7 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
   const canCancel = inv.status !== "PAID" && inv.status !== "CANCELLED";
 
   return (
-    <main className="min-h-screen bg-background pb-16">
+    <main className="min-h-screen bg-muted/40 pb-16">
       <AppHeader title={isProforma ? "Proforma" : "Invoice"} back="/app/faktur" />
       <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         <InvoiceView inv={inv} tenant={data.tenant} assetMap={data.assetMap} />

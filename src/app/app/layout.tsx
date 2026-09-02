@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const name = tenant?.name ?? "Aircon";
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-muted/40 text-foreground">
       <div className="flex">
         {/* Sidebar desktop */}
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card p-5 md:flex">

@@ -89,7 +89,7 @@ export default async function PekerjaanDetailPage({
     : todayStr;
 
   return (
-    <main className="min-h-screen bg-background pb-16">
+    <main className="min-h-screen bg-muted/40 pb-16">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-3">
           <div>

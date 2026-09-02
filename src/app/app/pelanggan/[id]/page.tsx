@@ -35,7 +35,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const cardUrl = cardToken ? `${appBaseUrl()}/riwayat/${cardToken}` : null;
 
   return (
-    <main className="min-h-screen bg-background pb-16">
+    <main className="min-h-screen bg-muted/40 pb-16">
       <AppHeader title={customer.name} back="/app/pelanggan" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CustomerHub

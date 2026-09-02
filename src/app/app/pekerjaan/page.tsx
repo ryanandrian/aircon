@@ -35,7 +35,7 @@ export default async function PekerjaanPage({ searchParams }: { searchParams: Pr
   }));
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-muted/40">
       <AppHeader title="Pekerjaan" />
       <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
         {/* Sub-judul + tombol sejajar (pola seragam dgn halaman lain) */}

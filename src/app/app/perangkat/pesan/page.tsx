@@ -17,7 +17,7 @@ export default async function PesanPerangkatPage() {
   const [products, policy] = await Promise.all([listProducts(), getBillingPolicy()]);
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-muted/40">
       <AppHeader title="Pesan Perangkat" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
