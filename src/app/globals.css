@@ -8,7 +8,9 @@
   --brand: #0ea5e9;
   --brand-dark: #0284c7;
 
-  --background: oklch(1 0 0);
+  /* Light: latar sedikit abu-sejuk (BUKAN putih murni) → card putih "mengambang", tidak flat.
+     Elevation berjenjang: background < sidebar < muted < card(putih). Pola SaaS (Stripe/Linear). */
+  --background: oklch(0.975 0.004 247);
   --foreground: oklch(0.21 0.03 257);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.03 257);
@@ -19,16 +21,16 @@
   --primary: oklch(0.685 0.145 235);
   --primary-foreground: oklch(0.985 0.01 240);
 
-  --secondary: oklch(0.968 0.005 247);
+  --secondary: oklch(0.955 0.006 247);
   --secondary-foreground: oklch(0.28 0.03 257);
-  --muted: oklch(0.968 0.005 247);
+  --muted: oklch(0.955 0.006 247);
   --muted-foreground: oklch(0.55 0.02 257);
-  --accent: oklch(0.96 0.015 240);
+  --accent: oklch(0.945 0.016 240);
   --accent-foreground: oklch(0.28 0.03 257);
   --destructive: oklch(0.577 0.245 27.325);
 
-  --border: oklch(0.923 0.006 247);
-  --input: oklch(0.923 0.006 247);
+  --border: oklch(0.912 0.007 247);
+  --input: oklch(0.912 0.007 247);
   --ring: oklch(0.685 0.145 235);
 
   --chart-1: oklch(0.685 0.145 235);
