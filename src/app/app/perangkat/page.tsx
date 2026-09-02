@@ -33,7 +33,7 @@ export default async function PerangkatPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-muted/40">
+    <main className="min-h-screen bg-background">
       <AppHeader title="Pemantauan Perangkat" />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">

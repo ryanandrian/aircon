@@ -27,7 +27,7 @@ export default async function PesananPerangkatPage() {
   const orders = await listTenantOrders(ctx.tenantId);
 
   return (
-    <main className="min-h-screen bg-muted/40">
+    <main className="min-h-screen bg-background">
       <AppHeader title="Pesanan Perangkat" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
 
       <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">

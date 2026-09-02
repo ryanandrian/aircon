@@ -15,7 +15,7 @@ export default async function TeknisiPage() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
   return (
-    <main className="min-h-screen bg-muted/40">
+    <main className="min-h-screen bg-background">
       <AppHeader title="Teknisi" />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">

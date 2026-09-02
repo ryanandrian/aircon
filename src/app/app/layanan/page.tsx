@@ -13,7 +13,7 @@ export default async function LayananPage() {
   const items = await listCatalogWithOverrideCount(ctx.tenantId);
 
   return (
-    <main className="min-h-screen bg-muted/40">
+    <main className="min-h-screen bg-background">
       <AppHeader title="Daftar Layanan" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CatalogManager items={items} />
