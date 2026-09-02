@@ -56,27 +56,28 @@
 }
 
 .dark {
-  /* Dark mode slate kebiruan (bukan abu mati) → terasa modern & mahal */
-  --background: oklch(0.19 0.02 257);
+  /* Dark mode slate kebiruan (bukan abu mati) → terasa modern & mahal.
+     Elevation berjenjang (bg < sidebar < card < accent) → kartu "mengambang", TIDAK flat. */
+  --background: oklch(0.16 0.02 257);
   --foreground: oklch(0.97 0.008 247);
-  --card: oklch(0.23 0.022 257);
+  --card: oklch(0.255 0.024 257);
   --card-foreground: oklch(0.97 0.008 247);
-  --popover: oklch(0.23 0.022 257);
+  --popover: oklch(0.255 0.024 257);
   --popover-foreground: oklch(0.97 0.008 247);
 
   --primary: oklch(0.7 0.15 235);
   --primary-foreground: oklch(0.16 0.02 257);
 
-  --secondary: oklch(0.28 0.025 257);
+  --secondary: oklch(0.31 0.028 257);
   --secondary-foreground: oklch(0.97 0.008 247);
-  --muted: oklch(0.28 0.025 257);
-  --muted-foreground: oklch(0.71 0.02 257);
-  --accent: oklch(0.3 0.03 257);
+  --muted: oklch(0.31 0.028 257);
+  --muted-foreground: oklch(0.72 0.02 257);
+  --accent: oklch(0.34 0.032 257);
   --accent-foreground: oklch(0.97 0.008 247);
   --destructive: oklch(0.704 0.191 22.216);
 
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
+  --border: oklch(1 0 0 / 15%);
+  --input: oklch(1 0 0 / 18%);
   --ring: oklch(0.7 0.15 235);
 
   --chart-1: oklch(0.7 0.15 235);
@@ -85,18 +86,19 @@
   --chart-4: oklch(0.67 0.2 300);
   --chart-5: oklch(0.68 0.22 25);
 
-  --sidebar: oklch(0.23 0.022 257);
+  --sidebar: oklch(0.205 0.022 257);
   --sidebar-foreground: oklch(0.97 0.008 247);
   --sidebar-primary: oklch(0.7 0.15 235);
   --sidebar-primary-foreground: oklch(0.16 0.02 257);
-  --sidebar-accent: oklch(0.3 0.03 257);
+  --sidebar-accent: oklch(0.34 0.032 257);
   --sidebar-accent-foreground: oklch(0.97 0.008 247);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.7 0.15 235);
 
-  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 0.3), 0 1px 2px -1px oklch(0 0 0 / 0.3);
-  --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.4), 0 2px 6px -2px oklch(0 0 0 / 0.3);
-  --shadow-lg: 0 12px 28px -6px oklch(0 0 0 / 0.5), 0 6px 12px -6px oklch(0 0 0 / 0.4);
+  /* Bayangan lebih dalam (background lebih gelap) → elevation kartu makin terasa */
+  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 0.4), 0 1px 2px -1px oklch(0 0 0 / 0.4);
+  --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.5), 0 2px 6px -2px oklch(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 28px -6px oklch(0 0 0 / 0.6), 0 6px 12px -6px oklch(0 0 0 / 0.5);
 }
 
 /* Cetak faktur/kwitansi: hilangkan margin browser, warna akurat */
