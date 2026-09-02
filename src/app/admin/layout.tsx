@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   return (
     <div className="min-h-screen bg-muted/40 text-foreground">
       <div className="flex">
-        <aside className="hidden w-60 shrink-0 border-r bg-card p-5 md:block">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card p-5 md:flex">
           <div className="mb-6 flex items-center justify-between">
             <div>
               <div className="text-lg font-semibold text-sky-600">Admin Platform</div>
@@ -30,7 +30,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <ThemeToggle />
           </div>
           <AdminNav />
-          <div className="mt-8 border-t pt-4 text-xs text-muted-foreground">
+          <div className="mt-auto border-t pt-4 text-xs text-muted-foreground">
             <div className="font-medium text-foreground">{admin.name}</div>
             <div className="truncate">{admin.email}</div>
           </div>
