@@ -146,6 +146,9 @@ Deploy Docker Compose (`docker-compose.yml`) = **alternatif tidak dipakai**; jan
 | Sesi `exists:false` setelah restart | lazy-load; sesi belum dibangunkan | panggil `POST /sessions/:id/init` (reconnect dari auth, tanpa scan) |
 | Tak ada `SENT` maupun `FAILED` di log | (dulu) hang tanpa timeout — **sudah difix**; atau queue kosong/quiet | pastikan versi gateway terbaru (withTimeout); cek quiet |
 | Pesan hilang saat restart | (dulu) queue in-memory — **sudah difix** (persist) | pastikan `queue.json` ada di `WA_SESSION_DIR` |
+| Sesi tak pernah READY pasca **reboot mendadak** | lock Chromium basi (`SingletonLock/Socket/Cookie`) → "profile appears to be in use" | **sudah difix**: `_cleanStaleLocks()` hapus lock sebelum start tiap sesi |
+| Gateway tak "langsung ready" setelah restart | dulu sesi lazy — baru hidup saat pemicu manual | **sudah difix**: `wa.rehydrate()` saat boot auto-bangunkan semua sesi tersimpan (reconnect tanpa QR bila auth valid) |
+| Sesi tetap minta QR walau auth tersimpan | WhatsApp invalidasi sesi karena fingerprint mesin berubah (re-provision VPS) | scan ulang sekali via halaman app **Pengaturan → Hubungkan WhatsApp** (bukan terminal) |
 | Bukti "terkirim" | **JANGAN percaya `queued`**; cek log `SENT` + callback `sent` di DB app + konfirmasi HP | verifikasi bukti nyata, bukan log antrean |
 
 ---

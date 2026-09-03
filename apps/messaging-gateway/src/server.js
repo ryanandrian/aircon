@@ -99,6 +99,9 @@ server.delete("/v1/wa/sessions/:externalId", async (req, res) => {
 server.listen(PORT, () => {
   console.log(`[gateway] listening :${PORT} — ${apps.length} app terdaftar`);
   wa.start();
+  // ANTISIPASI REBOOT: bangunkan sesi tersimpan agar gateway "langsung ready" tanpa pemicu manual.
+  // Non-blocking supaya server tetap melayani /health & API selama sesi reconnect.
+  wa.rehydrate().catch((e) => console.error("[gateway] rehydrate gagal:", e.message));
   // Sinkron policy admin di awal + berkala.
   syncPolicies();
   setInterval(syncPolicies, POLICY_SYNC_MS);

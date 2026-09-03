@@ -81,6 +81,57 @@ export class WaManager {
     } catch (e) { console.error("[gateway] gagal simpan antrean:", e.message); }
   }
 
+  /**
+   * ANTISIPASI REBOOT MENDADAK — hapus file lock Chromium basi.
+   * whatsapp-web.js memakai profil Chromium di SESSION_DIR/session-{clientId}. Saat mesin
+   * mati mendadak (listrik/panel provider/crash), Chromium tak sempat shutdown bersih →
+   * file SingletonLock/SingletonSocket/SingletonCookie tertinggal. Saat start berikutnya
+   * Chromium menolak ("profile appears to be in use") dan sesi TAK PERNAH READY.
+   * Aman dihapus: dipanggil TEPAT sebelum start sesi baru, saat tak ada proses yang memakainya.
+   */
+  _cleanStaleLocks(clientId) {
+    const profileDir = path.join(SESSION_DIR, `session-${clientId}`);
+    for (const name of ["SingletonLock", "SingletonSocket", "SingletonCookie"]) {
+      try {
+        const p = path.join(profileDir, name);
+        if (fs.existsSync(p) || fs.lstatSync(p, { throwIfNoEntry: false })) {
+          fs.rmSync(p, { force: true });
+        }
+      } catch { /* lock tak ada / sudah bersih — abaikan */ }
+    }
+  }
+
+  /**
+   * REHIDRASI PASCA-REBOOT — bangunkan kembali sesi yang auth-nya tersimpan di disk,
+   * TANPA menunggu pemicu manual, supaya gateway "langsung ready" setelah restart.
+   * Memindai SESSION_DIR untuk folder session-{appId}_{externalId}, lalu initSession tiap sesi
+   * yang appId-nya terdaftar. whatsapp-web.js reconnect dari auth tersimpan (tanpa QR bila valid).
+   */
+  async rehydrate() {
+    let dirs = [];
+    try {
+      dirs = fs.readdirSync(SESSION_DIR, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && d.name.startsWith("session-"))
+        .map((d) => d.name.slice("session-".length));
+    } catch { return; }
+    const appIds = new Set(this.apps.map((a) => a.id));
+    let n = 0;
+    for (const clientId of dirs) {
+      // clientId = "{appId}_{externalId}" (khusus non-alnum di externalId sudah di-sanitize jadi "_").
+      const us = clientId.indexOf("_");
+      if (us <= 0) continue;
+      const appId = clientId.slice(0, us);
+      const externalId = clientId.slice(us + 1);
+      if (!appIds.has(appId)) continue;         // app tak terdaftar → lewati
+      if (this.sessions.has(this._sid(appId, externalId))) continue;
+      try {
+        await this.initSession(appId, externalId); // reconnect dari auth (bersih lock dulu di dalam)
+        n += 1;
+      } catch (e) { console.error(`[gateway] rehydrate ${clientId} gagal:`, e.message); }
+    }
+    if (n) console.log(`[gateway] rehidrasi sesi tersimpan: ${n} sesi dibangunkan pasca-restart`);
+  }
+
   async _callback(appId, payload) {
     const url = webhookOf(this.apps, appId);
     if (!url) return;
@@ -99,8 +150,13 @@ export class WaManager {
     // HEMAT RAM: bila sudah di batas sesi hidup, evict yang paling lama idle & belum aktif kirim.
     this._evictIfNeeded();
 
+    const clientId = sid.replace(/[^a-zA-Z0-9_-]/g, "_");
+    // ANTISIPASI REBOOT MENDADAK: hapus lock Chromium basi sebelum start, jika tidak
+    // Chromium menolak start ("profile appears to be in use") → sesi tak pernah READY.
+    this._cleanStaleLocks(clientId);
+
     const client = new Client({
-      authStrategy: new LocalAuth({ clientId: sid.replace(/[^a-zA-Z0-9_-]/g, "_"), dataPath: SESSION_DIR }),
+      authStrategy: new LocalAuth({ clientId, dataPath: SESSION_DIR }),
       puppeteer: {
         headless: true,
         args: [
