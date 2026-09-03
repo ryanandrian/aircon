@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { runDunningCycle, purgeMarkedTenants } from "@/lib/services/dunning-service";
 import { runInactivitySweep } from "@/lib/services/inactivity-sweeper-service";
 import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
+import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
+import { dispatchPlatformNotifications } from "@/lib/services/platform-notification-dispatch";
 
 /** Cek otorisasi cron: header Bearer CRON_SECRET (dipakai Vercel Cron & pemanggilan manual). */
 function authorized(req: NextRequest): boolean {
@@ -25,7 +27,10 @@ async function handle(req: NextRequest): Promise<NextResponse> {
     const inactivity = await runInactivitySweep();
     // Flush antrean WA dunning ke gateway (pesan penagihan benar-benar terkirim).
     const dispatch = await flushQueuedMessages();
-    return NextResponse.json({ ok: true, dunning, purge, inactivity, dispatch });
+    // PLATFORM notif (Lumite → tenant): evaluasi event → antre → kirim (WA sesi lumite-platform + email).
+    const platformNotify = await runPlatformNotifyCycle();
+    const platformDispatch = await dispatchPlatformNotifications();
+    return NextResponse.json({ ok: true, dunning, purge, inactivity, dispatch, platformNotify, platformDispatch });
   } catch (err) {
     console.error("[cron/dunning] gagal:", err);
     return NextResponse.json({ error: "Gagal menjalankan dunning" }, { status: 500 });

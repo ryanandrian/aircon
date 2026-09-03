@@ -21,8 +21,16 @@ export async function isGatewayConfigured(): Promise<boolean> {
   return (await resolve()) !== null;
 }
 
-/** Kirim pesan WA via gateway. externalId = tenantId. */
+/** Kirim pesan WA via gateway. externalId = tenantId (jalur tenant → pelanggan, TAK BERUBAH). */
 export async function gatewaySend(tenantId: string, toPhone: string, message: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+  return gatewaySendAs(tenantId, toPhone, message);
+}
+
+/**
+ * Kirim WA dengan externalId eksplisit (sesi mana). Dipakai gatewaySend (tenant) DAN
+ * jalur platform (externalId="lumite-platform"). Guard anti-spam berlaku untuk SEMUA.
+ */
+export async function gatewaySendAs(externalId: string, toPhone: string, message: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const cfg = await resolve();
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
 
@@ -41,7 +49,7 @@ export async function gatewaySend(tenantId: string, toPhone: string, message: st
     const r = await fetch(`${cfg.url}/v1/wa/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": cfg.key },
-      body: JSON.stringify({ externalId: tenantId, toPhone, message }),
+      body: JSON.stringify({ externalId, toPhone, message }),
     });
     const data = (await r.json().catch(() => ({}))) as { messageId?: string; error?: string };
     if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };

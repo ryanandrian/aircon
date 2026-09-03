@@ -57,7 +57,9 @@ enum UserStatus {
   DISABLED
 }
 
-/** Posisi default anggota tim di lapangan (bisa dioverride per pekerjaan). */
+/**
+ * Posisi default anggota tim di lapangan (bisa dioverride per pekerjaan).
+ */
 enum TeamPosition {
   TEKNISI
   KERNET
@@ -184,6 +186,7 @@ enum RecipientStatus {
 enum MessageChannel {
   WA
   PUSH
+  EMAIL
 }
 
 enum MessageDir {
@@ -271,8 +274,8 @@ model Tenant {
   publicProfile           Json?
   // Branding & profil bisnis tenant (Fase 1) — untuk invoice & permukaan publik tenant.
   logoUrl                 String       @default("")
-  address                 String       @default("")  // alamat usaha (tampil di invoice/kwitansi)
-  tagline                 String       @default("")  // moto/slogan usaha
+  address                 String       @default("") // alamat usaha (tampil di invoice/kwitansi)
+  tagline                 String       @default("") // moto/slogan usaha
   isPkp                   Boolean      @default(false)
   npwp                    String       @default("")
   taxPercent              Float        @default(0)
@@ -283,24 +286,25 @@ model Tenant {
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
-  users        User[]
-  customers    Customer[]
-  assets       Asset[]
-  technicians  Technician[]
-  jobs         JobOrder[]
-  subscription Subscription?
-  payments     Payment[]
-  invites      Invite[]
-  iotOrders    IotOrder[]
-  attribution  TenantAttribution?
-  serviceCatalog  ServiceCatalog[]
-  customerPricing CustomerPricing[]
-  jobAssignments  JobAssignment[]
-  workSessions    WorkSession[]
-  workItems       WorkItem[]
-  invoices        Invoice[]
-  teamIncentiveMode TeamIncentiveMode @default(BAGI_RATA)
-  incentiveBasis    IncentiveBasis    @default(LUNAS)
+  users                 User[]
+  customers             Customer[]
+  assets                Asset[]
+  technicians           Technician[]
+  jobs                  JobOrder[]
+  subscription          Subscription?
+  payments              Payment[]
+  invites               Invite[]
+  iotOrders             IotOrder[]
+  attribution           TenantAttribution?
+  serviceCatalog        ServiceCatalog[]
+  customerPricing       CustomerPricing[]
+  jobAssignments        JobAssignment[]
+  workSessions          WorkSession[]
+  workItems             WorkItem[]
+  invoices              Invoice[]
+  platformNotifications PlatformNotification[]
+  teamIncentiveMode     TeamIncentiveMode      @default(BAGI_RATA)
+  incentiveBasis        IncentiveBasis         @default(LUNAS)
 }
 
 model User {
@@ -325,38 +329,38 @@ model User {
 }
 
 model Customer {
-  id           String         @id @default(cuid())
-  tenantId     String
-  name         String
-  phone        String
-  address      String?
-  geoLat       Float?
-  geoLng       Float?
-  source       CustomerSource @default(OTHER)
-  referredById String?
-  notes        String?
-  cardToken    String?        @unique
+  id                String            @id @default(cuid())
+  tenantId          String
+  name              String
+  phone             String
+  address           String?
+  geoLat            Float?
+  geoLng            Float?
+  source            CustomerSource    @default(OTHER)
+  referredById      String?
+  notes             String?
+  cardToken         String?           @unique
   // Modul invoicing/AR (Fase 1) — semua opsional, backward-compatible.
-  category         CustomerCategory?
-  customerType     CustomerType   @default(PERORANGAN)
-  topType          TopType        @default(CASH)
-  npwp             String?
-  isPphWithholder  Boolean        @default(false)
-  billingCustomerId String?       // kosong = tagih ke diri sendiri
-  picWorkName      String?
-  picWorkPhone     String?
-  picWorkRole      String?
-  picFinanceName   String?
-  picFinancePhone  String?
-  deletedAt    DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  category          CustomerCategory?
+  customerType      CustomerType      @default(PERORANGAN)
+  topType           TopType           @default(CASH)
+  npwp              String?
+  isPphWithholder   Boolean           @default(false)
+  billingCustomerId String? // kosong = tagih ke diri sendiri
+  picWorkName       String?
+  picWorkPhone      String?
+  picWorkRole       String?
+  picFinanceName    String?
+  picFinancePhone   String?
+  deletedAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  tenant          Tenant     @relation(fields: [tenantId], references: [id])
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
   assets          Asset[]
   jobs            JobOrder[]
-  billingCustomer Customer?  @relation("CustomerBilling", fields: [billingCustomerId], references: [id])
-  billedFor       Customer[] @relation("CustomerBilling")
+  billingCustomer Customer?         @relation("CustomerBilling", fields: [billingCustomerId], references: [id])
+  billedFor       Customer[]        @relation("CustomerBilling")
   customerPricing CustomerPricing[]
   workSessions    WorkSession[]
   invoices        Invoice[]
@@ -385,11 +389,11 @@ model Asset {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
-  tenant   Tenant     @relation(fields: [tenantId], references: [id])
-  customer Customer   @relation(fields: [customerId], references: [id])
-  jobs     JobOrder[]
-  device   Device?    @relation(fields: [deviceId], references: [id])
-  unitCode UnitCode?
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  customer  Customer   @relation(fields: [customerId], references: [id])
+  jobs      JobOrder[]
+  device    Device?    @relation(fields: [deviceId], references: [id])
+  unitCode  UnitCode?
   workItems WorkItem[]
 
   @@index([tenantId, customerId])
@@ -397,41 +401,41 @@ model Asset {
 }
 
 model Technician {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   tenantId     String
-  userId       String   @unique
+  userId       String       @unique
   skills       String[]
   position     TeamPosition @default(TEKNISI)
   workingHours Json?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  active       Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  tenant Tenant     @relation(fields: [tenantId], references: [id])
-  user   User       @relation(fields: [userId], references: [id])
-  jobs   JobOrder[]
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  user        User            @relation(fields: [userId], references: [id])
+  jobs        JobOrder[]
   assignments JobAssignment[]
 
   @@index([tenantId, active])
 }
 
 model JobOrder {
-  id              String      @id @default(cuid())
+  id              String         @id @default(cuid())
   tenantId        String
   customerId      String
   assetId         String?
   technicianId    String?
   serviceType     ServiceType
-  status          JobStatus   @default(DRAFT)
-  source          JobSource   @default(MANUAL)
+  status          JobStatus      @default(DRAFT)
+  source          JobSource      @default(MANUAL)
   scheduledDate   DateTime?
   windowStart     DateTime?
   windowEnd       DateTime?
-  estDurationMin  Int         @default(60)
+  estDurationMin  Int            @default(60)
   addressSnapshot String?
   geoLat          Float?
   geoLng          Float?
-  price           Decimal?    @db.Decimal(12, 2)
+  price           Decimal?       @db.Decimal(12, 2)
   notes           String?
   nextServiceDate DateTime?
   parentJobId     String?
@@ -439,15 +443,15 @@ model JobOrder {
   completedAt     DateTime?
   deletedAt       DateTime?
   assignmentType  AssignmentType @default(SPESIFIK)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  tenant     Tenant             @relation(fields: [tenantId], references: [id])
-  customer   Customer           @relation(fields: [customerId], references: [id])
-  asset      Asset?             @relation(fields: [assetId], references: [id])
-  technician Technician?        @relation(fields: [technicianId], references: [id])
-  events     JobProgressEvent[]
-  photos     JobPhoto[]
+  tenant      Tenant             @relation(fields: [tenantId], references: [id])
+  customer    Customer           @relation(fields: [customerId], references: [id])
+  asset       Asset?             @relation(fields: [assetId], references: [id])
+  technician  Technician?        @relation(fields: [technicianId], references: [id])
+  events      JobProgressEvent[]
+  photos      JobPhoto[]
   assignments JobAssignment[]
 
   @@index([tenantId, status])
@@ -587,19 +591,19 @@ model MessageTemplate {
 }
 
 model MessageLog {
-  id          String         @id @default(cuid())
-  tenantId    String
-  customerId  String?
-  jobId       String?
-  channel     MessageChannel
-  driver      WaDriver       @default(WEB)
-  templateKey String?
-  direction   MessageDir     @default(OUTBOUND)
-  status      MessageStatus  @default(LOGGED)
-  toPhone     String?
-  body        String?
-  gatewayMessageId String?    // id dari messaging-gateway (untuk update status via callback)
-  at          DateTime       @default(now())
+  id               String         @id @default(cuid())
+  tenantId         String
+  customerId       String?
+  jobId            String?
+  channel          MessageChannel
+  driver           WaDriver       @default(WEB)
+  templateKey      String?
+  direction        MessageDir     @default(OUTBOUND)
+  status           MessageStatus  @default(LOGGED)
+  toPhone          String?
+  body             String?
+  gatewayMessageId String? // id dari messaging-gateway (untuk update status via callback)
+  at               DateTime       @default(now())
 
   @@index([tenantId, customerId, at])
   @@index([driver, status])
@@ -691,21 +695,21 @@ model Subscription {
 
 // Pembayaran langganan via Midtrans (Snap).
 model Payment {
-  id            String        @id @default(cuid())
-  tenantId      String
-  orderId       String        @unique // order_id yang dikirim ke Midtrans
-  plan          TenantPlan
-  amount        Int // IDR
-  status        PaymentStatus @default(PENDING)
-  periodMonths  Int           @default(1)
-  snapToken     String?
-  snapRedirect  String?
-  midtransTxId  String? // transaction_id dari Midtrans
-  paymentType   String? // gopay, bank_transfer, dst
-  paidAt        DateTime?
-  rawNotif      Json? // payload webhook terakhir (audit)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  tenantId     String
+  orderId      String        @unique // order_id yang dikirim ke Midtrans
+  plan         TenantPlan
+  amount       Int // IDR
+  status       PaymentStatus @default(PENDING)
+  periodMonths Int           @default(1)
+  snapToken    String?
+  snapRedirect String?
+  midtransTxId String? // transaction_id dari Midtrans
+  paymentType  String? // gopay, bank_transfer, dst
+  paidAt       DateTime?
+  rawNotif     Json? // payload webhook terakhir (audit)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -715,17 +719,17 @@ model Payment {
 
 // Undangan user ke tenant (teknisi/admin) — invite-only, bukan self-signup.
 model Invite {
-  id         String       @id @default(cuid())
-  tenantId   String
-  role       Role         @default(TECHNICIAN)
-  name       String
-  phone      String
-  token      String       @unique
-  status     InviteStatus @default(PENDING)
-  expiresAt  DateTime
-  acceptedAt DateTime?
+  id          String       @id @default(cuid())
+  tenantId    String
+  role        Role         @default(TECHNICIAN)
+  name        String
+  phone       String
+  token       String       @unique
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
   createdById String
-  createdAt  DateTime     @default(now())
+  createdAt   DateTime     @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
@@ -743,69 +747,69 @@ model PlatformAdmin {
 
 // Throttle brute-force login PIN teknisi (per nomor HP).
 model LoginThrottle {
-  key         String   @id // mis. phone ternormalisasi
-  failedCount Int      @default(0)
+  key         String    @id // mis. phone ternormalisasi
+  failedCount Int       @default(0)
   lockedUntil DateTime?
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
 }
 
 // Konten landing page — EDITABLE ADMIN (no hardcode). Singleton (id="singleton").
 // Teks per-section + URL gambar (upload S3) + toggle tampil. Kolom kosong = pakai default kode.
 model LandingContent {
-  id                String   @id @default("singleton")
+  id               String   @id @default("singleton")
   // Hero
-  heroBadge         String   @default("")
-  heroTitle         String   @default("")
-  heroTitleAccent   String   @default("")
-  heroSubtitle      String   @default("")
-  heroCtaPrimary    String   @default("")
-  heroCtaSecondary  String   @default("")
-  heroMicrocopy     String   @default("")
-  heroImageUrl      String   @default("") // mockup/screenshot hero (S3)
+  heroBadge        String   @default("")
+  heroTitle        String   @default("")
+  heroTitleAccent  String   @default("")
+  heroSubtitle     String   @default("")
+  heroCtaPrimary   String   @default("")
+  heroCtaSecondary String   @default("")
+  heroMicrocopy    String   @default("")
+  heroImageUrl     String   @default("") // mockup/screenshot hero (S3)
   // Gambar global
-  logoUrl           String   @default("")
-  ogImageUrl        String   @default("")
+  logoUrl          String   @default("")
+  ogImageUrl       String   @default("")
   // Section: cara kerja
-  howTitle          String   @default("")
-  howSubtitle       String   @default("")
+  howTitle         String   @default("")
+  howSubtitle      String   @default("")
   // Section: fitur unggulan (Fase 2-7)
-  featuresTitle     String   @default("")
-  featuresSubtitle  String   @default("")
+  featuresTitle    String   @default("")
+  featuresSubtitle String   @default("")
   // Section: booking hook / CTA akhir / footer
-  ctaTitle          String   @default("")
-  ctaSubtitle       String   @default("")
-  ctaButton         String   @default("")
-  footerTagline     String   @default("")
+  ctaTitle         String   @default("")
+  ctaSubtitle      String   @default("")
+  ctaButton        String   @default("")
+  footerTagline    String   @default("")
   // Kontak CS (WhatsApp) untuk tier custom / "Hubungi CS". Nomor format 62xxx.
-  csWhatsapp        String   @default("")
+  csWhatsapp       String   @default("")
   // Section: custom tier (Full Custom)
-  customTierTitle   String   @default("")
-  customTierDesc    String   @default("")
+  customTierTitle  String   @default("")
+  customTierDesc   String   @default("")
   // Toggle tampil per-section
-  showRoi           Boolean  @default(true)
-  showHow           Boolean  @default(true)
-  showFeatures      Boolean  @default(true)
-  showPreview       Boolean  @default(true)
-  showSegments      Boolean  @default(true)
-  showPricing       Boolean  @default(true)
-  showTestimonials  Boolean  @default(false) // default off sampai ada testimoni jujur
-  showFaq           Boolean  @default(true)
-  updatedBy         String?
-  updatedAt         DateTime @updatedAt
+  showRoi          Boolean  @default(true)
+  showHow          Boolean  @default(true)
+  showFeatures     Boolean  @default(true)
+  showPreview      Boolean  @default(true)
+  showSegments     Boolean  @default(true)
+  showPricing      Boolean  @default(true)
+  showTestimonials Boolean  @default(false) // default off sampai ada testimoni jujur
+  showFaq          Boolean  @default(true)
+  updatedBy        String?
+  updatedAt        DateTime @updatedAt
 }
 
 // Testimoni pelanggan landing — CRUD admin. JANGAN isi palsu (etika + hukum).
 model Testimonial {
-  id         String   @id @default(cuid())
-  name       String
-  business   String   @default("")
-  quote      String
-  photoUrl   String   @default("")
-  rating     Int      @default(5)
-  sortOrder  Int      @default(0)
-  published  Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  business  String   @default("")
+  quote     String
+  photoUrl  String   @default("")
+  rating    Int      @default(5)
+  sortOrder Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([published, sortOrder])
 }
@@ -813,15 +817,15 @@ model Testimonial {
 // Item "Pratinjau" landing (pengganti demo) — CMS admin. Tiap item = 1 tangkapan layar/foto
 // + judul + keterangan singkat. Publik hanya lihat yang published, urut sortOrder.
 model PreviewItem {
-  id         String   @id @default(cuid())
-  title      String                        // judul/nama layar (mis. "Buat Invoice Otomatis")
-  caption    String   @default("")         // keterangan singkat
-  imageUrl   String                        // URL gambar (upload S3)
-  category   String   @default("")         // pengelompokan opsional (mis. "Invoice", "Teknisi")
-  sortOrder  Int      @default(0)
-  published  Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  title     String // judul/nama layar (mis. "Buat Invoice Otomatis")
+  caption   String   @default("") // keterangan singkat
+  imageUrl  String // URL gambar (upload S3)
+  category  String   @default("") // pengelompokan opsional (mis. "Invoice", "Teknisi")
+  sortOrder Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([published, sortOrder])
 }
@@ -852,62 +856,87 @@ model UnitCode {
 // Profil perusahaan penyedia (Lumite) — untuk invoice/kwitansi & data merchant.
 // Singleton (id="singleton"). EDITABLE admin, NO HARDCODE.
 model CompanyProfile {
-  id            String   @id @default("singleton")
-  legalName     String   @default("")   // nama badan hukum, mis. "PT Lumite ..."
-  brandName     String   @default("Aircon")
-  logoUrl       String   @default("")   // URL/path logo untuk invoice & header
-  isPkp         Boolean  @default(false) // Pengusaha Kena Pajak? menentukan boleh pungut PPN
-  npwp          String   @default("")
-  taxLabel      String   @default("PPN") // label pajak tampil (PPN / non-PKP kosongkan)
-  email         String   @default("")
-  phone         String   @default("")
-  addressLine   String   @default("")
-  city          String   @default("")
-  province      String   @default("")
-  postalCode    String   @default("")
-  countryCode   String   @default("IDN")
+  id                  String   @id @default("singleton")
+  legalName           String   @default("") // nama badan hukum, mis. "PT Lumite ..."
+  brandName           String   @default("Aircon")
+  logoUrl             String   @default("") // URL/path logo untuk invoice & header
+  isPkp               Boolean  @default(false) // Pengusaha Kena Pajak? menentukan boleh pungut PPN
+  npwp                String   @default("")
+  taxLabel            String   @default("PPN") // label pajak tampil (PPN / non-PKP kosongkan)
+  email               String   @default("")
+  phone               String   @default("")
+  addressLine         String   @default("")
+  city                String   @default("")
+  province            String   @default("")
+  postalCode          String   @default("")
+  countryCode         String   @default("IDN")
   // Knob checkout (dari pola mesinviral):
-  checkoutExpiryHours Int    @default(24)
-  finishUrl           String @default("")
-  updatedBy     String?
-  updatedAt     DateTime @updatedAt
+  checkoutExpiryHours Int      @default(24)
+  finishUrl           String   @default("")
+  updatedBy           String?
+  updatedAt           DateTime @updatedAt
 }
 
 // Konfigurasi infra WhatsApp Gateway + MQTT — EDITABLE ADMIN (no hardcode).
 // Singleton. Secret (key/callback) disimpan TERENKRIPSI (AES-256-GCM via PARTNER_ENC_KEY).
 // Anti-ban policy di-pull gateway per-app (endpoint /api/wa/policy) → perubahan admin berlaku.
 model InfraConfig {
-  id                String   @id @default("singleton")
+  id                  String   @id @default("singleton")
   // --- WhatsApp Gateway (koneksi) ---
-  waGatewayUrl      String   @default("")   // mis. https://gateway.domain
-  waGatewayKeyEnc   String?                 // API key aircon di gateway (terenkripsi)
-  waCallbackSecretEnc String?               // secret verifikasi callback (terenkripsi)
+  waGatewayUrl        String   @default("") // mis. https://gateway.domain
+  waGatewayKeyEnc     String? // API key aircon di gateway (terenkripsi)
+  waCallbackSecretEnc String? // secret verifikasi callback (terenkripsi)
   // --- Anti-ban policy (di-pull gateway) ---
-  waMinGapMs        Int      @default(6000)
-  waMaxGapMs        Int      @default(15000)
-  waMaxPerMin       Int      @default(8)
-  waMaxPerDay       Int      @default(200)
-  waWarmupEnabled   Boolean  @default(true)
-  waWarmupDays      Int      @default(7)
-  waWarmupDay1Cap   Int      @default(20)
-  waQuietStartHour  Int      @default(21)
-  waQuietEndHour    Int      @default(7)
-  waTzOffset        Int      @default(7)
-  waMaxLiveSessions Int      @default(20)
-  waIdleEvictMs     Int      @default(1800000)
+  waMinGapMs          Int      @default(6000)
+  waMaxGapMs          Int      @default(15000)
+  waMaxPerMin         Int      @default(8)
+  waMaxPerDay         Int      @default(200)
+  waWarmupEnabled     Boolean  @default(true)
+  waWarmupDays        Int      @default(7)
+  waWarmupDay1Cap     Int      @default(20)
+  waQuietStartHour    Int      @default(21)
+  waQuietEndHour      Int      @default(7)
+  waTzOffset          Int      @default(7)
+  waMaxLiveSessions   Int      @default(20)
+  waIdleEvictMs       Int      @default(1800000)
   // --- MQTT / IoT ---
-  mqttBrokerHost    String   @default("")
-  mqttBrokerPort    Int      @default(8883)
-  mqttTlsEnabled    Boolean  @default(true)
-  mqttTopicPrefix   String   @default("aircon")
+  mqttBrokerHost      String   @default("")
+  mqttBrokerPort      Int      @default(8883)
+  mqttTlsEnabled      Boolean  @default(true)
+  mqttTopicPrefix     String   @default("aircon")
   // Ambang deteksi alert IoT (editable admin, no hardcode)
-  iotOvercurrentA   Float    @default(10)   // arus (A) di atas ini = alert overcurrent
-  iotNoCoolTempC    Float    @default(30)   // suhu keluar (°C) di atas ini + AC nyala = tak mendingin
-  iotOfflineMinutes Int      @default(30)   // tak ada telemetry > N menit = offline
-  updatedBy         String?
-  updatedAt         DateTime @updatedAt
+  iotOvercurrentA     Float    @default(10) // arus (A) di atas ini = alert overcurrent
+  iotNoCoolTempC      Float    @default(30) // suhu keluar (°C) di atas ini + AC nyala = tak mendingin
+  iotOfflineMinutes   Int      @default(30) // tak ada telemetry > N menit = offline
+  updatedBy           String?
+  updatedAt           DateTime @updatedAt
 }
 
+// ================= PLATFORM NOTIFICATION (Lumite → tenant, autopilot) =================
+// TERPISAH TOTAL dari MessageLog (tenant → pelanggan) agar tak ada regresi ke jalur yang sudah jalan.
+// Antrean durable event-driven: engine tulis PENDING, dispatcher kirim (WA sesi lumite-platform / EMAIL SMTP),
+// tandai SENT/FAILED. Idempoten via dedupeKey (cegah kirim ganda utk event yang sama).
+model PlatformNotification {
+  id               String         @id @default(cuid())
+  tenantId         String // penerima = tenant (owner)
+  channel          MessageChannel // WA | EMAIL
+  templateKey      String // mis. subscription_due, wa_disconnected, trial_ending, welcome
+  toAddress        String // nomor WA (62xxx) atau alamat email — tergantung channel
+  subject          String? // untuk EMAIL
+  body             String
+  status           MessageStatus  @default(QUEUED)
+  dedupeKey        String?        @unique // idempotensi: mis. "subscription_due:{tenantId}:{yyyymmdd}"
+  gatewayMessageId String?
+  error            String?
+  attempts         Int            @default(0)
+  createdAt        DateTime       @default(now())
+  sentAt           DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status, channel])
+  @@index([tenantId, createdAt])
+}
 
 // ================= CONFIG (DB-DRIVEN, EDITABLE ADMIN — NO HARDCODE) =================
 
@@ -915,51 +944,51 @@ model InfraConfig {
 // Kuota null = UNLIMITED. Perubahan berlaku untuk tagihan berikutnya
 // (Tenant menyimpan snapshot kuota saat aktivasi bila diperlukan).
 model PlanConfig {
-  id              String     @id @default(cuid())
-  plan            TenantPlan @unique
-  displayName     String
-  priceMonthly    Int        @default(0) // IDR, belum termasuk pajak
-  taxable         Boolean    @default(true)
-  active          Boolean    @default(true)
-  sortOrder       Int        @default(0)
-  tagline         String?
+  id             String     @id @default(cuid())
+  plan           TenantPlan @unique
+  displayName    String
+  priceMonthly   Int        @default(0) // IDR, belum termasuk pajak
+  taxable        Boolean    @default(true)
+  active         Boolean    @default(true)
+  sortOrder      Int        @default(0)
+  tagline        String?
   // Kuota (null = unlimited)
-  maxAdmins       Int? // null = unlimited
-  maxTechnicians  Int? // TERMASUK akun admin (sesuai aturan bisnis)
-  maxCustomers    Int?
-  maxAcUnits      Int?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  maxAdmins      Int? // null = unlimited
+  maxTechnicians Int? // TERMASUK akun admin (sesuai aturan bisnis)
+  maxCustomers   Int?
+  maxAcUnits     Int?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 }
 
 // Kebijakan billing global (satu baris), DAPAT DIUBAH admin.
 // Semua durasi/pajak/jadwal reminder tidak boleh hardcode.
 model BillingPolicy {
-  id                    String   @id @default("singleton")
-  taxPercent            Float    @default(11) // PPN %
-  trialDays             Int      @default(14)
-  graceDaysBeforeSuspend Int     @default(1) // telat > N hari -> suspend (blok login)
-  daysBeforeDelete      Int      @default(7) // telat > N hari -> hapus data tenant
+  id                          String   @id @default("singleton")
+  taxPercent                  Float    @default(11) // PPN %
+  trialDays                   Int      @default(14)
+  graceDaysBeforeSuspend      Int      @default(1) // telat > N hari -> suspend (blok login)
+  daysBeforeDelete            Int      @default(7) // telat > N hari -> hapus data tenant
   // Jadwal reminder WA (hari keterlambatan saat reminder dikirim), mis "0,1,3"
-  dunningReminderDays   String   @default("0,1,3")
-  deleteWarningDay      Int      @default(3) // reminder khusus peringatan hapus di hari ke-N
+  dunningReminderDays         String   @default("0,1,3")
+  deleteWarningDay            Int      @default(3) // reminder khusus peringatan hapus di hari ke-N
   // Template pesan penagihan (platform->tenant). Placeholder: {nama} {telat} {sisa}. Editable admin.
-  dunningReminderTemplate String @default("Halo {nama}, langganan Aircon Anda jatuh tempo dan menunggak {telat} hari. Mohon segera perpanjang agar layanan tidak terputus.")
-  dunningWarningTemplate  String @default("Halo {nama}, langganan Aircon Anda menunggak {telat} hari. PERINGATAN: bila tidak dibayar dalam {sisa} hari lagi, data usaha Anda akan dihapus permanen. Segera perpanjang untuk menghindari kehilangan data.")
+  dunningReminderTemplate     String   @default("Halo {nama}, langganan Aircon Anda jatuh tempo dan menunggak {telat} hari. Mohon segera perpanjang agar layanan tidak terputus.")
+  dunningWarningTemplate      String   @default("Halo {nama}, langganan Aircon Anda menunggak {telat} hari. PERINGATAN: bila tidak dibayar dalam {sisa} hari lagi, data usaha Anda akan dihapus permanen. Segera perpanjang untuk menghindari kehilangan data.")
   // ===== Sweeper AKUN TIDAK AKTIF (untuk tenant gratis/telantar). Semua editable admin, no hardcode. =====
-  inactivitySweepEnabled  Boolean @default(false) // master switch — default OFF (aman)
-  inactivityDryRun        Boolean @default(true)  // true = hanya log calon hapus, TIDAK menghapus
-  inactivityReminder1Days Int     @default(30)    // reminder #1: tak ada aktivitas N hari
-  inactivityReminder2Days Int     @default(45)    // reminder #2/terakhir: tak ada aktivitas N hari
-  inactivityDeleteDays    Int     @default(52)    // hapus permanen bila tak aktif sampai hari ke-N (>= reminder2)
-  inactivityMinCustomers  Int     @default(5)     // KECUALIKAN bila punya >= N pelanggan (usaha nyata)
-  inactivityMinJobs       Int     @default(3)     // KECUALIKAN bila punya >= N pekerjaan
-  inactivityExemptPaid    Boolean @default(true)  // KECUALIKAN tenant yang pernah bayar
+  inactivitySweepEnabled      Boolean  @default(false) // master switch — default OFF (aman)
+  inactivityDryRun            Boolean  @default(true) // true = hanya log calon hapus, TIDAK menghapus
+  inactivityReminder1Days     Int      @default(30) // reminder #1: tak ada aktivitas N hari
+  inactivityReminder2Days     Int      @default(45) // reminder #2/terakhir: tak ada aktivitas N hari
+  inactivityDeleteDays        Int      @default(52) // hapus permanen bila tak aktif sampai hari ke-N (>= reminder2)
+  inactivityMinCustomers      Int      @default(5) // KECUALIKAN bila punya >= N pelanggan (usaha nyata)
+  inactivityMinJobs           Int      @default(3) // KECUALIKAN bila punya >= N pekerjaan
+  inactivityExemptPaid        Boolean  @default(true) // KECUALIKAN tenant yang pernah bayar
   // Template WA. Placeholder: {nama} {hari} {sisa}. Editable admin.
-  inactivityReminder1Template String @default("Halo {nama}, akun Aircon Anda belum ada aktivitas selama {hari} hari. Kami menantikan Anda kembali — buka aplikasi kapan saja untuk melanjutkan.")
-  inactivityReminder2Template String @default("Halo {nama}, akun Aircon Anda sudah {hari} hari tanpa aktivitas. PERINGATAN: bila tetap tidak digunakan, akun beserta seluruh data akan DIHAPUS PERMANEN dalam {sisa} hari. Buka aplikasi untuk membatalkan penghapusan.")
-  updatedAt             DateTime @updatedAt
-  updatedBy             String?
+  inactivityReminder1Template String   @default("Halo {nama}, akun Aircon Anda belum ada aktivitas selama {hari} hari. Kami menantikan Anda kembali — buka aplikasi kapan saja untuk melanjutkan.")
+  inactivityReminder2Template String   @default("Halo {nama}, akun Aircon Anda sudah {hari} hari tanpa aktivitas. PERINGATAN: bila tetap tidak digunakan, akun beserta seluruh data akan DIHAPUS PERMANEN dalam {sisa} hari. Buka aplikasi untuk membatalkan penghapusan.")
+  updatedAt                   DateTime @updatedAt
+  updatedBy                   String?
 }
 
 // ================= IoT PRODUK & PEMESANAN (jual putus) =================
@@ -975,41 +1004,41 @@ enum IotOrderStatus {
 
 // Produk device IoT — harga & garansi DAPAT DIUBAH admin.
 model IotProduct {
-  id            String   @id @default(cuid())
-  sku           String   @unique
-  name          String
-  description   String?
-  priceUnit     Int // IDR per device (jual putus)
-  warrantyDays  Int      @default(90)
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  sku          String   @unique
+  name         String
+  description  String?
+  priceUnit    Int // IDR per device (jual putus)
+  warrantyDays Int      @default(90)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   orders IotOrderItem[]
 }
 
 // Pesanan device IoT oleh tenant (jual putus) + progress + pembayaran.
 model IotOrder {
-  id            String         @id @default(cuid())
-  tenantId      String
-  orderNo       String         @unique
-  status        IotOrderStatus @default(PENDING_PAYMENT)
-  quantity      Int
-  unitPrice     Int // snapshot harga saat order
-  subtotal      Int
-  taxPercent    Float          @default(0)
-  taxAmount     Int            @default(0)
-  total         Int
+  id              String         @id @default(cuid())
+  tenantId        String
+  orderNo         String         @unique
+  status          IotOrderStatus @default(PENDING_PAYMENT)
+  quantity        Int
+  unitPrice       Int // snapshot harga saat order
+  subtotal        Int
+  taxPercent      Float          @default(0)
+  taxAmount       Int            @default(0)
+  total           Int
   // pembayaran (reuse pola Midtrans)
-  paymentOrderId String?       @unique
-  snapToken     String?
-  snapRedirect  String?
-  paidAt        DateTime?
+  paymentOrderId  String?        @unique
+  snapToken       String?
+  snapRedirect    String?
+  paidAt          DateTime?
   shippingAddress String?
-  trackingNote  String?
-  createdById   String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  trackingNote    String?
+  createdById     String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   tenant Tenant         @relation(fields: [tenantId], references: [id])
   items  IotOrderItem[]
@@ -1018,11 +1047,11 @@ model IotOrder {
 }
 
 model IotOrderItem {
-  id         String     @id @default(cuid())
-  orderId    String
-  productId  String
-  quantity   Int
-  unitPrice  Int
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Int
 
   order   IotOrder   @relation(fields: [orderId], references: [id])
   product IotProduct @relation(fields: [productId], references: [id])
@@ -1082,27 +1111,27 @@ enum LedgerStatus {
 
 // Agen: perusahaan/perorangan mitra pemasaran. Komisi diatur ADMIN (bukan dari app agen).
 model Agent {
-  id              String         @id @default(cuid())
+  id              String           @id @default(cuid())
   companyName     String
   picName         String?
-  picEmail        String         @unique
+  picEmail        String           @unique
   picPhone        String?
-  status          PartnerStatus  @default(ACTIVE)
-  commissionType  CommissionType @default(PERCENT)
-  commissionValue Float          @default(0) // >=0; makna ikut tipe
+  status          PartnerStatus    @default(ACTIVE)
+  commissionType  CommissionType   @default(PERCENT)
+  commissionValue Float            @default(0) // >=0; makna ikut tipe
   taxStatus       PartnerTaxStatus @default(BADAN_NPWP)
   npwp            String?
   // rekening tujuan transfer (nomor terenkripsi at-rest)
   bankName        String?
   bankAccountEnc  String?
   bankHolder      String?
-  joinCode        String?        @unique // tautan pendaftaran reseller khusus agen ini
-  userId          String?        // login agen (portal, fase lanjutan)
-  pinHash         String?        // login portal agen (scrypt); set via tautan aktivasi
-  loginToken      String?        @unique // token aktivasi sekali-pakai (set PIN)
+  joinCode        String?          @unique // tautan pendaftaran reseller khusus agen ini
+  userId          String? // login agen (portal, fase lanjutan)
+  pinHash         String? // login portal agen (scrypt); set via tautan aktivasi
+  loginToken      String?          @unique // token aktivasi sekali-pakai (set PIN)
   notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   resellers    Reseller[]
   codes        PartnerCode[]
@@ -1115,14 +1144,14 @@ model Agent {
 model Reseller {
   id              String         @id @default(cuid())
   agentId         String
-  userId          String?        // login reseller (portal, fase lanjutan)
+  userId          String? // login reseller (portal, fase lanjutan)
   name            String
   email           String?
   phone           String?
   status          ResellerStatus @default(PENDING)
   commissionType  CommissionType @default(FLAT_IDR)
   commissionValue Float          @default(0)
-  pinHash         String?        // login portal reseller (scrypt)
+  pinHash         String? // login portal reseller (scrypt)
   loginToken      String?        @unique // token aktivasi sekali-pakai
   bankName        String?
   bankAccountEnc  String?
@@ -1140,7 +1169,7 @@ model Reseller {
 // Registry kode: SATU daftar lintas agen+reseller — unik GLOBAL (mustahil dobel).
 model PartnerCode {
   code       String   @id // UPPERCASE, [A-Z0-9]{4,12}
-  ownerKind  String   // "agent" | "reseller"
+  ownerKind  String // "agent" | "reseller"
   agentId    String
   resellerId String?
   active     Boolean  @default(true)
@@ -1162,17 +1191,17 @@ model TenantAttribution {
   code       String
   lockedAt   DateTime @default(now())
 
-  tenant   Tenant       @relation(fields: [tenantId], references: [id])
-  agent    Agent        @relation(fields: [agentId], references: [id])
-  reseller Reseller?    @relation(fields: [resellerId], references: [id])
-  codeRef  PartnerCode  @relation(fields: [code], references: [code])
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  agent    Agent       @relation(fields: [agentId], references: [id])
+  reseller Reseller?   @relation(fields: [resellerId], references: [id])
+  codeRef  PartnerCode @relation(fields: [code], references: [code])
 }
 
 // Pencairan bulanan ke AGEN (1 baris per agen per periode; gerbang persetujuan owner).
 model AgentPayout {
   id                 String       @id @default(cuid())
   agentId            String
-  periodMonth        DateTime     // tanggal 1 bulan periode
+  periodMonth        DateTime // tanggal 1 bulan periode
   grossCommissionIdr Int          @default(0)
   deductionIdr       Int          @default(0) // reversal refund menggantung
   taxWithheldIdr     Int          @default(0) // prefill dari taxStatus, boleh dikoreksi admin
@@ -1194,13 +1223,13 @@ model AgentPayout {
 // Buku besar komisi APPEND-ONLY. Koreksi = baris reversal (reversalOf menunjuk asal).
 model CommissionLedger {
   id                Int             @id @default(autoincrement())
-  orderId           String          // Payment.orderId
+  orderId           String // Payment.orderId
   tenantId          String
   agentId           String
   resellerId        String?
-  grossIdr          Int             // rupiah settlement (basis-net)
+  grossIdr          Int // rupiah settlement (basis-net)
   monthsPaid        Int             @default(1)
-  agentRateType     CommissionType  // snapshot rate saat kejadian
+  agentRateType     CommissionType // snapshot rate saat kejadian
   agentRateValue    Float
   agentAmountIdr    Int
   resellerRateType  CommissionType?
@@ -1291,7 +1320,7 @@ enum AssignmentRole {
 }
 
 enum AssignmentType {
-  UMUM     // belum tahu detail (pelanggan baru) — dibahas di lokasi
+  UMUM // belum tahu detail (pelanggan baru) — dibahas di lokasi
   SPESIFIK // unit & layanan sudah dicantumkan
 }
 
@@ -1300,7 +1329,7 @@ model JobAssignment {
   id        String         @id @default(cuid())
   tenantId  String
   jobId     String
-  personId  String         // → Technician.id
+  personId  String // → Technician.id
   roleOnJob AssignmentRole @default(TECHNICIAN)
   isLead    Boolean        @default(false)
   createdAt DateTime       @default(now())
@@ -1353,7 +1382,7 @@ enum TeamIncentiveMode {
 
 // Acuan periode perhitungan insentif (K5).
 enum IncentiveBasis {
-  LUNAS  // dihitung saat invoice LUNAS dalam periode [default]
+  LUNAS // dihitung saat invoice LUNAS dalam periode [default]
   TERBIT // dihitung saat invoice TERBIT dalam periode
 }
 
@@ -1403,31 +1432,31 @@ model WorkItem {
 
 // Invoice (Cash) atau Proforma (Tempo). Snapshot lengkap; nama personel TIDAK disimpan di sini (K18).
 model Invoice {
-  id              String          @id @default(cuid())
-  tenantId        String
-  docType         DocType         @default(INVOICE)
-  number          String
-  customerId      String
+  id                String           @id @default(cuid())
+  tenantId          String
+  docType           DocType          @default(INVOICE)
+  number            String
+  customerId        String
   billingCustomerId String?
-  workSessionId   String?
-  jobId           String?
-  status          InvoiceStatus   @default(DRAFT)
-  issueDate       DateTime        @default(now())
-  dueDate         DateTime?
-  subtotal        Decimal         @default(0) @db.Decimal(12, 2)
-  discountAmount  Decimal         @default(0) @db.Decimal(12, 2)
-  taxableService  Decimal         @default(0) @db.Decimal(12, 2)
-  taxableGoods    Decimal         @default(0) @db.Decimal(12, 2)
-  ppnPercent      Float           @default(0)
-  ppnAmount       Decimal         @default(0) @db.Decimal(12, 2)
-  total           Decimal         @default(0) @db.Decimal(12, 2)
-  payMethod       PayMethod?
-  paymentProofUrl String?
-  paidAt          DateTime?
-  cashRemitStatus CashRemitStatus?
-  createdById     String
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  workSessionId     String?
+  jobId             String?
+  status            InvoiceStatus    @default(DRAFT)
+  issueDate         DateTime         @default(now())
+  dueDate           DateTime?
+  subtotal          Decimal          @default(0) @db.Decimal(12, 2)
+  discountAmount    Decimal          @default(0) @db.Decimal(12, 2)
+  taxableService    Decimal          @default(0) @db.Decimal(12, 2)
+  taxableGoods      Decimal          @default(0) @db.Decimal(12, 2)
+  ppnPercent        Float            @default(0)
+  ppnAmount         Decimal          @default(0) @db.Decimal(12, 2)
+  total             Decimal          @default(0) @db.Decimal(12, 2)
+  payMethod         PayMethod?
+  paymentProofUrl   String?
+  paidAt            DateTime?
+  cashRemitStatus   CashRemitStatus?
+  createdById       String
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   tenant   Tenant        @relation(fields: [tenantId], references: [id])
   customer Customer      @relation(fields: [customerId], references: [id])
@@ -1441,15 +1470,15 @@ model Invoice {
 
 // Baris invoice/proforma — per unit AC (K9). Snapshot harga (tak berubah walau katalog diubah).
 model InvoiceItem {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   invoiceId    String
   assetId      String?
   descSnapshot String
   category     String
-  qty          Decimal  @default(1) @db.Decimal(12, 2)
-  unit         String   @default("unit")
-  unitPrice    Decimal  @default(0) @db.Decimal(12, 2)
-  lineTotal    Decimal  @default(0) @db.Decimal(12, 2)
+  qty          Decimal @default(1) @db.Decimal(12, 2)
+  unit         String  @default("unit")
+  unitPrice    Decimal @default(0) @db.Decimal(12, 2)
+  lineTotal    Decimal @default(0) @db.Decimal(12, 2)
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
