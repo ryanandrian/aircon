@@ -6,6 +6,7 @@ import { tenantProfileSchema } from "@/lib/validation/tenant-profile";
 import { updateTenantProfile } from "@/lib/services/tenant-profile-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 import { ServiceError } from "@/lib/services/customer-service";
+import { gatewayInitSession, gatewaySessionStatus, gatewayLogoutSession } from "@/lib/wa/gateway-relay";
 
 type Result = { ok: boolean; error?: string };
 
@@ -56,4 +57,28 @@ export async function actionSaveTenantProfile(raw: {
     if (e instanceof ServiceError) return { ok: false, error: e.message };
     return { ok: false, error: e instanceof Error ? e.message : "Gagal menyimpan" };
   }
+}
+
+/** Tautkan WhatsApp: mulai/bangunkan sesi tenant → balikkan QR (data URL) atau ready. */
+export async function actionWaInit(): Promise<{ ok: boolean; qr?: string | null; ready?: boolean; error?: string }> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  return gatewayInitSession(ctx.tenantId);
+}
+
+/** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr}. */
+export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; error?: string }> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  return gatewaySessionStatus(ctx.tenantId);
+}
+
+/** Putuskan sesi WA tenant (logout dari perangkat gateway). */
+export async function actionWaLogout(): Promise<Result> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  return gatewayLogoutSession(ctx.tenantId);
 }

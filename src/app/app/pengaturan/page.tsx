@@ -3,6 +3,7 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { getTenantProfile } from "@/lib/services/tenant-profile-service";
 import { AppHeader } from "../_components/app-header";
 import { SettingsForm } from "./settings-form";
+import { WaConnect } from "./wa-connect";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function PengaturanPage() {
     <main className="min-h-screen">
       <AppHeader title="Pengaturan Usaha" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
+        <WaConnect />
         <SettingsForm profile={profile} />
       </div>
     </main>

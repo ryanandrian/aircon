@@ -53,3 +53,35 @@ export async function gatewayInitSession(tenantId: string): Promise<{ ok: boolea
     return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
   }
 }
+
+/** Status sesi WA tenant (untuk polling di UI tautkan): {exists, ready, qr}. */
+export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; error?: string }> {
+  const cfg = await resolve();
+  if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
+  try {
+    const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}`, {
+      method: "GET", headers: { "X-Api-Key": cfg.key },
+    });
+    const data = (await r.json().catch(() => ({}))) as { exists?: boolean; ready?: boolean; qr?: string | null; error?: string };
+    if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
+    return { ok: true, exists: data.exists, ready: data.ready, qr: data.qr ?? null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
+  }
+}
+
+/** Putuskan (logout) sesi WA tenant. */
+export async function gatewayLogoutSession(tenantId: string): Promise<{ ok: boolean; error?: string }> {
+  const cfg = await resolve();
+  if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
+  try {
+    const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}`, {
+      method: "DELETE", headers: { "X-Api-Key": cfg.key },
+    });
+    const data = (await r.json().catch(() => ({}))) as { error?: string };
+    if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
+  }
+}
