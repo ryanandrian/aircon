@@ -47,8 +47,19 @@ export async function POST(req: NextRequest) {
           data: { status: type === "sent" ? "SENT" : "FAILED" },
         }).catch(() => {});
       }
+    } else if (type === "disconnected") {
+      // AUTOPILOT: WA tenant putus → beri tahu tenant agar hubungkan ulang (pulihkan money-loop).
+      // Sesi platform (lumite-platform) TAK memicu ini — hanya sesi tenant nyata.
+      if (tenantId !== "lumite-platform") {
+        const stamp = new Date().toISOString().slice(0, 10);
+        const { notifyPlatform } = await import("@/lib/services/platform-notification-service");
+        await notifyPlatform({
+          tenantId, templateKey: "wa_disconnected",
+          dedupeKey: `wa_disconnected:${tenantId}:${stamp}`, // maks 1x/hari
+        }).catch(() => {});
+      }
     }
-    // type qr/ready/disconnected: informasi sesi — bisa diproses UI nanti; ack 200.
+    // type qr/ready: informasi sesi — diproses UI (polling). Ack 200.
   } catch (err) {
     console.error("[wa-callback] error:", err);
   }

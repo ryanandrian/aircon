@@ -153,5 +153,16 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
     }
   }
 
+  // AUTOPILOT: sambutan platform (Lumite → tenant baru), gagal-jujur — tak mengganggu onboarding.
+  try {
+    const { notifyPlatform } = await import("@/lib/services/platform-notification-service");
+    await notifyPlatform({
+      tenantId, templateKey: "welcome",
+      dedupeKey: `welcome:${tenantId}`, // sekali seumur hidup tenant
+    });
+  } catch (err) {
+    console.error("[welcome] gagal antre (onboarding tetap sukses):", err);
+  }
+
   return { userId, tenantId, slug };
 }
