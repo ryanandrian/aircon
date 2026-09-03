@@ -4,8 +4,14 @@ import { requirePlatformAdmin } from "@/lib/auth/platform-admin";
 import { notifyPlatform } from "@/lib/services/platform-notification-service";
 import { dispatchPlatformNotifications } from "@/lib/services/platform-notification-dispatch";
 import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
+import {
+  gatewayInitSession, gatewaySessionStatus, gatewayLogoutSession,
+} from "@/lib/wa/gateway-relay";
 import type { PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { revalidatePath } from "next/cache";
+
+/** externalId sesi WA platform Lumite (1 nomor, lintas SaaS). */
+const LUMITE_SESSION = "lumite-platform";
 
 type Result = { ok: boolean; error?: string; info?: string };
 
@@ -47,6 +53,37 @@ export async function actionDispatchPlatformNow(): Promise<Result> {
     const d = await dispatchPlatformNotifications();
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: `Terkirim ${d.sent}, gagal ${d.failed}, ditahan ${d.skipped}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Mulai/bangunkan sesi WA Lumite (nomor platform) → balikkan QR / ready. */
+export async function actionLumiteWaInit(): Promise<{ ok: boolean; qr?: string | null; ready?: boolean; error?: string }> {
+  try {
+    await requirePlatformAdmin();
+    return await gatewayInitSession(LUMITE_SESSION);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Status sesi WA Lumite (untuk polling QR → ready). */
+export async function actionLumiteWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; error?: string }> {
+  try {
+    await requirePlatformAdmin();
+    return await gatewaySessionStatus(LUMITE_SESSION);
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Putuskan sesi WA Lumite. */
+export async function actionLumiteWaLogout(): Promise<Result> {
+  try {
+    await requirePlatformAdmin();
+    const r = await gatewayLogoutSession(LUMITE_SESSION);
+    return r.ok ? { ok: true } : { ok: false, error: r.error };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }

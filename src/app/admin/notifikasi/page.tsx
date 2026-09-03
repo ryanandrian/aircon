@@ -3,6 +3,7 @@ import {
   getPlatformNotifSummary, listPlatformNotifs, platformTemplateOptions,
 } from "@/lib/services/platform-notification-admin";
 import { NotifPanel } from "./notif-panel";
+import { LumiteWaConnect } from "./lumite-wa-connect";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function AdminNotifikasiPage() {
           Terkirim via WhatsApp (nomor Lumite) &amp; email. Idempoten — aman dari kirim ganda.
         </p>
       </div>
+      <LumiteWaConnect />
       <NotifPanel
         summary={summary}
         rows={rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), sentAt: r.sentAt?.toISOString() ?? null }))}
