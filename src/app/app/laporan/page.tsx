@@ -35,7 +35,7 @@ export default async function LaporanPage() {
   const totalUnremitted = unremitted.reduce((s, u) => s + u.total, 0);
 
   return (
-    <main className="min-h-screen bg-muted/40">
+    <main className="min-h-screen">
       <AppHeader title="Laporan Keuangan" />
       <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
 

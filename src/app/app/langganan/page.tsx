@@ -70,7 +70,7 @@ export default async function LanggananPage() {
   });
 
   return (
-    <main className="min-h-screen bg-muted/40">
+    <main className="min-h-screen">
       <AppHeader title="Paket Langganan" />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">

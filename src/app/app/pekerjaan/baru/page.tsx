@@ -42,7 +42,7 @@ export default async function PekerjaanBaruPage() {
   const technicians = technicianRows.map((t) => ({ id: t.id, name: t.user.name }));
 
   return (
-    <main className="min-h-screen bg-muted/40 pb-16">
+    <main className="min-h-screen pb-16">
       <header className="border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-3">
           <h1 className="text-lg font-bold text-foreground">Pekerjaan Baru</h1>
