@@ -137,7 +137,7 @@ async function main() {
     const top = isBadan ? pick(["CASH","TEMPO_14","TEMPO_30"]) : "CASH";
     const c = await prisma.customer.create({
       data: {
-        tenantId, name, phone: `62812${String(1000000 + i * 7777).slice(0, 7)}`,
+        tenantId, name, phone: `62899000${String(100 + i).padStart(4, "0")}`,
         address: `Jl. ${pick(["Merdeka","Sudirman","Melati","Kenanga","Cempaka","Diponegoro"])} No. ${rnd(1,199)}, ${pick(["Jakarta","Bekasi","Depok","Tangerang","Bogor"])}`,
         source: pick(["REFERRAL","WHATSAPP","WALK_IN","WEBSITE","REPEAT"]),
         customerType: isBadan ? "BADAN" : "PERORANGAN",

@@ -5,6 +5,7 @@
  */
 import "server-only";
 import { getInfraConfig, getInfraSecrets } from "@/lib/services/infra-config-service";
+import { blockedSendReason } from "@/lib/wa/gateway";
 
 async function resolve(): Promise<{ url: string; key: string } | null> {
   // DB dulu (admin panel), lalu ENV sebagai fallback.
@@ -24,6 +25,18 @@ export async function isGatewayConfigured(): Promise<boolean> {
 export async function gatewaySend(tenantId: string, toPhone: string, message: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
   const cfg = await resolve();
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
+
+  // GUARD ANTI-SPAM (rem darurat autopilot): cegah kirim ke nomor asing/invalid.
+  // WA_SAFE_MODE=1 → hanya nomor demo 62899000xxx; WA_SEND_ALLOWLIST → hanya nomor tsb.
+  const reason = blockedSendReason(toPhone, {
+    safeMode: process.env.WA_SAFE_MODE === "1",
+    allowlist: process.env.WA_SEND_ALLOWLIST,
+  });
+  if (reason) {
+    console.warn(`[gateway-relay] BLOKIR kirim ke ${toPhone}: ${reason}`);
+    return { ok: false, error: `diblokir guard: ${reason}` };
+  }
+
   try {
     const r = await fetch(`${cfg.url}/v1/wa/send`, {
       method: "POST",
