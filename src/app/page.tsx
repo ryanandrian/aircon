@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
+import { LoginErrorBanner } from "./_components/login-error-banner";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -20,7 +21,8 @@ export const dynamic = "force-dynamic";
 
 const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string; error_code?: string }> }) {
+  const sp = await searchParams;
   const [plans, policy, c, testimonials, previews] = await Promise.all([
     getActivePlans(),
     getBillingPolicy(),
@@ -81,6 +83,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-background">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {sp?.error ? <LoginErrorBanner code={sp.error_code} /> : null}
       {/* Header */}
       <header className="sticky top-0 z-30 border-b bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:px-5">

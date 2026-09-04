@@ -29,6 +29,17 @@ Tahap 1–5 SELESAI & terverifikasi bukti nyata. Sisa: Tahap 6 (arahkan 3 callba
 - Landing render konten dari DB Supabase; /pratinjau tampil 12 PreviewItem + gambar S3.
 - /api/wa/policy → 401 (guard bekerja). Tak ada 5xx/Prisma error di log.
 - 3 systemd timer (dunning 01:00, reminders 02:00, reconcile 03:00 WIB) aktif; uji manual → 200 + JSON efek nyata (termasuk platformNotify autopilot).
+- OAuth Google → app.airconet.id: BERHASIL (login incognito terverifikasi). Supabase Site URL + Redirect `https://app.airconet.id/**` ditambah (URL Vercel lama TETAP ada = paralel/rollback).
+
+## FIX PENTING nginx (WAJIB permanen — jangan hilang saat re-deploy/re-provision)
+Gejala: OAuth callback → 502 "upstream sent too big header". Sebab: cookie sesi Supabase besar > buffer default nginx.
+Fix di server block :443 vhost aircon (dalam `location /`):
+```
+proxy_buffer_size 16k;
+proxy_buffers 8 16k;
+proxy_busy_buffers_size 32k;
+```
+Sudah diterapkan & teruji (callback 307, bukan 502). Catatan owner: cookie basi dari percobaan 502 sebelumnya bisa bikin login gagal di browser NORMAL (incognito OK) — clear cookie airconet.id sekali. Tenant baru tak terdampak (kode callback redirect anggun ke /login?error=auth bila sesi rusak).
 
 ## ARSITEKTUR DOMAIN (final, pola 12-SaaS)
 - `airconet.id` + `www` → landing/marketing
