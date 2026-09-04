@@ -29,3 +29,33 @@ export function computeDiscount(input: CouponCalcInput): number {
   }
   return Math.max(0, Math.min(discount, base));
 }
+
+export interface CheckoutBreakdown {
+  base: number;          // harga dasar pra-pajak (priceMonthly * months)
+  discount: number;      // potongan pra-pajak
+  subtotal: number;      // base - discount (pra-pajak, dasar hitung pajak)
+  taxPercent: number;    // persen pajak efektif (0 bila non-PKP / non-taxable)
+  taxAmount: number;     // nominal pajak atas subtotal
+  total: number;         // subtotal + taxAmount (= gross_amount ke Midtrans)
+}
+
+/**
+ * PURE: rincian harga lengkap satu sumber kebenaran.
+ * Pajak dihitung dari subtotal SETELAH diskon. Semua nilai bulat (IDR).
+ * base & taxPercent datang dari server (PlanConfig + kebijakan PKP) — fungsi ini murni aritmetika.
+ */
+export function resolveCheckout(base: number, discount: number, taxPercent: number): CheckoutBreakdown {
+  const safeBase = Math.max(0, Math.round(base));
+  const safeDiscount = Math.max(0, Math.min(Math.round(discount), safeBase));
+  const subtotal = safeBase - safeDiscount;
+  const pct = Math.max(0, taxPercent);
+  const taxAmount = Math.round((subtotal * pct) / 100);
+  return {
+    base: safeBase,
+    discount: safeDiscount,
+    subtotal,
+    taxPercent: pct,
+    taxAmount,
+    total: subtotal + taxAmount,
+  };
+}

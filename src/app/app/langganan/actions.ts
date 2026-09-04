@@ -43,29 +43,68 @@ export async function startPayment(
   }
 }
 
-/** Validasi kupon realtime (baca-saja) untuk pratinjau harga di UI owner. */
-export async function previewCoupon(
-  code: string,
+/**
+ * Pratinjau checkout untuk paket + durasi (+ kode kupon opsional). SATU SUMBER KEBENARAN harga:
+ * server menghitung base/diskon/pajak/total. Client hanya menampilkan. Termasuk diskon RECURRING
+ * melekat (auto, tanpa owner ketik kode). Bila kode manual invalid → error (harga normal tetap dihitung).
+ */
+export async function previewCheckout(
   plan: TenantPlan,
   periodMonths: number,
+  code?: string,
 ): Promise<
-  | { ok: true; code: string; discount: number; recurring: boolean; recurringMonths: number | null }
+  | {
+      ok: true;
+      base: number; discount: number; subtotal: number; taxPercent: number; taxAmount: number; total: number;
+      couponCode: string | null; recurring: boolean; recurringMonths: number | null; couponError: string | null;
+    }
   | { ok: false; error: string }
 > {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER"]);
-    const { getPlanConfig } = await import("@/lib/billing/config");
+    const months = Math.max(1, periodMonths);
+    const { getPlanConfig, getBillingPolicy } = await import("@/lib/billing/config");
+    const { getCompanyProfile, effectiveTaxPercent } = await import("@/lib/services/company-service");
     const planCfg = await getPlanConfig(plan);
     if (!planCfg || planCfg.priceMonthly <= 0) return { ok: false, error: "Paket ini gratis." };
-    const base = planCfg.priceMonthly * Math.max(1, periodMonths);
-    const { validateCoupon } = await import("@/lib/services/coupon-service");
-    const v = await validateCoupon({ code, tenantId: ctx.tenantId, plan, months: periodMonths, base });
-    return { ok: true, code: v.code, discount: v.discount, recurring: v.recurring, recurringMonths: v.recurringMonths };
+
+    const [policy, company] = await Promise.all([getBillingPolicy(), getCompanyProfile()]);
+    const base = planCfg.priceMonthly * months;
+    const taxPercent = planCfg.taxable ? effectiveTaxPercent(company.isPkp, policy.taxPercent) : 0;
+
+    const { resolveCheckoutDiscount, validateCoupon, CouponError } = await import("@/lib/services/coupon-service");
+    const { resolveCheckout } = await import("@/lib/domain/coupon-calc");
+
+    let discount = 0;
+    let couponCode: string | null = null;
+    let recurring = false;
+    let recurringMonths: number | null = null;
+    let couponError: string | null = null;
+
+    if (code?.trim()) {
+      // Kode manual: validasi penuh; bila invalid → couponError (harga normal tetap dikembalikan).
+      try {
+        const v = await validateCoupon({ code, tenantId: ctx.tenantId, plan, months, base });
+        discount = v.discount; couponCode = v.code; recurring = v.recurring; recurringMonths = v.recurringMonths;
+      } catch (e) {
+        couponError = e instanceof CouponError ? e.message : "Kupon tidak valid.";
+      }
+    } else {
+      // Tanpa kode manual: tampilkan diskon RECURRING melekat bila ada.
+      const r = await resolveCheckoutDiscount({ tenantId: ctx.tenantId, plan, months, base });
+      discount = r.discount; couponCode = r.couponCode;
+    }
+
+    const bd = resolveCheckout(base, discount, taxPercent);
+    return {
+      ok: true,
+      base: bd.base, discount: bd.discount, subtotal: bd.subtotal,
+      taxPercent: bd.taxPercent, taxAmount: bd.taxAmount, total: bd.total,
+      couponCode, recurring, recurringMonths, couponError,
+    };
   } catch (err) {
-    const { CouponError } = await import("@/lib/services/coupon-service");
-    if (err instanceof CouponError) return { ok: false, error: err.message };
-    console.error("[previewCoupon] gagal:", err);
-    return { ok: false, error: "Gagal memeriksa kupon." };
+    console.error("[previewCheckout] gagal:", err);
+    return { ok: false, error: "Gagal memuat rincian harga." };
   }
 }

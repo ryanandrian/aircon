@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { startPayment, previewCoupon } from "./actions";
+import { useState, useTransition, useEffect, useCallback } from "react";
+import { startPayment, previewCheckout } from "./actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ function loadSnap(snapUrl: string, clientKey: string): Promise<void> {
   });
 }
 
+const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
+
 export function PlanCards({
   plans,
   currentPlan,
@@ -44,65 +46,9 @@ export function PlanCards({
   currentPlan: TenantPlan;
   canPay: boolean;
 }) {
-  const [pending, start] = useTransition();
   const [months, setMonths] = useState(1);
-  const [msg, setMsg] = useState<string | null>(null);
-  // Kupon diskon (opsional). couponInfo = hasil validasi realtime.
-  const [coupon, setCoupon] = useState("");
-  const [couponInfo, setCouponInfo] = useState<
-    { code: string; discount: number; recurring: boolean; recurringMonths: number | null } | null
-  >(null);
-  const [couponMsg, setCouponMsg] = useState<string | null>(null);
-  const [checking, startCheck] = useTransition();
-
-  // Validasi kupon terhadap paket berbayar termurah aktif (untuk pratinjau potongan).
-  function checkCoupon() {
-    setCouponMsg(null);
-    setCouponInfo(null);
-    const code = coupon.trim();
-    if (!code) return;
-    const paid = plans.find((p) => !p.isFree);
-    if (!paid) return;
-    startCheck(async () => {
-      const res = await previewCoupon(code, paid.id, months);
-      if (!res.ok) {
-        setCouponMsg(res.error);
-        return;
-      }
-      setCouponInfo({ code: res.code, discount: res.discount, recurring: res.recurring, recurringMonths: res.recurringMonths });
-      const recurText = res.recurring
-        ? res.recurringMonths == null
-          ? " (berlaku untuk semua perpanjangan)"
-          : ` (berlaku ${res.recurringMonths} periode)`
-        : "";
-      setCouponMsg(`Kupon ${res.code} aktif — potongan Rp${res.discount.toLocaleString("id-ID")}${recurText}`);
-    });
-  }
-
-  function subscribe(plan: TenantPlan) {
-    setMsg(null);
-    start(async () => {
-      const res = await startPayment(plan, months, couponInfo?.code ?? (coupon.trim() || undefined));
-      if (!res.ok) {
-        setMsg(res.error);
-        return;
-      }
-      try {
-        await loadSnap(res.client.snapUrl, res.client.clientKey);
-        const w = window as unknown as {
-          snap?: { pay: (token: string, opts: Record<string, unknown>) => void };
-        };
-        w.snap?.pay(res.snapToken, {
-          onSuccess: () => (window.location.href = "/app/langganan?status=sukses"),
-          onPending: () => (window.location.href = "/app/langganan?status=pending"),
-          onError: () => setMsg("Pembayaran gagal. Coba lagi."),
-          onClose: () => setMsg("Pembayaran dibatalkan."),
-        });
-      } catch {
-        window.location.href = res.redirectUrl;
-      }
-    });
-  }
+  // Paket yang dipilih untuk checkout (null = belum pilih). Kupon di-scope ke paket ini.
+  const [selected, setSelected] = useState<PlanView | null>(null);
 
   return (
     <div>
@@ -119,30 +65,6 @@ export function PlanCards({
             {m} bulan
           </Button>
         ))}
-      </div>
-
-      {msg && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>}
-
-      {/* Kupon diskon (opsional) */}
-      <div className="mb-4">
-        <label htmlFor="coupon" className="mb-1.5 block text-sm text-muted-foreground">Punya kode diskon?</label>
-        <div className="flex gap-2">
-          <input
-            id="coupon"
-            value={coupon}
-            onChange={(e) => { setCoupon(e.target.value); setCouponInfo(null); setCouponMsg(null); }}
-            placeholder="Masukkan kode"
-            className="min-h-[44px] flex-1 rounded-xl border bg-background px-3 text-sm uppercase placeholder:normal-case"
-          />
-          <Button type="button" variant="outline" onClick={checkCoupon} disabled={checking || !coupon.trim()} className="min-h-[44px]">
-            {checking ? "Memeriksa…" : "Pakai"}
-          </Button>
-        </div>
-        {couponMsg && (
-          <p className={`mt-2 text-sm ${couponInfo ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-            {couponMsg}
-          </p>
-        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -168,21 +90,189 @@ export function PlanCards({
                     <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> Semua fitur
                   </li>
                 </ul>
-                <SubmitButton
+                <Button
                   type="button"
                   disabled={!canPay || p.isFree}
-                  pending={pending}
-                  pendingLabel="Memproses…"
-                  onClick={() => subscribe(p.id)}
+                  onClick={() => setSelected(p)}
                   className="mt-5 min-h-[44px]"
                 >
                   {p.isFree ? "Paket Coba" : isCurrent ? "Perpanjang" : "Pilih Paket"}
-                </SubmitButton>
+                </Button>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* Ringkasan checkout untuk paket yang dipilih — kupon di-scope ke paket + durasi ini. */}
+      {selected && (
+        <CheckoutSheet
+          plan={selected}
+          months={months}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function CheckoutSheet({
+  plan,
+  months,
+  onClose,
+}: {
+  plan: PlanView;
+  months: number;
+  onClose: () => void;
+}) {
+  const [coupon, setCoupon] = useState("");
+  // Rincian harga LENGKAP dari server (satu sumber kebenaran). null = sedang memuat.
+  const [bd, setBd] = useState<
+    | { base: number; discount: number; subtotal: number; taxPercent: number; taxAmount: number; total: number;
+        couponCode: string | null; recurring: boolean; recurringMonths: number | null; couponError: string | null }
+    | null
+  >(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [loading, startLoad] = useTransition();
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<string | null>(null);
+
+  // Ambil rincian harga dari server. code opsional (kupon manual).
+  const load = useCallback((code?: string) => {
+    setLoadErr(null);
+    startLoad(async () => {
+      const res = await previewCheckout(plan.id, months, code);
+      if (!res.ok) { setLoadErr(res.error); setBd(null); return; }
+      setBd({
+        base: res.base, discount: res.discount, subtotal: res.subtotal, taxPercent: res.taxPercent,
+        taxAmount: res.taxAmount, total: res.total, couponCode: res.couponCode,
+        recurring: res.recurring, recurringMonths: res.recurringMonths, couponError: res.couponError,
+      });
+    });
+  }, [plan.id, months]);
+
+  // Muat rincian saat sheet dibuka / durasi berubah (tanpa kode → termasuk diskon recurring melekat).
+  useEffect(() => { load(); }, [load]);
+
+  function applyCoupon() {
+    const code = coupon.trim();
+    if (!code) return;
+    load(code);
+  }
+
+  function pay() {
+    setMsg(null);
+    start(async () => {
+      const res = await startPayment(plan.id, months, coupon.trim() || undefined);
+      if (!res.ok) {
+        setMsg(res.error);
+        return;
+      }
+      try {
+        await loadSnap(res.client.snapUrl, res.client.clientKey);
+        const w = window as unknown as {
+          snap?: { pay: (token: string, opts: Record<string, unknown>) => void };
+        };
+        w.snap?.pay(res.snapToken, {
+          onSuccess: () => (window.location.href = "/app/langganan?status=sukses"),
+          onPending: () => (window.location.href = "/app/langganan?status=pending"),
+          onError: () => setMsg("Pembayaran gagal. Coba lagi."),
+          onClose: () => setMsg("Pembayaran dibatalkan."),
+        });
+      } catch {
+        window.location.href = res.redirectUrl;
+      }
+    });
+  }
+
+  const recurText = bd?.recurring
+    ? bd.recurringMonths == null
+      ? " · berlaku untuk semua perpanjangan"
+      : ` · berlaku ${bd.recurringMonths} periode`
+    : "";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4" onClick={onClose}>
+      <Card className="w-full max-w-md rounded-b-none rounded-t-2xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Langganan {plan.name}</h2>
+              <p className="text-sm text-muted-foreground">Durasi {months} bulan</p>
+            </div>
+            <button onClick={onClose} className="rounded-lg p-1 text-muted-foreground hover:bg-muted" aria-label="Tutup">
+              <Icon.Close className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Kupon diskon (opsional) — untuk paket ini */}
+          <div>
+            <label htmlFor="coupon" className="mb-1.5 block text-sm text-muted-foreground">Punya kode diskon?</label>
+            <div className="flex gap-2">
+              <input
+                id="coupon"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") applyCoupon(); }}
+                placeholder="Masukkan kode"
+                className="min-h-[44px] flex-1 rounded-xl border bg-background px-3 text-sm uppercase placeholder:normal-case"
+              />
+              <Button type="button" variant="outline" onClick={applyCoupon} disabled={loading || !coupon.trim()} className="min-h-[44px]">
+                {loading ? "Memeriksa…" : "Pakai"}
+              </Button>
+            </div>
+            {bd?.couponError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{bd.couponError}</p>}
+            {bd && !bd.couponError && bd.discount > 0 && bd.couponCode && (
+              <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">Kupon {bd.couponCode} aktif{recurText}</p>
+            )}
+          </div>
+
+          {/* Rincian harga — SEMUA dari server (satu sumber kebenaran). */}
+          <div className="space-y-1.5 rounded-xl border bg-muted/40 p-4 text-sm">
+            {loadErr ? (
+              <p className="text-red-600 dark:text-red-400">{loadErr}</p>
+            ) : !bd ? (
+              <p className="text-muted-foreground">Memuat rincian…</p>
+            ) : (
+              <>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Harga {plan.name} ({months} bln)</span>
+                  <span>{rp(bd.base)}</span>
+                </div>
+                {bd.discount > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                    <span>Diskon{bd.couponCode ? ` (${bd.couponCode})` : ""}</span>
+                    <span>− {rp(bd.discount)}</span>
+                  </div>
+                )}
+                {bd.taxAmount > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Pajak {bd.taxPercent}%</span>
+                    <span>{rp(bd.taxAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-2 text-base font-bold text-foreground">
+                  <span>Total</span>
+                  <span>{rp(bd.total)}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {msg && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>}
+
+          <SubmitButton
+            type="button"
+            pending={pending}
+            pendingLabel="Memproses…"
+            onClick={pay}
+            disabled={!bd || loading}
+            className="w-full min-h-[48px]"
+          >
+            Lanjutkan Pembayaran{bd ? ` — ${rp(bd.total)}` : ""}
+          </SubmitButton>
+        </CardContent>
+      </Card>
     </div>
   );
 }

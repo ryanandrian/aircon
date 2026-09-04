@@ -41,10 +41,13 @@ Tanpa server key, /app/langganan menampilkan "pembayaran belum diaktifkan" (aman
 ## Kupon Diskon (admin-driven, SSOT harga tetap di PlanConfig)
 Model: `Coupon` + `CouponRedemption` (audit). TIDAK mengubah PlanConfig/kuota tenant — hanya harga bayar.
 - Tipe (`CouponType`): PERCENT (n%), FIXED (potong Rp n), OVERRIDE (harga jadi Rp n tetap — dipakai uji Midtrans production nilai kecil mis. Rp1.000).
-- Diskon dihitung SERVER-SIDE dari harga dasar PRA-PAJAK, SEBELUM pajak: `base → −discount → withTax`. gross_amount = amount tersimpan → anti-tamper utuh. item_details punya baris "Diskon (KODE)" negatif agar jumlah = gross.
-- Aturan: `maxRedemptions` (kuota total, naik saat PAID), `perTenantLimit`, `validFrom/validUntil`, `appliesToPlans` (kosong=semua berbayar), `minMonths`.
-- RECURRING: `recurring` + `recurringMonths` (null=selamanya/grandfathered). Saat tebus LUNAS, diskon melekat ke tenant (`Tenant.activeCouponCode` + `couponPeriodsLeft`) → OTOMATIS diterapkan di perpanjangan tanpa owner ketik ulang; `couponPeriodsLeft` berkurang tiap LUNAS, habis → lepas.
-- Redeem HANYA saat PAID, idempoten via `CouponRedemption.paymentOrderId` unik (kupon tak hangus bila batal bayar).
+- Diskon dihitung SERVER-SIDE dari harga dasar PRA-PAJAK, SEBELUM pajak: `base → −discount → withTax`. gross_amount = amount tersimpan → anti-tamper utuh. item_details: harga langganan = subtotal SETELAH diskon (TANPA baris negatif — Midtrans aman), hemat ditulis di NAMA item; jumlah item = gross_amount.
+- Satu sumber kebenaran harga: `resolveCheckout(base,discount,taxPercent)` (pure) dipakai `previewCheckout` (UI) & `startSubscriptionPayment` → total di layar checkout DIJAMIN = gross ke Midtrans. Diskon di-resolve `resolveCheckoutDiscount` (dipakai preview & bayar).
+- GUARD total ≤ 0: kupon yang membuat total Rp0 (OVERRIDE 0 / PERCENT 100) DITOLAK (BillingError ZERO_TOTAL) — untuk gratis pakai paket gratis, bukan transaksi Rp0.
+- Aturan: `maxRedemptions` (kuota total, naik saat penebusan AWAL PAID), `perTenantLimit`, `validFrom/validUntil`, `appliesToPlans` (kosong=semua berbayar), `minMonths`.
+- RECURRING semantik `recurringMonths` = TOTAL periode berdiskon TERMASUK pembelian awal: null=selamanya; N≥2 → sisa (N-1) perpanjangan (couponPeriodsLeft=N-1); N≤1 → tak melekat. Diskon melekat di `Tenant.activeCouponCode`+`couponPeriodsLeft`, OTOMATIS di perpanjangan tanpa ketik ulang. Tiap perpanjangan LUNAS: couponPeriodsLeft−1; habis → lepas (activeCouponCode=null).
+- Cabang tebus dibedakan `Payment.couponRecurringApplied`: false=penebusan awal manual (naikkan kuota + attach recurring); true=perpanjangan otomatis (decrement periode, TANPA reset/naik kuota). Redeem HANYA saat PAID, idempoten via `CouponRedemption.paymentOrderId` unik (mustahil double-count walau webhook fire 2×).
+- Prioritas: kode manual owner > diskon recurring melekat. Kupon manual baru meng-attach ulang recurring bila kuponnya recurring.
 - Komisi keagenan otomatis benar: dihitung dari `payment.amount` (sudah ter-diskon) / (1+pajak).
-- UI: owner input kode di /app/langganan (validasi realtime `previewCoupon`); admin CRUD di /admin/kupon.
-- Pure calc: `src/lib/domain/coupon-calc.ts` (computeDiscount, teruji). Validasi+tebus: `src/lib/services/coupon-service.ts`.
+- UI: owner pilih paket → sheet checkout tampil rincian LENGKAP dari server (base/diskon/pajak/TOTAL) → input kode opsional. Nol hitung pajak di client. Admin CRUD di /admin/kupon.
+- Pure calc + test: `src/lib/domain/coupon-calc.ts` (computeDiscount + resolveCheckout, 14 test). Validasi+tebus: `src/lib/services/coupon-service.ts`.

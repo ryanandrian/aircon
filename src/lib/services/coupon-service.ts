@@ -93,27 +93,80 @@ export async function validateCoupon(params: {
 }
 
 /**
- * Tebus kupon SAAT PEMBAYARAN LUNAS (idempoten). Dipanggil dari webhook.
- * - Catat CouponRedemption (unik per paymentOrderId → aman dipanggil berulang).
- * - Naikkan Coupon.redeemedCount.
- * - Bila recurring: set diskon melekat di tenant (activeCouponCode + couponPeriodsLeft).
- *   couponPeriodsLeft berkurang tiap pembayaran LUNAS berikutnya (di applyRecurringConsume).
+ * Resolusi diskon untuk sebuah checkout (dipakai BERSAMA oleh previewCheckout & startPayment
+ * → satu sumber kebenaran). Menentukan potongan dari:
+ *  - Kode MANUAL (owner ketik) → validasi penuh (kuota/masa berlaku/per-tenant). Melempar bila tak valid.
+ *  - Bila tak ada kode manual → diskon RECURRING melekat di tenant (otomatis, tanpa validasi kuota ulang).
+ * Return discount=0 bila tak ada diskon berlaku. recurringApplied=true hanya bila diskon datang dari
+ * recurring melekat (bukan manual) — dipakai webhook utk cabang tebus yang benar.
+ */
+export async function resolveCheckoutDiscount(params: {
+  tenantId: string;
+  plan: TenantPlan;
+  months: number;
+  base: number;
+  couponCode?: string;
+  now?: Date;
+}): Promise<{ discount: number; couponCode: string | null; recurringApplied: boolean }> {
+  if (params.couponCode?.trim()) {
+    // MANUAL: validasi penuh — melempar CouponError bila tak valid (ditangkap pemanggil).
+    const v = await validateCoupon({
+      code: params.couponCode, tenantId: params.tenantId, plan: params.plan, months: params.months, base: params.base, now: params.now,
+    });
+    return { discount: v.discount, couponCode: v.code, recurringApplied: false };
+  }
+  // RECURRING melekat: terapkan tanpa validasi kuota (sudah divalidasi saat tebus awal).
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: params.tenantId },
+    select: { activeCouponCode: true, couponPeriodsLeft: true },
+  });
+  if (tenant?.activeCouponCode && (tenant.couponPeriodsLeft == null || tenant.couponPeriodsLeft > 0)) {
+    const c = await prisma.coupon.findUnique({ where: { code: tenant.activeCouponCode } });
+    if (c && c.active && (c.appliesToPlans.length === 0 || c.appliesToPlans.includes(params.plan))) {
+      const discount = computeDiscount({ type: c.type, value: c.value, base: params.base });
+      if (discount > 0) return { discount, couponCode: c.code, recurringApplied: true };
+    }
+  }
+  return { discount: 0, couponCode: null, recurringApplied: false };
+}
+
+/**
+ * Tebus kupon SAAT PEMBAYARAN LUNAS (idempoten via paymentOrderId). Dipanggil dari webhook.
+ *
+ * DUA cabang, dibedakan oleh `recurringApplied`:
+ *
+ * A. recurringApplied=false → PENEBUSAN AWAL (kupon manual diketik owner):
+ *    - Catat CouponRedemption + naikkan Coupon.redeemedCount (kuota global & per-tenant).
+ *    - Bila kupon recurring: MELEKATKAN diskon ke tenant untuk perpanjangan berikutnya.
+ *      Semantik recurringMonths = TOTAL periode berdiskon TERMASUK pembelian ini.
+ *        recurringMonths null  → selamanya (couponPeriodsLeft = null).
+ *        recurringMonths = N≥2 → sisa (N-1) perpanjangan berdiskon (couponPeriodsLeft = N-1).
+ *        recurringMonths = 1   → hanya pembelian ini, tak ada perpanjangan berdiskon (tak melekat).
+ *
+ * B. recurringApplied=true → PERPANJANGAN OTOMATIS (diskon melekat, owner tak ketik kode):
+ *    - TIDAK menaikkan kuota / TIDAK reset. Hanya KURANGI couponPeriodsLeft (bila berhingga).
+ *    - Habis (≤0) → lepas diskon (activeCouponCode=null). null tetap null (selamanya).
+ *    - Tetap catat CouponRedemption sbg audit (idempoten).
+ *
+ * Idempoten: bila CouponRedemption utk paymentOrderId sudah ada → tak melakukan apa-apa.
  */
 export async function redeemCouponOnPaid(params: {
   code: string;
   tenantId: string;
   paymentOrderId: string;
   discountAmount: number;
+  recurringApplied: boolean;
 }): Promise<void> {
   const code = params.code.trim().toUpperCase();
   const coupon = await prisma.coupon.findUnique({ where: { code } });
   if (!coupon) return; // kupon terhapus? abaikan dengan aman.
 
   await prisma.$transaction(async (tx) => {
-    // Idempoten: bila redemption utk order ini sudah ada, jangan proses ulang.
+    // IDEMPOTEN: bila redemption utk order ini sudah ada, jangan proses ulang apa pun.
     const existing = await tx.couponRedemption.findUnique({ where: { paymentOrderId: params.paymentOrderId } });
     if (existing) return;
 
+    // Audit trail selalu dicatat (kedua cabang), unik per order.
     await tx.couponRedemption.create({
       data: {
         couponId: coupon.id,
@@ -122,18 +175,43 @@ export async function redeemCouponOnPaid(params: {
         discountAmount: params.discountAmount,
       },
     });
-    await tx.coupon.update({ where: { id: coupon.id }, data: { redeemedCount: { increment: 1 } } });
 
-    if (coupon.recurring) {
-      // Melekatkan diskon recurring ke tenant. Jatah: recurringMonths (null=selamanya).
-      // Penebusan awal TIDAK mengurangi jatah (transaksi ini sudah berdiskon); jatah untuk periode BERIKUTNYA.
-      await tx.tenant.update({
+    if (!params.recurringApplied) {
+      // ── Cabang A: penebusan AWAL (manual) ──
+      await tx.coupon.update({ where: { id: coupon.id }, data: { redeemedCount: { increment: 1 } } });
+
+      if (coupon.recurring) {
+        // Melekatkan diskon recurring. periodsLeft = sisa perpanjangan (di luar pembelian ini).
+        // recurringMonths null → selamanya; N≥2 → N-1; N≤1 → tak melekat (tak ada perpanjangan berdiskon).
+        const periodsLeft =
+          coupon.recurringMonths == null ? null : coupon.recurringMonths - 1;
+        if (periodsLeft == null || periodsLeft >= 1) {
+          await tx.tenant.update({
+            where: { id: params.tenantId },
+            data: { activeCouponCode: coupon.code, couponPeriodsLeft: periodsLeft },
+          });
+        }
+      }
+    } else {
+      // ── Cabang B: PERPANJANGAN otomatis (diskon melekat) ──
+      const t = await tx.tenant.findUnique({
         where: { id: params.tenantId },
-        data: {
-          activeCouponCode: coupon.code,
-          couponPeriodsLeft: coupon.recurringMonths, // null = selamanya
-        },
+        select: { activeCouponCode: true, couponPeriodsLeft: true },
       });
+      // Hanya proses bila diskon melekat memang kupon ini.
+      if (t?.activeCouponCode === coupon.code) {
+        if (t.couponPeriodsLeft == null) {
+          // selamanya → tak berubah.
+        } else {
+          const left = t.couponPeriodsLeft - 1;
+          await tx.tenant.update({
+            where: { id: params.tenantId },
+            data: left >= 1
+              ? { couponPeriodsLeft: left }
+              : { couponPeriodsLeft: 0, activeCouponCode: null }, // jatah habis → lepas
+          });
+        }
+      }
     }
   });
 }

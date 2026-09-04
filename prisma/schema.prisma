@@ -719,6 +719,9 @@ model Payment {
   paymentType  String? // gopay, bank_transfer, dst
   couponCode   String? // kupon yang dipakai transaksi ini (audit)
   discountAmount Int    @default(0) // potongan pra-pajak (IDR) dari kupon
+  // true = diskon ini berasal dari RECURRING melekat di tenant (perpanjangan otomatis);
+  // false = kupon manual diketik owner (penebusan awal). Menentukan cabang redeem di webhook.
+  couponRecurringApplied Boolean @default(false)
   paidAt       DateTime?
   rawNotif     Json? // payload webhook terakhir (audit)
   createdAt    DateTime      @default(now())
