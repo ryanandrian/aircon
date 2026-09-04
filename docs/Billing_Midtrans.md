@@ -16,18 +16,19 @@ TRIAL → ACTIVE (setelah bayar) → PAST_DUE (periode habis, grace) → SUSPEND
 ## Alur pembayaran
 1. Owner buka /app/langganan → pilih paket + durasi → startPayment (server action, OWNER only)
 2. subscription-service.startSubscriptionPayment: buat Payment(PENDING) + Snap token (Midtrans)
-3. Snap.js popup → user bayar
-4. Midtrans kirim webhook → /api/billing/midtrans-webhook
-5. verifySignature (sha512) → processPaymentNotification → bila PAID: activateSubscription (tenant ACTIVE + periode)
+3. startPayment JUGA balikkan midtransClientConfig() {env, clientKey, snapUrl} — SATU SUMBER KEBENARAN dari server
+4. Snap.js dimuat dari config server itu (client TAK memutuskan env sendiri) → popup → user bayar
+5. Midtrans kirim webhook → /api/billing/midtrans-webhook (tujuan di-override per-transaksi via header X-Override-Notification ke NEXT_PUBLIC_APP_URL, akun Midtrans dipakai bersama aiwa/mesinviral/aircon)
+6. verifySignature (sha512) → processPaymentNotification → bila PAID: activateSubscription (tenant ACTIVE + periode)
 
-## Konfigurasi (yang dibutuhkan)
-Set di Vercel env (dan .env lokal):
-- MIDTRANS_SERVER_KEY (server-only, rahasia)
-- NEXT_PUBLIC_MIDTRANS_CLIENT_KEY (publik, untuk Snap.js)
-- MIDTRANS_IS_PRODUCTION / NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION ("true"/"false")
+## Konfigurasi env (nama PERSIS sesuai kode — SATU saklar, anti-drift)
+- `MIDTRANS_ENV` = sandbox | production  (SATU saklar server, runtime)
+- `MIDTRANS_SANDBOX_SERVER_KEY` / `MIDTRANS_PRODUCTION_SERVER_KEY` (server-only, keduanya permanen)
+- `NEXT_PUBLIC_MIDTRANS_SANDBOX_CLIENT_KEY` / `NEXT_PUBLIC_MIDTRANS_PRODUCTION_CLIENT_KEY` (publik)
+- ANTI-DRIFT: klien TIDAK membaca `NEXT_PUBLIC_MIDTRANS_ENV` (di-'bakar' saat build → sumber bug env mismatch). Server memutuskan env sekali (MIDTRANS_ENV) + memberi clientKey+snapUrl cocok ke klien. Ganti lingkungan = ubah `MIDTRANS_ENV` saja.
+- Deploy VPS: `scripts/deploy-vps.sh` build memakai `.env` PRODUKSI VPS + guard bundle bebas-sandbox.
 
-Daftarkan webhook di dashboard Midtrans (Settings > Configuration > Payment Notification URL):
-  https://aircon-peach.vercel.app/api/billing/midtrans-webhook
+Webhook: TIDAK bergantung Payment Notification URL global dashboard (akun berbagi). Setiap transaksi aircon meng-override ke `NEXT_PUBLIC_APP_URL/api/billing/midtrans-webhook` (kini https://app.airconet.id/...).
 
 Tanpa server key, /app/langganan menampilkan "pembayaran belum diaktifkan" (aman, tidak error).
 
