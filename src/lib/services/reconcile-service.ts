@@ -51,10 +51,13 @@ export async function reconcilePendingPayments(): Promise<ReconcileSummary> {
   const summary: ReconcileSummary = { checkedSubscriptions: 0, checkedIotOrders: 0, settled: 0 };
 
   // ---- Langganan ----
+  // Scan PENDING (belum lunas) + FAILED/EXPIRED muda (kemungkinan "transaksi hantu": lunas di
+  // Midtrans tapi ter-tolak lokal krn fee/salah-tanda). processPaymentNotification idempoten &
+  // fee-aware → memulihkan bila ternyata settlement, mengabaikan bila memang gagal.
   const subs = await prisma.payment.findMany({
-    where: { status: "PENDING", createdAt: { gte: cutoff } },
+    where: { status: { in: ["PENDING", "FAILED", "EXPIRED"] }, createdAt: { gte: cutoff } },
     select: { orderId: true },
-    take: 200,
+    take: 300,
   });
   for (const p of subs) {
     summary.checkedSubscriptions++;

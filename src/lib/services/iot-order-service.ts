@@ -7,7 +7,7 @@ import type { IotOrder, IotProduct } from "@prisma/client";
 import { getBillingPolicy } from "@/lib/billing/config";
 import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { createSnapTransaction, isMidtransConfigured } from "@/lib/billing/midtrans-client";
-import { makeOrderId, parseMidtransStatus } from "@/lib/billing/midtrans-logic";
+import { makeOrderId, parseMidtransStatus, isNotifAmountValid } from "@/lib/billing/midtrans-logic";
 import { makeIotOrderNo, computeOrderTotals } from "@/lib/services/iot-order-logic";
 
 export class IotOrderError extends Error {
@@ -145,12 +145,21 @@ export async function processIotPayment(notif: {
   const order = await prisma.iotOrder.findUnique({ where: { paymentOrderId: notif.order_id } });
   if (!order) return { paid: false, tenantId: null };
 
-  // Anti-tamper: gross_amount harus cocok total.
+  // Anti-tamper SADAR FEE: gross bisa = total + fee channel (customer-imposed). Cocokkan via helper.
   if (notif.gross_amount !== undefined) {
-    const amt = Math.round(Number(notif.gross_amount));
-    if (!Number.isFinite(amt) || amt !== order.total) {
-      return { paid: false, tenantId: order.tenantId };
-    }
+    const info = (() => {
+      try {
+        const raw = notif.raw as { metadata?: { extra_info?: { gross_amount_info?: Record<string, unknown> } } } | undefined;
+        return raw?.metadata?.extra_info?.gross_amount_info ?? undefined;
+      } catch { return undefined; }
+    })();
+    const ok = isNotifAmountValid({
+      storedAmount: order.total,
+      grossAmount: notif.gross_amount,
+      originalAmount: info?.original_amount as string | number | undefined,
+      customerImposedFee: info?.customer_imposed_payment_fee as string | number | undefined,
+    });
+    if (!ok) return { paid: false, tenantId: order.tenantId };
   }
 
   const status = parseMidtransStatus(notif);

@@ -4,6 +4,7 @@ import {
   parseMidtransStatus,
   subscriptionPeriodEnd,
   decideResumeAction,
+  isNotifAmountValid,
 } from "../src/lib/billing/midtrans-logic";
 
 describe("midtrans logic (pure)", () => {
@@ -53,5 +54,35 @@ describe("midtrans logic (pure)", () => {
   it("decideResumeAction: expire/cancel/deny (FAILED/EXPIRED) → regenerate", () => {
     expect(decideResumeAction({ mappedStatus: "FAILED", tokenExpired: false, hasStoredToken: true })).toBe("regenerate");
     expect(decideResumeAction({ mappedStatus: "EXPIRED", tokenExpired: false, hasStoredToken: true })).toBe("regenerate");
+  });
+
+  it("isNotifAmountValid: gross == amount (tanpa fee) diterima", () => {
+    expect(isNotifAmountValid({ storedAmount: 10000, grossAmount: "10000" })).toBe(true);
+  });
+
+  it("isNotifAmountValid: customer-imposed fee — gross=14440, original=10000, fee=4440 diterima", () => {
+    // Kasus NYATA yang menyebabkan bug: harga 10.000 + fee 4.440 = 14.440.
+    expect(isNotifAmountValid({
+      storedAmount: 10000, grossAmount: "14440", originalAmount: "10000", customerImposedFee: "4440",
+    })).toBe(true);
+  });
+
+  it("isNotifAmountValid: gross = amount + fee tanpa original juga diterima", () => {
+    expect(isNotifAmountValid({ storedAmount: 10000, grossAmount: "14440", customerImposedFee: "4440" })).toBe(true);
+  });
+
+  it("isNotifAmountValid: toleransi pembulatan 1 rupiah", () => {
+    expect(isNotifAmountValid({ storedAmount: 10000, grossAmount: "10001" })).toBe(true);
+  });
+
+  it("isNotifAmountValid: TAMPERING nyata (gross beda jauh, tak cocok fee) DITOLAK", () => {
+    expect(isNotifAmountValid({ storedAmount: 10000, grossAmount: "5000" })).toBe(false);
+    expect(isNotifAmountValid({
+      storedAmount: 10000, grossAmount: "99999", originalAmount: "50000", customerImposedFee: "1000",
+    })).toBe(false);
+  });
+
+  it("isNotifAmountValid: tanpa info nominal sama sekali DITOLAK", () => {
+    expect(isNotifAmountValid({ storedAmount: 10000 })).toBe(false);
   });
 });

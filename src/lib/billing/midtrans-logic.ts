@@ -65,3 +65,40 @@ export function decideResumeAction(input: {
   if (input.mappedStatus === "PENDING" && !input.tokenExpired && input.hasStoredToken) return "reuse";
   return "regenerate";
 }
+
+/**
+ * PURE: verifikasi nominal webhook cocok dengan amount tersimpan — SADAR FEE.
+ *
+ * Bila akun Midtrans membebankan biaya channel ke pelanggan (customer-imposed payment fee),
+ * gross_amount yang ditagih = amount kita + fee. Midtrans mengirim rinciannya di
+ * metadata.extra_info.gross_amount_info.{original_amount, customer_imposed_payment_fee}.
+ *
+ * DITERIMA bila salah satu benar (toleransi pembulatan 1 rupiah):
+ *  - gross_amount == stored amount (tanpa fee, atau fee ditanggung merchant), ATAU
+ *  - original_amount == stored amount (fee dibebankan ke pelanggan; original = harga kita), ATAU
+ *  - gross_amount == stored amount + customer_imposed_payment_fee.
+ * DITOLAK (tampering nyata) bila tak ada yang cocok.
+ */
+export function isNotifAmountValid(input: {
+  storedAmount: number;
+  grossAmount?: string | number;
+  originalAmount?: string | number;
+  customerImposedFee?: string | number;
+}): boolean {
+  const num = (v: string | number | undefined): number | null => {
+    if (v === undefined || v === null || v === "") return null;
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? n : null;
+  };
+  const stored = input.storedAmount;
+  const gross = num(input.grossAmount);
+  const original = num(input.originalAmount);
+  const fee = num(input.customerImposedFee) ?? 0;
+  const near = (a: number | null, b: number) => a !== null && Math.abs(a - b) <= 1;
+
+  if (gross === null && original === null) return false; // tak ada info nominal → tolak
+  if (near(gross, stored)) return true;
+  if (near(original, stored)) return true;
+  if (gross !== null && near(gross, stored + fee)) return true;
+  return false;
+}

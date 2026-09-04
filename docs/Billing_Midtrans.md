@@ -32,6 +32,21 @@ Webhook: TIDAK bergantung Payment Notification URL global dashboard (akun berbag
 
 Tanpa server key, /app/langganan menampilkan "pembayaran belum diaktifkan" (aman, tidak error).
 
+## Anti-tamper SADAR FEE (customer-imposed payment fee)
+Bila akun Midtrans membebankan biaya channel ke PELANGGAN, gross_amount ditagih = harga kita + fee
+(mis. 10.000 + 4.440 = 14.440). Midtrans kirim rincian di metadata.extra_info.gross_amount_info
+{original_amount, customer_imposed_payment_fee}.
+- `isNotifAmountValid` (PURE, teruji) menerima bila gross==amount ATAU original==amount ATAU gross==amount+fee (toleransi 1 rupiah); menolak tampering nyata. Dipakai webhook langganan & IoT.
+- Aktivasi & komisi tetap dari `payment.amount` (harga kita, PRA-fee) — fee bukan pendapatan Lumite.
+- Konfigurasi fee ditanggung merchant vs pelanggan = SETTING DASHBOARD Midtrans (bukan kode). Kode benar di kedua kondisi.
+- PELAJARAN: anti-tamper lama (`gross !== amount → FAILED`) salah menandai transaksi LUNAS ber-fee sbg GAGAL. Diperbaiki.
+
+## Reconcile (PULL) — penjamin + pemulih transaksi hantu
+Cron reconcile PULL status ke Midtrans untuk Payment berstatus PENDING/FAILED/EXPIRED usia <48 jam,
+terapkan via processPaymentNotification (idempoten, fee-aware). Ini memulihkan "transaksi hantu"
+(lunas di Midtrans tapi ter-tolak lokal). Resume TIDAK menandai transaksi lama FAILED/EXPIRED kecuali
+Midtrans mengonfirmasi mati (expire/cancel/deny) — VA lama yang masih hidup tak dibunuh.
+
 ## Keamanan
 - Signature webhook diverifikasi (hanya Midtrans yang bisa update status).
 - startPayment hanya OWNER (assertRole).

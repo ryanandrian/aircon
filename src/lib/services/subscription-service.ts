@@ -13,6 +13,7 @@ import {
   parseMidtransStatus,
   subscriptionPeriodEnd,
   decideResumeAction,
+  isNotifAmountValid,
 } from "@/lib/billing/midtrans-logic";
 
 export class BillingError extends Error {
@@ -160,10 +161,12 @@ export async function resumeSubscriptionPayment(params: {
   const tokenLikelyExpired = tokenAgeMs > expiryHours * 3600_000;
 
   // Regenerasi = buat transaksi BARU untuk paket + kupon yang sama.
-  const regenerate = async () => {
-    // Tandai transaksi lama sbagai gagal/kadaluarsa agar riwayat bersih (tak ganggu idempotensi PAID).
-    if (payment.status === "PENDING") {
-      await prisma.payment.update({ where: { orderId: payment.orderId }, data: { status: "EXPIRED" } });
+  // PENTING (fix bug transaksi-hantu): JANGAN tandai transaksi lama FAILED/EXPIRED kecuali
+  // Midtrans BENAR-BENAR bilang mati (expire/cancel/deny). Bila lama masih pending (VA hidup),
+  // biarkan PENDING — pelanggan mungkin membayar VA lama; reconcile akan menangkapnya.
+  const regenerate = async (markOldAs?: "FAILED" | "EXPIRED") => {
+    if (markOldAs && payment.status === "PENDING") {
+      await prisma.payment.update({ where: { orderId: payment.orderId }, data: { status: markOldAs } });
     }
     // Kupon lama dibawa; bila sudah tak valid (kuota habis dsb), startSubscriptionPayment mengabaikannya
     // secara aman (recurring melekat) atau melempar (manual invalid) — tapi resume memakai kode manual
@@ -231,11 +234,11 @@ export async function resumeSubscriptionPayment(params: {
     return { kind: "resume", snapToken: payment.snapToken!, redirectUrl: payment.snapRedirect!, orderId: payment.orderId };
   }
 
-  // REGENERATE: expire/cancel/deny, atau pending tapi token kadaluarsa → transaksi baru.
-  if (mapped === "FAILED" || mapped === "EXPIRED") {
-    await prisma.payment.update({ where: { orderId: payment.orderId }, data: { status: mapped } });
-  }
-  return await regenerate();
+  // REGENERATE. Tandai transaksi lama HANYA bila Midtrans mengonfirmasi mati (expire/cancel/deny).
+  // Bila mapped masih PENDING (token lokal kadaluarsa tapi VA Midtrans mungkin hidup) → JANGAN
+  // bunuh yang lama; biarkan reconcile menangkap bila akhirnya dibayar.
+  const markOld = mapped === "FAILED" || mapped === "EXPIRED" ? mapped : undefined;
+  return await regenerate(markOld);
 }
 
 /**
@@ -257,11 +260,23 @@ export async function processPaymentNotification(notif: {
     return { status: "FAILED", tenantId: null };
   }
 
-  // Lapisan tambahan anti-tamper: gross_amount harus cocok dengan amount tersimpan.
-  // (Signature sudah mengikat gross_amount, ini pertahanan berlapis.)
+  // Lapisan anti-tamper SADAR FEE: gross_amount ditagih bisa = amount + fee channel
+  // (bila akun Midtrans membebankan biaya ke pelanggan). Cocokkan via isNotifAmountValid
+  // (terima gross==amount / original==amount / gross==amount+fee; tolak tampering nyata).
   if (notif.gross_amount !== undefined) {
-    const notifAmount = Math.round(Number(notif.gross_amount));
-    if (!Number.isFinite(notifAmount) || notifAmount !== payment.amount) {
+    const info = (() => {
+      try {
+        const raw = notif.raw as { metadata?: { extra_info?: { gross_amount_info?: Record<string, unknown> } } } | undefined;
+        return raw?.metadata?.extra_info?.gross_amount_info ?? undefined;
+      } catch { return undefined; }
+    })();
+    const ok = isNotifAmountValid({
+      storedAmount: payment.amount,
+      grossAmount: notif.gross_amount,
+      originalAmount: info?.original_amount as string | number | undefined,
+      customerImposedFee: info?.customer_imposed_payment_fee as string | number | undefined,
+    });
+    if (!ok) {
       await prisma.payment.update({
         where: { orderId: notif.order_id },
         data: { status: "FAILED", rawNotif: notif.raw as never },
