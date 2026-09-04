@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { startPayment } from "./actions";
+import { startPayment, previewCoupon } from "./actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,11 +47,42 @@ export function PlanCards({
   const [pending, start] = useTransition();
   const [months, setMonths] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
+  // Kupon diskon (opsional). couponInfo = hasil validasi realtime.
+  const [coupon, setCoupon] = useState("");
+  const [couponInfo, setCouponInfo] = useState<
+    { code: string; discount: number; recurring: boolean; recurringMonths: number | null } | null
+  >(null);
+  const [couponMsg, setCouponMsg] = useState<string | null>(null);
+  const [checking, startCheck] = useTransition();
+
+  // Validasi kupon terhadap paket berbayar termurah aktif (untuk pratinjau potongan).
+  function checkCoupon() {
+    setCouponMsg(null);
+    setCouponInfo(null);
+    const code = coupon.trim();
+    if (!code) return;
+    const paid = plans.find((p) => !p.isFree);
+    if (!paid) return;
+    startCheck(async () => {
+      const res = await previewCoupon(code, paid.id, months);
+      if (!res.ok) {
+        setCouponMsg(res.error);
+        return;
+      }
+      setCouponInfo({ code: res.code, discount: res.discount, recurring: res.recurring, recurringMonths: res.recurringMonths });
+      const recurText = res.recurring
+        ? res.recurringMonths == null
+          ? " (berlaku untuk semua perpanjangan)"
+          : ` (berlaku ${res.recurringMonths} periode)`
+        : "";
+      setCouponMsg(`Kupon ${res.code} aktif — potongan Rp${res.discount.toLocaleString("id-ID")}${recurText}`);
+    });
+  }
 
   function subscribe(plan: TenantPlan) {
     setMsg(null);
     start(async () => {
-      const res = await startPayment(plan, months);
+      const res = await startPayment(plan, months, couponInfo?.code ?? (coupon.trim() || undefined));
       if (!res.ok) {
         setMsg(res.error);
         return;
@@ -91,6 +122,28 @@ export function PlanCards({
       </div>
 
       {msg && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>}
+
+      {/* Kupon diskon (opsional) */}
+      <div className="mb-4">
+        <label htmlFor="coupon" className="mb-1.5 block text-sm text-muted-foreground">Punya kode diskon?</label>
+        <div className="flex gap-2">
+          <input
+            id="coupon"
+            value={coupon}
+            onChange={(e) => { setCoupon(e.target.value); setCouponInfo(null); setCouponMsg(null); }}
+            placeholder="Masukkan kode"
+            className="min-h-[44px] flex-1 rounded-xl border bg-background px-3 text-sm uppercase placeholder:normal-case"
+          />
+          <Button type="button" variant="outline" onClick={checkCoupon} disabled={checking || !coupon.trim()} className="min-h-[44px]">
+            {checking ? "Memeriksa…" : "Pakai"}
+          </Button>
+        </div>
+        {couponMsg && (
+          <p className={`mt-2 text-sm ${couponInfo ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+            {couponMsg}
+          </p>
+        )}
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {plans.map((p) => {

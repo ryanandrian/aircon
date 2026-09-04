@@ -309,6 +309,13 @@ model Tenant {
   // ekspektasi insentif ke teknisi kecuali owner mengaktifkannya. Bukan ditebak dari nilai katalog.
   incentiveEnabled      Boolean                @default(false)
   incentiveBasis        IncentiveBasis         @default(LUNAS)
+  // Diskon recurring melekat ke tenant (mis. tenant pendiri / harga khusus). Diterapkan
+  // OTOMATIS saat perpanjangan tanpa owner mengetik ulang kode, sampai jatah habis.
+  // activeCouponCode null = tak ada diskon recurring aktif. couponPeriodsLeft null = selamanya
+  // (grandfathered); angka = sisa periode berdiskon (berkurang tiap pembayaran LUNAS).
+  activeCouponCode      String?
+  couponPeriodsLeft     Int?
+  couponRedemptions     CouponRedemption[]
 }
 
 model User {
@@ -710,6 +717,8 @@ model Payment {
   snapRedirect String?
   midtransTxId String? // transaction_id dari Midtrans
   paymentType  String? // gopay, bank_transfer, dst
+  couponCode   String? // kupon yang dipakai transaksi ini (audit)
+  discountAmount Int    @default(0) // potongan pra-pajak (IDR) dari kupon
   paidAt       DateTime?
   rawNotif     Json? // payload webhook terakhir (audit)
   createdAt    DateTime      @default(now())
@@ -719,6 +728,60 @@ model Payment {
 
   @@index([tenantId, status])
   @@index([status, createdAt])
+}
+
+// ── KUPON DISKON LANGGANAN (admin-driven, SSOT harga tetap di PlanConfig) ──
+// Kupon = entitas terpisah dgn aturan sendiri (masa berlaku, kuota, recurring), jejak audit
+// penuh. TIDAK mengubah PlanConfig (harga publik) maupun paket/kuota tenant — hanya harga bayar.
+// Diskon dihitung SERVER-SIDE sebelum pajak (anti-tamper gross_amount tetap utuh).
+enum CouponType {
+  PERCENT  // potong N% dari harga dasar (pra-pajak)
+  FIXED    // potong Rp N (pra-pajak)
+  OVERRIDE // harga dasar (pra-pajak) menjadi Rp N tetap (mis. uji Rp1.000)
+}
+
+model Coupon {
+  id             String     @id @default(cuid())
+  code           String     @unique // kode ditebus owner (case-insensitive di service)
+  description    String? // catatan admin (mis. "Tenant pendiri 2026")
+  type           CouponType @default(PERCENT)
+  value          Int // arti sesuai type: PERCENT=persen(0-100), FIXED/OVERRIDE=IDR
+  active         Boolean    @default(true)
+  // Batas pemakaian
+  maxRedemptions Int? // kuota total tebus (null = tak terbatas). Naik saat PAID.
+  redeemedCount  Int        @default(0)
+  perTenantLimit Int        @default(1) // batas tebus per tenant
+  // Masa berlaku
+  validFrom      DateTime?
+  validUntil     DateTime?
+  // Cakupan
+  appliesToPlans TenantPlan[] // kosong = semua paket berbayar
+  minMonths      Int        @default(1) // syarat durasi minimum
+  // Recurring: diskon ikut ke perpanjangan berikutnya
+  recurring      Boolean    @default(false)
+  recurringMonths Int? // null + recurring=true = selamanya; angka = jumlah periode berdiskon
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  redemptions CouponRedemption[]
+
+  @@index([active])
+}
+
+// Jejak setiap penebusan kupon yang BENAR-BENAR dibayar (LUNAS) — audit + enforcement perTenantLimit.
+model CouponRedemption {
+  id             String   @id @default(cuid())
+  couponId       String
+  tenantId       String
+  paymentOrderId String   @unique // ikat ke Payment.orderId (idempoten: 1 pembayaran = 1 redemption)
+  discountAmount Int // potongan pra-pajak yang diterapkan (IDR)
+  createdAt      DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([couponId])
+  @@index([tenantId])
 }
 
 // Undangan user ke tenant (teknisi/admin) — invite-only, bukan self-signup.

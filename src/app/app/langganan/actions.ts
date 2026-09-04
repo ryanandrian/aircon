@@ -15,6 +15,7 @@ export type StartPaymentResult =
 export async function startPayment(
   plan: TenantPlan,
   periodMonths: number,
+  couponCode?: string,
 ): Promise<StartPaymentResult> {
   try {
     const ctx = await getServerContext();
@@ -30,6 +31,7 @@ export async function startPayment(
       customerName: ctx.name,
       customerEmail: ctx.email ?? undefined,
       customerPhone: tenant.phone ?? undefined,
+      couponCode: couponCode?.trim() || undefined,
     });
     return { ok: true, snapToken: res.snapToken, redirectUrl: res.redirectUrl, client: midtransClientConfig() };
   } catch (err) {
@@ -38,5 +40,32 @@ export async function startPayment(
     }
     console.error("[startPayment] gagal:", err);
     return { ok: false, error: "Gagal memulai pembayaran. Coba lagi." };
+  }
+}
+
+/** Validasi kupon realtime (baca-saja) untuk pratinjau harga di UI owner. */
+export async function previewCoupon(
+  code: string,
+  plan: TenantPlan,
+  periodMonths: number,
+): Promise<
+  | { ok: true; code: string; discount: number; recurring: boolean; recurringMonths: number | null }
+  | { ok: false; error: string }
+> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER"]);
+    const { getPlanConfig } = await import("@/lib/billing/config");
+    const planCfg = await getPlanConfig(plan);
+    if (!planCfg || planCfg.priceMonthly <= 0) return { ok: false, error: "Paket ini gratis." };
+    const base = planCfg.priceMonthly * Math.max(1, periodMonths);
+    const { validateCoupon } = await import("@/lib/services/coupon-service");
+    const v = await validateCoupon({ code, tenantId: ctx.tenantId, plan, months: periodMonths, base });
+    return { ok: true, code: v.code, discount: v.discount, recurring: v.recurring, recurringMonths: v.recurringMonths };
+  } catch (err) {
+    const { CouponError } = await import("@/lib/services/coupon-service");
+    if (err instanceof CouponError) return { ok: false, error: err.message };
+    console.error("[previewCoupon] gagal:", err);
+    return { ok: false, error: "Gagal memeriksa kupon." };
   }
 }

@@ -35,6 +35,8 @@ export async function startSubscriptionPayment(params: {
   customerName: string;
   customerEmail?: string;
   customerPhone?: string;
+  /** Kode kupon yang diketik owner (opsional). Diskon manual satu-kali/awal recurring. */
+  couponCode?: string;
 }): Promise<{ snapToken: string; redirectUrl: string; orderId: string }> {
   if (!isMidtransConfigured()) {
     throw new BillingError("NOT_CONFIGURED", "Pembayaran belum dikonfigurasi. Hubungi admin.");
@@ -47,13 +49,41 @@ export async function startSubscriptionPayment(params: {
   const company = await getCompanyProfile();
   const months = params.periodMonths ?? 1;
   const base = planCfg.priceMonthly * months;
+
+  // ── DISKON KUPON (server-side, SEBELUM pajak) ──
+  // Prioritas: kode manual yang diketik owner. Bila kosong, cek diskon RECURRING melekat di tenant
+  // (mis. tenant pendiri) yang otomatis berlaku di perpanjangan tanpa ketik ulang.
+  let discount = 0;
+  let appliedCouponCode: string | null = null;
+  const { validateCoupon, computeDiscount } = await import("@/lib/services/coupon-service");
+  if (params.couponCode?.trim()) {
+    // Manual: validasi penuh (kuota, masa berlaku, per-tenant, dst). Melempar bila tak valid.
+    const v = await validateCoupon({ code: params.couponCode, tenantId: params.tenantId, plan: params.plan, months, base });
+    discount = v.discount;
+    appliedCouponCode = v.code;
+  } else {
+    // Recurring melekat: terapkan tanpa validasi kuota (sudah pernah divalidasi saat tebus awal).
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: params.tenantId },
+      select: { activeCouponCode: true, couponPeriodsLeft: true },
+    });
+    if (tenant?.activeCouponCode && (tenant.couponPeriodsLeft == null || tenant.couponPeriodsLeft > 0)) {
+      const c = await prisma.coupon.findUnique({ where: { code: tenant.activeCouponCode } });
+      if (c && c.active && (c.appliesToPlans.length === 0 || c.appliesToPlans.includes(params.plan))) {
+        discount = computeDiscount({ type: c.type, value: c.value, base });
+        if (discount > 0) appliedCouponCode = c.code;
+      }
+    }
+  }
+
+  const discountedBase = Math.max(0, base - discount);
   // Pajak efektif: hanya dipungut bila perusahaan PKP (no hardcode; rate dari kebijakan).
   const taxPercent = planCfg.taxable ? effectiveTaxPercent(company.isPkp, policy.taxPercent) : 0;
   const taxLabel = company.taxLabel || "Pajak";
-  const { subtotal, taxAmount, total: amount } = withTax(base, taxPercent);
+  const { subtotal, taxAmount, total: amount } = withTax(discountedBase, taxPercent);
   const orderId = makeOrderId(params.tenantId);
 
-  // Catat Payment PENDING dulu (idempoten via orderId unik).
+  // Catat Payment PENDING dulu (idempoten via orderId unik). Simpan jejak kupon.
   await prisma.payment.create({
     data: {
       tenantId: params.tenantId,
@@ -62,19 +92,24 @@ export async function startSubscriptionPayment(params: {
       amount,
       periodMonths: months,
       status: "PENDING",
+      couponCode: appliedCouponCode,
+      discountAmount: discount,
     },
   });
 
   // Rincian item: harga paket + baris pajak terpisah agar transparan di Midtrans
-  // (jumlah item_details HARUS = gross_amount).
+  // (jumlah item_details HARUS = gross_amount). Baris diskon ditampilkan negatif.
   const items = [
     {
       id: `plan-${planCfg.plan}`,
       name: `Langganan ${planCfg.displayName} (${months} bln)`,
-      price: subtotal,
+      price: planCfg.priceMonthly * months,
       quantity: 1,
       category: "subscription",
     },
+    ...(discount > 0
+      ? [{ id: "discount", name: `Diskon${appliedCouponCode ? ` (${appliedCouponCode})` : ""}`, price: -discount, quantity: 1, category: "discount" }]
+      : []),
     ...(taxAmount > 0
       ? [{ id: "tax", name: `${taxLabel} ${taxPercent}%`, price: taxAmount, quantity: 1, category: "tax" }]
       : []),
@@ -151,6 +186,37 @@ export async function processPaymentNotification(notif: {
 
   if (newStatus === "PAID" && !alreadyPaid) {
     await activateSubscription(payment.tenantId, payment.plan, payment.periodMonths, payment.amount);
+
+    // KUPON: tebus (idempoten) + konsumsi jatah recurring. Gagal-jujur: tak ganggu aktivasi.
+    if (payment.couponCode) {
+      try {
+        const { redeemCouponOnPaid } = await import("@/lib/services/coupon-service");
+        await redeemCouponOnPaid({
+          code: payment.couponCode,
+          tenantId: payment.tenantId,
+          paymentOrderId: payment.orderId,
+          discountAmount: payment.discountAmount,
+        });
+        // Konsumsi 1 periode jatah recurring bila diskon ini datang dari recurring melekat
+        // (kode == activeCouponCode tenant). Batasi ke jatah berhingga (null=selamanya, tak dikurangi).
+        const t = await prisma.tenant.findUnique({
+          where: { id: payment.tenantId },
+          select: { activeCouponCode: true, couponPeriodsLeft: true },
+        });
+        if (t?.activeCouponCode === payment.couponCode && t.couponPeriodsLeft != null) {
+          const left = t.couponPeriodsLeft - 1;
+          await prisma.tenant.update({
+            where: { id: payment.tenantId },
+            data: left > 0
+              ? { couponPeriodsLeft: left }
+              : { couponPeriodsLeft: 0, activeCouponCode: null }, // jatah habis → lepas diskon
+          });
+        }
+      } catch (err) {
+        console.error("[coupon] redeem gagal (pembayaran tetap sukses):", err);
+      }
+    }
+
     // KOMISI KEAGENAN (gagal-jujur: kegagalan komisi TAK mengganggu aktivasi tenant).
     try {
       const { accrueCommission } = await import("@/lib/partner/partner-service");

@@ -37,3 +37,14 @@ Tanpa server key, /app/langganan menampilkan "pembayaran belum diaktifkan" (aman
 - startPayment hanya OWNER (assertRole).
 - Idempoten: PAID tidak diproses dua kali.
 - Server key tak pernah ke klien.
+
+## Kupon Diskon (admin-driven, SSOT harga tetap di PlanConfig)
+Model: `Coupon` + `CouponRedemption` (audit). TIDAK mengubah PlanConfig/kuota tenant — hanya harga bayar.
+- Tipe (`CouponType`): PERCENT (n%), FIXED (potong Rp n), OVERRIDE (harga jadi Rp n tetap — dipakai uji Midtrans production nilai kecil mis. Rp1.000).
+- Diskon dihitung SERVER-SIDE dari harga dasar PRA-PAJAK, SEBELUM pajak: `base → −discount → withTax`. gross_amount = amount tersimpan → anti-tamper utuh. item_details punya baris "Diskon (KODE)" negatif agar jumlah = gross.
+- Aturan: `maxRedemptions` (kuota total, naik saat PAID), `perTenantLimit`, `validFrom/validUntil`, `appliesToPlans` (kosong=semua berbayar), `minMonths`.
+- RECURRING: `recurring` + `recurringMonths` (null=selamanya/grandfathered). Saat tebus LUNAS, diskon melekat ke tenant (`Tenant.activeCouponCode` + `couponPeriodsLeft`) → OTOMATIS diterapkan di perpanjangan tanpa owner ketik ulang; `couponPeriodsLeft` berkurang tiap LUNAS, habis → lepas.
+- Redeem HANYA saat PAID, idempoten via `CouponRedemption.paymentOrderId` unik (kupon tak hangus bila batal bayar).
+- Komisi keagenan otomatis benar: dihitung dari `payment.amount` (sudah ter-diskon) / (1+pajak).
+- UI: owner input kode di /app/langganan (validasi realtime `previewCoupon`); admin CRUD di /admin/kupon.
+- Pure calc: `src/lib/domain/coupon-calc.ts` (computeDiscount, teruji). Validasi+tebus: `src/lib/services/coupon-service.ts`.
