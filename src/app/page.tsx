@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
+import { appBaseUrl } from "@/lib/unit-code/urls";
 import { LoginErrorBanner } from "./_components/login-error-banner";
 
 export const metadata = {
@@ -23,6 +24,7 @@ const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string; error_code?: string }> }) {
   const sp = await searchParams;
+  const siteUrl = appBaseUrl();
   const [plans, policy, c, testimonials, previews] = await Promise.all([
     getActivePlans(),
     getBillingPolicy(),
@@ -42,9 +44,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
     "@graph": [
       {
         "@type": "Organization",
-        "@id": "https://aircon-peach.vercel.app/#org",
+        "@id": `${siteUrl}/#org`,
         name: "PT. Lumite Automasi Indonesia",
-        url: "https://aircon-peach.vercel.app",
+        url: siteUrl,
         brand: { "@type": "Brand", name: "Aircon" },
       },
       {
@@ -55,8 +57,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         description:
           "Aplikasi manajemen usaha servis AC: booking online, atur teknisi & jadwal, invoice profesional, pantau piutang, insentif teknisi, dan pengingat servis otomatis lewat WhatsApp.",
         inLanguage: "id-ID",
-        url: "https://aircon-peach.vercel.app",
-        publisher: { "@id": "https://aircon-peach.vercel.app/#org" },
+        url: siteUrl,
+        publisher: { "@id": `${siteUrl}/#org` },
         offers: {
           "@type": "Offer",
           price: "0",

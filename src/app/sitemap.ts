@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 import { appBaseUrl } from "@/lib/unit-code/urls";
 
+// Dinamis: baca env RUNTIME (di VPS build lokal, env hanya ada saat service jalan,
+// bukan saat build → tanpa ini sitemap "beku" ke fallback yang salah).
+export const dynamic = "force-dynamic";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = appBaseUrl();
   const now = new Date();

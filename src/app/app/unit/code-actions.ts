@@ -6,10 +6,11 @@ import {
   generateBatch, listCodes, exportCodesCsv, bindCode, unbindCode,
   resolveCodeForTenant,
 } from "@/lib/services/unit-code-service";
+import { appBaseUrl } from "@/lib/unit-code/urls";
 
-/** Base URL untuk QR (no-hardcode: env, fallback subdomain lumite). */
+/** Base URL untuk QR (no-hardcode: env, fallback app.airconet.id). */
 function cardBaseUrl(): string {
-  return process.env.UNIT_CODE_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://aircon-peach.vercel.app";
+  return appBaseUrl();
 }
 
 export async function actionGenerateCodes(count: number): Promise<{ ok: boolean; error?: string; batchId?: string; codes?: string[] }> {

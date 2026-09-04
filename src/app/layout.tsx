@@ -9,9 +9,12 @@ import { appBaseUrl } from "@/lib/unit-code/urls";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
-const SITE_URL = appBaseUrl();
-
-export const metadata: Metadata = {
+// generateMetadata (runtime) — bukan `const metadata` (build-time) — agar metadataBase &
+// og:url baca env RUNTIME. Di VPS build lokal, NEXT_PUBLIC_APP_URL hanya ada saat service
+// jalan; static metadata akan beku ke fallback yang salah.
+export async function generateMetadata(): Promise<Metadata> {
+  const SITE_URL = appBaseUrl();
+  return {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "Aircon — Software Usaha Servis AC (Kasir, Invoice & Pengingat WhatsApp)",
@@ -57,7 +60,8 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
-};
+  };
+}
 
 export const viewport = {
   themeColor: "#0ea5e9",

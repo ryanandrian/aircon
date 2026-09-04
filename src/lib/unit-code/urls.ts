@@ -5,7 +5,7 @@ export function appBaseUrl(): string {
   return (
     process.env.UNIT_CODE_BASE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "https://aircon-peach.vercel.app"
+    "https://app.airconet.id"
   ).replace(/\/$/, "");
 }
 

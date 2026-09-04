@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import { appBaseUrl } from "@/lib/unit-code/urls";
 
+// Dinamis: baca env RUNTIME (lihat catatan di sitemap.ts).
+export const dynamic = "force-dynamic";
+
 export default function robots(): MetadataRoute.Robots {
   const base = appBaseUrl();
   return {
