@@ -5,6 +5,7 @@ import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config"
 import { formatIDR } from "@/lib/billing/plans";
 import { isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import { PlanCards } from "./plan-cards";
+import { ResumePayButton } from "./resume-pay-button";
 import { AppHeader } from "../_components/app-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -132,8 +133,12 @@ export default async function LanggananPage() {
                         <Badge variant="secondary" className={
                           paid ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400" : p.status === "PENDING" ? "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400" : "bg-muted text-muted-foreground"
                         }>
-                          {paid ? "Lunas" : p.status === "PENDING" ? "Menunggu" : p.status}
+                          {paid ? "Lunas" : p.status === "PENDING" ? "Menunggu" : p.status === "EXPIRED" ? "Kedaluwarsa" : p.status === "FAILED" ? "Gagal" : p.status}
                         </Badge>
+                        {/* Lanjutkan/ulangi bayar utk transaksi belum lunas (OWNER). */}
+                        {!paid && isOwner && configured && p.status !== "REFUNDED" && (
+                          <ResumePayButton orderId={p.orderId} label={p.status === "PENDING" ? "Bayar Sekarang" : "Ulangi"} />
+                        )}
                         <Link href={`/app/langganan/faktur/${p.id}`} className={buttonVariants({ variant: "ghost", size: "xs", className: "text-sky-600 dark:text-sky-400" })}>
                           {paid ? "Kwitansi" : "Faktur"} →
                         </Link>

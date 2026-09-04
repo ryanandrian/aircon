@@ -7,11 +7,12 @@ import { prisma } from "@/lib/prisma";
 import type { TenantPlan, PaymentStatus } from "@prisma/client";
 import { getPlanConfig, getBillingPolicy } from "@/lib/billing/config";
 import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
-import { createSnapTransaction, isMidtransConfigured } from "@/lib/billing/midtrans-client";
+import { createSnapTransaction, isMidtransConfigured, getTransactionStatus } from "@/lib/billing/midtrans-client";
 import {
   makeOrderId,
   parseMidtransStatus,
   subscriptionPeriodEnd,
+  decideResumeAction,
 } from "@/lib/billing/midtrans-logic";
 
 export class BillingError extends Error {
@@ -121,6 +122,120 @@ export async function startSubscriptionPayment(params: {
   });
 
   return { snapToken: snap.token, redirectUrl: snap.redirectUrl, orderId };
+}
+
+/**
+ * LANJUTKAN pembayaran transaksi yang belum lunas (best-practice Midtrans).
+ * Aturan:
+ *  - Cek status transaksi ke Midtrans (sumber kebenaran).
+ *  - settlement/capture(accept) → sudah lunas: sinkronkan status, kembalikan {alreadyPaid}.
+ *  - pending & token masih ada → REUSE snapToken lama (Snap muncul lagi, VA/metode sama). Tak buat order baru.
+ *  - expire/cancel/deny ATAU 404 (transaksi tak pernah dilanjutkan) & token dianggap mati →
+ *    REGENERATE: tandai Payment lama sesuai status, lalu buat transaksi BARU (order_id baru) utk
+ *    paket + kupon yang SAMA (order_id lama tak bisa dipakai ulang — aturan Midtrans).
+ * SECURITY: dipanggil action ber-auth; verifikasi kepemilikan orderId oleh tenant di pemanggil.
+ */
+export async function resumeSubscriptionPayment(params: {
+  orderId: string;
+  tenantId: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
+}): Promise<
+  | { kind: "resume"; snapToken: string; redirectUrl: string; orderId: string }
+  | { kind: "paid" }
+> {
+  if (!isMidtransConfigured()) {
+    throw new BillingError("NOT_CONFIGURED", "Pembayaran belum dikonfigurasi. Hubungi admin.");
+  }
+  const payment = await prisma.payment.findUnique({ where: { orderId: params.orderId } });
+  if (!payment || payment.tenantId !== params.tenantId) {
+    throw new BillingError("NOT_FOUND", "Transaksi tidak ditemukan.");
+  }
+  if (payment.status === "PAID") return { kind: "paid" };
+
+  const company = await getCompanyProfile();
+  const expiryHours = company.checkoutExpiryHours ?? 24;
+  const tokenAgeMs = Date.now() - payment.createdAt.getTime();
+  const tokenLikelyExpired = tokenAgeMs > expiryHours * 3600_000;
+
+  // Regenerasi = buat transaksi BARU untuk paket + kupon yang sama.
+  const regenerate = async () => {
+    // Tandai transaksi lama sbagai gagal/kadaluarsa agar riwayat bersih (tak ganggu idempotensi PAID).
+    if (payment.status === "PENDING") {
+      await prisma.payment.update({ where: { orderId: payment.orderId }, data: { status: "EXPIRED" } });
+    }
+    // Kupon lama dibawa; bila sudah tak valid (kuota habis dsb), startSubscriptionPayment mengabaikannya
+    // secara aman (recurring melekat) atau melempar (manual invalid) — tapi resume memakai kode manual
+    // hanya bila dulunya manual. Untuk kesederhanaan & kejujuran harga: bawa couponCode bila dulu manual.
+    const carryCoupon = payment.couponCode && !payment.couponRecurringApplied ? payment.couponCode : undefined;
+    try {
+      const fresh = await startSubscriptionPayment({
+        tenantId: params.tenantId,
+        plan: payment.plan,
+        periodMonths: payment.periodMonths,
+        customerName: params.customerName,
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+        couponCode: carryCoupon,
+      });
+      return { kind: "resume" as const, snapToken: fresh.snapToken, redirectUrl: fresh.redirectUrl, orderId: fresh.orderId };
+    } catch (e) {
+      // Bila kupon manual lama sudah tak valid → ulangi tanpa kupon (harga normal, jujur).
+      if (e instanceof BillingError && carryCoupon) {
+        const fresh = await startSubscriptionPayment({
+          tenantId: params.tenantId, plan: payment.plan, periodMonths: payment.periodMonths,
+          customerName: params.customerName, customerEmail: params.customerEmail, customerPhone: params.customerPhone,
+        });
+        return { kind: "resume" as const, snapToken: fresh.snapToken, redirectUrl: fresh.redirectUrl, orderId: fresh.orderId };
+      }
+      throw e;
+    }
+  };
+
+  // Cek status ke Midtrans (sumber kebenaran).
+  let mid: Awaited<ReturnType<typeof getTransactionStatus>> | null = null;
+  try {
+    mid = await getTransactionStatus(payment.orderId);
+  } catch (e) {
+    // 404 = transaksi belum pernah "jadi" di Midtrans (mis. user tutup sebelum pilih metode).
+    if ((e as { status?: number }).status === 404) {
+      return await regenerate();
+    }
+    throw e;
+  }
+
+  const mapped = parseMidtransStatus({ transaction_status: mid.transaction_status, fraud_status: mid.fraud_status });
+  const action = decideResumeAction({
+    mappedStatus: mapped,
+    tokenExpired: tokenLikelyExpired,
+    hasStoredToken: Boolean(payment.snapToken && payment.snapRedirect),
+  });
+
+  if (action === "paid") {
+    // Sinkronkan (proses lengkap: aktivasi + kupon + komisi via processPaymentNotification).
+    await processPaymentNotification({
+      order_id: payment.orderId,
+      transaction_status: mid.transaction_status,
+      fraud_status: mid.fraud_status,
+      transaction_id: mid.transaction_id,
+      payment_type: mid.payment_type,
+      gross_amount: mid.gross_amount,
+      raw: mid,
+    });
+    return { kind: "paid" };
+  }
+
+  if (action === "reuse") {
+    // REUSE token lama — Snap muncul lagi dengan metode/VA yang sama.
+    return { kind: "resume", snapToken: payment.snapToken!, redirectUrl: payment.snapRedirect!, orderId: payment.orderId };
+  }
+
+  // REGENERATE: expire/cancel/deny, atau pending tapi token kadaluarsa → transaksi baru.
+  if (mapped === "FAILED" || mapped === "EXPIRED") {
+    await prisma.payment.update({ where: { orderId: payment.orderId }, data: { status: mapped } });
+  }
+  return await regenerate();
 }
 
 /**

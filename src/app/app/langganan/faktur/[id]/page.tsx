@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { getBillingPolicy } from "@/lib/billing/config";
 import { PrintButton } from "./print-button";
+import { ResumePayButton } from "../../resume-pay-button";
 import { Icon } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,12 @@ export default async function FakturPage({ params }: { params: Promise<{ id: str
       {/* Toolbar (disembunyikan saat cetak) */}
       <div className="mx-auto mb-4 flex max-w-2xl items-center justify-between px-6 print:hidden">
         <a href="/app/langganan" className="text-sm text-slate-500 hover:text-slate-800">← Langganan</a>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          {!isPaid && ctx.role === "OWNER" && (
+            <ResumePayButton orderId={payment.orderId} label={payment.status === "PENDING" ? "Bayar Sekarang" : "Ulangi"} />
+          )}
+          <PrintButton />
+        </div>
       </div>
 
       {/* Dokumen */}

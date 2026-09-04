@@ -47,3 +47,21 @@ export function subscriptionPeriodEnd(start: Date, months: number): Date {
   d.setMonth(d.getMonth() + months);
   return d;
 }
+
+/**
+ * PURE: keputusan aksi "lanjutkan pembayaran" (best-practice Midtrans).
+ * Input = status Midtrans yang sudah dipetakan + apakah token lokal masih hidup + ada token tersimpan.
+ * Output:
+ *  - "paid"       → transaksi sudah lunas (sinkronkan saja).
+ *  - "reuse"      → token lama masih hidup → panggil snap.pay(token lama).
+ *  - "regenerate" → token mati / expire / cancel / deny → buat transaksi baru (order_id baru).
+ */
+export function decideResumeAction(input: {
+  mappedStatus: PaymentStatus;
+  tokenExpired: boolean;
+  hasStoredToken: boolean;
+}): "paid" | "reuse" | "regenerate" {
+  if (input.mappedStatus === "PAID") return "paid";
+  if (input.mappedStatus === "PENDING" && !input.tokenExpired && input.hasStoredToken) return "reuse";
+  return "regenerate";
+}

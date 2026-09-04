@@ -38,6 +38,16 @@ Tanpa server key, /app/langganan menampilkan "pembayaran belum diaktifkan" (aman
 - Idempoten: PAID tidak diproses dua kali.
 - Server key tak pernah ke klien.
 
+## Lanjutkan Pembayaran (resume) — best-practice Midtrans
+Transaksi belum lunas (PENDING/FAILED/EXPIRED) bisa dilanjutkan owner dari panel (/app/langganan riwayat) & halaman faktur. Tombol "Bayar Sekarang" (PENDING) / "Ulangi" (FAILED/EXPIRED).
+- `resumeSubscriptionPayment(orderId)` cek status ke Midtrans (sumber kebenaran) → `decideResumeAction` (PURE, teruji) memutuskan:
+  - PAID → sinkronkan via processPaymentNotification (aktivasi+kupon+komisi), tampilkan lunas.
+  - PENDING + token belum lewat `checkoutExpiryHours` + ada snapToken → REUSE token lama (snap.pay token lama → Snap muncul lagi, VA/metode sama). TIDAK buat order baru.
+  - expire/cancel/deny ATAU pending-token-kadaluarsa ATAU 404 → REGENERATE: tandai Payment lama EXPIRED/FAILED, buat transaksi BARU (order_id BARU — Midtrans tolak order_id duplikat) utk paket+durasi yang sama.
+- Kupon terbawa saat regenerate bila dulu MANUAL; bila kupon manual lama sudah tak valid (kuota habis) → ulangi tanpa kupon (harga normal, jujur). Diskon recurring melekat otomatis dihitung ulang oleh startSubscriptionPayment.
+- TIDAK ada email dari aplikasi: instruksi VA/metode dikirim Midtrans sendiri (email resmi Midtrans). Aplikasi hanya menyediakan jalur in-app.
+- Snap token & redirect_url disimpan di Payment (snapToken/snapRedirect) untuk reuse.
+
 ## Kupon Diskon (admin-driven, SSOT harga tetap di PlanConfig)
 Model: `Coupon` + `CouponRedemption` (audit). TIDAK mengubah PlanConfig/kuota tenant — hanya harga bayar.
 - Tipe (`CouponType`): PERCENT (n%), FIXED (potong Rp n), OVERRIDE (harga jadi Rp n tetap — dipakai uji Midtrans production nilai kecil mis. Rp1.000).

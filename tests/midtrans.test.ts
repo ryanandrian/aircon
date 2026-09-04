@@ -3,6 +3,7 @@ import {
   makeOrderId,
   parseMidtransStatus,
   subscriptionPeriodEnd,
+  decideResumeAction,
 } from "../src/lib/billing/midtrans-logic";
 
 describe("midtrans logic (pure)", () => {
@@ -30,5 +31,27 @@ describe("midtrans logic (pure)", () => {
     expect(end.toISOString().slice(0, 10)).toBe("2026-02-15");
     const end3 = subscriptionPeriodEnd(start, 3);
     expect(end3.toISOString().slice(0, 10)).toBe("2026-04-15");
+  });
+
+  it("decideResumeAction: lunas → paid (apa pun token)", () => {
+    expect(decideResumeAction({ mappedStatus: "PAID", tokenExpired: false, hasStoredToken: true })).toBe("paid");
+    expect(decideResumeAction({ mappedStatus: "PAID", tokenExpired: true, hasStoredToken: false })).toBe("paid");
+  });
+
+  it("decideResumeAction: pending + token hidup + ada token → reuse", () => {
+    expect(decideResumeAction({ mappedStatus: "PENDING", tokenExpired: false, hasStoredToken: true })).toBe("reuse");
+  });
+
+  it("decideResumeAction: pending tapi token kadaluarsa → regenerate", () => {
+    expect(decideResumeAction({ mappedStatus: "PENDING", tokenExpired: true, hasStoredToken: true })).toBe("regenerate");
+  });
+
+  it("decideResumeAction: pending tanpa token tersimpan → regenerate", () => {
+    expect(decideResumeAction({ mappedStatus: "PENDING", tokenExpired: false, hasStoredToken: false })).toBe("regenerate");
+  });
+
+  it("decideResumeAction: expire/cancel/deny (FAILED/EXPIRED) → regenerate", () => {
+    expect(decideResumeAction({ mappedStatus: "FAILED", tokenExpired: false, hasStoredToken: true })).toBe("regenerate");
+    expect(decideResumeAction({ mappedStatus: "EXPIRED", tokenExpired: false, hasStoredToken: true })).toBe("regenerate");
   });
 });

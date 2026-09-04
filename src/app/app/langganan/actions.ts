@@ -3,12 +3,17 @@
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
 import { prisma } from "@/lib/prisma";
-import { startSubscriptionPayment, BillingError } from "@/lib/services/subscription-service";
+import { startSubscriptionPayment, resumeSubscriptionPayment, BillingError } from "@/lib/services/subscription-service";
 import { midtransClientConfig, type MidtransClientConfig } from "@/lib/billing/midtrans-client";
 import type { TenantPlan } from "@prisma/client";
 
 export type StartPaymentResult =
   | { ok: true; snapToken: string; redirectUrl: string; client: MidtransClientConfig }
+  | { ok: false; error: string };
+
+export type ResumePaymentResult =
+  | { ok: true; kind: "resume"; snapToken: string; redirectUrl: string; client: MidtransClientConfig }
+  | { ok: true; kind: "paid" }
   | { ok: false; error: string };
 
 /** Owner memulai pembayaran langganan. SECURITY: hanya OWNER. */
@@ -106,5 +111,32 @@ export async function previewCheckout(
   } catch (err) {
     console.error("[previewCheckout] gagal:", err);
     return { ok: false, error: "Gagal memuat rincian harga." };
+  }
+}
+
+/**
+ * LANJUTKAN pembayaran transaksi belum lunas (best-practice Midtrans: reuse token bila hidup,
+ * regenerate bila mati). SECURITY: OWNER only + kepemilikan orderId diverifikasi di service.
+ */
+export async function resumePayment(orderId: string): Promise<ResumePaymentResult> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER"]);
+    const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
+    if (!tenant) return { ok: false, error: "Usaha tidak ditemukan." };
+
+    const res = await resumeSubscriptionPayment({
+      orderId,
+      tenantId: ctx.tenantId,
+      customerName: ctx.name,
+      customerEmail: ctx.email ?? undefined,
+      customerPhone: tenant.phone ?? undefined,
+    });
+    if (res.kind === "paid") return { ok: true, kind: "paid" };
+    return { ok: true, kind: "resume", snapToken: res.snapToken, redirectUrl: res.redirectUrl, client: midtransClientConfig() };
+  } catch (err) {
+    if (err instanceof BillingError) return { ok: false, error: err.message };
+    console.error("[resumePayment] gagal:", err);
+    return { ok: false, error: "Gagal melanjutkan pembayaran. Coba lagi." };
   }
 }
