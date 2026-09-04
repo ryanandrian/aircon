@@ -8,8 +8,23 @@ KEY="$HOME/.ssh/airconet-app.pem"
 H="truerad@103.127.135.132"
 APPDIR="/opt/aircon-app"
 
-echo "== 1. build standalone =="
-pnpm build >/dev/null 2>&1 || { echo "BUILD GAGAL"; exit 1; }
+echo "== 1. build standalone DENGAN ENV PRODUKSI (bukan .env lokal!) =="
+# KRITIS: NEXT_PUBLIC_* di-'bakar' saat BUILD. Build laptop pakai .env lokal (sandbox/localhost)
+# → bundle browser salah walau .env VPS benar. Solusi: build pakai .env PRODUKSI dari VPS.
+echo "   menarik .env produksi dari VPS…"
+scp -i "$KEY" -o StrictHostKeyChecking=accept-new "$H:$APPDIR/.env" /tmp/aircon-prod-build.env >/dev/null
+# Sanity: pastikan env produksi (production, bukan sandbox)
+if ! grep -q "^NEXT_PUBLIC_MIDTRANS_ENV=production" /tmp/aircon-prod-build.env; then
+  echo "PERINGATAN: NEXT_PUBLIC_MIDTRANS_ENV bukan production di .env VPS — cek dulu."; fi
+# Build dengan env produksi di-load (Next membaca process.env saat build)
+set -a; . /tmp/aircon-prod-build.env; set +a
+pnpm build >/dev/null 2>&1 || { echo "BUILD GAGAL"; shred -u /tmp/aircon-prod-build.env 2>/dev/null || rm -f /tmp/aircon-prod-build.env; exit 1; }
+shred -u /tmp/aircon-prod-build.env 2>/dev/null || rm -f /tmp/aircon-prod-build.env
+
+echo "== 1b. GUARD: bundle browser TIDAK boleh mengandung 'sandbox' (Midtrans production) =="
+SBX=$(grep -roE "app.sandbox.midtrans.com" .next/static 2>/dev/null | wc -l || true)
+if [ "$SBX" -gt 0 ]; then echo "GAGAL: bundle masih ber-sandbox ($SBX). Build env salah — batalkan."; exit 1; fi
+echo "   OK: bundle production (0 sandbox)"
 
 echo "== 2. siapkan bundle (static+public+fix @swc/helpers esm) =="
 rm -rf .next/standalone/.next/static .next/standalone/public
