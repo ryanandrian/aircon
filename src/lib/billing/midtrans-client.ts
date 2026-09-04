@@ -45,6 +45,32 @@ export function isMidtransConfigured(): boolean {
   return serverKey().length > 0;
 }
 
+/**
+ * Konfigurasi SISI-KLIEN Snap untuk lingkungan yang SAMA dengan server pencetak token.
+ * SATU SUMBER KEBENARAN: server memutuskan env (runtime MIDTRANS_ENV) dan sekaligus memberi
+ * clientKey + snapUrl yang cocok. Klien TIDAK memutuskan sendiri (tak baca NEXT_PUBLIC_MIDTRANS_ENV
+ * yang di-'bakar' saat build) → mustahil token production dibuka Snap sandbox (dan sebaliknya).
+ * Client key BOLEH publik (memang NEXT_PUBLIC), tapi dibaca runtime agar tak pernah drift.
+ */
+export interface MidtransClientConfig {
+  env: "production" | "sandbox";
+  clientKey: string;
+  snapUrl: string;
+}
+export function midtransClientConfig(): MidtransClientConfig {
+  const prod = isProduction();
+  return {
+    env: prod ? "production" : "sandbox",
+    clientKey:
+      (prod
+        ? process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION_CLIENT_KEY
+        : process.env.NEXT_PUBLIC_MIDTRANS_SANDBOX_CLIENT_KEY) ?? "",
+    snapUrl: prod
+      ? "https://app.midtrans.com/snap/snap.js"
+      : "https://app.sandbox.midtrans.com/snap/snap.js",
+  };
+}
+
 function authHeader(): string {
   return "Basic " + Buffer.from(serverKey() + ":").toString("base64");
 }

@@ -24,19 +24,13 @@ interface ProductView {
   warrantyDays: number;
 }
 
-function loadSnap(): Promise<void> {
+function loadSnap(snapUrl: string, clientKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const w = window as unknown as { snap?: unknown };
     if (w.snap) return resolve();
-    const isProd = (process.env.NEXT_PUBLIC_MIDTRANS_ENV ?? "sandbox") === "production";
-    const clientKey = isProd
-      ? process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION_CLIENT_KEY
-      : process.env.NEXT_PUBLIC_MIDTRANS_SANDBOX_CLIENT_KEY;
     const s = document.createElement("script");
-    s.src = isProd
-      ? "https://app.midtrans.com/snap/snap.js"
-      : "https://app.sandbox.midtrans.com/snap/snap.js";
-    s.setAttribute("data-client-key", clientKey ?? "");
+    s.src = snapUrl;
+    s.setAttribute("data-client-key", clientKey);
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Gagal memuat pembayaran"));
     document.head.appendChild(s);
@@ -66,7 +60,7 @@ export function OrderForm({ products, taxPercent }: { products: ProductView[]; t
         return;
       }
       try {
-        await loadSnap();
+        await loadSnap(res.client.snapUrl, res.client.clientKey);
         const w = window as unknown as {
           snap?: { pay: (t: string, o: Record<string, unknown>) => void };
         };

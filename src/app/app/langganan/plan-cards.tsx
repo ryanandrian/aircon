@@ -19,22 +19,16 @@ interface PlanView {
   isFree: boolean;
 }
 
-// Muat Snap.js dari Midtrans saat dibutuhkan (client-key publik).
-function loadSnap(): Promise<void> {
+// Muat Snap.js dari config yang DIBERIKAN SERVER (env yang sama dgn pencetak token).
+// TIDAK memutuskan env sendiri → mustahil melenceng dari token.
+function loadSnap(snapUrl: string, clientKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined") return reject();
     const w = window as unknown as { snap?: unknown };
     if (w.snap) return resolve();
-    const isProd = (process.env.NEXT_PUBLIC_MIDTRANS_ENV ?? "sandbox") === "production";
-    const clientKey = isProd
-      ? process.env.NEXT_PUBLIC_MIDTRANS_PRODUCTION_CLIENT_KEY
-      : process.env.NEXT_PUBLIC_MIDTRANS_SANDBOX_CLIENT_KEY;
-    const src = isProd
-      ? "https://app.midtrans.com/snap/snap.js"
-      : "https://app.sandbox.midtrans.com/snap/snap.js";
     const s = document.createElement("script");
-    s.src = src;
-    s.setAttribute("data-client-key", clientKey ?? "");
+    s.src = snapUrl;
+    s.setAttribute("data-client-key", clientKey);
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Gagal memuat pembayaran"));
     document.head.appendChild(s);
@@ -63,7 +57,7 @@ export function PlanCards({
         return;
       }
       try {
-        await loadSnap();
+        await loadSnap(res.client.snapUrl, res.client.clientKey);
         const w = window as unknown as {
           snap?: { pay: (token: string, opts: Record<string, unknown>) => void };
         };

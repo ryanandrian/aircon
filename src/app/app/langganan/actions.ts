@@ -4,10 +4,11 @@ import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
 import { prisma } from "@/lib/prisma";
 import { startSubscriptionPayment, BillingError } from "@/lib/services/subscription-service";
+import { midtransClientConfig, type MidtransClientConfig } from "@/lib/billing/midtrans-client";
 import type { TenantPlan } from "@prisma/client";
 
 export type StartPaymentResult =
-  | { ok: true; snapToken: string; redirectUrl: string }
+  | { ok: true; snapToken: string; redirectUrl: string; client: MidtransClientConfig }
   | { ok: false; error: string };
 
 /** Owner memulai pembayaran langganan. SECURITY: hanya OWNER. */
@@ -30,7 +31,7 @@ export async function startPayment(
       customerEmail: ctx.email ?? undefined,
       customerPhone: tenant.phone ?? undefined,
     });
-    return { ok: true, snapToken: res.snapToken, redirectUrl: res.redirectUrl };
+    return { ok: true, snapToken: res.snapToken, redirectUrl: res.redirectUrl, client: midtransClientConfig() };
   } catch (err) {
     if (err instanceof BillingError) {
       return { ok: false, error: err.message };
