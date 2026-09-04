@@ -19,6 +19,7 @@ export const tenantProfileSchema = z.object({
   qrisImageUrl: z.string().trim().max(500).optional(),
   teamIncentiveMode: z.enum(["BAGI_RATA", "PENUH"]).optional(),
   incentiveBasis: z.enum(["LUNAS", "TERBIT"]).optional(),
+  incentiveEnabled: z.boolean().optional(),
 });
 
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>;

@@ -16,7 +16,7 @@ export default async function TechnicianHome() {
 
   const tech = await prisma.technician.findFirst({
     where: { tenantId: ctx.tenantId, userId: ctx.userId },
-    select: { id: true },
+    select: { id: true, tenant: { select: { incentiveEnabled: true } } },
   });
   if (!tech) {
     return (
@@ -34,15 +34,17 @@ export default async function TechnicianHome() {
   const jobs = await listTechnicianJobsToday(ctx.tenantId, tech.id);
   const doneCount = jobs.filter((j) => j.status === "COMPLETED").length;
 
-  // Insentif teknisi bulan ini (K5/K6, F6.3).
-  const { computeIncentives } = await import("@/lib/services/incentive-service");
+  // NIAT EKSPLISIT tenant (bukan tebak dari nilai). Off → teknisi TAK PERNAH lihat UI insentif.
+  const incentiveEnabled = tech.tenant?.incentiveEnabled ?? false;
+  // Insentif teknisi PERIODE SAAT INI (bulan berjalan) — hanya dihitung bila tenant menerapkan.
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  const myInc = (await computeIncentives(ctx.tenantId, monthStart, monthEnd)).find((i) => i.personId === tech.id);
-  const incentiveAmount = myInc?.amount ?? 0;
-  // Hide kartu insentif bila 0 (tenant tanpa program insentif, ATAU teknisi belum dapat bulan ini).
-  const showIncentive = incentiveAmount > 0;
+  let incentiveAmount = 0;
+  if (incentiveEnabled) {
+    const { computeIncentives } = await import("@/lib/services/incentive-service");
+    incentiveAmount = (await computeIncentives(ctx.tenantId, monthStart, monthEnd)).find((i) => i.personId === tech.id)?.amount ?? 0;
+  }
   const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
   const initials = ctx.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const todayLabel = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
@@ -62,8 +64,8 @@ export default async function TechnicianHome() {
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
-        {showIncentive ? (
-          /* Ada insentif bulan ini: kartu insentif → ketuk untuk riwayat + insentif per pekerjaan */
+        {incentiveEnabled ? (
+          /* Tenant menerapkan insentif: kartu BIRU "Insentif bulan ini" (nilai boleh Rp0) → riwayat */
           <Link href="/t/riwayat" className="block">
             <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 p-4 text-white shadow-sm transition active:brightness-95">
               <div>
@@ -77,10 +79,10 @@ export default async function TechnicianHome() {
             </div>
           </Link>
         ) : (
-          /* Insentif 0: kartu ringkasan hari ini → tetap jadi entry point ke riwayat pekerjaan */
+          /* Tenant TANPA program insentif: kartu ringkasan BIRU (tanpa menyebut insentif) → riwayat */
           <Link href="/t/riwayat" className="block">
-            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-slate-700 to-slate-600 p-4 text-white shadow-sm transition active:brightness-95 dark:from-slate-800 dark:to-slate-700">
-              <div className="flex gap-5">
+            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 p-4 text-white shadow-sm transition active:brightness-95">
+              <div className="flex gap-6">
                 <div>
                   <p className="text-xs text-white/80">Tugas hari ini</p>
                   <p className="text-2xl font-bold tabular-nums">{jobs.length}</p>

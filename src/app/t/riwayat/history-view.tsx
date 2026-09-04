@@ -28,14 +28,15 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export function JobHistoryView({
-  technicianId, initialRows, initialPeriods, initialTotal, usesIncentive = true,
+  technicianId, initialRows, initialPeriods, initialTotal, usesIncentive: initialUsesIncentive = true, initialPeriod = "ALL",
 }: {
-  technicianId: string; initialRows: Row[]; initialPeriods: string[]; initialTotal: number; usesIncentive?: boolean;
+  technicianId: string; initialRows: Row[]; initialPeriods: string[]; initialTotal: number; usesIncentive?: boolean; initialPeriod?: string;
 }) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [periods] = useState<string[]>(initialPeriods);
-  const [period, setPeriod] = useState("ALL");
+  const [period, setPeriod] = useState(initialPeriod);
   const [total, setTotal] = useState(initialTotal);
+  const [usesIncentive, setUsesIncentive] = useState(initialUsesIncentive);
   const [loading, setLoading] = useState(false);
 
   // Lazy loading: render bertahap 10 baris, tambah saat sentinel terlihat (IntersectionObserver).
@@ -62,6 +63,7 @@ export function JobHistoryView({
     if (!res.ok) { toast.error(res.error); return; }
     setRows(res.rows);
     setTotal(res.totalIncentive);
+    setUsesIncentive(res.incentiveEnabled); // gerbang dari sumber, konsisten tiap ganti periode
     setVisible(PAGE); // reset saat ganti periode
   }
 

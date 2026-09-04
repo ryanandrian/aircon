@@ -304,6 +304,10 @@ model Tenant {
   invoices              Invoice[]
   platformNotifications PlatformNotification[]
   teamIncentiveMode     TeamIncentiveMode      @default(BAGI_RATA)
+  // Niat EKSPLISIT tenant menerapkan program insentif tim. Menggerbang SEMUA UI insentif
+  // sisi teknisi (kartu, kolom, catatan). Default false = aman: aplikasi TIDAK memperkenalkan
+  // ekspektasi insentif ke teknisi kecuali owner mengaktifkannya. Bukan ditebak dari nilai katalog.
+  incentiveEnabled      Boolean                @default(false)
   incentiveBasis        IncentiveBasis         @default(LUNAS)
 }
 

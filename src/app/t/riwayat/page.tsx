@@ -13,13 +13,17 @@ export default async function TechnicianHistoryPage() {
   if (ctx.role !== "TECHNICIAN") redirect("/app");
 
   const tech = await prisma.technician.findFirst({
-    where: { tenantId: ctx.tenantId, userId: ctx.userId }, select: { id: true },
+    where: { tenantId: ctx.tenantId, userId: ctx.userId },
+    select: { id: true },
   });
   if (!tech) redirect("/t");
 
-  const { rows, periods, totalIncentive } = await listTechnicianJobHistory(ctx.tenantId, tech.id);
-  // Hide bagian insentif bila total insentif (semua periode) = 0.
-  const usesIncentive = totalIncentive > 0;
+  // Default filter = PERIODE SAAT INI (bulan berjalan), bukan semua periode.
+  const now = new Date();
+  const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const { rows, periods, totalIncentive, incentiveEnabled } = await listTechnicianJobHistory(ctx.tenantId, tech.id, currentPeriod);
+  // Sumber tunggal: flag dari service (gerbang sudah di-enforce di sumber).
+  const usesIncentive = incentiveEnabled;
 
   return (
     <main className="min-h-screen bg-muted/40 pb-16">
@@ -37,6 +41,7 @@ export default async function TechnicianHistoryPage() {
           initialPeriods={periods}
           initialTotal={totalIncentive}
           usesIncentive={usesIncentive}
+          initialPeriod={currentPeriod}
         />
       </div>
     </main>

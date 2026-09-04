@@ -60,8 +60,11 @@ export async function computeIncentives(
   tenantId: string, start: Date, end: Date,
 ): Promise<PersonIncentive[]> {
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId }, select: { teamIncentiveMode: true, incentiveBasis: true },
+    where: { id: tenantId }, select: { teamIncentiveMode: true, incentiveBasis: true, incentiveEnabled: true },
   });
+  // GERBANG DI SUMBER: bila tenant tak menerapkan insentif, TIDAK ada angka yang keluar sama sekali.
+  // Berlaku ke SEMUA pemanggil (owner laporan, dashboard teknisi, dan pemanggil baru mana pun).
+  if (!tenant?.incentiveEnabled) return [];
   const basis = tenant?.incentiveBasis ?? "LUNAS";
   const teamMode = (tenant?.teamIncentiveMode ?? "BAGI_RATA") as "BAGI_RATA" | "PENUH";
 

@@ -27,6 +27,7 @@ export default async function PengaturanPage() {
     qrisImageUrl: p.qrisImageUrl ?? "",
     teamIncentiveMode: p.teamIncentiveMode ?? "BAGI_RATA",
     incentiveBasis: p.incentiveBasis ?? "LUNAS",
+    incentiveEnabled: p.incentiveEnabled ?? false,
   };
 
   return (

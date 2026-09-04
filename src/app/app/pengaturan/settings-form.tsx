@@ -17,6 +17,7 @@ type Profile = {
   logoUrl: string; isPkp: boolean; npwp: string; taxPercent: number;
   bankName: string; bankAccountNo: string; bankAccountName: string; qrisImageUrl: string;
   teamIncentiveMode: "BAGI_RATA" | "PENUH"; incentiveBasis: "LUNAS" | "TERBIT";
+  incentiveEnabled: boolean;
 };
 
 /** Upload gambar aset tenant (logo/QRIS) via presigned PUT. Seragam dgn pola admin ImageUpload. */
@@ -86,6 +87,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
       bankName: f.bankName, bankAccountNo: f.bankAccountNo, bankAccountName: f.bankAccountName,
       qrisImageUrl: f.qrisImageUrl,
       teamIncentiveMode: f.teamIncentiveMode, incentiveBasis: f.incentiveBasis,
+      incentiveEnabled: f.incentiveEnabled,
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
@@ -200,10 +202,20 @@ export function SettingsForm({ profile }: { profile: Profile }) {
             <h2 className="text-lg font-semibold">Insentif Tim</h2>
             <p className="text-sm text-muted-foreground">Atur bagaimana insentif teknisi & kernet dihitung. Berlaku untuk semua laporan insentif.</p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* Master toggle: NIAT eksplisit menerapkan program insentif. Off → teknisi tak lihat UI insentif sama sekali. */}
+          <label className="flex items-start gap-3 rounded-xl border p-4">
+            <input type="checkbox" checked={f.incentiveEnabled}
+              onChange={(e) => set("incentiveEnabled", e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-sky-600" />
+            <span>
+              <span className="block text-sm font-medium">Terapkan program insentif tim</span>
+              <span className="block text-xs text-muted-foreground">Bila dimatikan, teknisi tidak akan melihat kartu, angka, atau riwayat insentif apa pun. Nyalakan hanya jika usaha Anda memberi insentif per pekerjaan.</span>
+            </span>
+          </label>
+          <div className={`grid gap-4 sm:grid-cols-2 ${f.incentiveEnabled ? "" : "pointer-events-none opacity-50"}`}>
             <div className="space-y-1.5">
               <Label htmlFor="basis">Acuan perhitungan</Label>
-              <select id="basis" value={f.incentiveBasis} onChange={(e) => set("incentiveBasis", e.target.value as "LUNAS" | "TERBIT")}
+              <select id="basis" value={f.incentiveBasis} disabled={!f.incentiveEnabled} onChange={(e) => set("incentiveBasis", e.target.value as "LUNAS" | "TERBIT")}
                 className="min-h-[44px] w-full rounded-xl border bg-background px-3 text-sm">
                 <option value="LUNAS">Saat invoice LUNAS (disarankan)</option>
                 <option value="TERBIT">Saat invoice TERBIT</option>
@@ -212,7 +224,7 @@ export function SettingsForm({ profile }: { profile: Profile }) {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="teammode">Mode bila dikeroyok banyak orang</Label>
-              <select id="teammode" value={f.teamIncentiveMode} onChange={(e) => set("teamIncentiveMode", e.target.value as "BAGI_RATA" | "PENUH")}
+              <select id="teammode" value={f.teamIncentiveMode} disabled={!f.incentiveEnabled} onChange={(e) => set("teamIncentiveMode", e.target.value as "BAGI_RATA" | "PENUH")}
                 className="min-h-[44px] w-full rounded-xl border bg-background px-3 text-sm">
                 <option value="BAGI_RATA">Bagi rata (disarankan)</option>
                 <option value="PENUH">Penuh tiap orang</option>

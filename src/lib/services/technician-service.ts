@@ -261,13 +261,15 @@ export async function listTechnicianJobHistory(
   }[];
   periods: string[];
   totalIncentive: number;
+  incentiveEnabled: boolean;
 }> {
   const tech = await prisma.technician.findFirst({ where: { id: technicianId, tenantId }, select: { id: true } });
   if (!tech) throw new TechAuthError("NOT_FOUND", "Teknisi tidak ditemukan");
 
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId }, select: { teamIncentiveMode: true, incentiveBasis: true },
+    where: { id: tenantId }, select: { teamIncentiveMode: true, incentiveBasis: true, incentiveEnabled: true },
   });
+  const incentiveEnabled = tenant?.incentiveEnabled ?? false;
   const basis = tenant?.incentiveBasis ?? "LUNAS";
   const teamMode = (tenant?.teamIncentiveMode ?? "BAGI_RATA") as "BAGI_RATA" | "PENUH";
 
@@ -351,9 +353,9 @@ export async function listTechnicianJobHistory(
       }
     }
 
-    // Hitung insentif teknisi ini utk pekerjaan ini (hanya bila memenuhi acuan).
+    // Hitung insentif teknisi ini utk pekerjaan ini (hanya bila memenuhi acuan DAN tenant menerapkan insentif).
     let incentive = 0;
-    if (qualifies && ws) {
+    if (incentiveEnabled && qualifies && ws) {
       for (const it of ws.items) {
         if (!it.serviceId) continue;
         const cat = catalogById.get(it.serviceId);
@@ -392,7 +394,7 @@ export async function listTechnicianJobHistory(
   const rows = filtered.map(({ _key, _ts, ...r }) => r);
   const totalIncentive = rows.reduce((s, r) => s + r.incentive, 0);
   const periods = [...periodsSet].sort().reverse();
-  return { rows, periods, totalIncentive };
+  return { rows, periods, totalIncentive, incentiveEnabled };
 }
 
 /** Batalkan undangan (owner). */
