@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { actionUpdateCompany } from "../config-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
@@ -23,6 +24,9 @@ interface Initial {
   countryCode: string;
   checkoutExpiryHours: number;
   finishUrl: string;
+  invoiceNote: string;
+  receiptNote: string;
+  paymentFeeNote: string;
 }
 
 export function CompanyEditor({ initial, updatedBy }: { initial: Initial; updatedBy: string | null }) {
@@ -128,6 +132,25 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
           <div>
             <Label htmlFor="finishUrl">URL kembali setelah bayar</Label>
             <Input id="finishUrl" name="finishUrl" defaultValue={initial.finishUrl} className="mt-1" placeholder="https://..." />
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Dokumen Keuangan (Faktur &amp; Kwitansi)</h2>
+        <p className="text-xs text-muted-foreground">Catatan kaki configurable. Kosongkan untuk memakai teks default sistem.</p>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="invoiceNote">Catatan kaki FAKTUR (tagihan, belum lunas)</Label>
+            <Textarea id="invoiceNote" name="invoiceNote" defaultValue={initial.invoiceNote} className="mt-1" rows={2} maxLength={500} placeholder="mis. Pembayaran melalui tautan/kode yang tersedia…" />
+          </div>
+          <div>
+            <Label htmlFor="receiptNote">Catatan kaki KWITANSI (bukti terima, lunas)</Label>
+            <Textarea id="receiptNote" name="receiptNote" defaultValue={initial.receiptNote} className="mt-1" rows={2} maxLength={500} placeholder="mis. Bukti penerimaan pembayaran yang sah…" />
+          </div>
+          <div>
+            <Label htmlFor="paymentFeeNote">Penjelasan biaya layanan channel (bila dibebankan ke pelanggan)</Label>
+            <Textarea id="paymentFeeNote" name="paymentFeeNote" defaultValue={initial.paymentFeeNote} className="mt-1" rows={2} maxLength={500} placeholder="mis. Biaya layanan pembayaran dibayarkan pelanggan langsung kepada penyedia…" />
           </div>
         </div>
       </section>

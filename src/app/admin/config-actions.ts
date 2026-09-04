@@ -149,6 +149,9 @@ export async function actionUpdateCompany(fd: FormData): Promise<ActionResult> {
       countryCode: String(fd.get("countryCode") ?? "IDN"),
       checkoutExpiryHours: num(fd, "checkoutExpiryHours"),
       finishUrl: String(fd.get("finishUrl") ?? ""),
+      invoiceNote: String(fd.get("invoiceNote") ?? ""),
+      receiptNote: String(fd.get("receiptNote") ?? ""),
+      paymentFeeNote: String(fd.get("paymentFeeNote") ?? ""),
     });
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
     await updateCompanyProfile(parsed.data, admin.email);

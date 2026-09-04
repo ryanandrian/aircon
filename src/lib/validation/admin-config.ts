@@ -88,6 +88,9 @@ export const companyProfileSchema = z.object({
   countryCode: z.string().trim().min(2).max(3),
   checkoutExpiryHours: z.number().int().min(1).max(720),
   finishUrl: z.string().trim().max(300).refine((v) => v === "" || /^https?:\/\//.test(v), "URL harus diawali http(s)://"),
+  invoiceNote: z.string().trim().max(500).optional().or(z.literal("")),
+  receiptNote: z.string().trim().max(500).optional().or(z.literal("")),
+  paymentFeeNote: z.string().trim().max(500).optional().or(z.literal("")),
 });
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;
 

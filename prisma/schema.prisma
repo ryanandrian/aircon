@@ -943,6 +943,10 @@ model CompanyProfile {
   // Knob checkout (dari pola mesinviral):
   checkoutExpiryHours Int      @default(24)
   finishUrl           String   @default("")
+  // Catatan kaki dokumen keuangan (CONFIGURABLE admin, no hardcode). Kosong = pakai default sistem.
+  invoiceNote         String   @default("") // catatan kaki FAKTUR (tagihan)
+  receiptNote         String   @default("") // catatan kaki KWITANSI (bukti terima)
+  paymentFeeNote      String   @default("") // penjelasan biaya layanan channel (bila dibebankan ke pelanggan)
   updatedBy           String?
   updatedAt           DateTime @updatedAt
 }

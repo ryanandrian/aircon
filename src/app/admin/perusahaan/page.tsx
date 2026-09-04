@@ -31,6 +31,9 @@ export default async function AdminPerusahaanPage() {
           countryCode: c.countryCode,
           checkoutExpiryHours: c.checkoutExpiryHours,
           finishUrl: c.finishUrl,
+          invoiceNote: c.invoiceNote,
+          receiptNote: c.receiptNote,
+          paymentFeeNote: c.paymentFeeNote,
         }}
         updatedBy={c.updatedBy}
       />
