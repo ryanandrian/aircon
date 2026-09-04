@@ -18,6 +18,8 @@ export default async function TechnicianHistoryPage() {
   if (!tech) redirect("/t");
 
   const { rows, periods, totalIncentive } = await listTechnicianJobHistory(ctx.tenantId, tech.id);
+  // Hide bagian insentif bila total insentif (semua periode) = 0.
+  const usesIncentive = totalIncentive > 0;
 
   return (
     <main className="min-h-screen bg-muted/40 pb-16">
@@ -34,6 +36,7 @@ export default async function TechnicianHistoryPage() {
           initialRows={rows}
           initialPeriods={periods}
           initialTotal={totalIncentive}
+          usesIncentive={usesIncentive}
         />
       </div>
     </main>

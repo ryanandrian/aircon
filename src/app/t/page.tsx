@@ -32,44 +32,71 @@ export default async function TechnicianHome() {
   }
 
   const jobs = await listTechnicianJobsToday(ctx.tenantId, tech.id);
+  const doneCount = jobs.filter((j) => j.status === "COMPLETED").length;
 
   // Insentif teknisi bulan ini (K5/K6, F6.3).
+  const { computeIncentives } = await import("@/lib/services/incentive-service");
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  const { computeIncentives } = await import("@/lib/services/incentive-service");
-  const allInc = await computeIncentives(ctx.tenantId, monthStart, monthEnd);
-  const myInc = allInc.find((i) => i.personId === tech.id);
+  const myInc = (await computeIncentives(ctx.tenantId, monthStart, monthEnd)).find((i) => i.personId === tech.id);
+  const incentiveAmount = myInc?.amount ?? 0;
+  // Hide kartu insentif bila 0 (tenant tanpa program insentif, ATAU teknisi belum dapat bulan ini).
+  const showIncentive = incentiveAmount > 0;
   const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
+  const initials = ctx.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const todayLabel = now.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <main className="min-h-screen bg-muted/40 pb-20">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-lg font-bold text-foreground">Halo, {ctx.name.split(" ")[0]}</h1>
-            <p className="text-xs text-muted-foreground">Pekerjaan hari ini</p>
+        <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-sky-500 text-sm font-bold text-white shadow-sm">
+            {initials}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">{jobs.length} tugas</span>
-            <ThemeToggle />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-bold leading-tight text-foreground">{ctx.name.split(" ")[0]}</h1>
+            <p className="truncate text-xs text-muted-foreground">{todayLabel}</p>
           </div>
+          <ThemeToggle />
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
-        {/* Insentif bulan ini (F6.3) → ketuk untuk riwayat lengkap + insentif per pekerjaan */}
-        <Link href="/t/riwayat" className="block">
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 p-4 text-white shadow-sm transition active:brightness-95">
-            <div>
-              <p className="text-xs text-white/80">Insentif bulan ini</p>
-              <p className="text-2xl font-bold tabular-nums">{rp(myInc?.amount ?? 0)}</p>
+        {showIncentive ? (
+          /* Ada insentif bulan ini: kartu insentif → ketuk untuk riwayat + insentif per pekerjaan */
+          <Link href="/t/riwayat" className="block">
+            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 p-4 text-white shadow-sm transition active:brightness-95">
+              <div>
+                <p className="text-xs text-white/80">Insentif bulan ini</p>
+                <p className="text-2xl font-bold tabular-nums">{rp(incentiveAmount)}</p>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-white/90">
+                Lihat riwayat
+                <Icon.ChevronRight className="h-4 w-4" aria-hidden />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-sm text-white/90">
-              Lihat riwayat
-              <Icon.ChevronRight className="h-4 w-4" aria-hidden />
+          </Link>
+        ) : (
+          /* Insentif 0: kartu ringkasan hari ini → tetap jadi entry point ke riwayat pekerjaan */
+          <Link href="/t/riwayat" className="block">
+            <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-slate-700 to-slate-600 p-4 text-white shadow-sm transition active:brightness-95 dark:from-slate-800 dark:to-slate-700">
+              <div className="flex gap-5">
+                <div>
+                  <p className="text-xs text-white/80">Tugas hari ini</p>
+                  <p className="text-2xl font-bold tabular-nums">{jobs.length}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/80">Selesai</p>
+                  <p className="text-2xl font-bold tabular-nums">{doneCount}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-white/90">
+                Riwayat
+                <Icon.ChevronRight className="h-4 w-4" aria-hidden />
+              </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+        )}
         {jobs.length === 0 ? (
           <Card className="border-dashed text-center">
             <CardContent className="p-8">
