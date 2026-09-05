@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { GoogleSignInButton } from "./google-button";
+import { isGoogleAuthDriver } from "@/lib/auth/google-oauth";
 import { Icon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -81,7 +82,7 @@ export default async function LoginPage({
           )}
 
           <div className="mt-6">
-            <GoogleSignInButton next={next} />
+            <GoogleSignInButton next={next} googleDriver={isGoogleAuthDriver()} />
             <p className="mt-2 text-center text-xs text-muted-foreground lg:text-left">Untuk pemilik usaha &amp; admin</p>
           </div>
 

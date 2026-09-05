@@ -25,7 +25,7 @@ async function resolveBaseUrl(requestUrl: string): Promise<string> {
 
 /**
  * Base KANONIK untuk redirect_uri OAuth (tukar token). WAJIB identik dengan yang dipakai saat
- * authorize (login/actions) & yang terdaftar di Google — TIDAK boleh dari host request.
+ * authorize (auth/google/start) & yang terdaftar di Google — TIDAK boleh dari host request.
  */
 function canonicalBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -52,6 +52,12 @@ export async function GET(request: Request) {
     const { state: savedState, next: savedNext } = await consumeOAuthStateCookie();
     // Anti-CSRF: state di URL harus == cookie & valid (umur < 10 mnt).
     if (!returnedState || !savedState || returnedState !== savedState || !verifyOAuthState(returnedState)) {
+      console.error("[auth/callback state-fail]", {
+        hasReturned: Boolean(returnedState),
+        hasSaved: Boolean(savedState),
+        match: returnedState === savedState,
+        verify: returnedState ? verifyOAuthState(returnedState) : null,
+      });
       return NextResponse.redirect(`${base}/login?error=state`);
     }
     if (savedNext && savedNext.startsWith("/")) nextTarget = savedNext;
