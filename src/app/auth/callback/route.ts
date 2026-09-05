@@ -1,4 +1,5 @@
 import { findDomainUser } from "@/lib/services/onboarding-service";
+import { isPlatformAdmin } from "@/lib/auth/platform-admin";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { isGoogleAuthDriver, exchangeCode, fetchUserInfo } from "@/lib/auth/google-oauth";
@@ -98,7 +99,13 @@ export async function GET(request: Request) {
     if (domainUser) {
       return NextResponse.redirect(`${base}${nextTarget}`);
     }
-    // Belum punya usaha → arahkan ke wizard setup usaha.
+    // Bukan owner usaha → mungkin ADMIN PLATFORM (Lumite). Admin tak punya tenant.
+    if (await isPlatformAdmin(email)) {
+      // Bila tujuan awal memang /admin/* pertahankan; selain itu default ke /admin.
+      const adminTarget = nextTarget.startsWith("/admin") ? nextTarget : "/admin";
+      return NextResponse.redirect(`${base}${adminTarget}`);
+    }
+    // Benar-benar user baru → arahkan ke wizard setup usaha.
     return NextResponse.redirect(`${base}/onboarding`);
   } catch (e) {
     console.error("[auth/callback] gagal mengenali user:", e);

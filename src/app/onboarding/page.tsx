@@ -10,6 +10,7 @@
  */
 import { redirect } from "next/navigation";
 import { getAuthIdentity } from "@/lib/auth/auth-identity";
+import { isPlatformAdmin } from "@/lib/auth/platform-admin";
 import { findDomainUser } from "@/lib/services/onboarding-service";
 import OnboardingWizard from "./wizard";
 import { HelpButton } from "@/components/help/help-button";
@@ -35,6 +36,11 @@ export default async function OnboardingPage({
   });
   if (domainUser) {
     redirect("/app");
+  }
+
+  // Admin platform (Lumite) tak punya usaha → jangan tampilkan wizard; arahkan ke /admin.
+  if (await isPlatformAdmin(identity.email)) {
+    redirect("/admin");
   }
 
   const ownerName =
