@@ -43,5 +43,6 @@ dari membaca array statis → query DB (mis. tabel HelpTopic). Komponen konsumen
 Untuk pilot, konten di kode sudah memadai (teks jarang berubah).
 
 ## Cakupan saat ini
-35 topik: 21 panel usaha (semua layar /app utama), 3 teknisi (/t), 11 admin (/admin).
-Verifikasi: tsc 0, build 0, semua helpKey punya konten (nol sheet kosong).
+36 topik: 22 panel usaha (termasuk `onboarding` di wizard daftar & semua layar /app utama),
+3 teknisi (/t), 11 admin (/admin). Layar onboarding (/onboarding) memakai HelpButton manual
+(topik `onboarding`) karena header khusus. Verifikasi: tsc 0, build 0, semua helpKey punya konten.

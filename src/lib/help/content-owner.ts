@@ -8,6 +8,39 @@ import type { HelpTopic } from "./help-types";
 
 export const OWNER_TOPICS: HelpTopic[] = [
   {
+    key: "onboarding",
+    title: "Daftar & Setup Usaha",
+    icon: "Sparkles",
+    group: "Mulai di sini",
+    audience: "owner",
+    order: 0,
+    whatIsIt:
+      "Langkah pertama memakai Aircon: buat usaha Anda. Cukup isi 3 hal, lalu Anda diajak menghubungkan WhatsApp agar pengingat otomatis langsung aktif.",
+    steps: [
+      "Masuk dengan Google (tombol 'Lanjutkan dengan Google').",
+      "Isi Nama Usaha, Kota/Area Layanan, dan Nomor WhatsApp Usaha.",
+      "Punya kode agen? Isi di 'Kode Agen / Referral' (opsional).",
+      "Ketuk 'Mulai Pakai Aircon'.",
+      "Anda diarahkan ke Pengaturan — segera 'Hubungkan WhatsApp' (scan QR) agar pengingat aktif.",
+    ],
+    tips: [
+      "Nomor WhatsApp yang Anda isi = identitas usaha; menautkannya ke gateway dilakukan lewat scan QR di Pengaturan.",
+      "Belum pegang HP WhatsApp usaha saat daftar? Lewati dulu — banner di beranda akan mengingatkan sampai tersambung.",
+      "Semua data ini bisa diubah kapan saja di menu Pengaturan.",
+    ],
+    faqs: [
+      {
+        q: "Apakah gratis?",
+        a: "Ada masa coba (trial). Paket Basic gratis untuk fitur inti; paket berbayar membuka kapasitas & fitur lebih.",
+      },
+      {
+        q: "Kenapa setelah daftar diminta hubungkan WhatsApp?",
+        a: "Pengingat servis otomatis ke pelanggan adalah inti Aircon. Tanpa WhatsApp tersambung, pengingat tak bisa terkirim.",
+      },
+    ],
+  },
+
+  {
     key: "beranda",
     title: "Ringkasan",
     icon: "LayoutDashboard",

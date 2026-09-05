@@ -12,6 +12,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { findDomainUser } from "@/lib/services/onboarding-service";
 import OnboardingWizard from "./wizard";
+import { HelpButton } from "@/components/help/help-button";
+import { getHelpTopic } from "@/lib/help/help-content";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,9 @@ export default async function OnboardingPage({
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 to-white">
       <div className="mx-auto w-full max-w-lg px-5 pb-16 pt-10">
+        <div className="flex justify-end">
+          <HelpButton topic={getHelpTopic("onboarding")} />
+        </div>
         {/* Header */}
         <header className="text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-500 text-2xl font-bold text-white shadow-lg shadow-sky-200">

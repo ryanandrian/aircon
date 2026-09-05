@@ -130,10 +130,14 @@ flowchart TD
   CREATE --> U["User OWNER"]
   CREATE --> SEED["Seed default: checklist + template WA"]
   CREATE -.->|"bila ada kode"| ATTR["Atribusi keagenan (permanen)"]
-  T --> APP
+  T --> SET["/app/pengaturan?baru=1 (banner: Satu langkah lagi)"]
+  SET --> WA["Hubungkan WhatsApp (scan QR) → gateway"]
+  SET -.->|"lewati"| APP["/app (banner WA di beranda sampai tersambung)"]
 ```
 
 **Kunci:** tenant baru = **Basic gratis selamanya** (ACTIVE, tanpa jatuh tempo → dunning tak menyentuh). Kuota (pelanggan/unit/teknisi) dari **PlanConfig** yang membatasi, diatur admin.
+
+**Setelah daftar → hubungkan WhatsApp:** nomor WA di wizard hanya DISIMPAN (identitas usaha). Penautan asli ke gateway lewat **scan QR** di `/app/pengaturan`. Onboarding meng-redirect ke `/app/pengaturan?baru=1` (WaConnect tampil paling atas + banner sambutan). Bila dilewati, **banner beranda** (`WaConnectBanner`) mengingatkan sampai `gatewaySessionStatus().ready===true`. Bantuan in-app: topik help `onboarding` + `wa-connect`.
 
 ---
 
