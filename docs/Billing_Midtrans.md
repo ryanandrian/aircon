@@ -47,6 +47,43 @@ terapkan via processPaymentNotification (idempoten, fee-aware). Ini memulihkan "
 (lunas di Midtrans tapi ter-tolak lokal). Resume TIDAK menandai transaksi lama FAILED/EXPIRED kecuali
 Midtrans mengonfirmasi mati (expire/cancel/deny) — VA lama yang masih hidup tak dibunuh.
 
+## Siklus Hidup Langganan & Penagihan Otomatis (Dunning) — SSOT
+Penagihan langganan Lumite→tenant BERBEDA dari reminder servis tenant→pelanggan (itu reminder-service).
+Semua parameter CONFIGURABLE via `BillingPolicy` (admin), NO hardcode.
+
+### State machine tenant
+`TRIAL → ACTIVE (setelah bayar) → PAST_DUE (lewat jatuh tempo, grace) → SUSPENDED (login diblok) → hapus permanen`.
+Bayar kapan pun sebelum purge → kembali ACTIVE (reversible). `activateSubscription` set `nextDueDate` = akhir
+periode yang DIBELI (1/3/12 bln). `isTenantUsable`: TRIAL/ACTIVE/PAST_DUE boleh pakai; SUSPENDED/CANCELLED tidak.
+
+### Jadwal otomatis (systemd timer VPS, bukan vercel.json)
+- `aircon-dunning.timer` @01:00 → runDunningCycle + purgeMarkedTenants + inactivity sweep + flush WA + platform notify.
+- `aircon-reminders.timer` @02:00 → reminder servis ke pelanggan tenant (money-loop tenant).
+- `aircon-reconcile.timer` @03:00 → PULL status Midtrans (penjamin webhook + pemulih transaksi hantu).
+
+### Aturan dunning (default world-class, editable admin)
+Berdasar hari keterlambatan `late = hari sejak nextDueDate`:
+- `late > graceDaysBeforeSuspend` (default **7**) → SUSPENDED (login diblok, data MASIH utuh).
+- `late > daysBeforeDelete` (default **37**, ≈30 hari setelah suspend) → ditandai hapus (markedForDeletionAt).
+- Selain itu (dalam grace) → PAST_DUE (masih bisa login).
+- Reminder WA dikirim pada hari `dunningReminderDays` (default **"0,3,7,14,30"**), maks 1×/hari.
+- Mulai hari `deleteWarningDay` (default **30**) pakai template PERINGATAN HAPUS (dunningWarningTemplate).
+
+### Purge aman (dua tahap, reversible)
+- Mark (run hari-H) dan purge terjadi di RUN BERBEDA: `purgeMarkedTenants` hanya menghapus tenant yang
+  `markedForDeletionAt` lebih tua dari `purgeGraceHours` (default 24 jam) & masih SUSPENDED.
+- `purgeTenantData` hapus SEMUA tabel anak tenant-scoped lalu tenant, dalam 1 transaksi (idempoten, hormati FK).
+- Bayar sebelum purge → status kembali ACTIVE, batal hapus.
+
+### Catatan model
+- TIDAK ada auto-charge kartu (recurring charge). Model = invoice + reminder WA + bayar manual (Snap/VA/QRIS) —
+  best practice untuk SaaS UMKM Indonesia (mayoritas non-kartu-kredit). Perpanjangan = tenant bayar lagi.
+- Sweeper akun telantar (inactivity-sweeper) TERPISAH, default OFF + dry-run (aman); untuk tenant gratis/telantar.
+
+### Konfigurasi (admin /admin/billing → BillingPolicy)
+graceDaysBeforeSuspend, daysBeforeDelete, dunningReminderDays, deleteWarningDay, template reminder/warning,
+trialDays, taxPercent, + parameter inactivity sweeper.
+
 ## Keamanan
 - Signature webhook diverifikasi (hanya Midtrans yang bisa update status).
 - startPayment hanya OWNER (assertRole).
