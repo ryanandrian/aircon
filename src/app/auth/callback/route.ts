@@ -49,13 +49,13 @@ export async function GET(request: Request) {
   if (isGoogleAuthDriver()) {
     // --- Driver Google self-host ---
     const returnedState = searchParams.get("state");
-    const { state: savedState, next: savedNext } = await consumeOAuthStateCookie();
-    // Anti-CSRF: state di URL harus == cookie & valid (umur < 10 mnt).
-    if (!returnedState || !savedState || returnedState !== savedState || !verifyOAuthState(returnedState)) {
+    // Anti-forgery STATELESS: state ditandatangani HMAC + ber-nonce + kedaluwarsa 10 mnt
+    // (verifyOAuthState). Tak bergantung cookie — andal pada redirect lintas-situs dari Google.
+    // Cookie 'next' opsional dibaca bila ada (untuk tujuan pasca-login), tapi TAK menggagalkan.
+    const { next: savedNext } = await consumeOAuthStateCookie();
+    if (!returnedState || !verifyOAuthState(returnedState)) {
       console.error("[auth/callback state-fail]", {
         hasReturned: Boolean(returnedState),
-        hasSaved: Boolean(savedState),
-        match: returnedState === savedState,
         verify: returnedState ? verifyOAuthState(returnedState) : null,
       });
       return NextResponse.redirect(`${base}/login?error=state`);
