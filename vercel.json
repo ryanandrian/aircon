@@ -1,8 +1,0 @@
-{
-  "regions": ["hnd1"],
-  "crons": [
-    { "path": "/api/cron/dunning", "schedule": "0 1 * * *" },
-    { "path": "/api/cron/reminders", "schedule": "0 2 * * *" },
-    { "path": "/api/cron/reconcile", "schedule": "0 3 * * *" }
-  ]
-}
