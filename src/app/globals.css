@@ -169,6 +169,25 @@
     @apply font-sans;
     scroll-behavior: smooth;
   }
+  /*
+   * Tailwind v4 menghapus `cursor: pointer` bawaan dari <button> (breaking change dari v3).
+   * Kembalikan secara GLOBAL untuk semua elemen interaktif → pointer konsisten di seluruh app.
+   * Elemen ter-disable tetap memakai kursor default (bukan pointer).
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  label[for],
+  summary,
+  select:not(:disabled),
+  .interactive:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  select:disabled {
+    cursor: default;
+  }
 }
 
 /* ---- Motion & micro-interactions (world-class feel) ---- */
