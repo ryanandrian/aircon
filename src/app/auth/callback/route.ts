@@ -23,6 +23,15 @@ async function resolveBaseUrl(requestUrl: string): Promise<string> {
   return new URL(requestUrl).origin;
 }
 
+/**
+ * Base KANONIK untuk redirect_uri OAuth (tukar token). WAJIB identik dengan yang dipakai saat
+ * authorize (login/actions) & yang terdaftar di Google — TIDAK boleh dari host request.
+ */
+function canonicalBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  return envUrl ? envUrl.replace(/\/$/, "") : "https://app.airconet.id";
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const base = await resolveBaseUrl(request.url);
@@ -47,7 +56,7 @@ export async function GET(request: Request) {
     }
     if (savedNext && savedNext.startsWith("/")) nextTarget = savedNext;
     try {
-      const { accessToken } = await exchangeCode(code, base);
+      const { accessToken } = await exchangeCode(code, canonicalBaseUrl());
       const info = await fetchUserInfo(accessToken);
       if (!info.emailVerified) {
         return NextResponse.redirect(`${base}/login?error=unverified`);
