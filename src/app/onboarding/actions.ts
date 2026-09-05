@@ -94,6 +94,7 @@ export async function completeOnboarding(
     };
   }
 
-  // 4) Sukses → masuk aplikasi. redirect() melempar, jadi taruh di luar try/catch.
-  redirect("/app");
+  // 4) Sukses → arahkan LANGSUNG ke Pengaturan (WaConnect tampil paling atas) agar tenant baru
+  //    segera menghubungkan WhatsApp. redirect() melempar, jadi taruh di luar try/catch.
+  redirect("/app/pengaturan?baru=1");
 }
