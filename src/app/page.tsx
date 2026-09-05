@@ -403,7 +403,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
       </section>
 
       <footer className="border-t py-10 text-center text-sm text-muted-foreground">
-        {c.footerTagline}
+        <div>{c.footerTagline}</div>
+        <div className="mt-3 flex items-center justify-center gap-4">
+          <a href="/privasi" className="hover:text-foreground hover:underline">Kebijakan Privasi</a>
+          <span aria-hidden>·</span>
+          <a href="/ketentuan" className="hover:text-foreground hover:underline">Ketentuan Layanan</a>
+        </div>
       </footer>
     </main>
   );
