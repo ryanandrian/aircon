@@ -36,7 +36,7 @@ export default async function PekerjaanPage({ searchParams }: { searchParams: Pr
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Pekerjaan" />
+      <AppHeader title="Pekerjaan" helpKey="pekerjaan" />
       <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
         {/* Sub-judul + tombol sejajar (pola seragam dgn halaman lain) */}
         <div className="flex items-start justify-between gap-3">

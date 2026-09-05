@@ -16,7 +16,7 @@ export default async function TeknisiPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Teknisi" />
+      <AppHeader title="Teknisi" helpKey="teknisi" />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <p className="text-sm text-muted-foreground">

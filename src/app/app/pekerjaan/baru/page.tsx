@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { HelpButton } from "@/components/help/help-button";
+import { getHelpTopic } from "@/lib/help/help-content";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { JobForm } from "./job-form";
@@ -46,9 +48,12 @@ export default async function PekerjaanBaruPage() {
       <header className="border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-3">
           <h1 className="text-lg font-bold text-foreground">Pekerjaan Baru</h1>
-          <Link href="/app/pekerjaan" className="text-sm text-muted-foreground hover:text-foreground">
-            ← Kembali
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <HelpButton topic={getHelpTopic("pekerjaan-baru")} />
+            <Link href="/app/pekerjaan" className="text-sm text-muted-foreground hover:text-foreground">
+              ← Kembali
+            </Link>
+          </div>
         </div>
       </header>
 

@@ -40,6 +40,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/app/perangkat", label: "Pemantauan AC", icon: Icon.Device },
       { href: "/app/langganan", label: "Langganan", icon: Icon.Billing },
+      { href: "/app/panduan", label: "Panduan", icon: Icon.Help },
       { href: "/app/pengaturan", label: "Pengaturan", icon: Icon.Settings },
     ],
   },

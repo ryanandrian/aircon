@@ -28,7 +28,7 @@ export default async function PesananPerangkatPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Pesanan Perangkat" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
+      <AppHeader title="Pesanan Perangkat" helpKey="perangkat-pesanan" back="/app/perangkat" backLabel="Pemantauan Perangkat" />
 
       <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         {orders.length === 0 ? (

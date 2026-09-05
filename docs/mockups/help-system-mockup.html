@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aircon — Mockup Help System</title>
+<style>
+  :root{
+    --blue:#2563eb; --blue-sky:#0ea5e9; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --bg:#f1f5f9; --card:#fff; --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto;padding:24px}
+  .toolbar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+  .toolbar button{border:1px solid var(--line);background:#fff;padding:8px 16px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted)}
+  .toolbar button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .note{font-size:13px;color:var(--muted);margin-bottom:16px}
+
+  /* Mock app screen */
+  .app{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);border:1px solid var(--line)}
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#f8fafc,#fff)}
+  .appbar .title{font-size:18px;font-weight:800}
+  .appbar .sub{font-size:12px;color:var(--muted)}
+  .appbar .right{display:flex;align-items:center;gap:12px}
+  .help-btn{width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--blue);font-weight:800;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .help-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .avatar{width:36px;height:36px;border-radius:999px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .body{padding:20px;min-height:320px}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px}
+  .row .n{font-weight:600}.row .m{font-size:12px;color:var(--muted)}
+  .pill{background:var(--blue);color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;cursor:pointer}
+  .skel{height:14px;background:#eef2f7;border-radius:6px;margin:8px 0}
+
+  /* Help drawer */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.4);display:none;z-index:50}
+  .overlay.open{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:420px;max-width:92vw;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.15);transform:translateX(100%);transition:.25s;z-index:51;display:flex;flex-direction:column}
+  .drawer.open{transform:translateX(0)}
+  .dhead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .dhead h3{font-size:16px}
+  .dhead .x{border:none;background:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1}
+  .dbody{padding:20px;overflow-y:auto;flex:1}
+  .sec{margin-bottom:22px}
+  .sec .lbl{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
+  .sec p,.sec li{font-size:14px;color:#334155}
+  .sec ol,.sec ul{padding-left:18px}.sec li{margin:5px 0}
+  .faq{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0;font-size:14px;color:#334155}
+  .faq b{color:var(--ink)}
+  .dfoot{padding:16px 20px;border-top:1px solid var(--line)}
+  .dfoot a{color:var(--blue);font-weight:700;text-decoration:none;font-size:14px}
+
+  /* Guide center */
+  .guide{display:none}
+  .guide.show{display:block}
+  .screen.show{display:block}.screen{display:none}
+  .search{width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:12px;font-size:14px;margin-bottom:20px}
+  .ggroup{margin-bottom:22px}
+  .ggroup h4{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:10px}
+  .gitem{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:.15s}
+  .gitem:hover{border-color:var(--blue);box-shadow:0 2px 8px rgba(37,99,235,.08)}
+  .gitem .ic{width:38px;height:38px;border-radius:10px;background:#eff6ff;color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .gitem .t{font-weight:700;font-size:14px}.gitem .d{font-size:12px;color:var(--muted)}
+  .gitem .arr{margin-left:auto;color:var(--muted)}
+  h2.pt{font-size:20px;font-weight:800;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toolbar">
+    <button class="active" onclick="show('screen')">Lapis 1 — Tombol ? di layar</button>
+    <button onclick="show('guide')">Lapis 2 — Pusat Panduan</button>
+    <span style="flex:1"></span>
+    <button onclick="openDrawer('wa')" style="color:var(--blue);border-color:var(--blue)">▶ Demo: buka bantuan WA Connect</button>
+  </div>
+  <p class="note">Mockup desain — klik tombol <b>?</b> di kanan atas layar, atau tombol demo. Beralih ke "Pusat Panduan" untuk lihat lapis 2.</p>
+
+  <!-- LAPIS 1: mock screen -->
+  <div class="screen show" id="screen">
+    <div class="app">
+      <div class="appbar">
+        <div>
+          <div class="title">Pelanggan</div>
+          <div class="sub">42 pelanggan · 141 unit AC</div>
+        </div>
+        <div class="right">
+          <button class="help-btn" title="Bantuan layar ini" onclick="openDrawer('pelanggan')">?</button>
+          <div class="avatar">AS</div>
+        </div>
+      </div>
+      <div class="body">
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+          <input class="search" style="margin:0;max-width:280px" placeholder="🔍 Cari pelanggan...">
+          <button class="pill">+ Tambah Pelanggan</button>
+        </div>
+        <div class="row"><div><div class="n">Budi Santoso</div><div class="m">0812••• · 3 unit AC</div></div><span class="m">Terakhir servis 2 bln lalu</span></div>
+        <div class="row"><div><div class="n">CV Sejuk Abadi</div><div class="m">0813••• · 12 unit AC</div></div><span class="m">Terakhir servis 1 bln lalu</span></div>
+        <div class="row"><div><div class="n">Ibu Retno</div><div class="m">0857••• · 2 unit AC</div></div><span class="m">Jadwal servis minggu ini</span></div>
+        <div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAPIS 2: guide center -->
+  <div class="guide" id="guide">
+    <div class="app">
+      <div class="appbar"><div class="title">📖 Panduan Aircon</div><div class="right"><div class="avatar">AS</div></div></div>
+      <div class="body">
+        <input class="search" placeholder="🔍 Cari panduan... (mis. 'pengingat', 'faktur')">
+        <div class="ggroup">
+          <h4>⭐ Mulai di sini</h4>
+          <div class="gitem" onclick="openDrawer('wa')"><div class="ic">💬</div><div><div class="t">Hubungkan WhatsApp usaha</div><div class="d">Inti keunggulan Aircon — pengingat otomatis</div></div><span class="arr">→</span></div>
+          <div class="gitem" onclick="openDrawer('pelanggan')"><div class="ic">👥</div><div><div class="t">Setup pelanggan & unit AC</div><div class="d">Data pertama usaha Anda</div></div><span class="arr">→</span></div>
+        </div>
+        <div class="ggroup">
+          <h4>Mengelola Pekerjaan</h4>
+          <div class="gitem" onclick="openDrawer('pelanggan')"><div class="ic">👥</div><div><div class="t">Pelanggan & unit AC</div><div class="d">Kelola data pelanggan</div></div><span class="arr">→</span></div>
+          <div class="gitem"><div class="ic">🔧</div><div><div class="t">Membuat & menugaskan pekerjaan</div><div class="d">Jadwalkan servis ke teknisi</div></div><span class="arr">→</span></div>
+          <div class="gitem"><div class="ic">🧾</div><div><div class="t">Faktur & pembayaran</div><div class="d">Tagih & catat pemasukan</div></div><span class="arr">→</span></div>
+        </div>
+        <div class="ggroup">
+          <h4>Otomatisasi (nilai utama Aircon)</h4>
+          <div class="gitem" onclick="openDrawer('wa')"><div class="ic">💬</div><div><div class="t">Pengingat servis otomatis</div><div class="d">WhatsApp ke pelanggan tanpa repot</div></div><span class="arr">→</span></div>
+          <div class="gitem"><div class="ic">📇</div><div><div class="t">Kartu perawatan pelanggan</div><div class="d">Link riwayat AC untuk pelanggan</div></div><span class="arr">→</span></div>
+        </div>
+        <div class="ggroup">
+          <h4>Untuk Teknisi</h4>
+          <div class="gitem"><div class="ic">📱</div><div><div class="t">Aplikasi lapangan teknisi</div><div class="d">Cara teknisi kerjakan tugas di HP</div></div><span class="arr">→</span></div>
+          <div class="gitem"><div class="ic">💰</div><div><div class="t">Insentif & riwayat</div><div class="d">Bila usaha menerapkan insentif</div></div><span class="arr">→</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer -->
+<div class="overlay" id="ov" onclick="closeDrawer()"></div>
+<aside class="drawer" id="dr">
+  <div class="dhead"><h3 id="dtitle">Bantuan</h3><button class="x" onclick="closeDrawer()">×</button></div>
+  <div class="dbody" id="dbody"></div>
+  <div class="dfoot"><a href="#" onclick="show('guide');closeDrawer();return false">📖 Buka Panduan Lengkap →</a></div>
+</aside>
+
+<script>
+const CONTENT = {
+  pelanggan: {
+    title: "Bantuan: Pelanggan",
+    what: "Tempat menyimpan semua data pelanggan Anda beserta unit AC mereka. Dari sini Anda menjadwalkan servis & mengirim pengingat.",
+    steps: ['Ketuk "+ Tambah Pelanggan"','Isi nama & nomor WhatsApp pelanggan','Tambah unit AC mereka (merek, lokasi ruangan)','Simpan — pelanggan siap dijadwalkan servis'],
+    tips: ['Nomor WA yang benar = pengingat servis otomatis terkirim ke pelanggan.','Ketuk nama pelanggan untuk lihat riwayat servis & unit AC-nya.','Punya banyak unit di satu lokasi? Tambahkan semua ke satu pelanggan.'],
+    faqs: [['Kenapa pelanggan tak dapat pengingat?','Pastikan nomor WA benar & WhatsApp usaha Anda tersambung (menu Pengaturan).'],['Bisa impor banyak pelanggan sekaligus?','Untuk saat ini tambah satu per satu; fitur impor massal menyusul.']]
+  },
+  wa: {
+    title: "Bantuan: Hubungkan WhatsApp",
+    what: "Sambungkan WhatsApp usaha Anda ke Aircon agar pengingat servis terkirim OTOMATIS ke pelanggan — inti keunggulan Aircon.",
+    steps: ['Siapkan HP dengan WhatsApp usaha (bukan WA pribadi)','Ketuk "Hubungkan WhatsApp" — muncul kode QR','Di HP: WhatsApp → Setelan → Perangkat Tertaut → Tautkan Perangkat','Arahkan kamera ke QR di layar ini','Tunggu status berubah jadi "Tersambung" (hijau)'],
+    tips: ['Gunakan nomor WA khusus usaha — jangan nomor pribadi.','Jangan keluarkan (logout) perangkat tertaut ini, atau pengingat berhenti.','Kalau terputus, Anda diberi tahu — tinggal hubungkan ulang.'],
+    faqs: [['Aman?','Ya. Aircon hanya mengirim pesan yang Anda setujui, tak membaca chat pribadi Anda.'],['HP harus selalu menyala?','WhatsApp Anda cukup aktif seperti biasa, seperti WhatsApp Web.']]
+  }
+};
+function openDrawer(key){
+  const c = CONTENT[key]; if(!c) return;
+  document.getElementById('dtitle').textContent = c.title;
+  let h = '';
+  h += sec('💡','Apa ini?', '<p>'+c.what+'</p>');
+  h += sec('📋','Cara pakai', '<ol>'+c.steps.map(s=>'<li>'+s+'</li>').join('')+'</ol>');
+  if(c.tips) h += sec('✨','Tips', '<ul>'+c.tips.map(s=>'<li>'+s+'</li>').join('')+'</ul>');
+  if(c.faqs) h += sec('❓','Sering ditanya', c.faqs.map(f=>'<div class="faq"><b>'+f[0]+'</b><br>'+f[1]+'</div>').join(''));
+  document.getElementById('dbody').innerHTML = h;
+  document.getElementById('ov').classList.add('open');
+  document.getElementById('dr').classList.add('open');
+}
+function sec(icon,label,inner){return '<div class="sec"><div class="lbl">'+icon+' '+label+'</div>'+inner+'</div>';}
+function closeDrawer(){document.getElementById('ov').classList.remove('open');document.getElementById('dr').classList.remove('open');}
+function show(which){
+  document.querySelectorAll('.toolbar button').forEach((b,i)=>{if(i<2)b.classList.toggle('active', (which==='screen'&&i===0)||(which==='guide'&&i===1));});
+  document.getElementById('screen').classList.toggle('show', which==='screen');
+  document.getElementById('guide').classList.toggle('show', which==='guide');
+}
+</script>
+</body>
+</html>

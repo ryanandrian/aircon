@@ -34,7 +34,7 @@ export default async function PerangkatPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Pemantauan Perangkat" />
+      <AppHeader title="Pemantauan Perangkat" helpKey="perangkat" />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         {/* PELUANG SERVIS dari IoT — inti demand generator */}

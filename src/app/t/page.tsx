@@ -7,6 +7,8 @@ import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HelpButton } from "@/components/help/help-button";
+import { getHelpTopic } from "@/lib/help/help-content";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,7 @@ export default async function TechnicianHome() {
             <h1 className="truncate text-lg font-bold leading-tight text-foreground">{ctx.name.split(" ")[0]}</h1>
             <p className="truncate text-xs text-muted-foreground">{todayLabel}</p>
           </div>
+          <HelpButton topic={getHelpTopic("t-beranda")} />
           <ThemeToggle />
         </div>
       </header>

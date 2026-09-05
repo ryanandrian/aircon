@@ -70,7 +70,7 @@ export default async function AppDashboard() {
 
   return (
     <>
-      <AppHeader title="Ringkasan" action={<LogoutButton />} />
+      <AppHeader title="Ringkasan" action={<LogoutButton />} helpKey="beranda" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <p className="text-sm text-muted-foreground">Ringkasan Kinerja Operasional Bisnis Anda</p>
 

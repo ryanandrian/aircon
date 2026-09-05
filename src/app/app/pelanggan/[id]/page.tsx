@@ -36,7 +36,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
   return (
     <main className="min-h-screen pb-16">
-      <AppHeader title={customer.name} back="/app/pelanggan" />
+      <AppHeader title={customer.name} back="/app/pelanggan" helpKey="pelanggan-detail" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CustomerHub
           customer={{

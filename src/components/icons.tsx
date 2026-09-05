@@ -12,7 +12,7 @@ import {
   MessageSquare, ClipboardCheck, Globe, RefreshCw, Check, X, Copy, Printer,
   Phone, Navigation, MapPin, Calendar, Snowflake, Wind, Building2, DollarSign,
   Hand, FileText, PartyPopper, Clock, ShieldCheck, Users, Package, Send,
-  Menu, Settings, LayoutDashboard, BarChart3, Star, ChevronRight,
+  Menu, Settings, LayoutDashboard, BarChart3, Star, ChevronRight, HelpCircle,
 } from "lucide-react";
 
 /** Pemetaan semantik nama-domain -> komponen ikon (agar konsisten lintas halaman). */
@@ -43,6 +43,7 @@ export const Icon = {
   Money: DollarSign,          // revenue / money loop
   Wave: Hand,                 // greeting (pengganti emoji lambaian)
   Note: FileText,             // catat / dokumen
+  Help: HelpCircle,           // bantuan / panduan
   Success: PartyPopper,       // selesai / berhasil
   Clock: Clock,               // waktu / respons
   Shield: ShieldCheck,        // terverifikasi / aman

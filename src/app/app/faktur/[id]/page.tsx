@@ -30,7 +30,7 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
 
   return (
     <main className="min-h-screen pb-16">
-      <AppHeader title={isProforma ? "Proforma" : "Invoice"} back="/app/faktur" />
+      <AppHeader title={isProforma ? "Proforma" : "Invoice"} back="/app/faktur" helpKey="faktur-detail" />
       <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         <InvoiceView inv={inv} tenant={data.tenant} assetMap={data.assetMap} />
         {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}

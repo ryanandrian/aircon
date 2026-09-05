@@ -7,6 +7,8 @@ import { JOB_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "../status-badge";
 import { OwnerActions } from "./owner-actions";
 import { Card, CardContent } from "@/components/ui/card";
+import { HelpButton } from "@/components/help/help-button";
+import { getHelpTopic } from "@/lib/help/help-content";
 
 export const dynamic = "force-dynamic";
 
@@ -103,7 +105,10 @@ export default async function PekerjaanDetailPage({
               {SERVICE_TYPE_LABEL[job.serviceType] ?? job.serviceType}
             </h1>
           </div>
-          <StatusBadge status={job.status} />
+          <div className="flex items-center gap-1.5">
+            <HelpButton topic={getHelpTopic("pekerjaan-detail")} />
+            <StatusBadge status={job.status} />
+          </div>
         </div>
       </header>
 

@@ -18,7 +18,7 @@ export default async function FakturListPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Invoice & Proforma" />
+      <AppHeader title="Invoice & Proforma" helpKey="faktur" />
       <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
         <p className="text-sm text-muted-foreground">
           Dokumen otomatis dibuat saat teknisi menutup sesi pekerjaan. Pantau mana yang perlu ditagih & belum lunas.

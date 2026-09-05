@@ -38,7 +38,7 @@ export default async function CustomerPricingPage({ params }: { params: Promise<
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Harga Khusus Pelanggan" back="/app/pelanggan" />
+      <AppHeader title="Harga Khusus Pelanggan" back="/app/pelanggan" helpKey="pelanggan-harga" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <CustomerPricingManager
           customerId={id}

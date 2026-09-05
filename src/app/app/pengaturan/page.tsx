@@ -32,7 +32,7 @@ export default async function PengaturanPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Pengaturan Usaha" />
+      <AppHeader title="Pengaturan Usaha" helpKey="pengaturan" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <WaConnect />
         <SettingsForm profile={profile} />

@@ -40,7 +40,7 @@ export default async function LaporanPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Laporan Keuangan" />
+      <AppHeader title="Laporan Keuangan" helpKey="laporan" />
       <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
 
         {/* Ringkasan angka */}
