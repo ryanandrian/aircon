@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { startGoogleLogin } from "./actions";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -10,17 +11,30 @@ export function GoogleSignInButton({ next }: { next?: string }) {
 
   async function signIn() {
     setLoading(true);
-    const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
-    if (error) {
+    try {
+      // Driver google (self-host): server bangun URL + set state cookie → redirect.
+      const { url } = await startGoogleLogin(next);
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      // Driver supabase (default lama): pakai jalur signInWithOAuth.
+      const supabase = createClient();
+      const redirectTo = `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (error) {
+        setLoading(false);
+        toast.error("Gagal masuk: " + error.message);
+      }
+      // sukses → browser diarahkan ke Google
+    } catch (e) {
       setLoading(false);
-      toast.error("Gagal masuk: " + error.message);
+      toast.error("Gagal memulai proses masuk. Coba lagi.");
+      console.error("[signIn] gagal:", e);
     }
-    // sukses → browser diarahkan ke Google
   }
 
   return (

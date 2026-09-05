@@ -3,10 +3,10 @@
  * Semua Server Component / Action / Route ber-auth memakai ini.
  * Lihat docs/Security_Model.md
  */
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "@/lib/auth/guard";
 import { getTechSessionUserId } from "@/lib/auth/tech-session";
+import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import type { Role } from "@prisma/client";
 
 export interface ServerContext {
@@ -22,18 +22,15 @@ export interface ServerContext {
  * atau user belum terhubung ke tenant.
  */
 export async function getServerContext(): Promise<ServerContext> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const identity = await getAuthIdentity();
 
   let domainUser = null;
 
-  if (user) {
-    // Petakan user Supabase (by email/phone) ke User domain kita.
+  if (identity && (identity.email || identity.phone)) {
+    // Petakan identitas sesi (by email/phone) ke User domain kita.
     // SECURITY: tenantId berasal dari record server-side, bukan input klien.
-    const email = user.email ?? null;
-    const phone = user.phone ?? null;
+    const email = identity.email;
+    const phone = identity.phone;
     domainUser = await prisma.user.findFirst({
       where: {
         status: "ACTIVE",

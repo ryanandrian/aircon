@@ -3,9 +3,9 @@
  * TERPISAH dari User tenant: dicek via tabel PlatformAdmin (by email, harus active).
  * Lihat docs/Security_Model.md
  */
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "@/lib/auth/guard";
+import { getAuthIdentity } from "@/lib/auth/auth-identity";
 
 export interface PlatformAdminContext {
   email: string;
@@ -25,12 +25,9 @@ export async function isPlatformAdmin(email: string | null | undefined): Promise
  * Melempar AuthError UNAUTHORIZED bila bukan admin platform aktif.
  */
 export async function requirePlatformAdmin(): Promise<PlatformAdminContext> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const identity = await getAuthIdentity();
 
-  const email = user?.email ?? null;
+  const email = identity?.email ?? null;
   if (!email) {
     throw new AuthError("UNAUTHORIZED", "Sesi tidak ditemukan. Silakan masuk.");
   }

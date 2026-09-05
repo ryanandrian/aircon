@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
 import { LogoutButton } from "./logout-button";
@@ -17,9 +17,8 @@ export const dynamic = "force-dynamic";
 export default async function AppDashboard() {
   const ctx = await tryGetServerContext();
   if (!ctx) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) redirect("/login?next=/app");
+    const identity = await getAuthIdentity();
+    if (!identity || (!identity.email && !identity.phone)) redirect("/login?next=/app");
     redirect("/onboarding");
   }
 

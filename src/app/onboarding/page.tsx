@@ -9,7 +9,7 @@
  * Konsisten dengan gaya src/app/page.tsx & /p/[slug] (sky-500, rounded-2xl).
  */
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { findDomainUser } from "@/lib/services/onboarding-service";
 import OnboardingWizard from "./wizard";
 import { HelpButton } from "@/components/help/help-button";
@@ -23,27 +23,22 @@ export default async function OnboardingPage({
   searchParams: Promise<{ ref?: string }>;
 }) {
   const { ref } = await searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const identity = await getAuthIdentity();
 
-  if (!user) {
+  if (!identity || (!identity.email && !identity.phone)) {
     redirect("/login?next=/onboarding");
   }
 
   const domainUser = await findDomainUser({
-    email: user.email ?? null,
-    phone: user.phone ?? null,
+    email: identity.email,
+    phone: identity.phone,
   });
   if (domainUser) {
     redirect("/app");
   }
 
   const ownerName =
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
-    user.email?.split("@")[0] ??
+    identity.email?.split("@")[0] ??
     null;
 
   return (

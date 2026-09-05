@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { logoutOwner } from "./logout-actions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -10,8 +11,14 @@ export function LogoutButton() {
 
   async function logout() {
     setLoading(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    // Bersihkan KEDUA jalur sesi (driver apa pun): cookie owner (server) + sesi Supabase (client).
+    try {
+      await logoutOwner();
+    } catch { /* abaikan */ }
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch { /* abaikan bila driver google / supabase tak aktif */ }
     router.push("/login");
     router.refresh();
   }

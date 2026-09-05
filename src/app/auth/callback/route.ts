@@ -1,19 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
 import { findDomainUser } from "@/lib/services/onboarding-service";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { isGoogleAuthDriver, exchangeCode, fetchUserInfo } from "@/lib/auth/google-oauth";
+import { verifyOAuthState } from "@/lib/auth/owner-crypto";
+import { setOwnerSession, consumeOAuthStateCookie } from "@/lib/auth/owner-session";
 
 /**
- * OAuth callback (Google SSO) — tukar code jadi session, lalu arahkan:
- *  - Sudah punya usaha  → /app (atau ?next=).
- *  - Belum punya usaha  → /onboarding (wizard setup usaha eksplisit).
+ * OAuth callback (Google SSO) — bercabang berdasar AUTH_DRIVER:
+ *  - google  : verifikasi state → tukar code (Google) → set cookie owner (self-host).
+ *  - supabase: exchangeCodeForSession (jalur lama).
+ * Lalu arahkan: punya usaha → /app (atau ?next=); belum → /onboarding.
  *
- * TIDAK lagi auto-provision usaha di sini. Pembuatan usaha dilakukan eksplisit
- * oleh owner lewat wizard (lihat src/app/onboarding).
- *
- * CATATAN PROXY: `new URL(request.url).origin` SALAH di belakang nginx (jadi
- * http://localhost:3000). Karena itu base redirect diambil dari header
- * x-forwarded-* (dikirim nginx) → fallback NEXT_PUBLIC_APP_URL → fallback origin.
+ * CATATAN PROXY: origin dari header x-forwarded-* (nginx) → fallback NEXT_PUBLIC_APP_URL.
  */
 async function resolveBaseUrl(requestUrl: string): Promise<string> {
   const h = await headers();
@@ -29,38 +27,62 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const base = await resolveBaseUrl(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/app";
 
   if (!code) {
     return NextResponse.redirect(`${base}/login?error=auth`);
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    return NextResponse.redirect(`${base}/login?error=auth`);
-  }
+  // Identitas terverifikasi (email/phone) hasil dari driver aktif.
+  let email: string | null = null;
+  let phone: string | null = null;
+  let nextTarget = searchParams.get("next") ?? "/app";
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.redirect(`${base}/login?error=auth`);
+  if (isGoogleAuthDriver()) {
+    // --- Driver Google self-host ---
+    const returnedState = searchParams.get("state");
+    const { state: savedState, next: savedNext } = await consumeOAuthStateCookie();
+    // Anti-CSRF: state di URL harus == cookie & valid (umur < 10 mnt).
+    if (!returnedState || !savedState || returnedState !== savedState || !verifyOAuthState(returnedState)) {
+      return NextResponse.redirect(`${base}/login?error=state`);
+    }
+    if (savedNext && savedNext.startsWith("/")) nextTarget = savedNext;
+    try {
+      const { accessToken } = await exchangeCode(code, base);
+      const info = await fetchUserInfo(accessToken);
+      if (!info.emailVerified) {
+        return NextResponse.redirect(`${base}/login?error=unverified`);
+      }
+      email = info.email;
+      // Set cookie sesi owner (email terverifikasi Google).
+      await setOwnerSession(email);
+    } catch (e) {
+      console.error("[auth/callback google] gagal:", e);
+      return NextResponse.redirect(`${base}/login?error=auth`);
+    }
+  } else {
+    // --- Driver Supabase (default lama) ---
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      return NextResponse.redirect(`${base}/login?error=auth`);
+    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.redirect(`${base}/login?error=auth`);
+    }
+    email = user.email ?? null;
+    phone = user.phone ?? null;
   }
 
   // Kenali user (baca saja) — putuskan tujuan tanpa membuat apa pun.
   try {
-    const domainUser = await findDomainUser({
-      email: user.email ?? null,
-      phone: user.phone ?? null,
-    });
-
+    const domainUser = await findDomainUser({ email, phone });
     if (domainUser) {
-      // Sudah punya usaha → lanjut ke aplikasi.
-      return NextResponse.redirect(`${base}${next}`);
+      return NextResponse.redirect(`${base}${nextTarget}`);
     }
-
     // Belum punya usaha → arahkan ke wizard setup usaha.
     return NextResponse.redirect(`${base}/onboarding`);
   } catch (e) {

@@ -14,7 +14,7 @@
  * lewat sini — mereka hanya masuk lewat undangan (Invite).
  */
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { onboardingSchema } from "@/lib/validation/onboarding";
 import {
   findDomainUser,
@@ -36,21 +36,16 @@ export async function completeOnboarding(
   formData: FormData,
 ): Promise<OnboardingActionState> {
   // 1) Sesi terverifikasi.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const identity = await getAuthIdentity();
 
-  if (!user) {
+  if (!identity || (!identity.email && !identity.phone)) {
     return { ok: false, error: "Sesi berakhir. Silakan masuk kembali." };
   }
 
-  const email = user.email ?? null;
-  const phone = user.phone ?? null;
-  const fullName =
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
-    null;
+  const email = identity.email;
+  const phone = identity.phone;
+  // Nama lengkap: tak selalu tersedia dari sesi self-host; fallback dari email.
+  const fullName = email ? email.split("@")[0] : null;
 
   // 2) Validasi input wizard.
   const parsed = onboardingSchema.safeParse({
