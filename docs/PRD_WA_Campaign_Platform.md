@@ -1,6 +1,10 @@
 # PRD — Lumite WA Campaign Platform (WACP)
 Platform Kampanye Marketing via WhatsApp untuk seluruh portofolio SaaS Lumite
 
+> **⚠️ USANG — DIGANTIKAN v2 (2026-09-06).** SSOT campaign kini di repo gateway:
+> `lumite-gateway/docs/PRD_v2_WA_Campaign.md` (model Kontak Global, WACP = modul Control Plane).
+> Dokumen ini disimpan sebagai konteks sejarah v1. Jangan dipakai sebagai acuan build.
+
 Status: DRAFT v1 · Penulis: (disiapkan agen) · Tanggal: 2026-09-05
 Sumber kebenaran keputusan produk. Nilai default = HIPOTESIS untuk dikalibrasi saat pilot (tetap konkret agar buildable).
 

@@ -1,3 +1,7 @@
+> ⚠️ **HISTORIS — bukan status terkini.** Dokumen ini artefak titik-waktu / keputusan lama.
+> Beberapa fakta di dalamnya (hosting, Midtrans, URL, progres) MUNGKIN sudah berubah.
+> **Kebenaran terkini:** `docs/PROJECT_STATUS.md` + jalankan `bash scripts/ssot-status.sh` (read-only).
+> Jangan mengambil keputusan dari file ini tanpa memverifikasi ke sumber di atas.
 # RENCANA KERJA — Identitas Unit AC, QR Sticker & Kartu Perawatan Digital
 
 Sumber: hasil diskusi 26 Agu 2026 (lihat docs/PROJECT_STATUS.md bagian keputusan). Semua fase

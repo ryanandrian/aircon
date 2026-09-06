@@ -1,3 +1,7 @@
+> ⚠️ **HISTORIS — bukan status terkini.** Dokumen ini artefak titik-waktu / keputusan lama.
+> Beberapa fakta di dalamnya (hosting, Midtrans, URL, progres) MUNGKIN sudah berubah.
+> **Kebenaran terkini:** `docs/PROJECT_STATUS.md` + jalankan `bash scripts/ssot-status.sh` (read-only).
+> Jangan mengambil keputusan dari file ini tanpa memverifikasi ke sumber di atas.
 # AC SERVICE GROWTH OS — RECONSIDERED TECH STACK (Efisien & Efektif)
 
 > **UPDATE (2026-09-05):** Baris "Auth = Supabase Auth" di bawah sudah USANG. Auth owner/admin kini

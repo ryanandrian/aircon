@@ -1,3 +1,7 @@
+> ⚠️ **HISTORIS — bukan status terkini.** Dokumen ini artefak titik-waktu / keputusan lama.
+> Beberapa fakta di dalamnya (hosting, Midtrans, URL, progres) MUNGKIN sudah berubah.
+> **Kebenaran terkini:** `docs/PROJECT_STATUS.md` + jalankan `bash scripts/ssot-status.sh` (read-only).
+> Jangan mengambil keputusan dari file ini tanpa memverifikasi ke sumber di atas.
 # Rencana Migrasi Auth: Supabase → Google OAuth Self-Host (GRATIS)
 
 > **STATUS: SELESAI & DIARSIPKAN (2026-09-05).** Cutover produksi TUNTAS: owner→/app, admin→/admin,

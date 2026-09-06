@@ -1,3 +1,7 @@
+> ⚠️ **HISTORIS — bukan status terkini.** Dokumen ini artefak titik-waktu / keputusan lama.
+> Beberapa fakta di dalamnya (hosting, Midtrans, URL, progres) MUNGKIN sudah berubah.
+> **Kebenaran terkini:** `docs/PROJECT_STATUS.md` + jalankan `bash scripts/ssot-status.sh` (read-only).
+> Jangan mengambil keputusan dari file ini tanpa memverifikasi ke sumber di atas.
 # RENCANA KERJA — Modul Operasi Lapangan, Invoicing & Piutang (AR)
 
 > Status: **RENCANA (belum eksekusi)**. Disusun dari audit kode nyata 28 Agu 2026.
