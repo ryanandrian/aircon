@@ -6,6 +6,33 @@ import type { HelpTopic } from "./help-types";
 
 export const ADMIN_TOPICS: HelpTopic[] = [
   {
+    key: "admin-tim",
+    title: "Admin Platform",
+    icon: "ShieldCheck",
+    group: "Platform Lumite",
+    audience: "admin",
+    order: 50,
+    whatIsIt:
+      "Kelola siapa saja yang boleh masuk panel admin Lumite (super-admin lintas usaha). Akses ditentukan oleh email akun Google yang terdaftar & aktif di sini.",
+    steps: [
+      "Isi Nama + Email Google admin baru → 'Tambah Admin'.",
+      "Admin baru cukup login dengan Google memakai email itu untuk masuk /admin.",
+      "Nonaktifkan sementara tanpa menghapus lewat tombol 'Nonaktifkan'.",
+      "Hapus permanen lewat ikon tempat sampah.",
+    ],
+    tips: [
+      "Untuk menyerahkan platform ke orang lain: tambahkan email-nya dulu sebagai admin, minta dia coba login, baru nonaktifkan/hapus admin lama.",
+      "Sistem menolak menghapus/menonaktifkan admin aktif TERAKHIR — mencegah panel terkunci total.",
+    ],
+    faqs: [
+      {
+        q: "Apakah email admin di-hardcode?",
+        a: "Tidak. Daftar admin disimpan di database dan dikelola dari halaman ini — bisa diubah kapan saja tanpa mengubah kode.",
+      },
+    ],
+  },
+
+  {
     key: "admin-tenants",
     title: "Daftar Usaha (Tenant)",
     icon: "Building2",

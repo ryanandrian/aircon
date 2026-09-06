@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Building2, CreditCard, Scale, Landmark, Cpu, Handshake, Server, Globe, Bell, Ticket, BookOpen,
+  LayoutDashboard, Building2, CreditCard, Scale, Landmark, Cpu, Handshake, Server, Globe, Bell, Ticket, BookOpen, ShieldCheck,
 } from "lucide-react";
 
 const NAV = [
@@ -18,6 +18,7 @@ const NAV = [
   { href: "/admin/iot", label: "Produk & Pesanan IoT", icon: Cpu },
   { href: "/admin/keagenan", label: "Program Keagenan", icon: Handshake },
   { href: "/admin/infra", label: "Konfigurasi Infra", icon: Server },
+  { href: "/admin/tim", label: "Admin Platform", icon: ShieldCheck },
   { href: "/admin/panduan", label: "Panduan Admin", icon: BookOpen },
 ];
 
