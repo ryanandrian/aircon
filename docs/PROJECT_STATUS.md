@@ -1,20 +1,33 @@
 # PETA KONDISI AIRCON — Status & Rencana Lanjutan (SUMBER KEBENARAN)
 
 > Dokumen tunggal untuk melanjutkan dengan aman kapan pun. Diperbarui tiap milestone.
-> Terakhir diperbarui: 20 Agustus 2026. Commit HEAD saat ditulis: a811971.
+> Terakhir diperbarui: 6 September 2026 (rekonsiliasi dengan kenyataan produksi). Commit HEAD: 89b7540.
 > Jika sesi baru: BACA FILE INI DULU untuk tahu persis di mana kita berhenti.
+>
+> ⚠️ KOREKSI PENTING (6 Sep 2026): status di bawah sebelumnya usang (per 20 Agu). Diverifikasi langsung
+> dari produksi: (1) HOSTING sudah pindah ke VPS self-host `app.airconet.id` (Vercel = cadangan/rollback,
+> bukan primary lagi); (2) MIDTRANS sudah **production** (MIDTRANS_ENV=production di /opt/aircon-app/.env,
+> production key terisi) — BUKAN sandbox. Lihat juga docs/PETA_APLIKASI_LIVE.md (peta URL live).
 
 ## 1. RINGKAS SATU PARAGRAF
 Aircon (AC Service Growth OS) — SaaS PWA multi-tenant untuk usaha servis AC kecil Indonesia,
-Digital Asset #1 dari "12 SaaS/tahun". Aplikasi LIVE di Vercel, infrastruktur WhatsApp+MQTT
-LIVE di VPS BiznetGio (systemd-native, tanpa Docker), HTTPS via gw.lumite.biz.id. Progress
-menuju go-komersial ~93%. Sisa mayoritas = konfigurasi eksternal + validasi pilot, bukan coding.
+Digital Asset #1 dari "12 SaaS/tahun". Aplikasi LIVE self-host di **VPS BiznetGio (app.airconet.id,
+103.127.135.132, systemd `aircon-app`, Node 22, TLS Let's Encrypt)**; domain lama Vercel
+(`aircon-peach.vercel.app`) tinggal cadangan/rollback (DB sama). Infrastruktur WhatsApp+MQTT
+LIVE di VPS terpisah (103.127.138.16), HTTPS via gw.lumite.biz.id. Midtrans **production** aktif.
+Progress menuju go-komersial tinggi; sisa = validasi pilot end-to-end (bayar production + WA nyata),
+bukan coding.
 
 ## 2. YANG SUDAH LIVE & TERBUKTI
-- App produksi: https://aircon-peach.vercel.app (Vercel Hobby, project aircon, team lumite1)
+- App produksi (PRIMARY): https://app.airconet.id — VPS BiznetGio 103.127.135.132 (truerad,
+  key ~/.ssh/airconet-app.pem), systemd `aircon-app` (active), WorkingDirectory /opt/aircon-app,
+  EnvironmentFile /opt/aircon-app/.env. TLS Let's Encrypt.
+- App CADANGAN (rollback): https://aircon-peach.vercel.app (DB Supabase sama). Bukan primary.
+- Midtrans: **PRODUCTION** (MIDTRANS_ENV=production, production key terisi). Webhook /api/billing/midtrans-webhook
+  live (tolak GET=405, verifikasi signature=400 utk body kosong). Uji transaksi production end-to-end = PENDING.
 - DB: Supabase Tokyo (ref ksvdjtzfpictmwuksmuu)
 - Gateway WhatsApp: https://gw.lumite.biz.id (HTTPS Let's Encrypt, auto-renew, port 8080 ditutup)
-- VPS-INFRA: 103.127.138.16 (rad4ssh, key ~/.ssh/aircon-ssh.pem) — 3 service systemd aktif+enabled:
+- VPS-INFRA: 103.127.138.16 (rad4ssh, key ~/.ssh/aircon-ssh.pem) — service systemd aktif+enabled:
   mosquitto, aircon-gateway (:8080, MemoryMax 2500M), aircon-bridge. Swap 2GB. RAM idle ~275MB.
 - WhatsApp TERBUKTI dua-arah: kirim (money loop) + terima balasan, nomor pilot 085880181816
   tertaut (sesi persisten, reconnect tanpa QR ulang). Nomor tujuan uji: 6281284848901.
@@ -28,7 +41,7 @@ menuju go-komersial ~93%. Sisa mayoritas = konfigurasi eksternal + validasi pilo
 ## 3. FITUR SELESAI (per domain)
 - Inti: multi-tenant, onboarding, 4 peran (owner Google SSO / admin / teknisi phone+PIN / customer booking publik)
 - Job Order FSM + app teknisi (checklist, foto S3, timeline) + kuota per paket
-- Billing Midtrans (langganan + IoT jual-putus) — MASIH SANDBOX; PPN PKP-aware; faktur/kwitansi
+- Billing Midtrans (langganan + IoT jual-putus) — **PRODUCTION aktif** (MIDTRANS_ENV=production); PPN PKP-aware; faktur/kwitansi
 - Dunning otomatis + teks penagihan editable admin
 - Program keagenan LENGKAP: F1 mesin uang (komisi/clawback/PPh) + F2/F3 portal agen & reseller + CSV
 - IoT: ingest + deteksi alert (ambang editable admin) + 1-tap buat pekerjaan
