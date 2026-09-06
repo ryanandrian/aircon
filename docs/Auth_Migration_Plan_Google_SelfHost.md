@@ -1,10 +1,9 @@
 # Rencana Migrasi Auth: Supabase → Google OAuth Self-Host (GRATIS)
 
-> **STATUS: DOKUMEN RENCANA/TRANSISI — BUKAN SSOT.** SSOT keamanan & auth tetap
-> `docs/Security_Model.md`. Dokumen ini hanya memandu eksekusi migrasi. Saat cutover selesai,
-> **UPDATE `Security_Model.md` bagian Auth** (baris "Owner/Admin: Google SSO via Supabase" →
-> "Google OAuth self-host, sesi cookie HMAC `aircon_owner`") lalu **HAPUS/arsipkan dokumen ini**
-> agar tak ada dua sumber kebenaran. `Auth_Decision_Phone_PIN.md` (teknisi) TIDAK berubah.
+> **STATUS: SELESAI & DIARSIPKAN (2026-09-05).** Cutover produksi TUNTAS: owner→/app, admin→/admin,
+> layar Google tampil "airconet.id". SSOT auth aktif = `docs/Security_Model.md` (sudah diperbarui).
+> Dokumen ini disimpan sebagai catatan sejarah/rasional migrasi — BUKAN SSOT. Jangan dipakai sebagai
+> acuan konfigurasi terkini; lihat Security_Model.md. Fallback: `AUTH_DRIVER=supabase` (flip env + restart).
 
 Tujuan: layar login Google menampilkan **airconet.id** (bukan `...supabase.co`), tanpa biaya bulanan,
 tanpa merusak login yang sedang berjalan. Callback pindah ke `app.airconet.id/auth/callback`.

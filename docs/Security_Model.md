@@ -16,10 +16,19 @@ Semua akses data melewati **server Next.js** (Server Components, Server Actions,
 - Kita TIDAK memakai `SET app.tenant_id` per-request karena transaction pooler (pgbouncer) tidak menjaga session state antar statement dengan andal. Enforcement di aplikasi lebih deterministik untuk arsitektur ini.
 
 ## Auth (lihat docs/Auth_Decision_Phone_PIN.md)
-- Owner/Admin: **Google SSO** via Supabase Auth (aktif setelah OAuth client dikonfigurasi).
-- Teknisi: undangan link WA → **PIN 6 digit** (argon2). Identitas = nomor HP.
-- Sesi: Supabase Auth (JWT httpOnly cookie via @supabase/ssr). Middleware me-refresh session. RBAC ditegakkan per endpoint/aksi di server (bukan hanya UI).
-- Sementara Google OAuth belum aktif: jalur **email+password** Supabase tersedia untuk pengujian internal, tanpa memblokir pembangunan.
+- Owner/Admin: **Google OAuth SELF-HOST** (driver `AUTH_DRIVER=google`). Alur: `/auth/google/start`
+  (Route Handler set cookie state pada response redirect) → Google → `/auth/callback` (tukar code,
+  ambil userinfo, set cookie sesi owner). redirect_uri KANONIK `https://app.airconet.id/auth/callback`.
+- Sesi owner: cookie `aircon_owner` (HMAC SESSION_SECRET, httpOnly+secure+lax, 30 hari). State OAuth
+  anti-forgery STATELESS (HMAC+nonce+exp 10 mnt, `verifyOAuthState`) — tak bergantung cookie
+  (andal pada redirect lintas-situs). Identitas = email; `getServerContext` map email→User(DB).
+- Admin platform: email di tabel `PlatformAdmin` (active), dikelola via `/admin/tim` (bukan hardcode).
+  Callback: owner→/app, platform-admin (tanpa tenant)→/admin, selain itu→/onboarding.
+- Teknisi: undangan link WA → **PIN 6 digit** (scrypt). Identitas = nomor HP. Cookie `aircon_tech`.
+- Agen/Reseller: sistem login partner sendiri (cookie `aircon_partner`) — TERPISAH, tak tersentuh.
+- Driver `AUTH_DRIVER=supabase` tetap ada sebagai FALLBACK (rollback = flip env + restart).
+- Middleware = gerbang kasar (cek KEBERADAAN cookie di edge runtime); validasi penuh (HMAC, tenant,
+  role) di `getServerContext`/`requirePlatformAdmin` (Node runtime).
 
 ## Aturan yang tidak boleh dilanggar
 1. Tidak ada query Prisma tanpa `tenantId` (kecuali tabel global: Device pra-provision, _prisma_migrations).

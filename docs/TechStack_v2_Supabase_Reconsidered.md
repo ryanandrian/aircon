@@ -1,5 +1,9 @@
 # AC SERVICE GROWTH OS — RECONSIDERED TECH STACK (Efisien & Efektif)
 
+> **UPDATE (2026-09-05):** Baris "Auth = Supabase Auth" di bawah sudah USANG. Auth owner/admin kini
+> **Google OAuth SELF-HOST** (cookie HMAC, tanpa Supabase Auth). Supabase tetap dipakai untuk DB.
+> SSOT auth terkini = `docs/Security_Model.md`.
+
 ## Keputusan arsitektur v2.1 — menggantikan PRD v1.0 §8 dan merevisi v2
 
 **Perubahan v2 → v2.1:** IoT kembali memakai **MQTT** (bukan HTTPS-polling), via broker pihak ketiga **EMQX Serverless (free tier)**, dengan **jembatan MQTT → Supabase**. Alasan: MQTT free tier tersedia & layak produksi, memberi remote control instan + firmware "benar sejak awal" tanpa biaya dan tanpa beban RAM lokal.

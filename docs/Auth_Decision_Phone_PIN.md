@@ -1,5 +1,10 @@
 # AUTH DECISION (v2) — Google SSO (owner/admin) + Phone+PIN (teknisi)
 
+> **CATATAN IMPLEMENTASI (2026-09-05):** Keputusan (Google untuk owner/admin, PIN untuk teknisi)
+> TETAP berlaku. Namun implementasinya kini **Google OAuth SELF-HOST** (bukan Supabase Auth) —
+> sesi cookie HMAC `aircon_owner`, callback `app.airconet.id/auth/callback`. Rincian mekanisme
+> terkini = **SSOT `docs/Security_Model.md`**. Referensi Supabase di bawah = konteks sejarah keputusan.
+
 **Direvisi setelah pertimbangan:** hampir semua pengguna Android punya akun Google → SSO Google adalah cara termudah & gratis untuk persona owner. Tapi teknisi lapangan berisiko friksi Google (HP murah/berbagi/akun bukan miliknya). Maka: **auth dibagi per peran**, pilih yang termudah untuk tiap user.
 
 ## Keputusan

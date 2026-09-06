@@ -387,6 +387,8 @@ Aturan keras:
 # 4. API CONTRACT (request/response konkret)
 
 > **Infra auth (lihat TechStack v2.1):** OTP/JWT tidak dibuat sendiri — pakai **Supabase Auth**. Endpoint `/auth/otp/*` di bawah = kontrak logis; implementasinya lewat Supabase client + (opsi) SMS provider untuk OTP, atau email+password owner / PIN teknisi. Realtime progress pakai **Supabase Realtime** (subscribe `JobProgressEvent`), foto pakai **Supabase Storage**. Kontrak endpoint domain (jobs, schedule, repeat, dst.) tetap seperti di bawah.
+>
+> **UPDATE (2026-09-05):** Auth owner/admin kini **Google OAuth SELF-HOST** (bukan Supabase Auth). SSOT terkini = `docs/Security_Model.md`. Catatan di atas = konteks historis.
 
 Konvensi global:
 - Base: `/api/v1`. Auth: `Authorization: Bearer <access>`. Tenant & role dari JWT claim (Supabase session).
