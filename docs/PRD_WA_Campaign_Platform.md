@@ -80,6 +80,12 @@ Product (SaaS: Aircon, dst)
   *AC:* gambar disimpan aman (S3/disk server); preview tampilan seperti di WA.
 - **FR-D2** Placeholder personalisasi: `{nama}`, `{kota}`, dll → terisi dari atribut kontak.
 - **FR-D3** Pratinjau pesan final (gambar+caption) sebelum kirim.
+- **FR-D4** **PRASYARAT GATEWAY — kirim media:** WA gateway kita saat ini **hanya kirim TEKS**
+  (endpoint `/v1/wa/send` menerima `{externalId, toPhone, message}`). Untuk WACP, gateway WAJIB
+  diperluas mendukung **kirim gambar + caption** (engine whatsapp-web.js sudah punya `MessageMedia`
+  bawaan → penambahan ADITIF: field `mediaUrl`/`mediaBase64` + `caption` di endpoint & antrean,
+  tanpa mengubah jalur teks yang sudah jalan). Ini gap kecil, bukan alasan ganti gateway.
+  Berguna ganda: nanti Aircon bisa kirim gambar (mis. foto hasil servis) memakai jalur yang sama.
 
 ### FR-E: Campaign & Mode Kirim (INTI — fleksibel)
 - **FR-E1** Buat campaign: pilih project → tema → **pilih penerima**: (a) semua di project, (b) hasil filter, atau (c) **centang manual satu-per-satu**.
