@@ -2,7 +2,7 @@
 
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
-import { saveChecklist, resetChecklist } from "@/lib/services/checklist-template-service";
+import { saveChecklist, resetChecklist, removeChecklist } from "@/lib/services/checklist-template-service";
 import type { ChecklistItem } from "@/lib/domain/defaults";
 import { revalidatePath } from "next/cache";
 
@@ -29,5 +29,18 @@ export async function actionResetChecklist(serviceType: string): Promise<ClResul
     return { ok: true, items };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Gagal reset" };
+  }
+}
+
+/** Nonaktifkan checklist satu jenis servis (opt-out) → kembali kosong/tak berlaku. */
+export async function actionRemoveChecklist(serviceType: string): Promise<ClResult> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    await removeChecklist(ctx.tenantId, serviceType);
+    revalidatePath("/app/checklist");
+    return { ok: true, items: [] };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Gagal menonaktifkan" };
   }
 }

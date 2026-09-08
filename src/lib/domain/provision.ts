@@ -1,21 +1,17 @@
 /**
- * Provisioning tenant baru: buat checklist templates + WA templates default.
- * Dipakai oleh onboarding (setelah owner login) dan seed script.
+ * Provisioning tenant baru: buat WA templates default.
+ *
+ * CHECKLIST = OPT-IN (keputusan owner 2026-09-08): tenant baru TIDAK lagi diseed checklist
+ * otomatis. Checklist servis kosong secara default; admin tenant membuatnya sendiri per layanan
+ * bila memang ingin diterapkan (menghindari checklist wajib yang tak relevan di lapangan).
+ * Contoh item bawaan tetap tersedia di `DEFAULT_CHECKLISTS` sebagai "template contoh" yang bisa
+ * dipakai admin dari layar Checklist — bukan dipaksakan saat provisioning.
  */
 import { PrismaClient } from "@prisma/client";
-import { DEFAULT_CHECKLISTS, DEFAULT_WA_TEMPLATES } from "@/lib/domain/defaults";
+import { DEFAULT_WA_TEMPLATES } from "@/lib/domain/defaults";
 
 export async function seedTenantDefaults(prisma: PrismaClient, tenantId: string) {
-  // Checklist per service type
-  const checklistOps = Object.entries(DEFAULT_CHECKLISTS).map(([serviceType, items]) =>
-    prisma.checklistTemplate.upsert({
-      where: { tenantId_serviceType: { tenantId, serviceType: serviceType as never } },
-      create: { tenantId, serviceType: serviceType as never, items: items as never },
-      update: { items: items as never },
-    }),
-  );
-
-  // WA templates
+  // WA templates (tetap diseed — dibutuhkan alur pengingat/otomasi sejak hari pertama).
   const waOps = Object.entries(DEFAULT_WA_TEMPLATES).map(([key, body]) =>
     prisma.messageTemplate.upsert({
       where: { tenantId_key: { tenantId, key } },
@@ -24,5 +20,5 @@ export async function seedTenantDefaults(prisma: PrismaClient, tenantId: string)
     }),
   );
 
-  await prisma.$transaction([...checklistOps, ...waOps]);
+  await prisma.$transaction(waOps);
 }

@@ -17,17 +17,29 @@ export interface ChecklistView {
   serviceType: string;
   label: string;
   items: ChecklistItem[];
+  /** true bila tenant SUDAH menerapkan (menyimpan) checklist utk jenis servis ini. */
+  applied: boolean;
+  /** Contoh item bawaan (saran) — dipakai tombol "Muat contoh" di UI, TIDAK otomatis aktif. */
+  example: ChecklistItem[];
 }
 
-/** Daftar checklist tenant (gabung tersimpan + default bila belum ada). */
+/**
+ * Daftar checklist tenant. OPT-IN: hanya yang BENAR-BENAR tersimpan yang dianggap "diterapkan".
+ * Jika belum, items = [] (kosong) + `example` berisi saran bawaan yang bisa dimuat admin.
+ */
 export async function listChecklists(tenantId: string): Promise<ChecklistView[]> {
   const rows = await prisma.checklistTemplate.findMany({ where: { tenantId } });
   const byType = new Map(rows.map((r) => [r.serviceType, r.items as unknown as ChecklistItem[]]));
-  return Object.keys(SERVICE_LABELS).map((st) => ({
-    serviceType: st,
-    label: SERVICE_LABELS[st],
-    items: byType.get(st as ServiceType) ?? DEFAULT_CHECKLISTS[st] ?? [],
-  }));
+  return Object.keys(SERVICE_LABELS).map((st) => {
+    const saved = byType.get(st as ServiceType);
+    return {
+      serviceType: st,
+      label: SERVICE_LABELS[st],
+      items: saved ?? [],
+      applied: saved !== undefined,
+      example: DEFAULT_CHECKLISTS[st] ?? [],
+    };
+  });
 }
 
 /** Validasi + sanitasi item sebelum simpan. */
@@ -65,4 +77,12 @@ export async function resetChecklist(tenantId: string, serviceType: string): Pro
     update: { items: def as never },
   });
   return def;
+}
+
+/** Nonaktifkan (hapus) checklist satu jenis servis — kembali ke kondisi OPT-IN kosong. */
+export async function removeChecklist(tenantId: string, serviceType: string): Promise<void> {
+  if (!(serviceType in SERVICE_LABELS)) throw new Error("Jenis servis tidak dikenal");
+  await prisma.checklistTemplate.deleteMany({
+    where: { tenantId, serviceType: serviceType as ServiceType },
+  });
 }
