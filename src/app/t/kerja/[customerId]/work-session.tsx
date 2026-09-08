@@ -105,6 +105,7 @@ export function WorkSessionScreen({
   const [assetId, setAssetId] = useState<string>(assignment?.assetId ?? "");
   const [serviceId, setServiceId] = useState<string>("");
   const [qty, setQty] = useState<number>(1);
+  const [gateErr, setGateErr] = useState<string | null>(null);
 
   const runningTotal = items.reduce((s, i) => s + i.lineTotal, 0);
   const svc = catalog.find((c) => c.id === serviceId);
@@ -136,8 +137,13 @@ export function WorkSessionScreen({
     const label = isTempo ? "proforma-invoice (tempo)" : "invoice (tunai)";
     if (!confirm(`Tutup sesi & terbitkan ${label}? Setelah ini sesi tak bisa diubah.`)) return;
     start(async () => {
+      setGateErr(null);
       const res = await actionCloseWorkSession(wsId);
-      if (!res.ok) { toast.error(res.error); return; }
+      if (!res.ok) {
+        toast.error("Belum bisa dibuat tagihan");
+        setGateErr(res.error);
+        return;
+      }
       toast.success(`${res.data!.docType === "PROFORMA" ? "Proforma" : "Invoice"} ${res.data!.number} dibuat`);
       router.push(`/t/faktur/${res.data!.invoiceId}`);
     });
@@ -233,15 +239,22 @@ export function WorkSessionScreen({
 
       {/* Bar total + tutup */}
       <div className="fixed inset-x-0 bottom-0 border-t bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-md items-center justify-between gap-3 p-4">
-          <div>
-            <div className="text-xs text-muted-foreground">Total {items.length} item</div>
-            <div className="text-lg font-bold text-foreground">{rp(runningTotal)}</div>
+        <div className="mx-auto max-w-md p-4">
+          {gateErr && (
+            <div role="alert" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+              <span className="font-semibold">Checklist belum lengkap.</span> {gateErr}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Total {items.length} item</div>
+              <div className="text-lg font-bold text-foreground">{rp(runningTotal)}</div>
+            </div>
+            <Button type="button" onClick={close} disabled={pending || items.length === 0}
+              className="min-h-[48px] bg-emerald-600 px-6 text-white hover:bg-emerald-700">
+              {isTempo ? "Tutup & Buat Proforma" : "Tutup & Buat Invoice"}
+            </Button>
           </div>
-          <Button type="button" onClick={close} disabled={pending || items.length === 0}
-            className="min-h-[48px] bg-emerald-600 px-6 text-white hover:bg-emerald-700">
-            {isTempo ? "Tutup & Buat Proforma" : "Tutup & Buat Invoice"}
-          </Button>
         </div>
       </div>
     </div>

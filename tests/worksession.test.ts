@@ -32,6 +32,10 @@ vi.mock("@/lib/prisma", () => ({
       }),
       update: vi.fn(async () => ({})),
     },
+    // Gate checklist (assertWorkSessionChecklist): default tanpa WorkItem ber-serviceId → tidak mengunci.
+    workItem: { findMany: vi.fn(async () => store.workItems ?? []) },
+    checklistTemplate: { findMany: vi.fn(async () => store.checklistTemplates ?? []) },
+    checklistResult: { findMany: vi.fn(async () => store.checklistResults ?? []) },
     tenant: { findUnique: vi.fn(async () => store.tenant) },
     invoice: {
       findFirst: vi.fn(async () => null), // penomoran: belum ada
@@ -86,6 +90,22 @@ describe("closeWorkSession", () => {
   it("sesi kosong → tolak", async () => {
     store.ws.items = [];
     await expect(closeWorkSession("t1", "ws1", "u1")).rejects.toThrow();
+  });
+
+  it("GATE checklist: item WAJIB per-unit belum lengkap → tolak terbit nota", async () => {
+    // WorkItem ber-serviceId + template layanan punya item wajib + belum ada hasil → harus ditolak.
+    store.workItems = [{ id: "wi1", serviceId: "svc1", descSnapshot: "Cuci AC" }];
+    store.checklistTemplates = [{ serviceId: "svc1", items: [{ key: "w", label: "Cuci filter", type: "bool", required: true }] }];
+    store.checklistResults = []; // belum diisi
+    await expect(closeWorkSession("t1", "ws1", "u1")).rejects.toThrow(/checklist wajib belum lengkap/i);
+  });
+
+  it("GATE checklist: item WAJIB terisi → nota tetap terbit", async () => {
+    store.workItems = [{ id: "wi1", serviceId: "svc1", descSnapshot: "Cuci AC" }];
+    store.checklistTemplates = [{ serviceId: "svc1", items: [{ key: "w", label: "Cuci filter", type: "bool", required: true }] }];
+    store.checklistResults = [{ itemKey: "w", checked: true, value: null }];
+    const r = await closeWorkSession("t1", "ws1", "u1");
+    expect(r.docType).toBe("INVOICE");
   });
 
   it("B3: race penutupan ganda → klaim atomik gagal (count 0) → tolak, cegah dobel invoice", async () => {

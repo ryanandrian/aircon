@@ -98,6 +98,50 @@ export async function getWorkSession(tenantId: string, workSessionId: string) {
 }
 
 /**
+ * GATE checklist (SATU titik penegakan): sebelum menutup sesi & terbit nota, pastikan
+ * tiap WorkItem yang layanannya punya checklist per-layanan dgn item WAJIB sudah dilengkapi.
+ * OPT-IN: layanan tanpa template / tanpa item wajib = tidak mengunci.
+ * @throws ServiceError('GUARD_FAILED') dgn daftar unit+item yang belum lengkap.
+ */
+export async function assertWorkSessionChecklist(tenantId: string, workSessionId: string): Promise<void> {
+  const items = await prisma.workItem.findMany({
+    where: { tenantId, workSessionId, serviceId: { not: null } },
+    select: { id: true, serviceId: true, descSnapshot: true },
+  });
+  if (items.length === 0) return;
+
+  const serviceIds = [...new Set(items.map((w) => w.serviceId as string))];
+  const templates = await prisma.checklistTemplate.findMany({
+    where: { tenantId, serviceId: { in: serviceIds } },
+  });
+  if (templates.length === 0) return;
+  const tplByService = new Map(
+    templates.map((t) => [t.serviceId as string, (t.items as { key: string; label: string; required: boolean; type: string }[]) ?? []]),
+  );
+
+  const missing: string[] = [];
+  for (const wi of items) {
+    const tpl = tplByService.get(wi.serviceId as string);
+    if (!tpl || tpl.length === 0) continue;
+    const requiredItems = tpl.filter((i) => i.required);
+    if (requiredItems.length === 0) continue;
+    const results = await prisma.checklistResult.findMany({ where: { tenantId, workItemId: wi.id } });
+    const map = new Map(results.map((r) => [r.itemKey, r]));
+    for (const item of requiredItems) {
+      const r = map.get(item.key);
+      const ok = item.type === "bool" ? !!r?.checked : !!r?.value;
+      if (!ok) missing.push(`${wi.descSnapshot}: ${item.label}`);
+    }
+  }
+  if (missing.length > 0) {
+    throw new ServiceError(
+      "CONFLICT",
+      `Checklist wajib belum lengkap untuk: ${missing.join("; ")}. Lengkapi dulu sebelum membuat tagihan.`,
+    );
+  }
+}
+
+/**
  * Tutup sesi → GENERATE dokumen otomatis (K8):
  *  - customer.topType === CASH  → Invoice (docType INVOICE, status ISSUED)
  *  - selain itu (tempo)         → Proforma (docType PROFORMA, status ISSUED) + dueDate dari TOP (K19)
@@ -113,6 +157,9 @@ export async function closeWorkSession(
   });
   if (!ws) throw new ServiceError("NOT_FOUND", "Sesi kerja tidak aktif");
   if (ws.items.length === 0) throw new ServiceError("CONFLICT", "Sesi kosong — tambah pekerjaan dulu");
+
+  // GATE checklist (satu titik penegakan) — tolak terbit nota bila item wajib per-unit belum lengkap.
+  await assertWorkSessionChecklist(tenantId, workSessionId);
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId }, select: { isPkp: true, taxPercent: true },
