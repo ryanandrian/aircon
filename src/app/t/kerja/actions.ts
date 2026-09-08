@@ -121,3 +121,33 @@ export async function actionCloseWorkSession(workSessionId: string): Promise<Res
     return { ok: false, error: msg(e, "Gagal menutup sesi") };
   }
 }
+
+// ── FASE 2: checklist per WorkItem (layanan × unit) ──
+
+type ChecklistRow = { key: string; label: string; type: "bool" | "number" | "text" | "photo"; required: boolean; checked: boolean; value: string | null };
+
+/** Ambil checklist satu WorkItem (kosong bila layanannya tak punya template). */
+export async function actionGetItemChecklist(workItemId: string): Promise<Result<ChecklistRow[]>> {
+  try {
+    const ctx = await getServerContext();
+    const { getWorkItemChecklist } = await import("@/lib/services/job-work-service");
+    const rows = await getWorkItemChecklist(ctx.tenantId, workItemId);
+    return { ok: true, data: rows as ChecklistRow[] };
+  } catch (e) {
+    return { ok: false, error: msg(e, "Gagal memuat checklist") };
+  }
+}
+
+/** Simpan satu jawaban checklist WorkItem. */
+export async function actionSetItemChecklist(
+  workItemId: string, itemKey: string, data: { checked?: boolean; value?: string | null },
+): Promise<Result> {
+  try {
+    const ctx = await getServerContext();
+    const { setWorkItemChecklistItem } = await import("@/lib/services/job-work-service");
+    await setWorkItemChecklistItem(ctx.tenantId, workItemId, itemKey, data);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: msg(e, "Gagal menyimpan checklist") };
+  }
+}

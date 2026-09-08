@@ -91,14 +91,11 @@ export function TechJobWork({
 
   return (
     <>
-      {showWork && (
+      {showWork && items.length > 0 && (
         <Card>
           <CardContent className="p-4">
             <h2 className="text-sm font-semibold text-muted-foreground">Checklist Pekerjaan</h2>
-            {items.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">Tidak ada checklist untuk servis ini.</p>
-            ) : (
-              <ul className="mt-2 space-y-3">
+            <ul className="mt-2 space-y-3">
                 {items.map((it) => (
                   <li key={it.key}>
                     {it.type === "bool" ? (
@@ -129,7 +126,6 @@ export function TechJobWork({
                   </li>
                 ))}
               </ul>
-            )}
           </CardContent>
         </Card>
       )}

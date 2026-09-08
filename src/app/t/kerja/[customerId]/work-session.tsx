@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icons";
-import { actionAddWorkItem, actionRemoveWorkItem, actionCloseWorkSession } from "../actions";
+import { actionAddWorkItem, actionRemoveWorkItem, actionCloseWorkSession, actionGetItemChecklist, actionSetItemChecklist } from "../actions";
 
 type Catalog = { id: string; name: string; unit: string; standardPrice: number; category: string };
 type Asset = { id: string; label: string };
@@ -16,6 +16,81 @@ type Item = { id: string; desc: string; qty: number; unit: string; unitPrice: nu
 type Assignment = { assetId: string; assetLabel: string; serviceLabel: string } | null;
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
+
+type CItem = { key: string; label: string; type: "bool" | "number" | "text" | "photo"; required: boolean; checked: boolean; value: string | null };
+
+/** Checklist per baris pekerjaan (layanan × unit). Lazy-load; sembunyi bila layanan tak punya checklist. */
+function ItemChecklist({ workItemId }: { workItemId: string }) {
+  const [items, setItems] = useState<CItem[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [pending, start] = useTransition();
+
+  function load() {
+    if (items !== null) { setOpen((o) => !o); return; }
+    setLoading(true);
+    start(async () => {
+      const res = await actionGetItemChecklist(workItemId);
+      setLoading(false);
+      if (res.ok && res.data) { setItems(res.data); setOpen(true); }
+      else if (!res.ok) toast.error(res.error);
+    });
+  }
+  function setBool(key: string, checked: boolean) {
+    setItems((prev) => prev?.map((i) => (i.key === key ? { ...i, checked } : i)) ?? prev);
+    start(async () => { const r = await actionSetItemChecklist(workItemId, key, { checked }); if (!r.ok) toast.error(r.error); });
+  }
+  function setVal(key: string, value: string) {
+    setItems((prev) => prev?.map((i) => (i.key === key ? { ...i, value } : i)) ?? prev);
+  }
+  function saveVal(key: string, value: string) {
+    start(async () => { const r = await actionSetItemChecklist(workItemId, key, { value }); if (!r.ok) toast.error(r.error); });
+  }
+
+  // Sembunyikan sepenuhnya bila sudah dimuat & ternyata kosong (layanan tanpa checklist).
+  if (items !== null && items.length === 0) return null;
+
+  const doneCount = items?.filter((i) => (i.type === "bool" ? i.checked : !!i.value)).length ?? 0;
+  const reqPending = items?.filter((i) => i.required && (i.type === "bool" ? !i.checked : !i.value)).length ?? 0;
+
+  return (
+    <div className="mt-2 border-t pt-2">
+      <button type="button" onClick={load} className="flex w-full items-center justify-between text-left text-xs">
+        <span className="flex items-center gap-1.5 font-medium text-sky-700 dark:text-sky-400">
+          <Icon.Check className="h-3.5 w-3.5" aria-hidden />
+          Checklist{items ? ` (${doneCount}/${items.length})` : ""}
+          {reqPending > 0 && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">{reqPending} wajib</span>}
+        </span>
+        <span className="text-muted-foreground">{loading ? "…" : open ? "▲" : "▼"}</span>
+      </button>
+      {open && items && (
+        <ul className="mt-2 space-y-2">
+          {items.map((it) => (
+            <li key={it.key}>
+              {it.type === "bool" ? (
+                <label className="flex min-h-[36px] items-center gap-2">
+                  <input type="checkbox" checked={it.checked} disabled={pending} onChange={(e) => setBool(it.key, e.target.checked)} className="h-5 w-5 rounded border-border" />
+                  <span className="text-sm text-foreground">{it.label}{it.required && <span className="text-red-500"> *</span>}</span>
+                </label>
+              ) : (
+                <div>
+                  <label className="block text-xs text-muted-foreground">{it.label}{it.required && <span className="text-red-500"> *</span>}</label>
+                  <Input
+                    type={it.type === "number" ? "number" : "text"}
+                    defaultValue={it.value ?? ""}
+                    onChange={(e) => setVal(it.key, e.target.value)}
+                    onBlur={(e) => saveVal(it.key, e.target.value)}
+                    className="mt-0.5 min-h-[36px]"
+                  />
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function WorkSessionScreen({
   wsId, customerName, isTempo, catalog, assets, initialItems, assignment,
@@ -136,15 +211,18 @@ export function WorkSessionScreen({
             ) : (
               <div className="space-y-2">
                 {items.map((it) => (
-                  <div key={it.id} className="flex items-start justify-between gap-2 rounded-xl border p-3">
-                    <div className="min-w-0">
-                      {it.assetLabel && <div className="text-xs font-medium text-sky-600 dark:text-sky-400">{it.assetLabel}</div>}
-                      <div className="truncate text-sm font-medium text-foreground">{it.desc}</div>
-                      <div className="text-xs text-muted-foreground">{it.qty} {it.unit} × {rp(it.unitPrice)} = {rp(it.lineTotal)}</div>
+                  <div key={it.id} className="rounded-xl border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        {it.assetLabel && <div className="text-xs font-medium text-sky-600 dark:text-sky-400">{it.assetLabel}</div>}
+                        <div className="truncate text-sm font-medium text-foreground">{it.desc}</div>
+                        <div className="text-xs text-muted-foreground">{it.qty} {it.unit} × {rp(it.unitPrice)} = {rp(it.lineTotal)}</div>
+                      </div>
+                      <button onClick={() => remove(it.id)} disabled={pending} aria-label="Hapus" className="p-1 text-destructive">
+                        <Icon.Close className="h-4 w-4" aria-hidden />
+                      </button>
                     </div>
-                    <button onClick={() => remove(it.id)} disabled={pending} aria-label="Hapus" className="p-1 text-destructive">
-                      <Icon.Close className="h-4 w-4" aria-hidden />
-                    </button>
+                    <ItemChecklist workItemId={it.id} />
                   </div>
                 ))}
               </div>

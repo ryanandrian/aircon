@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { actionSaveChecklist, actionRemoveChecklist } from "./actions";
+import { actionSaveChecklist, actionRemoveChecklist, actionSaveServiceChecklist, actionRemoveServiceChecklist } from "./actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,15 +20,18 @@ type Item = { key: string; label: string; type: "bool" | "number" | "text" | "ph
 const TYPE_LABEL: Record<Item["type"], string> = { bool: "Centang", number: "Angka", text: "Teks", photo: "Foto" };
 
 export function ChecklistEditor({
-  serviceType, label, initialItems, applied: initialApplied, example,
+  serviceType, serviceId, label, initialItems, applied: initialApplied, example = [],
 }: {
-  serviceType: string; label: string; initialItems: Item[]; applied: boolean; example: Item[];
+  serviceType?: string; serviceId?: string; label: string; initialItems: Item[]; applied: boolean; example?: Item[];
 }) {
   const [items, setItems] = useState<Item[]>(initialItems);
   const [applied, setApplied] = useState(initialApplied);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // Mode: per-LAYANAN (serviceId) atau per-jenis-servis legacy (serviceType).
+  const byService = Boolean(serviceId);
 
   function update(i: number, patch: Partial<Item>) {
     setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -46,15 +49,19 @@ export function ChecklistEditor({
   function save() {
     if (items.length === 0) { setMsg({ ok: false, text: "Tambah minimal 1 langkah, atau nonaktifkan checklist." }); return; }
     start(async () => {
-      const res = await actionSaveChecklist(serviceType, items);
+      const res = byService
+        ? await actionSaveServiceChecklist(serviceId!, items)
+        : await actionSaveChecklist(serviceType!, items);
       if (res.ok) { setApplied(true); setMsg({ ok: true, text: "Tersimpan & diterapkan" }); }
       else setMsg({ ok: false, text: res.error });
     });
   }
   function deactivate() {
-    if (!confirm(`Nonaktifkan checklist "${label}"? Teknisi tak akan diminta checklist untuk jenis servis ini.`)) return;
+    if (!confirm(`Nonaktifkan checklist "${label}"? Teknisi tak akan diminta checklist untuk ini.`)) return;
     start(async () => {
-      const res = await actionRemoveChecklist(serviceType);
+      const res = byService
+        ? await actionRemoveServiceChecklist(serviceId!)
+        : await actionRemoveChecklist(serviceType!);
       if (res.ok) { setItems([]); setApplied(false); setMsg({ ok: true, text: "Dinonaktifkan" }); }
       else setMsg({ ok: false, text: res.error });
     });
