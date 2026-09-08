@@ -115,7 +115,7 @@ export function CardView({ card }: { card: Card }) {
               {card.units.length === 0 ? "Belum ada unit AC terdaftar." : "Tidak ada unit cocok."}
             </CardContent></Card>
           ) : units.map((u) => (
-            <Card key={u.id}>
+            <Card key={u.id} className="transition-shadow hover:shadow-md">
               <CardContent className="p-0">
                 <button
                   type="button"
@@ -131,7 +131,10 @@ export function CardView({ card }: { card: Card }) {
                       {[AC_TYPE_LABEL[u.type] ?? u.type, u.roomLocation].filter(Boolean).join(" · ")}
                     </div>
                   </div>
-                  <div className="shrink-0 text-right">
+                  <Badge variant="secondary" className="shrink-0 gap-1">
+                    <Icon.Check className="h-3 w-3" aria-hidden /> {u.history.length}
+                  </Badge>
+                  <div className="hidden shrink-0 text-right sm:block">
                     <div className="text-xs text-muted-foreground">Servis berikutnya</div>
                     <div className="text-sm font-medium text-foreground">{fmtDate(u.nextServiceDate)}</div>
                   </div>

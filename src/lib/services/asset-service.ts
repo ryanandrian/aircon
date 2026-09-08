@@ -182,6 +182,51 @@ export async function listAssetsByCustomer(
   }
 }
 
+/** Satu baris unit + jumlah riwayat (jobCount) untuk detail pelanggan. */
+export interface CustomerAssetRow {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  type: string;
+  capacityPk: number | null;
+  roomLocation: string | null;
+  nextServiceDate: string | null;
+  jobCount: number;
+}
+
+/**
+ * List unit AC seorang pelanggan LENGKAP dgn jumlah riwayat servis (jobCount) — 1 query, nol N+1.
+ * Dipakai layar detail pelanggan (customer-hub) yang butuh resume riwayat + pencarian.
+ */
+export async function listAssetsByCustomerWithHistory(
+  tenantId: string,
+  customerId: string,
+): Promise<CustomerAssetRow[]> {
+  try {
+    const rows = await prisma.asset.findMany({
+      where: { tenantId, customerId, deletedAt: null },
+      orderBy: { id: "asc" },
+      include: { _count: { select: { jobs: true } } },
+    });
+    return rows.map((a) => ({
+      id: a.id,
+      brand: a.brand,
+      model: a.model,
+      type: a.type,
+      capacityPk: a.capacityPk,
+      roomLocation: a.roomLocation,
+      nextServiceDate: a.nextServiceDate ? a.nextServiceDate.toISOString() : null,
+      jobCount: a._count.jobs,
+    }));
+  } catch (err) {
+    throw new ServiceError(
+      "UNEXPECTED",
+      "Gagal memuat unit pelanggan",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
 /** Ambil satu asset aktif milik tenant. Throw NOT_FOUND bila tidak ada. */
 export async function getAsset(tenantId: string, id: string): Promise<Asset> {
   // SECURITY: tenant-scoped

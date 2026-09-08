@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
@@ -12,6 +13,7 @@ import { actionUnitHistory, type UnitHistoryItem } from "../actions";
 type Asset = {
   id: string; brand: string | null; model: string | null; type: string;
   capacityPk: number | null; roomLocation: string | null; nextServiceDate: string | null;
+  jobCount: number;
 };
 type Customer = { id: string; name: string; phone: string; address: string | null; customerType: string };
 
@@ -85,17 +87,73 @@ export function CustomerHub({
       {/* Kartu Perawatan (link publik) */}
       {cardUrl && <MaintenanceCardShare url={cardUrl} />}
 
-      {/* Unit AC pelanggan ini */}
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Unit AC ({assets.length})</h3>
-        {assets.length === 0 ? (
-          <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Belum ada unit AC terdaftar untuk pelanggan ini.</CardContent></Card>
-        ) : (
-          <ul className="space-y-3">
-            {assets.map((a) => <UnitRow key={a.id} asset={a} />)}
-          </ul>
-        )}
-      </div>
+      {/* Unit AC pelanggan ini — dengan pencarian & pengurutan (institusi bisa puluhan/ratusan unit) */}
+      <UnitsSection assets={assets} />
+    </div>
+  );
+}
+
+type SortKey = "due" | "location" | "history";
+
+function UnitsSection({ assets }: { assets: Asset[] }) {
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<SortKey>("due");
+
+  const units = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    let list = assets;
+    if (s) {
+      list = list.filter((u) =>
+        [u.brand, u.model, u.roomLocation].some((f) => (f ?? "").toLowerCase().includes(s)),
+      );
+    }
+    const sorted = [...list];
+    if (sort === "due") {
+      sorted.sort((a, b) => (a.nextServiceDate ?? "9999").localeCompare(b.nextServiceDate ?? "9999"));
+    } else if (sort === "location") {
+      sorted.sort((a, b) => (a.roomLocation ?? "").localeCompare(b.roomLocation ?? ""));
+    } else {
+      sorted.sort((a, b) => b.jobCount - a.jobCount);
+    }
+    return sorted;
+  }, [assets, q, sort]);
+
+  return (
+    <div>
+      <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Unit AC ({assets.length})</h3>
+      {assets.length === 0 ? (
+        <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Belum ada unit AC terdaftar untuk pelanggan ini.</CardContent></Card>
+      ) : (
+        <>
+          {assets.length > 1 && (
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+              <Input
+                placeholder="Cari unit (merek, model, lokasi)…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="h-11 flex-1 rounded-xl"
+              />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortKey)}
+                className="h-11 rounded-xl border bg-card px-3 text-sm"
+                aria-label="Urutkan unit"
+              >
+                <option value="due">Jatuh tempo terdekat</option>
+                <option value="location">Lokasi</option>
+                <option value="history">Riwayat terbanyak</option>
+              </select>
+            </div>
+          )}
+          {units.length === 0 ? (
+            <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Tidak ada unit cocok dengan pencarian.</CardContent></Card>
+          ) : (
+            <ul className="space-y-3">
+              {units.map((a) => <UnitRow key={a.id} asset={a} />)}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -158,7 +216,7 @@ function UnitRow({ asset }: { asset: Asset }) {
 
   return (
     <li>
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden transition-shadow hover:shadow-md">
         <button type="button" onClick={toggle} className="interactive flex w-full items-center gap-3 p-4 text-left">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
             <Icon.AC className="h-5 w-5" aria-hidden />
@@ -167,6 +225,9 @@ function UnitRow({ asset }: { asset: Asset }) {
             <span className="block truncate font-semibold text-foreground">{unitTitle(asset)}</span>
             {meta && <span className="block truncate text-xs text-muted-foreground">{meta}</span>}
           </span>
+          <Badge variant="secondary" className="shrink-0 gap-1">
+            <Icon.Job className="h-3 w-3" aria-hidden /> {asset.jobCount}
+          </Badge>
           {asset.nextServiceDate && (
             <span className="hidden shrink-0 text-right text-xs text-muted-foreground sm:block">
               Servis berikut<br /><span className="font-medium text-foreground">{fmtDate(asset.nextServiceDate)}</span>
