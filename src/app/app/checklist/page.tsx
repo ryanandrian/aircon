@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
-import { listServiceChecklists } from "@/lib/services/checklist-template-service";
+import { listServiceChecklists, listChecklists } from "@/lib/services/checklist-template-service";
 import { AppHeader } from "../_components/app-header";
 import { ChecklistEditor } from "./checklist-editor";
 import { buttonVariants } from "@/components/ui/button";
@@ -13,7 +13,12 @@ export default async function ChecklistPage() {
   if (!ctx) redirect("/login");
   if (ctx.role === "TECHNICIAN") redirect("/t");
 
-  const services = await listServiceChecklists(ctx.tenantId);
+  const [services, legacyAll] = await Promise.all([
+    listServiceChecklists(ctx.tenantId),
+    listChecklists(ctx.tenantId),
+  ]);
+  // Hanya checklist lama (per jenis servis) yang BENAR-BENAR masih aktif (tersimpan di DB).
+  const legacyApplied = legacyAll.filter((c) => c.applied);
 
   return (
     <main className="min-h-screen">
@@ -43,6 +48,30 @@ export default async function ChecklistPage() {
               applied={s.applied}
             />
           ))
+        )}
+
+        {/* Checklist LAMA (per jenis servis) yang masih aktif — beri kendali penuh ke owner (opt-out).
+            Hanya tampil bila memang masih ada, agar owner bisa melihat & menonaktifkan. */}
+        {legacyApplied.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-foreground/80 dark:border-amber-900/40 dark:bg-amber-950/20">
+              <p className="font-semibold text-foreground">Checklist lama (per jenis servis)</p>
+              <p className="mt-1">
+                Ini checklist versi lama yang masih aktif dari pengaturan sebelumnya. Masih berlaku untuk teknisi.
+                Anda bisa <span className="font-semibold text-foreground">menonaktifkannya</span> di sini bila ingin beralih sepenuhnya ke checklist per layanan di atas.
+              </p>
+            </div>
+            {legacyApplied.map((c) => (
+              <ChecklistEditor
+                key={`legacy-${c.serviceType}`}
+                serviceType={c.serviceType}
+                label={`${c.label} (lama)`}
+                initialItems={c.items}
+                applied={c.applied}
+                example={c.example}
+              />
+            ))}
+          </div>
         )}
       </div>
     </main>
