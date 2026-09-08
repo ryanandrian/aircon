@@ -191,12 +191,13 @@ export interface CustomerAssetRow {
   capacityPk: number | null;
   roomLocation: string | null;
   nextServiceDate: string | null;
+  lastServiceDate: string | null;
   jobCount: number;
 }
 
 /**
- * List unit AC seorang pelanggan LENGKAP dgn jumlah riwayat servis (jobCount) — 1 query, nol N+1.
- * Dipakai layar detail pelanggan (customer-hub) yang butuh resume riwayat + pencarian.
+ * List unit AC seorang pelanggan LENGKAP dgn jumlah riwayat (jobCount) + tanggal servis terakhir
+ * (job COMPLETED terbaru) — nol N+1. Dipakai layar detail pelanggan (pencarian + pengurutan).
  */
 export async function listAssetsByCustomerWithHistory(
   tenantId: string,
@@ -206,7 +207,15 @@ export async function listAssetsByCustomerWithHistory(
     const rows = await prisma.asset.findMany({
       where: { tenantId, customerId, deletedAt: null },
       orderBy: { id: "asc" },
-      include: { _count: { select: { jobs: true } } },
+      include: {
+        _count: { select: { jobs: true } },
+        jobs: {
+          where: { status: "COMPLETED", completedAt: { not: null } },
+          orderBy: { completedAt: "desc" },
+          take: 1,
+          select: { completedAt: true },
+        },
+      },
     });
     return rows.map((a) => ({
       id: a.id,
@@ -216,6 +225,7 @@ export async function listAssetsByCustomerWithHistory(
       capacityPk: a.capacityPk,
       roomLocation: a.roomLocation,
       nextServiceDate: a.nextServiceDate ? a.nextServiceDate.toISOString() : null,
+      lastServiceDate: a.jobs[0]?.completedAt ? a.jobs[0].completedAt.toISOString() : null,
       jobCount: a._count.jobs,
     }));
   } catch (err) {

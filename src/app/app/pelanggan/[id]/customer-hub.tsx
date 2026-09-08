@@ -13,6 +13,7 @@ import { actionUnitHistory, type UnitHistoryItem } from "../actions";
 type Asset = {
   id: string; brand: string | null; model: string | null; type: string;
   capacityPk: number | null; roomLocation: string | null; nextServiceDate: string | null;
+  lastServiceDate: string | null;
   jobCount: number;
 };
 type Customer = { id: string; name: string; phone: string; address: string | null; customerType: string };
@@ -93,7 +94,7 @@ export function CustomerHub({
   );
 }
 
-type SortKey = "due" | "location" | "history";
+type SortKey = "due" | "last" | "location" | "history";
 
 function UnitsSection({ assets }: { assets: Asset[] }) {
   const [q, setQ] = useState("");
@@ -110,6 +111,8 @@ function UnitsSection({ assets }: { assets: Asset[] }) {
     const sorted = [...list];
     if (sort === "due") {
       sorted.sort((a, b) => (a.nextServiceDate ?? "9999").localeCompare(b.nextServiceDate ?? "9999"));
+    } else if (sort === "last") {
+      sorted.sort((a, b) => (b.lastServiceDate ?? "").localeCompare(a.lastServiceDate ?? ""));
     } else if (sort === "location") {
       sorted.sort((a, b) => (a.roomLocation ?? "").localeCompare(b.roomLocation ?? ""));
     } else {
@@ -140,6 +143,7 @@ function UnitsSection({ assets }: { assets: Asset[] }) {
                 aria-label="Urutkan unit"
               >
                 <option value="due">Jatuh tempo terdekat</option>
+                <option value="last">Terakhir diservis</option>
                 <option value="location">Lokasi</option>
                 <option value="history">Riwayat terbanyak</option>
               </select>
