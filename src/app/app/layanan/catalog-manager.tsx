@@ -13,7 +13,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/empty-state";
 import {
-  actionCreateCatalog, actionUpdateCatalog, actionDeleteCatalog, actionListOverrides,
+  actionCreateCatalog, actionUpdateCatalog, actionDeleteCatalog, actionListOverrides, actionSetCatalogActive,
 } from "./actions";
 
 export type CatalogRow = {
@@ -87,11 +87,21 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
   }
 
   function del(i: CatalogRow) {
-    if (!confirm(`Hapus layanan "${i.name}"? Harga khusus terkait juga ikut terhapus.`)) return;
+    if (!confirm(`Hapus permanen layanan "${i.name}"? Harga khusus terkait juga ikut terhapus. Tindakan ini tak bisa dibatalkan.`)) return;
     start(async () => {
       const res = await actionDeleteCatalog(i.id);
       if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
       toast.success("Layanan dihapus"); router.refresh();
+    });
+  }
+
+  function toggleActive(i: CatalogRow) {
+    const next = !i.active;
+    if (!confirm(next ? `Aktifkan kembali layanan "${i.name}"?` : `Nonaktifkan layanan "${i.name}"? Layanan tetap tersimpan (histori & laporan utuh) tapi tak muncul saat membuat pekerjaan baru.`)) return;
+    start(async () => {
+      const res = await actionSetCatalogActive(i.id, next);
+      if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
+      toast.success(next ? "Layanan diaktifkan" : "Layanan dinonaktifkan"); router.refresh();
     });
   }
 
@@ -236,7 +246,10 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
                       </div>
                       <div className="flex shrink-0 gap-1">
                         <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => openEdit(i)}><Icon.Note className="h-4 w-4" aria-hidden /></Button>
-                        <Button type="button" variant="ghost" size="icon" aria-label="Hapus" disabled={pending} onClick={() => del(i)}><Icon.Close className="h-4 w-4 text-destructive" aria-hidden /></Button>
+                        <Button type="button" variant="ghost" size="icon" aria-label={i.active ? "Nonaktifkan" : "Aktifkan"} title={i.active ? "Nonaktifkan" : "Aktifkan"} disabled={pending} onClick={() => toggleActive(i)}>
+                          <Icon.Power className={i.active ? "h-4 w-4 text-amber-600" : "h-4 w-4 text-emerald-600"} aria-hidden />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" aria-label="Hapus" title="Hapus permanen" disabled={pending} onClick={() => del(i)}><Icon.Close className="h-4 w-4 text-destructive" aria-hidden /></Button>
                       </div>
                     </div>
                   </CardContent>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { tryGetServerContext } from "@/lib/auth/context";
 import {
   createCatalogItem, updateCatalogItem, deleteCatalogItem, listOverridesForService,
+  setCatalogActive,
   type CatalogInput,
 } from "@/lib/services/service-catalog-service";
 import { ServiceError } from "@/lib/services/customer-service";
@@ -75,6 +76,21 @@ export async function actionDeleteCatalog(id: string): Promise<Result> {
   } catch (e) {
     if (e instanceof ServiceError) return { ok: false, error: e.message };
     return { ok: false, error: e instanceof Error ? e.message : "Gagal menghapus layanan" };
+  }
+}
+
+/** Nonaktifkan / aktifkan kembali layanan (soft-delete; histori tetap utuh). */
+export async function actionSetCatalogActive(id: string, active: boolean): Promise<Result> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  try {
+    await setCatalogActive(ctx.tenantId, id, active);
+    revalidatePath("/app/layanan");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof ServiceError) return { ok: false, error: e.message };
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal mengubah status" };
   }
 }
 

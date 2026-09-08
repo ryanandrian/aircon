@@ -172,10 +172,31 @@ export async function updateCatalogItem(
   }
 }
 
+/** Cek apakah layanan sudah punya histori transaksi (dipakai di pekerjaan/WorkItem). */
+export async function serviceUsageCount(tenantId: string, serviceId: string): Promise<number> {
+  return prisma.workItem.count({ where: { tenantId, serviceId } });
+}
+
 export async function deleteCatalogItem(tenantId: string, id: string): Promise<void> {
   const existing = await prisma.serviceCatalog.findFirst({ where: { id, tenantId }, select: { id: true } });
   if (!existing) throw new ServiceError("NOT_FOUND", "Layanan tidak ditemukan");
+  // GUARD histori: layanan yang sudah dipakai di pekerjaan/transaksi TIDAK boleh dihapus permanen
+  // (histori & laporan per-layanan harus tetap utuh). Arahkan owner ke "Nonaktifkan".
+  const used = await prisma.workItem.count({ where: { tenantId, serviceId: id } });
+  if (used > 0) {
+    throw new ServiceError(
+      "CONFLICT",
+      `Layanan ini sudah dipakai di ${used} transaksi. Agar histori & laporan tetap utuh, layanan tidak bisa dihapus — nonaktifkan saja (tetap tersimpan, tak muncul saat buat pekerjaan baru).`,
+    );
+  }
   await prisma.serviceCatalog.delete({ where: { id } });
+}
+
+/** Nonaktifkan / aktifkan kembali layanan (soft-delete). Histori tetap utuh. */
+export async function setCatalogActive(tenantId: string, id: string, active: boolean): Promise<void> {
+  const existing = await prisma.serviceCatalog.findFirst({ where: { id, tenantId }, select: { id: true } });
+  if (!existing) throw new ServiceError("NOT_FOUND", "Layanan tidak ditemukan");
+  await prisma.serviceCatalog.update({ where: { id }, data: { active } });
 }
 
 // ---------- HARGA KHUSUS PELANGGAN (K21 pola TAMBAH per item) ----------
