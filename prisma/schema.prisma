@@ -488,23 +488,31 @@ model JobProgressEvent {
 }
 
 model ChecklistTemplate {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   tenantId    String
-  serviceType ServiceType
+  serviceType ServiceType? // LEGACY (opt-in per jenis servis) — dipertahankan utk kompatibilitas & dual-read
+  serviceId   String? // BARU: checklist per LAYANAN katalog (ServiceCatalog)
   items       Json
 
+  service ServiceCatalog? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
   @@unique([tenantId, serviceType])
+  @@unique([tenantId, serviceId])
 }
 
 model ChecklistResult {
-  id       String  @id @default(cuid())
-  tenantId String
-  jobId    String
-  itemKey  String
-  checked  Boolean @default(false)
-  value    String?
+  id         String  @id @default(cuid())
+  tenantId   String
+  jobId      String? // LEGACY (hasil per job) — dipertahankan utk dual-read
+  workItemId String? // BARU: hasil per WorkItem (layanan × unit)
+  itemKey    String
+  checked    Boolean @default(false)
+  value      String?
+
+  workItem WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, jobId, itemKey])
+  @@unique([tenantId, workItemId, itemKey])
 }
 
 model JobPhoto {
@@ -1362,6 +1370,7 @@ model ServiceCatalog {
 
   tenant          Tenant            @relation(fields: [tenantId], references: [id])
   customerPricing CustomerPricing[]
+  checklistTemplates ChecklistTemplate[]
 
   @@unique([tenantId, code])
   @@index([tenantId, category])
@@ -1500,6 +1509,7 @@ model WorkItem {
   tenant      Tenant      @relation(fields: [tenantId], references: [id])
   workSession WorkSession @relation(fields: [workSessionId], references: [id], onDelete: Cascade)
   asset       Asset?      @relation(fields: [assetId], references: [id])
+  checklistResults ChecklistResult[]
 
   @@index([tenantId, workSessionId])
 }

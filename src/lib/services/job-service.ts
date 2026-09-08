@@ -149,10 +149,52 @@ export async function transitionJob(input: TransitionInput) {
   return { job: result.updated, nextServiceDate: result.nextServiceDate, idempotentReplay: false };
 }
 
-/** Guard COMPLETED: semua item checklist required terisi + foto after bila diminta template. */
+/**
+ * Guard COMPLETED (DUAL-READ, opt-in):
+ *  1) BARU — bila job punya WorkSession+WorkItem yang layanannya punya template checklist per-serviceId,
+ *     wajibkan item required tiap WorkItem (per layanan × unit) terisi.
+ *  2) LEGACY — bila tidak, pakai template per-serviceType (jalur lama). Job in-flight tetap jalan.
+ * Tanpa template mana pun / tanpa item required = TIDAK mengunci (opt-in).
+ */
 async function assertCompletionGuards(tenantId: string, jobId: string, serviceType: string) {
-  const template = await prisma.checklistTemplate.findUnique({
-    where: { tenantId_serviceType: { tenantId, serviceType: serviceType as never } },
+  const missing: string[] = [];
+
+  // ---- (1) Jalur BARU: checklist per WorkItem (layanan × unit) ----
+  const workItems = await prisma.workItem.findMany({
+    where: { tenantId, serviceId: { not: null }, workSession: { jobId } },
+    select: { id: true, serviceId: true, descSnapshot: true },
+  });
+  let usedNewPath = false;
+  if (workItems.length > 0) {
+    const serviceIds = [...new Set(workItems.map((w) => w.serviceId as string))];
+    const templates = await prisma.checklistTemplate.findMany({
+      where: { tenantId, serviceId: { in: serviceIds } },
+    });
+    const tplByService = new Map(templates.map((t) => [t.serviceId as string, (t.items as { key: string; required: boolean; type: string }[]) ?? []]));
+
+    for (const wi of workItems) {
+      const items = tplByService.get(wi.serviceId as string);
+      if (!items || items.length === 0) continue; // layanan tanpa checklist = tak mengunci
+      const requiredItems = items.filter((i) => i.required);
+      if (requiredItems.length === 0) continue;
+      usedNewPath = true;
+      const results = await prisma.checklistResult.findMany({ where: { tenantId, workItemId: wi.id } });
+      const map = new Map(results.map((r) => [r.itemKey, r]));
+      for (const item of requiredItems) {
+        const r = map.get(item.key);
+        const ok = item.type === "bool" ? !!r?.checked : !!r?.value;
+        if (!ok) missing.push(`${wi.descSnapshot} — ${item.key}`);
+      }
+    }
+    if (usedNewPath) {
+      if (missing.length > 0) throw new TransitionError("GUARD_FAILED", "Checklist wajib belum lengkap", { missing });
+      return; // jalur baru dipakai & lolos → tak perlu cek legacy
+    }
+  }
+
+  // ---- (2) Jalur LEGACY: checklist per serviceType (job in-flight / tenant lama) ----
+  const template = await prisma.checklistTemplate.findFirst({
+    where: { tenantId, serviceType: serviceType as never },
   });
   if (!template) return; // tidak ada template = tidak ada guard
 
@@ -163,7 +205,6 @@ async function assertCompletionGuards(tenantId: string, jobId: string, serviceTy
   const results = await prisma.checklistResult.findMany({ where: { tenantId, jobId } });
   const resultMap = new Map(results.map((r) => [r.itemKey, r]));
 
-  const missing: string[] = [];
   for (const item of items.filter((i) => i.required)) {
     const r = resultMap.get(item.key);
     if (!r) { missing.push(item.key); continue; }

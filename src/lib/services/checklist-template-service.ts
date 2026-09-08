@@ -86,3 +86,62 @@ export async function removeChecklist(tenantId: string, serviceType: string): Pr
     where: { tenantId, serviceType: serviceType as ServiceType },
   });
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// FASE 2 — Checklist per LAYANAN (ServiceCatalog.serviceId). OPT-IN, tenant-scoped.
+// Berdampingan dgn per-serviceType (legacy) via dual-read. Sumber kebenaran BARU.
+// ════════════════════════════════════════════════════════════════════════
+
+export interface ServiceChecklistView {
+  serviceId: string;
+  code: string;
+  name: string;
+  category: string;
+  active: boolean;
+  items: ChecklistItem[];
+  /** true bila tenant SUDAH menerapkan checklist utk layanan ini. */
+  applied: boolean;
+}
+
+/** Daftar layanan katalog + status checklist masing-masing (OPT-IN, default kosong). */
+export async function listServiceChecklists(tenantId: string): Promise<ServiceChecklistView[]> {
+  const [services, templates] = await Promise.all([
+    prisma.serviceCatalog.findMany({
+      where: { tenantId },
+      orderBy: [{ active: "desc" }, { category: "asc" }, { name: "asc" }],
+      select: { id: true, code: true, name: true, category: true, active: true },
+    }),
+    prisma.checklistTemplate.findMany({ where: { tenantId, serviceId: { not: null } } }),
+  ]);
+  const byService = new Map(templates.map((t) => [t.serviceId as string, t.items as unknown as ChecklistItem[]]));
+  return services.map((s) => {
+    const saved = byService.get(s.id);
+    return {
+      serviceId: s.id,
+      code: s.code,
+      name: s.name,
+      category: s.category,
+      active: s.active,
+      items: saved ?? [],
+      applied: saved !== undefined,
+    };
+  });
+}
+
+/** Simpan checklist satu LAYANAN (tenant-scoped, validasi layanan milik tenant). */
+export async function saveServiceChecklist(tenantId: string, serviceId: string, items: unknown): Promise<void> {
+  const svc = await prisma.serviceCatalog.findFirst({ where: { id: serviceId, tenantId }, select: { id: true } });
+  if (!svc) throw new Error("Layanan tidak ditemukan");
+  const clean = sanitize(items);
+  if (clean.length === 0) throw new Error("Tambah minimal 1 langkah");
+  await prisma.checklistTemplate.upsert({
+    where: { tenantId_serviceId: { tenantId, serviceId } },
+    create: { tenantId, serviceId, items: clean as never },
+    update: { items: clean as never },
+  });
+}
+
+/** Nonaktifkan checklist satu layanan (opt-out) → kembali kosong/tak berlaku. */
+export async function removeServiceChecklist(tenantId: string, serviceId: string): Promise<void> {
+  await prisma.checklistTemplate.deleteMany({ where: { tenantId, serviceId } });
+}
