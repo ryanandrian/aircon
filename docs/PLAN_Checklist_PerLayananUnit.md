@@ -1,7 +1,17 @@
 # Rencana Perbaikan Checklist Servis — Per Layanan × Unit (Aircon, GO-LIVE)
 
-Status: DRAFT rencana (belum sentuh kode). Disusun dari deep-dive kode 2026-09-08.
+Status: TERLAKSANA (FASE 1a + FASE 2) 2026-09-08. Disusun dari deep-dive kode.
 Tujuan: checklist relevan di lapangan, opt-in per tenant, granular per layanan & per unit — tanpa bug/ranjau di produksi.
+
+## STATUS EKSEKUSI (2026-09-08)
+- FASE 1a SELESAI (commit 17842b7): default KOSONG/opt-in; provisioning tak lagi seed checklist; layar admin jujur (applied vs example).
+- FASE 2 SKEMA+BE SELESAI (commit a96372e): migrasi ADDITIVE `20260908135053_checklist_per_service_unit_additive`
+  diterapkan ke DB PRODUKSI (Supabase) — ChecklistTemplate.+serviceId, ChecklistResult.+workItemId; kolom lama (serviceType/jobId)
+  jadi nullable & DIPERTAHANKAN (dual-read). Guard penyelesaian job DUAL-READ (utamakan WorkItem, fallback serviceType).
+  Data lama utuh (14 template + 2 hasil). Terbukti E2E (A/B/C/D ALL PASS) thd DB nyata dgn tenant _tmp_ throwaway.
+- FASE 2 FE SELESAI (commit 6965a59): /app/checklist per LAYANAN katalog; /t/kerja checklist per WorkItem (unit×layanan).
+- Backup data checklist pra-migrasi: `.backups/checklist_backup_*.json` (gitignored).
+- CATATAN LINGKUNGAN: `.env` lokal == DB PRODUKSI (Supabase). Tak ada DB dev terpisah → `prisma migrate deploy` = tindakan prod.
 
 ## 0. Keputusan owner (dasar)
 1. Checklist idealnya diterapkan per LAYANAN dan per UNIT (mis. cuci 10 unit → checklist tiap unit).
