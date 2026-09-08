@@ -13,6 +13,30 @@ Tujuan: checklist relevan di lapangan, opt-in per tenant, granular per layanan &
 - Backup data checklist pra-migrasi: `.backups/checklist_backup_*.json` (gitignored).
 - CATATAN LINGKUNGAN: `.env` lokal == DB PRODUKSI (Supabase). Tak ada DB dev terpisah → `prisma migrate deploy` = tindakan prod.
 
+## PENYATUAN SATU-SISTEM (2026-09-08, commit e2f9aa6+)
+Deep dive DB+BE+FE (tenant & teknisi) menemukan DUA sistem checklist paralel + ranjau
+"mengunci tapi tak bisa diisi dari layar Selesai". Arah owner (dipilih): checklist per-LAYANAN×UNIT
+jadi SATU-satunya sistem, dengan titik ISI = titik KUNCI di layar yang sama.
+
+**KEPUTUSAN FINAL — titik penegakan (gate) PINDAH:**
+- Checklist WAJIB per-unit ditegakkan saat **penutupan Catat Pekerjaan** (`closeWorkSession` →
+  `assertWorkSessionChecklist`). Bila item wajib per-unit belum lengkap → nota (Invoice tunai /
+  Proforma tempo) TIDAK terbit. Teknisi mengisi checklist di layar yang sama (WorkSession) → tak ada
+  jebakan lintas-layar.
+- Guard job `COMPLETED` (`assertCompletionGuards`) TIDAK lagi mengecek per-unit (hindari dobel-gate).
+  Menyisakan HANYA jalur LEGACY per-serviceType untuk job/tenant lama yang belum bermigrasi.
+- Filosofi OWNER (WAJIB dipatuhi): checklist = fitur PENDUKUNG **opt-in**, BUKAN pengunci paksa.
+  Tenant yang tak menerapkan → nol blokir. Tenant yang menerapkan → item wajib mengunci penerbitan
+  nota. "Membantu yang mau; mengunci hanya bagi yang memilih."
+- Template LEGACY per-serviceType TIDAK dihapus (satu tenant mengkustom + ada histori ChecklistResult).
+  Layar `/app/checklist` menampilkan seksi "Checklist lama" sbg kendali **opt-out** (owner yang putuskan).
+- Kode mati dibuang: `actionResetChecklist`/`resetChecklist`.
+- Verifikasi: tsc0/eslint0/build0, 350 test (termasuk 2 test gate closeWorkSession), E2E DB A/B/C PASS.
+
+> SSOT terkait yang ikut berubah semantiknya: BuildSpec Part2 §S-T3 & Part3 §3 — guard checklist
+> yang dulu "di layar Selesaikan Job per jenis service" kini "di penutupan Catat Pekerjaan per
+> layanan×unit". Bagian lama di dua dokumen itu = konteks historis.
+
 ## 0. Keputusan owner (dasar)
 1. Checklist idealnya diterapkan per LAYANAN dan per UNIT (mis. cuci 10 unit → checklist tiap unit).
 2. Default KOSONG (opt-in): tenant baru TIDAK otomatis punya checklist; tidak berlaku sampai admin membuatnya.

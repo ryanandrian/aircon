@@ -43,6 +43,9 @@ Aturan: teknisi tidak pernah melihat menu owner. Role menentukan nav yang di-ren
 - Setiap tap: optimistik update + masuk antrian sync bila offline.
 
 ## S-T3 · Selesaikan Job (gate COMPLETED)
+> ⚠️ UPDATE 2026-09-08: penegakan checklist WAJIB PINDAH ke penutupan **Catat Pekerjaan** (WorkSession →
+> `closeWorkSession`/`assertWorkSessionChecklist`), per **layanan×unit**, opt-in. Guard COMPLETED tak lagi
+> mengecek per-unit (sisa hanya legacy per-jenis-service utk job lama). SSOT hidup: `docs/PLAN_Checklist_PerLayananUnit.md`. Teks di bawah = konteks historis.
 - **Checklist** (dari template jenis service): item wajib ditandai jelas; tak bisa selesai bila wajib belum lengkap.
 - **Foto**: [Ambil Before]/[Ambil After] (kamera langsung, auto-kompres). Foto after wajib bila template minta.
 - {Catatan hasil}, {Harga} (opsional, bila teknisi diizinkan).

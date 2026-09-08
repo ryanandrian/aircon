@@ -67,18 +67,6 @@ export async function saveChecklist(tenantId: string, serviceType: string, items
   });
 }
 
-/** Kembalikan checklist satu jenis ke default. */
-export async function resetChecklist(tenantId: string, serviceType: string): Promise<ChecklistItem[]> {
-  if (!(serviceType in SERVICE_LABELS)) throw new Error("Jenis servis tidak dikenal");
-  const def = DEFAULT_CHECKLISTS[serviceType] ?? [];
-  await prisma.checklistTemplate.upsert({
-    where: { tenantId_serviceType: { tenantId, serviceType: serviceType as ServiceType } },
-    create: { tenantId, serviceType: serviceType as ServiceType, items: def as never },
-    update: { items: def as never },
-  });
-  return def;
-}
-
 /** Nonaktifkan (hapus) checklist satu jenis servis — kembali ke kondisi OPT-IN kosong. */
 export async function removeChecklist(tenantId: string, serviceType: string): Promise<void> {
   if (!(serviceType in SERVICE_LABELS)) throw new Error("Jenis servis tidak dikenal");
