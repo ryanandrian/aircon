@@ -6,11 +6,68 @@ import {
   openWorkSession, addWorkItem, removeWorkItem, getWorkSession, closeWorkSession,
 } from "@/lib/services/worksession-service";
 import { listCatalog } from "@/lib/services/service-catalog-service";
+import { createAsset, updateAsset, suggestBrands, suggestModels } from "@/lib/services/asset-service";
+import { createAssetSchema } from "@/lib/validation/asset";
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
 function msg(e: unknown, fb: string): string {
   return e instanceof Error ? e.message : fb;
+}
+
+/** Saran merek (kanonik + data tenant) untuk form unit teknisi. */
+export async function actionTechSuggestBrands(): Promise<string[]> {
+  try { const ctx = await getServerContext(); return await suggestBrands(ctx.tenantId); }
+  catch { return []; }
+}
+
+/** Saran model per-merek untuk form unit teknisi. */
+export async function actionTechSuggestModels(brand?: string): Promise<string[]> {
+  try { const ctx = await getServerContext(); return await suggestModels(ctx.tenantId, brand || undefined); }
+  catch { return []; }
+}
+
+/** Teknisi tambah unit AC untuk pelanggan (kunjungan pertama sering belum terdaftar). */
+export async function actionTechCreateAsset(customerId: string, raw: {
+  type: string; brand?: string; model?: string; capacityPk?: number; roomLocation?: string;
+}): Promise<Result<{ id: string; label: string }>> {
+  try {
+    const ctx = await getServerContext();
+    const parsed = createAssetSchema.safeParse({
+      customerId,
+      type: raw.type,
+      brand: raw.brand || undefined,
+      model: raw.model || undefined,
+      capacityPk: raw.capacityPk,
+      roomLocation: raw.roomLocation || undefined,
+    });
+    if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+    const a = await createAsset(ctx.tenantId, parsed.data);
+    const label = [a.brand, a.capacityPk ? `${a.capacityPk}PK` : null, a.roomLocation].filter(Boolean).join(" · ") || "Unit AC";
+    return { ok: true, data: { id: a.id, label } };
+  } catch (e) {
+    return { ok: false, error: msg(e, "Gagal menambah unit") };
+  }
+}
+
+/** Teknisi ubah data unit AC (mereka yang tahu persis unit di lapangan). */
+export async function actionTechUpdateAsset(assetId: string, raw: {
+  type?: string; brand?: string; model?: string; capacityPk?: number; roomLocation?: string;
+}): Promise<Result<{ id: string; label: string }>> {
+  try {
+    const ctx = await getServerContext();
+    const a = await updateAsset(ctx.tenantId, assetId, {
+      type: raw.type as never,
+      brand: raw.brand ?? undefined,
+      model: raw.model ?? undefined,
+      capacityPk: raw.capacityPk,
+      roomLocation: raw.roomLocation ?? undefined,
+    });
+    const label = [a.brand, a.capacityPk ? `${a.capacityPk}PK` : null, a.roomLocation].filter(Boolean).join(" · ") || "Unit AC";
+    return { ok: true, data: { id: a.id, label } };
+  } catch (e) {
+    return { ok: false, error: msg(e, "Gagal mengubah unit") };
+  }
 }
 
 /** Buka/ambil sesi kerja OPEN untuk pelanggan (dipanggil teknisi dari job). */

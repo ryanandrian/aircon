@@ -11,6 +11,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Icon } from "@/components/icons";
 import {
   actionCreateAsset, actionSuggestLocations, actionCheckDuplicates, actionListCustomersForAsset,
+  actionSuggestBrands, actionSuggestModels,
 } from "./asset-actions";
 
 const TYPES = [
@@ -22,14 +23,28 @@ const TYPES = [
   { value: "OTHER", label: "Lainnya" },
 ];
 
-export function AssetForm({ onDone }: { onDone?: () => void }) {
+/**
+ * Form tambah unit AC. Dipakai di dua konteks:
+ *  - Halaman/daftar unit global → pemilih pelanggan ditampilkan (fixedCustomerId undefined).
+ *  - Detail pelanggan → pelanggan sudah pasti (fixedCustomerId di-set) → pemilih disembunyikan.
+ * Merek = combobox kanonik (kurasi) + saran dari data. Model = autocomplete per-merek.
+ */
+export function AssetForm({
+  onDone,
+  fixedCustomerId,
+}: {
+  onDone?: () => void;
+  fixedCustomerId?: string;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [locSuggest, setLocSuggest] = useState<string[]>([]);
+  const [brandSuggest, setBrandSuggest] = useState<string[]>([]);
+  const [modelSuggest, setModelSuggest] = useState<string[]>([]);
   const [dups, setDups] = useState<{ id: string; label: string }[]>([]);
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(fixedCustomerId ?? "");
   const [type, setType] = useState("SPLIT");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
@@ -38,14 +53,19 @@ export function AssetForm({ onDone }: { onDone?: () => void }) {
   const [serial, setSerial] = useState("");
   const [count, setCount] = useState(1);
   const dupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Muat pelanggan sekali.
+  // Muat pelanggan hanya bila pemilih ditampilkan (mode global).
   useEffect(() => {
+    if (fixedCustomerId) return;
     actionListCustomersForAsset().then((c) => {
       setCustomers(c);
       if (c.length > 0) setCustomerId((prev) => prev || c[0].id);
     });
-  }, []);
+  }, [fixedCustomerId]);
+
+  // Saran merek (kanonik + data tenant) — sekali.
+  useEffect(() => { actionSuggestBrands().then(setBrandSuggest); }, []);
 
   // Saran lokasi mengikuti pelanggan terpilih.
   useEffect(() => {
@@ -53,10 +73,22 @@ export function AssetForm({ onDone }: { onDone?: () => void }) {
     actionSuggestLocations(customerId).then(setLocSuggest);
   }, [customerId]);
 
+  // Saran model mengikuti merek (debounce).
+  useEffect(() => {
+    if (modelTimer.current) clearTimeout(modelTimer.current);
+    modelTimer.current = setTimeout(() => {
+      actionSuggestModels(brand || undefined).then(setModelSuggest);
+    }, 250);
+    return () => { if (modelTimer.current) clearTimeout(modelTimer.current); };
+  }, [brand]);
+
   // Cek duplikat lunak (debounce) saat brand/pk/lokasi berubah.
   useEffect(() => {
     if (dupTimer.current) clearTimeout(dupTimer.current);
-    if (!customerId || (!brand && !pk) || !loc) { setDups([]); return; }
+    if (!customerId || (!brand && !pk) || !loc) {
+      dupTimer.current = setTimeout(() => setDups([]), 0);
+      return () => { if (dupTimer.current) clearTimeout(dupTimer.current); };
+    }
     dupTimer.current = setTimeout(() => {
       actionCheckDuplicates(customerId, {
         brand: brand || undefined,
@@ -85,22 +117,26 @@ export function AssetForm({ onDone }: { onDone?: () => void }) {
   }
 
   const locListId = "loc-suggest";
+  const brandListId = "brand-suggest";
+  const modelListId = "model-suggest";
 
   return (
     <Card>
       <CardContent className="space-y-4 p-6">
         <h2 className="text-lg font-semibold">Tambah Unit AC</h2>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="af-customer">Pelanggan <span className="text-red-500">*</span></Label>
-          <select
-            id="af-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)}
-            className="min-h-[44px] w-full rounded-xl border bg-card px-3 text-sm"
-          >
-            {customers.length === 0 && <option value="">Belum ada pelanggan</option>}
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
+        {!fixedCustomerId && (
+          <div className="space-y-1.5">
+            <Label htmlFor="af-customer">Pelanggan <span className="text-red-500">*</span></Label>
+            <select
+              id="af-customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)}
+              className="min-h-[44px] w-full rounded-xl border bg-card px-3 text-sm"
+            >
+              {customers.length === 0 && <option value="">Belum ada pelanggan</option>}
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -116,13 +152,21 @@ export function AssetForm({ onDone }: { onDone?: () => void }) {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          {/* Merek = combobox kanonik + saran dari data (jaga kerapian lintas teknisi) */}
           <div className="space-y-1.5">
             <Label htmlFor="af-brand">Merek</Label>
-            <Input id="af-brand" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="mis. Daikin" />
+            <Input id="af-brand" list={brandListId} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="ketik / pilih, mis. Daikin" />
+            <datalist id={brandListId}>
+              {brandSuggest.map((b) => <option key={b} value={b} />)}
+            </datalist>
           </div>
+          {/* Model = autocomplete per-merek dari data tenant */}
           <div className="space-y-1.5">
             <Label htmlFor="af-model">Tipe/Model</Label>
-            <Input id="af-model" value={model} onChange={(e) => setModel(e.target.value)} placeholder="mis. FTKQ" />
+            <Input id="af-model" list={modelListId} value={model} onChange={(e) => setModel(e.target.value)} placeholder="mis. FTKQ" />
+            <datalist id={modelListId}>
+              {modelSuggest.map((m) => <option key={m} value={m} />)}
+            </datalist>
           </div>
         </div>
 

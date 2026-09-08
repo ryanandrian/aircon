@@ -5,11 +5,26 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { createAssetSchema } from "@/lib/validation/asset";
 import {
   createAsset, createAssetsBulk, suggestLocations, findPossibleDuplicates,
+  suggestBrands, suggestModels,
   updateAsset, softDeleteAsset, listAssetRows, type ListAssetRowsResult,
 } from "@/lib/services/asset-service";
 import { listCustomers } from "@/lib/services/customer-service";
 
 type Result = { ok: boolean; error?: string; createdCount?: number };
+
+/** Saran MEREK (kanonik + merek tenant) utk combobox. */
+export async function actionSuggestBrands(): Promise<string[]> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return [];
+  return suggestBrands(ctx.tenantId);
+}
+
+/** Saran MODEL per-merek (autocomplete dari data tenant). */
+export async function actionSuggestModels(brand?: string): Promise<string[]> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return [];
+  return suggestModels(ctx.tenantId, brand || undefined);
+}
 
 /** Saran lokasi utk combobox (prioritas pelanggan). */
 export async function actionSuggestLocations(customerId?: string): Promise<string[]> {

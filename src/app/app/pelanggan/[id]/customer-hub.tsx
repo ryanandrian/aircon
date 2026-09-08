@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
 import { actionUnitHistory, type UnitHistoryItem } from "../actions";
+import { AssetForm } from "@/app/app/unit/asset-form";
+import { actionUpdateAsset, actionDeleteAsset } from "@/app/app/unit/asset-actions";
 
 type Asset = {
   id: string; brand: string | null; model: string | null; type: string;
@@ -89,16 +92,17 @@ export function CustomerHub({
       {cardUrl && <MaintenanceCardShare url={cardUrl} />}
 
       {/* Unit AC pelanggan ini — dengan pencarian & pengurutan (institusi bisa puluhan/ratusan unit) */}
-      <UnitsSection assets={assets} />
+      <UnitsSection assets={assets} customerId={customer.id} />
     </div>
   );
 }
 
 type SortKey = "due" | "last" | "location" | "history";
 
-function UnitsSection({ assets }: { assets: Asset[] }) {
+function UnitsSection({ assets, customerId }: { assets: Asset[]; customerId: string }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("due");
+  const [adding, setAdding] = useState(false);
 
   const units = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -123,9 +127,23 @@ function UnitsSection({ assets }: { assets: Asset[] }) {
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Unit AC ({assets.length})</h3>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">Unit AC ({assets.length})</h3>
+        {!adding && (
+          <Button type="button" size="sm" onClick={() => setAdding(true)}>
+            <Icon.AC className="h-4 w-4" aria-hidden /> Tambah Unit
+          </Button>
+        )}
+      </div>
+
+      {adding && (
+        <div className="mb-3">
+          <AssetForm fixedCustomerId={customerId} onDone={() => setAdding(false)} />
+        </div>
+      )}
+
       {assets.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Belum ada unit AC terdaftar untuk pelanggan ini.</CardContent></Card>
+        !adding && <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">Belum ada unit AC terdaftar untuk pelanggan ini.</CardContent></Card>
       ) : (
         <>
           {assets.length > 1 && (
@@ -197,9 +215,16 @@ function MaintenanceCardShare({ url }: { url: string }) {
 }
 
 function UnitRow({ asset }: { asset: Asset }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<UnitHistoryItem[] | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [brand, setBrand] = useState(asset.brand ?? "");
+  const [model, setModel] = useState(asset.model ?? "");
+  const [pk, setPk] = useState(asset.capacityPk != null ? String(asset.capacityPk) : "");
+  const [loc, setLoc] = useState(asset.roomLocation ?? "");
 
   async function toggle() {
     const next = !open;
@@ -211,6 +236,29 @@ function UnitRow({ asset }: { asset: Asset }) {
       if (res.ok && res.items) setHistory(res.items);
       else { setHistory([]); toast.error(res.error ?? "Gagal memuat riwayat"); }
     }
+  }
+
+  async function saveEdit() {
+    setSaving(true);
+    const res = await actionUpdateAsset(asset.id, {
+      brand: brand || undefined,
+      model: model || undefined,
+      capacityPk: pk ? Number(pk) : undefined,
+      roomLocation: loc || undefined,
+    });
+    setSaving(false);
+    if (!res.ok) { toast.error(res.error ?? "Gagal mengubah unit"); return; }
+    toast.success("Unit diperbarui");
+    setEditing(false);
+    router.refresh();
+  }
+
+  async function del() {
+    if (!confirm(`Hapus unit "${unitTitle(asset)}"? Riwayat servis tetap tersimpan.`)) return;
+    const res = await actionDeleteAsset(asset.id);
+    if (!res.ok) { toast.error(res.error ?? "Gagal menghapus unit"); return; }
+    toast.success("Unit dihapus");
+    router.refresh();
   }
 
   const meta = [
@@ -241,6 +289,31 @@ function UnitRow({ asset }: { asset: Asset }) {
         </button>
         {open && (
           <div className="border-t bg-muted/30 px-4 py-3">
+            {/* Aksi kelola unit */}
+            <div className="mb-3 flex gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={() => setEditing((v) => !v)}>
+                <Icon.Note className="h-3.5 w-3.5" aria-hidden /> {editing ? "Tutup" : "Ubah unit"}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={del}>
+                <Icon.Close className="h-3.5 w-3.5 text-destructive" aria-hidden /> Hapus
+              </Button>
+            </div>
+
+            {editing && (
+              <div className="mb-3 space-y-2 rounded-lg border bg-card p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Merek" />
+                  <Input type="number" step="0.25" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="PK" />
+                </div>
+                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model" />
+                <Input value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="Lokasi" />
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={saveEdit} disabled={saving}>{saving ? "Menyimpan…" : "Simpan"}</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>Batal</Button>
+                </div>
+              </div>
+            )}
+
             <div className="mb-2 text-xs font-semibold text-muted-foreground">Riwayat Servis</div>
             {loading ? (
               <p className="py-3 text-center text-sm text-muted-foreground">Memuat…</p>

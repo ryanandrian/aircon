@@ -68,6 +68,7 @@ export default async function KerjaPage({ params, searchParams }: {
     <main className="min-h-screen bg-muted/40 pb-24">
       <WorkSessionScreen
         wsId={wsId}
+        customerId={customerId}
         customerName={customer.name}
         isTempo={(customer.topType ?? "CASH") !== "CASH"}
         catalog={catalog}

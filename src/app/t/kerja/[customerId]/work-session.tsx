@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icons";
-import { actionAddWorkItem, actionRemoveWorkItem, actionCloseWorkSession, actionGetItemChecklist, actionSetItemChecklist } from "../actions";
+import { actionAddWorkItem, actionRemoveWorkItem, actionCloseWorkSession, actionGetItemChecklist, actionSetItemChecklist, actionTechCreateAsset, actionTechSuggestBrands, actionTechSuggestModels } from "../actions";
 
 type Catalog = { id: string; name: string; unit: string; standardPrice: number; category: string };
 type Asset = { id: string; label: string };
@@ -16,6 +16,64 @@ type Item = { id: string; desc: string; qty: number; unit: string; unitPrice: nu
 type Assignment = { assetId: string; assetLabel: string; serviceLabel: string } | null;
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
+
+const AC_TYPES = [
+  { value: "SPLIT", label: "Split" },
+  { value: "CASSETTE", label: "Cassette" },
+  { value: "STANDING", label: "Standing" },
+  { value: "WINDOW", label: "Window" },
+  { value: "CENTRAL", label: "Central" },
+  { value: "OTHER", label: "Lainnya" },
+];
+
+/** Form ringkas teknisi menambah unit AC di lapangan (merek combobox kanonik + model autocomplete). */
+function NewUnitForm({ customerId, onCreated }: { customerId: string; onCreated: (a: { id: string; label: string }) => void }) {
+  const [pending, start] = useTransition();
+  const [type, setType] = useState("SPLIT");
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [pk, setPk] = useState("");
+  const [loc, setLoc] = useState("");
+  const [brands, setBrands] = useState<string[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+
+  useEffect(() => { actionTechSuggestBrands().then(setBrands); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { actionTechSuggestModels(brand || undefined).then(setModels); }, 250);
+    return () => clearTimeout(t);
+  }, [brand]);
+
+  function save() {
+    start(async () => {
+      const res = await actionTechCreateAsset(customerId, {
+        type, brand: brand || undefined, model: model || undefined,
+        capacityPk: pk ? Number(pk) : undefined, roomLocation: loc || undefined,
+      });
+      if (!res.ok || !res.data) { toast.error(res.ok ? "Gagal" : res.error); return; }
+      toast.success("Unit ditambahkan");
+      onCreated(res.data);
+    });
+  }
+
+  return (
+    <div className="mt-2 space-y-2 rounded-xl border bg-muted/30 p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <select value={type} onChange={(e) => setType(e.target.value)} className="min-h-[40px] rounded-lg border bg-background px-2 text-sm">
+          {AC_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+        </select>
+        <Input type="number" step="0.25" min="0" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="PK (mis. 0.75)" className="min-h-[40px]" />
+      </div>
+      <Input list="tech-brand-suggest" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Merek (mis. Daikin)" className="min-h-[40px]" />
+      <datalist id="tech-brand-suggest">{brands.map((b) => <option key={b} value={b} />)}</datalist>
+      <Input list="tech-model-suggest" value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model (opsional)" className="min-h-[40px]" />
+      <datalist id="tech-model-suggest">{models.map((m) => <option key={m} value={m} />)}</datalist>
+      <Input value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="Lokasi (mis. R. Tamu)" className="min-h-[40px]" />
+      <Button type="button" size="sm" onClick={save} disabled={pending} className="w-full">
+        {pending ? "Menyimpan…" : "Simpan Unit"}
+      </Button>
+    </div>
+  );
+}
 
 type CItem = { key: string; label: string; type: "bool" | "number" | "text" | "photo"; required: boolean; checked: boolean; value: string | null };
 
@@ -93,14 +151,16 @@ function ItemChecklist({ workItemId }: { workItemId: string }) {
 }
 
 export function WorkSessionScreen({
-  wsId, customerName, isTempo, catalog, assets, initialItems, assignment,
+  wsId, customerId, customerName, isTempo, catalog, assets, initialItems, assignment,
 }: {
-  wsId: string; customerName: string; isTempo: boolean;
+  wsId: string; customerId: string; customerName: string; isTempo: boolean;
   catalog: Catalog[]; assets: Asset[]; initialItems: Item[]; assignment?: Assignment;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [items, setItems] = useState<Item[]>(initialItems);
+  const [assetList, setAssetList] = useState<Asset[]>(assets);
+  const [addingUnit, setAddingUnit] = useState(false);
   // B2: prefill unit dari penugasan SPESIFIK (teknisi tetap bisa ganti / tambah unit lain).
   const [assetId, setAssetId] = useState<string>(assignment?.assetId ?? "");
   const [serviceId, setServiceId] = useState<string>("");
@@ -178,12 +238,28 @@ export function WorkSessionScreen({
           <CardContent className="space-y-3 p-4">
             <h2 className="text-sm font-semibold text-foreground">Tambah Pekerjaan (per unit)</h2>
             <div className="space-y-1.5">
-              <Label>Unit AC (opsional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Unit AC (opsional)</Label>
+                <button type="button" onClick={() => setAddingUnit((v) => !v)}
+                  className="text-xs font-medium text-sky-600 hover:underline dark:text-sky-400">
+                  {addingUnit ? "Tutup" : "+ Unit baru"}
+                </button>
+              </div>
               <select value={assetId} onChange={(e) => setAssetId(e.target.value)}
                 className="min-h-[44px] w-full rounded-xl border bg-background px-3 text-sm">
                 <option value="">— Tanpa unit tertentu —</option>
-                {assets.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                {assetList.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
+              {addingUnit && (
+                <NewUnitForm
+                  customerId={customerId}
+                  onCreated={(a) => {
+                    setAssetList((prev) => [...prev, a]);
+                    setAssetId(a.id);
+                    setAddingUnit(false);
+                  }}
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>Layanan</Label>

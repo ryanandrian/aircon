@@ -11,6 +11,7 @@ import type {
   CreateAssetInput,
   UpdateAssetInput,
 } from "@/lib/validation/asset";
+import { AC_BRANDS, normalizeBrand, normalizeModel } from "../domain/ac-brands";
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 20;
@@ -323,8 +324,8 @@ export async function createAsset(
         tenantId,
         customerId: input.customerId,
         type: input.type,
-        brand: input.brand ?? null,
-        model: input.model ?? null,
+        brand: normalizeBrand(input.brand),
+        model: normalizeModel(input.model),
         capacityPk: input.capacityPk ?? null,
         roomLocation: input.roomLocation ?? null,
         serial: input.serial ?? null,
@@ -367,6 +368,8 @@ export async function createAssetsBulk(
   }
 
   const baseLoc = (input.roomLocation ?? "").trim();
+  const normBrand = normalizeBrand(input.brand);
+  const normModel = normalizeModel(input.model);
   try {
     const created = await prisma.$transaction(
       Array.from({ length: n }, (_, i) => {
@@ -376,8 +379,8 @@ export async function createAssetsBulk(
             tenantId,
             customerId: input.customerId,
             type: input.type,
-            brand: input.brand ?? null,
-            model: input.model ?? null,
+            brand: normBrand,
+            model: normModel,
             capacityPk: input.capacityPk ?? null,
             roomLocation: loc,
             serial: null, // serial per-unit diisi belakangan (kembar)
@@ -426,6 +429,59 @@ export async function suggestLocations(
     else others.push(loc);
   }
   return [...mine, ...others].slice(0, 30);
+}
+
+/**
+ * Saran MEREK: gabung daftar kanonik (kurasi) + merek yg pernah dipakai tenant (dinormalisasi),
+ * tanpa duplikat. Dipakai combobox merek di form unit (admin & teknisi).
+ */
+export async function suggestBrands(tenantId: string): Promise<string[]> {
+  const rows = await prisma.asset.findMany({
+    where: { tenantId, deletedAt: null, brand: { not: null } },
+    select: { brand: true },
+    orderBy: { updatedAt: "desc" },
+    take: 500,
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  // kanonik dulu (urutan populer), lalu merek tenant yang belum ada
+  for (const b of AC_BRANDS) {
+    const key = b.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); out.push(b); }
+  }
+  for (const r of rows) {
+    const nb = normalizeBrand(r.brand);
+    if (!nb) continue;
+    const key = nb.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); out.push(nb); }
+  }
+  return out;
+}
+
+/**
+ * Saran MODEL untuk sebuah merek: model yg pernah dipakai tenant pada merek itu (autocomplete).
+ * Kerapian tumbuh dari data sendiri; model tak dikanonikkan (ribuan variasi).
+ */
+export async function suggestModels(tenantId: string, brand?: string | null): Promise<string[]> {
+  const nb = normalizeBrand(brand);
+  const rows = await prisma.asset.findMany({
+    where: {
+      tenantId, deletedAt: null, model: { not: null },
+      ...(nb ? { brand: { equals: nb, mode: "insensitive" } } : {}),
+    },
+    select: { model: true },
+    orderBy: { updatedAt: "desc" },
+    take: 300,
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const r of rows) {
+    const nm = normalizeModel(r.model);
+    if (!nm) continue;
+    const key = nm.toLowerCase();
+    if (!seen.has(key)) { seen.add(key); out.push(nm); }
+  }
+  return out.slice(0, 30);
 }
 
 /**
@@ -488,8 +544,8 @@ export async function updateAsset(
     data.customer = { connect: { id: input.customerId } };
   }
   if (input.type !== undefined) data.type = input.type;
-  if (input.brand !== undefined) data.brand = input.brand;
-  if (input.model !== undefined) data.model = input.model;
+  if (input.brand !== undefined) data.brand = normalizeBrand(input.brand);
+  if (input.model !== undefined) data.model = normalizeModel(input.model);
   if (input.capacityPk !== undefined) data.capacityPk = input.capacityPk;
   if (input.roomLocation !== undefined) data.roomLocation = input.roomLocation;
   if (input.serial !== undefined) data.serial = input.serial;
