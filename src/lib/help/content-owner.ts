@@ -439,14 +439,37 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 5,
     whatIsIt:
-      "Buat dan cetak stiker kode QR untuk ditempel di unit AC pelanggan. Scan QR mempercepat teknisi membuka data unit di lapangan.",
+      "Fitur OPSIONAL: beri tiap unit AC pelanggan satu stiker Kode QR — seperti 'kartu identitas' mesin. Sekali scan, teknisi langsung tahu unit mana tanpa mencari, dan pelanggan bisa scan untuk melihat riwayat perawatan mesinnya. Paling berguna untuk pelanggan dengan banyak unit (kantor, sekolah, masjid, ruko).",
     steps: [
-      "Tentukan jumlah kode QR yang ingin dibuat.",
-      "Cetak/unduh stiker QR lalu tempel di unit AC pelanggan.",
-      "Gunakan fitur Scan QR untuk membuka unit dengan cepat saat di lapangan.",
+      "Buka menu Kode QR. Isi jumlah kode yang ingin dibuat lalu tekan 'Buat Kode' — sistem membuat kode unik berstatus 'Tersedia' (belum tertaut ke unit mana pun).",
+      "Tekan 'Export CSV' untuk mengunduh daftar kode + tautannya. Serahkan file itu ke tukang cetak/printer barcode untuk dicetak jadi stiker — atau pesan stiker jadi ke Lumite.",
+      "Di lokasi pelanggan, teknisi menempel stiker di unit AC. (Pastikan unit itu sudah terdaftar di pelanggan; kalau belum, teknisi bisa menambah lewat '+ Unit baru' saat mencatat pekerjaan.)",
+      "Teknisi menekan 'Scan QR', mengarahkan kamera ke stiker, lalu memilih unit yang benar — kode langsung tertaut (status berubah jadi 'Terpasang'). Cukup sekali seumur stiker.",
+      "Selesai. Kunjungan berikutnya, teknisi tinggal scan stiker untuk membuka rekam-medis unit; pelanggan pun bisa scan untuk melihat kartu perawatan.",
     ],
     tips: [
-      "Stiker QR di unit memudahkan teknisi mencatat servis tanpa mencari data manual.",
+      "Kode ini opsional — kalau usaha Anda belum butuh, abaikan saja menu ini. Tidak ada yang terhambat.",
+      "Aplikasi tidak mencetak stiker langsung; ia menyiapkan file CSV (kode + tautan) yang dibaca mesin cetak barcode. Ini justru fleksibel: cetak sejumlah berapa pun, ukuran bebas.",
+      "Halaman yang dilihat pelanggan saat scan HANYA menampilkan info mesin + riwayat servis. Biaya, nama teknisi, dan data pribadi pelanggan tidak pernah ditampilkan.",
+      "Satu unit = satu stiker. Kode yang sudah terpasang tidak bisa dipakai ulang untuk unit lain.",
+    ],
+    faqs: [
+      {
+        q: "Apa bedanya status 'Tersedia' dan 'Terpasang'?",
+        a: "'Tersedia' = kode sudah dibuat tapi belum ditautkan ke unit (stiker kosong). 'Terpasang' = kode sudah dikawinkan ke satu unit AC tertentu. Kode baru berguna setelah 'Terpasang'.",
+      },
+      {
+        q: "Apakah wajib pakai Kode QR?",
+        a: "Tidak. Ini fitur pelengkap. Sangat membantu untuk pelanggan dengan banyak unit (gedung/sekolah), tapi untuk pelanggan rumahan 1–2 unit boleh dilewati.",
+      },
+      {
+        q: "Amankah kalau stiker discan orang yang tidak berkepentingan?",
+        a: "Aman. Halaman publik hanya menampilkan merek/tipe/lokasi unit dan riwayat servis — tanpa biaya, tanpa data pribadi pelanggan, tanpa nama teknisi.",
+      },
+      {
+        q: "Stiker rusak/hilang, bagaimana?",
+        a: "Buat kode baru, tempel stiker baru, lalu scan dan tautkan ke unit yang sama. Riwayat unit tetap utuh karena menempel ke unit, bukan ke stiker.",
+      },
     ],
   },
 

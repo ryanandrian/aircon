@@ -7,6 +7,8 @@ import {
 } from "@/lib/services/worksession-service";
 import { listCatalog } from "@/lib/services/service-catalog-service";
 import { createAsset, updateAsset, suggestBrands, suggestModels } from "@/lib/services/asset-service";
+import { resolveCodeForTenant } from "@/lib/services/unit-code-service";
+import { prisma } from "@/lib/prisma";
 import { createAssetSchema } from "@/lib/validation/asset";
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -89,6 +91,38 @@ export async function actionCatalogForWork(): Promise<Result<{ id: string; name:
     return { ok: true, data: rows.map((r) => ({ id: r.id, name: r.name, unit: r.unit, standardPrice: Number(r.standardPrice), category: r.category })) };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal memuat layanan") };
+  }
+}
+
+/**
+ * Teknisi scan Kode QR (beranda). Kembalikan tindakan yang tepat:
+ *  - BOUND (unit tenant ini): buka rekam-medis unit → url publik /u/{code} + customerId (untuk lanjut catat kerja).
+ *  - POOL (belum tertaut): arahkan teknisi menautkan lewat layar kerja pelanggan.
+ *  - BOUND_OTHER / POOL_OTHER / tak dikenal: pesan jelas.
+ */
+export async function actionTechScan(rawCode: string): Promise<
+  Result<{ action: "open" | "pool" | "unknown" | "forbidden"; code: string; customerId?: string; customerName?: string }>
+> {
+  try {
+    const ctx = await getServerContext();
+    const code = rawCode.trim().toUpperCase();
+    const res = await resolveCodeForTenant(ctx.tenantId, code);
+    if (!res) return { ok: true, data: { action: "unknown", code } };
+    if (res.status === "BOUND" && res.assetId) {
+      const asset = await prisma.asset.findFirst({
+        where: { id: res.assetId, tenantId: ctx.tenantId, deletedAt: null },
+        select: { customerId: true, customer: { select: { name: true } } },
+      });
+      return {
+        ok: true,
+        data: { action: "open", code, customerId: asset?.customerId, customerName: asset?.customer?.name },
+      };
+    }
+    if (res.status === "POOL") return { ok: true, data: { action: "pool", code } };
+    // BOUND_OTHER / POOL_OTHER
+    return { ok: true, data: { action: "forbidden", code } };
+  } catch (e) {
+    return { ok: false, error: msg(e, "Gagal memproses kode") };
   }
 }
 
