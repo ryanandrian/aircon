@@ -115,7 +115,7 @@ export function CardView({ card }: { card: Card }) {
               {card.units.length === 0 ? "Belum ada unit AC terdaftar." : "Tidak ada unit cocok."}
             </CardContent></Card>
           ) : units.map((u) => (
-            <Card key={u.id} className="transition-shadow hover:shadow-md">
+            <Card key={u.id} className="interactive">
               <CardContent className="p-0">
                 <button
                   type="button"

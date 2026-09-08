@@ -216,8 +216,8 @@ function UnitRow({ asset }: { asset: Asset }) {
 
   return (
     <li>
-      <Card className="overflow-hidden transition-shadow hover:shadow-md">
-        <button type="button" onClick={toggle} className="interactive flex w-full items-center gap-3 p-4 text-left">
+      <Card className="interactive">
+        <button type="button" onClick={toggle} className="flex w-full items-center gap-3 p-4 text-left">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
             <Icon.AC className="h-5 w-5" aria-hidden />
           </span>
