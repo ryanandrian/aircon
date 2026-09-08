@@ -49,6 +49,8 @@ export interface UnitCodeRow {
   status: "POOL" | "BOUND";
   assetId: string | null;
   assetLabel: string | null;
+  customerId: string | null;
+  customerName: string | null;
   batchId: string | null;
   createdAt: Date;
 }
@@ -57,7 +59,14 @@ export interface UnitCodeRow {
 export async function listCodes(tenantId: string): Promise<UnitCodeRow[]> {
   const rows = await prisma.unitCode.findMany({
     where: { tenantId },
-    include: { asset: { select: { brand: true, roomLocation: true } } },
+    include: {
+      asset: {
+        select: {
+          id: true, brand: true, capacityPk: true, roomLocation: true,
+          customerId: true, customer: { select: { name: true } },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 2000,
   });
@@ -65,7 +74,11 @@ export async function listCodes(tenantId: string): Promise<UnitCodeRow[]> {
     code: r.code,
     status: r.status,
     assetId: r.assetId,
-    assetLabel: r.asset ? `${r.asset.brand ?? "AC"}${r.asset.roomLocation ? ` — ${r.asset.roomLocation}` : ""}` : null,
+    assetLabel: r.asset
+      ? [r.asset.brand ?? "AC", r.asset.capacityPk ? `${r.asset.capacityPk} PK` : null, r.asset.roomLocation].filter(Boolean).join(" · ")
+      : null,
+    customerId: r.asset?.customerId ?? null,
+    customerName: r.asset?.customer?.name ?? null,
     batchId: r.batchId,
     createdAt: r.createdAt,
   }));

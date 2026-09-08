@@ -25,11 +25,11 @@ export async function actionGenerateCodes(count: number): Promise<{ ok: boolean;
   }
 }
 
-export async function actionListCodes(): Promise<{ code: string; status: string; assetLabel: string | null; batchId: string | null }[]> {
+export async function actionListCodes(): Promise<{ code: string; status: string; assetLabel: string | null; customerId: string | null; customerName: string | null; batchId: string | null }[]> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return [];
   const rows = await listCodes(ctx.tenantId);
-  return rows.map((r) => ({ code: r.code, status: r.status, assetLabel: r.assetLabel, batchId: r.batchId }));
+  return rows.map((r) => ({ code: r.code, status: r.status, assetLabel: r.assetLabel, customerId: r.customerId, customerName: r.customerName, batchId: r.batchId }));
 }
 
 export async function actionExportCodesCsv(batchId?: string): Promise<{ ok: boolean; csv?: string; error?: string }> {

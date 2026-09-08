@@ -23,7 +23,7 @@ function unitLabel(u: UnitHit): string {
  * Pengelolaan unit AC ADA di detail pelanggan & panel teknisi (unit milik pelanggan).
  * Saat scan kode POOL (belum tertaut), tampilkan PENCARI unit untuk menautkan.
  */
-export function QrManager() {
+export function QrManager({ baseUrl }: { baseUrl: string }) {
   const router = useRouter();
   const [scanning, setScanning] = useState(false);
   const [bindCodeVal, setBindCodeVal] = useState<string | null>(null); // kode POOL menunggu ditautkan
@@ -118,7 +118,7 @@ export function QrManager() {
         </Card>
       )}
 
-      <CodeManager />
+      <CodeManager baseUrl={baseUrl} />
     </div>
   );
 }
