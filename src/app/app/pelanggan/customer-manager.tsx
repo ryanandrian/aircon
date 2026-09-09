@@ -24,6 +24,7 @@ export type CustomerRow = {
   id: string; name: string; phone: string; address: string | null;
   source: string; category: string | null; customerType: string; topType: string;
   assetCount: number; jobCount: number;
+  billingCustomerId: string | null; billingCustomerName: string | null;
 };
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -51,6 +52,7 @@ function emptyForm(): FormState {
     category: "RUMAH", customerType: "PERORANGAN", topType: "CASH", npwp: "",
     isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "", picWorkEmail: "",
     picFinanceName: "", picFinancePhone: "", picFinanceEmail: "", email: "",
+    billingCustomerId: "",
   };
 }
 
@@ -70,6 +72,7 @@ export function CustomerManager({
   const [editing, setEditing] = useState<CustomerRow | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
+  const [billingName, setBillingName] = useState("");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const showingForm = adding || editing !== null;
 
@@ -105,14 +108,16 @@ export function CustomerManager({
     return () => io.disconnect();
   }, [cursor, loadMore, showingForm]);
 
-  function openAdd() { setForm(emptyForm()); setAdding(true); setEditing(null); }
+  function openAdd() { setForm(emptyForm()); setBillingName(""); setAdding(true); setEditing(null); }
   function openEdit(c: CustomerRow) {
     setForm({
       name: c.name, phone: c.phone, address: c.address ?? "", source: c.source, notes: "",
       category: c.category ?? "RUMAH", customerType: c.customerType, topType: c.topType,
       npwp: "", isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "", picWorkEmail: "",
       picFinanceName: "", picFinancePhone: "", picFinanceEmail: "", email: "",
+      billingCustomerId: c.billingCustomerId ?? "",
     });
+    setBillingName(c.billingCustomerName ?? "");
     setEditing(c); setAdding(false);
   }
   function closeForm() { setEditing(null); setAdding(false); }
@@ -277,6 +282,21 @@ export function CustomerManager({
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">Email opsional. Bila dikosongkan, tagihan &amp; dokumen dikirim lewat WhatsApp.</p>
+
+                  {/* Kantor Pusat (bill-to): tagihan outlet ini ditagihkan ke pelanggan induk. */}
+                  <div className="space-y-1.5 border-t border-dashed pt-3">
+                    <Label>Kantor Pusat (penerima tagihan)</Label>
+                    <BillingPicker
+                      value={form.billingCustomerId ?? ""}
+                      label={billingName}
+                      excludeId={editing?.id}
+                      onPick={(id, name) => { set("billingCustomerId", id); setBillingName(name); }}
+                      onClear={() => { set("billingCustomerId", ""); setBillingName(""); }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Opsional. Untuk outlet/cabang yang tagihannya ditagihkan ke kantor pusat (mis. tiap outlet Pizza Hut → ditagih ke PT pusat). Invoice/proforma otomatis mengacu ke kantor pusat, tapi lokasi servis tiap unit tetap jelas. Kosongkan bila pelanggan ini menagih atas namanya sendiri.
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -348,6 +368,73 @@ export function CustomerManager({
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Pemilih Kantor Pusat (bill-to): cari pelanggan lain untuk dijadikan penerima tagihan.
+ * Reuse actionLoadCustomers (server-side search). Menampilkan pilihan terkini + tombol hapus.
+ */
+function BillingPicker({ value, label, excludeId, onPick, onClear }: {
+  value: string; label: string; excludeId?: string;
+  onPick: (id: string, name: string) => void; onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<CustomerRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    queueMicrotask(() => setLoading(true)); // hindari set-state langsung di badan effect (lint)
+    const t = setTimeout(async () => {
+      const res = await actionLoadCustomers({ search: q.trim() || undefined });
+      if (res.ok && res.rows) setResults(res.rows.filter((r) => r.id !== excludeId && r.id !== value));
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q, open, excludeId, value]);
+
+  if (value && label) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+        <Icon.Billing className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{label}</span>
+        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={onClear}>Hapus</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {!open ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => { setOpen(true); setQ(""); }}>
+          + Pilih kantor pusat
+        </Button>
+      ) : (
+        <div className="rounded-lg border p-2">
+          <Input autoFocus placeholder="Cari nama pelanggan induk…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+            {loading && <p className="px-2 py-1.5 text-xs text-muted-foreground">Mencari…</p>}
+            {!loading && results.length === 0 && <p className="px-2 py-1.5 text-xs text-muted-foreground">Tidak ada pelanggan cocok.</p>}
+            {results.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => { onPick(r.id, r.name); setOpen(false); }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
+              >
+                <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{r.phone}</span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-1 flex justify-end">
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setOpen(false)}>Tutup</Button>
+          </div>
+        </div>
       )}
     </div>
   );

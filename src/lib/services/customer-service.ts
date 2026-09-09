@@ -60,6 +60,8 @@ export interface CustomerRow {
   topType: string;
   assetCount: number;
   jobCount: number;
+  billingCustomerId: string | null;
+  billingCustomerName: string | null;
 }
 
 export interface ListCustomerRowsResult {
@@ -98,7 +100,7 @@ export async function listCustomerRows(
       orderBy: { id: "desc" },
       take: limit + 1,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
-      include: { _count: { select: { assets: true, jobs: true } } },
+      include: { _count: { select: { assets: true, jobs: true } }, billingCustomer: { select: { id: true, name: true } } },
     });
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
@@ -115,6 +117,8 @@ export async function listCustomerRows(
         topType: c.topType,
         assetCount: c._count.assets,
         jobCount: c._count.jobs,
+        billingCustomerId: c.billingCustomerId ?? null,
+        billingCustomerName: c.billingCustomer?.name ?? null,
       })),
       nextCursor,
     };
