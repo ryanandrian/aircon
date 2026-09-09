@@ -13,6 +13,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { normalizeBookingPhone } from "@/lib/validation/booking";
 import { TenantLogo } from "@/components/tenant-logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import BookingForm from "./booking-form";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -102,6 +103,9 @@ export default async function PublicTenantPage({ params }: PageProps) {
       <div className="relative overflow-hidden bg-gradient-to-br from-sky-900 via-sky-800 to-sky-700 px-5 pb-24 pt-9 text-center text-white">
         <div aria-hidden className="pointer-events-none absolute -left-10 bottom-6 h-48 w-48 rounded-full bg-white/5" />
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-56 w-56 rounded-full bg-cyan-400/10" />
+        <div className="absolute right-4 top-4 z-10">
+          <ThemeToggle className="text-white hover:bg-white/10 hover:text-white" />
+        </div>
         <div className="relative mx-auto w-full max-w-lg">
           <div className="mx-auto w-fit rounded-3xl border-[3px] border-white/40 shadow-xl">
             <TenantLogo name={tenant.name} logoUrl={tenant.logoUrl} size={78} className="rounded-[1.15rem]" />
