@@ -218,33 +218,33 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureCard
-            icon={Icon.Note}
+            image="/features/invoice-kwitansi.webp"
             title="Invoice & kwitansi profesional"
             desc="Selesai kerja, faktur rapi ber-logo usaha Anda langsung jadi dan bisa dikirim ke pelanggan lewat WhatsApp — tak perlu lagi nota tulis tangan."
           />
           <FeatureCard
-            icon={Icon.Chart}
+            image="/features/pembayaran-piutang.webp"
             title="Pantau pembayaran & piutang"
             desc="Lihat sekilas siapa yang sudah bayar dan mana yang belum jatuh tempo. Tak ada lagi tagihan yang terlewat."
           />
           <FeatureCard
-            icon={Icon.Money}
+            image="/features/insentif-teknisi.webp"
             title="Insentif teknisi otomatis"
             desc="Bonus tiap teknisi dihitung otomatis dari pekerjaan yang lunas — adil dan transparan, tanpa hitung manual."
           />
           <FeatureCard
-            icon={Icon.Web}
+            image="/features/kartu-riwayat.webp"
             title="Kartu riwayat AC online untuk pelanggan"
             desc="Setiap unit AC punya halaman riwayat yang bisa dibuka pelanggan: kapan terakhir diservis dan apa yang dikerjakan. Menambah kepercayaan tanpa repot."
             featured
           />
           <FeatureCard
-            icon={Icon.Catalog}
+            image="/features/daftar-layanan.webp"
             title="Daftar layanan & harga rapi"
             desc="Simpan layanan beserta harganya — bahkan harga khusus untuk pelanggan langganan. Teknisi tinggal pilih, harga selalu konsisten."
           />
           <FeatureCard
-            icon={Icon.Users}
+            image="/features/kelola-tim.webp"
             title="Kelola tim & jadwal"
             desc="Tugaskan beberapa teknisi dalam satu pekerjaan, atur peran, dan pantau semuanya dari satu layar."
           />
@@ -470,14 +470,17 @@ function SegmentCard({ icon: IconCmp, title, points, featured }: { icon: Compone
   );
 }
 
-function FeatureCard({ icon: IconCmp, title, desc, featured }: { icon: ComponentType<{ className?: string }>; title: string; desc: string; featured?: boolean }) {
+function FeatureCard({ image, title, desc, featured }: { image: string; title: string; desc: string; featured?: boolean }) {
   return (
-    <Card className={`interactive h-full ${featured ? "ring-1 ring-sky-200 dark:ring-sky-900/50" : ""}`}>
+    <Card className={`interactive h-full overflow-hidden p-0 ${featured ? "ring-1 ring-sky-200 dark:ring-sky-900/50" : ""}`}>
+      {/* Gambar fitur full-width, rasio 4:3 sesuai aset */}
+      <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={image} alt={title} loading="lazy" width={800} height={600}
+          className="h-full w-full object-cover" />
+      </div>
       <CardContent className="p-6">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
-          <IconCmp className="h-6 w-6" aria-hidden />
-        </div>
-        <h3 className="mt-4 font-semibold text-foreground">{title}</h3>
+        <h3 className="font-semibold text-foreground">{title}</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
       </CardContent>
     </Card>
