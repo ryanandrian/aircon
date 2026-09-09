@@ -12,8 +12,8 @@ export interface PlanSeed {
   taxable: boolean;
   tagline: string;
   sortOrder: number;
-  maxAdmins: number | null; // null = unlimited
-  maxTechnicians: number | null; // termasuk akun admin
+  maxAdmins: number | null; // akun ADMIN (staf kantor) selain owner. null = unlimited
+  maxTechnicians: number | null; // jumlah TEKNISI saja (admin TIDAK dihitung di sini). null = unlimited
   maxCustomers: number | null;
   maxAcUnits: number | null;
 }
@@ -27,8 +27,8 @@ export const PLAN_SEEDS: PlanSeed[] = [
     taxable: false,
     tagline: "Gratis selamanya untuk usaha AC kecil",
     sortOrder: 0,
-    maxAdmins: 1,
-    maxTechnicians: 2, // termasuk akun admin
+    maxAdmins: 0,
+    maxTechnicians: 2,
     maxCustomers: 5,
     maxAcUnits: 10,
   },
@@ -40,7 +40,7 @@ export const PLAN_SEEDS: PlanSeed[] = [
     tagline: "Untuk usaha AC yang sedang berkembang",
     sortOrder: 1,
     maxAdmins: 1,
-    maxTechnicians: 5, // termasuk akun admin
+    maxTechnicians: 5,
     maxCustomers: 200,
     maxAcUnits: 500,
   },
@@ -51,7 +51,7 @@ export const PLAN_SEEDS: PlanSeed[] = [
     taxable: true,
     tagline: "Untuk usaha AC skala besar, tanpa batas",
     sortOrder: 2,
-    maxAdmins: 1,
+    maxAdmins: null, // unlimited
     maxTechnicians: null, // unlimited
     maxCustomers: null,
     maxAcUnits: null,

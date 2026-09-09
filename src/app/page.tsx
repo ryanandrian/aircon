@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
+import { planQuotaLines } from "@/lib/billing/plan-display";
 import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
 import { appBaseUrl } from "@/lib/unit-code/urls";
 import { LoginErrorBanner } from "./_components/login-error-banner";
@@ -348,10 +349,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
                     )}
                   </div>
                   <ul className="mt-5 flex-1 space-y-2 text-sm">
-                    <PlanFeature text={p.maxTechnicians ? `${p.maxTechnicians} akun teknisi` : "Teknisi tanpa batas"} />
-                    <PlanFeature text={p.maxCustomers ? `${rupiah(p.maxCustomers)} pelanggan` : "Pelanggan tanpa batas"} />
-                    <PlanFeature text={p.maxAcUnits ? `${rupiah(p.maxAcUnits)} unit AC` : "Unit AC tanpa batas"} />
-                    <PlanFeature text="Booking online + pengingat WhatsApp" />
+                    {planQuotaLines(p).map((line) => (
+                      <PlanFeature key={line} text={line} />
+                    ))}
                   </ul>
                   <Link href="/login" className={buttonVariants({ variant: featured ? "default" : "outline", className: "mt-6 w-full" })}>
                     {p.priceMonthly === 0 ? "Mulai Gratis" : "Pilih Paket"}

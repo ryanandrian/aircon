@@ -3,6 +3,7 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { formatIDR } from "@/lib/billing/plans";
+import { planQuotaLines } from "@/lib/billing/plan-display";
 import { isMidtransConfigured } from "@/lib/billing/midtrans-client";
 import { PlanCards } from "./plan-cards";
 import { ResumePayButton } from "./resume-pay-button";
@@ -60,12 +61,7 @@ export default async function LanggananPage() {
       priceWithTax: p.priceMonthly === 0 ? "Gratis" : formatIDR(total),
       taxNote: p.taxable && p.priceMonthly > 0 ? `Termasuk pajak ${policy.taxPercent}%` : "",
       tagline: p.tagline ?? "",
-      quotas: [
-        p.maxAdmins === null ? "Admin tanpa batas" : `${p.maxAdmins} admin`,
-        p.maxTechnicians === null ? "Teknisi tanpa batas" : `${p.maxTechnicians} teknisi (termasuk admin)`,
-        p.maxCustomers === null ? "Pelanggan tanpa batas" : `${p.maxCustomers} pelanggan`,
-        p.maxAcUnits === null ? "Unit AC tanpa batas" : `${p.maxAcUnits} unit AC`,
-      ],
+      quotas: planQuotaLines(p),
       isFree: p.priceMonthly === 0,
     };
   });

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { listTeamAndInvites } from "@/lib/services/technician-service";
+import { checkQuota } from "@/lib/billing/gating";
+import { prisma } from "@/lib/prisma";
 import { TechnicianManager } from "./manager";
 import { AppHeader } from "../_components/app-header";
 
@@ -14,6 +16,12 @@ export default async function TimPage() {
   const { admins, techs, invites } = await listTeamAndInvites(ctx.tenantId);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
+  // Kuota admin paket: bila penuh (mis. Basic maxAdmins=0) → sembunyikan opsi undang Admin.
+  const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { plan: true } });
+  const adminQuota = tenant ? await checkQuota(ctx.tenantId, tenant.plan, "admins") : { allowed: false, limit: 0 };
+  // Boleh undang admin hanya bila owner DAN kuota masih tersedia (limit null=unlimited → boleh).
+  const canInviteAdmin = ctx.role === "OWNER" && adminQuota.allowed;
+
   return (
     <main className="min-h-screen">
       <AppHeader title="Tim / Staf" helpKey="tim" />
@@ -26,6 +34,7 @@ export default async function TimPage() {
         <TechnicianManager
           appUrl={appUrl}
           isOwner={ctx.role === "OWNER"}
+          canInviteAdmin={canInviteAdmin}
           admins={admins.map((a) => ({
             id: a.id,
             name: a.name,

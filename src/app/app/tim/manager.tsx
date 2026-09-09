@@ -39,9 +39,9 @@ interface Invite { id: string; name: string; phone: string; token: string; role:
 const POSITION_LABEL: Record<Position, string> = { TEKNISI: "Teknisi", KERNET: "Kernet" };
 
 export function TechnicianManager({
-  appUrl, technicians, admins, invites, isOwner,
+  appUrl, technicians, admins, invites, isOwner, canInviteAdmin = false,
 }: {
-  appUrl: string; technicians: Tech[]; admins: Admin[]; invites: Invite[]; isOwner: boolean;
+  appUrl: string; technicians: Tech[]; admins: Admin[]; invites: Invite[]; isOwner: boolean; canInviteAdmin?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -136,7 +136,7 @@ export function TechnicianManager({
           <form onSubmit={invite} className="space-y-3">
             <h2 className="font-semibold text-foreground">Undang Tim / Staf Baru</h2>
             {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{msg.text}</p>}
-            {isOwner && (
+            {canInviteAdmin && (
               <div className="space-y-1.5">
                 <Label>Peran</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as Role)}>

@@ -47,15 +47,17 @@ export async function checkQuota(
   let current = 0;
   switch (kind) {
     case "admins":
-      // SECURITY: tenant-scoped. OWNER dihitung admin (pemilik = admin utama).
+      // Filosofi A: kuota ADMIN = akun ber-peran ADMIN saja (OWNER TIDAK dihitung — owner selalu ada,
+      // maxAdmins mengukur staf admin tambahan). Konsisten dgn ownerInviteTechnician (fitur Tim/Staf).
       current = await prisma.user.count({
-        where: { tenantId, role: { in: ["OWNER", "ADMIN"] }, status: { not: "DISABLED" } },
+        where: { tenantId, role: "ADMIN", status: { not: "DISABLED" } },
       });
       break;
     case "technicians":
-      // "Maksimum Teknisi termasuk akun admin" → hitung semua user aktif tenant.
-      current = await prisma.user.count({
-        where: { tenantId, status: { not: "DISABLED" } },
+      // Filosofi A: kuota TEKNISI = jumlah TEKNISI saja (admin punya kuota sendiri, tak digabung).
+      // Sesuai yang pelanggan lihat di pricing ("N akun teknisi").
+      current = await prisma.technician.count({
+        where: { tenantId, active: true },
       });
       break;
     case "customers":
