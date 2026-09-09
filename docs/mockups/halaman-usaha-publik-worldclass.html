@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Halaman Usaha Publik — Mockup Hero Premium (2 Varian)</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#0ea5e9; --brand-2:#0284c7; --cyan:#06b6d4;
+    --bg:oklch(0.975 0.004 247); --fg:oklch(0.21 0.03 257); --card:#fff;
+    --muted:oklch(0.945 0.006 247); --muted-fg:oklch(0.55 0.02 257);
+    --border:oklch(0.912 0.007 247); --emerald:#10b981; --r:0.7rem;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Geist',system-ui,sans-serif;background:#0b1220;color:var(--fg);
+    display:flex;flex-wrap:wrap;gap:40px;justify-content:center;padding:40px 20px;min-height:100vh}
+  .col{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .col h2{color:#cbd5e1;font-size:14px;font-weight:600}
+  .col .tag{color:#64748b;font-size:12px;max-width:390px;text-align:center;line-height:1.5}
+  .phone{width:390px;height:850px;background:var(--bg);border-radius:44px;overflow:hidden;
+    box-shadow:0 0 0 12px #1c2530,0 0 0 14px #0b1220,0 30px 60px -20px rgba(0,0,0,.7)}
+  .screen{height:100%;overflow-y:auto;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r)}
+  .chip{display:inline-flex;align-items:center;font-size:12.5px;font-weight:500;padding:5px 12px;border-radius:999px;
+    background:#eff6ff;color:#0369a1;border:1px solid #dbeafe}
+  .btn-wa{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;border-radius:16px;
+    background:var(--emerald);color:#fff;font-weight:600;font-size:16px;border:none;box-shadow:0 10px 24px -8px rgba(16,185,129,.5)}
+  .sect-h{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-fg)}
+  .trust{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center}
+  .trust .t{background:#fff;border:1px solid var(--border);border-radius:14px;padding:10px 6px}
+  .trust .t .i{color:var(--brand);font-size:18px}
+  .trust .t .l{font-size:11px;color:var(--muted-fg);margin-top:3px;line-height:1.2}
+  .field{width:100%;height:46px;border:1px solid var(--border);border-radius:12px;background:#fff;
+    display:flex;align-items:center;padding:0 14px;color:var(--muted-fg);font-size:15px}
+  .btn-book{width:100%;min-height:50px;border-radius:14px;background:linear-gradient(135deg,var(--brand),var(--brand-2));
+    color:#fff;font-weight:700;font-size:16px;border:none;box-shadow:0 8px 20px -8px rgba(2,132,199,.5)}
+  .logo{width:74px;height:74px;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center}
+  .logo svg{width:44px;height:44px}
+
+  /* ============ VARIAN A: Hero gelap + kartu konversi mengambang ============ */
+  .A .hero{position:relative;overflow:hidden;padding:30px 20px 64px;text-align:center;
+    background:radial-gradient(120% 90% at 100% 0%, rgba(6,182,212,.28), transparent 55%),
+      linear-gradient(135deg,#0c4a6e,#075985 55%,#0369a1);color:#fff}
+  .A .hero::after{content:"";position:absolute;left:-40px;bottom:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.06)}
+  .A .hero .logo{margin:0 auto;border:3px solid rgba(255,255,255,.5);box-shadow:0 12px 30px rgba(0,0,0,.3)}
+  .A .hero h1{font-size:26px;font-weight:800;margin-top:14px}
+  .A .hero .tagline{font-size:13px;color:#7dd3fc;font-weight:600;margin-top:4px}
+  .A .hero .desc{font-size:13.5px;color:rgba(255,255,255,.85);margin-top:10px;line-height:1.5;max-width:300px;margin-inline:auto}
+  .A .body{padding:0 18px 30px;margin-top:-44px;position:relative;z-index:2}
+  .A .convcard{background:#fff;border:1px solid var(--border);border-radius:20px;padding:16px;box-shadow:0 16px 40px -16px rgba(2,60,90,.35)}
+  .A .trust{margin-top:12px}
+  .A .sect{margin-top:22px}
+
+  /* ============ VARIAN B: Hero gelap ramping + banner statistik kepercayaan ============ */
+  .B .hero{padding:26px 20px 22px;
+    background:radial-gradient(120% 100% at 0% 0%, rgba(6,182,212,.25), transparent 55%),
+      linear-gradient(135deg,#0c4a6e,#075985 60%,#0369a1);color:#fff}
+  .B .hero .row{display:flex;align-items:center;gap:14px}
+  .B .hero .logo{width:60px;height:60px;border-radius:16px;flex:0 0 auto}
+  .B .hero .logo svg{width:34px;height:34px}
+  .B .hero h1{font-size:22px;font-weight:800;line-height:1.1}
+  .B .hero .tagline{font-size:12.5px;color:#7dd3fc;font-weight:600;margin-top:2px}
+  .B .hero .desc{font-size:13px;color:rgba(255,255,255,.85);margin-top:14px;line-height:1.5}
+  .B .hero .stats{display:flex;gap:18px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)}
+  .B .hero .stats .s{display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.9)}
+  .B .hero .stats .s .d{color:#34d399}
+  .B .body{padding:16px 18px 30px}
+  .B .sect{margin-top:20px}
+</style>
+</head>
+<body>
+
+<!-- ================= VARIAN A ================= -->
+<div class="col A">
+  <h2>VARIAN A — Hero Gelap + Kartu Konversi Mengambang</h2>
+  <div class="tag">Hero gelap "berisi" (logo besar, nama, tagline, deskripsi). Tombol WA + trust badge naik ke kartu putih yang mengambang di atas hero — fokus konversi langsung terlihat.</div>
+  <div class="phone"><div class="screen">
+    <div class="hero">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 7 10 12 12c5-2 5-6 0-10z" fill="#7c3aed"/><path d="M6 13c-3 2-3 6 2 7 2-4 0-6-2-7z" fill="#06b6d4"/><path d="M18 13c3 2 3 6-2 7-2-4 0-6 2-7z" fill="#06b6d4"/></svg></div>
+      <h1>Jaya Mandiri</h1>
+      <div class="tagline">Servis AC Terpercaya</div>
+      <div class="desc">Servis AC cepat, jujur, dan profesional. Pesan online — tim kami menghubungi Anda via WhatsApp.</div>
+    </div>
+    <div class="body">
+      <div class="convcard">
+        <button class="btn-wa"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2z"/></svg> Chat via WhatsApp</button>
+        <div class="trust">
+          <div class="t"><div class="i">⚡</div><div class="l">Respons cepat</div></div>
+          <div class="t"><div class="i">✓</div><div class="l">Konfirmasi WhatsApp</div></div>
+          <div class="t"><div class="i">🕐</div><div class="l">Pesan 24 jam</div></div>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="sect-h">Layanan Kami</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+          <span class="chip">Cuci AC</span><span class="chip">Isi Freon</span><span class="chip">Perbaikan</span><span class="chip">Pasang Baru</span><span class="chip">Pengecekan</span>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="sect-h">Area Layanan</div>
+        <p style="margin-top:8px;color:#334155">Jakarta</p>
+      </div>
+      <div class="card sect" style="padding:18px;box-shadow:0 4px 14px -8px rgba(0,0,0,.15)">
+        <div style="font-size:19px;font-weight:800">Booking Servis</div>
+        <div style="font-size:13px;color:var(--muted-fg);margin:4px 0 14px">Isi form, tim kami segera menghubungi Anda.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="field">Nama lengkap Anda</div>
+          <div class="field">08xxxxxxxxxx</div>
+          <div class="field">— Pilih layanan (opsional) —</div>
+          <button class="btn-book" style="margin-top:4px">Kirim Permintaan Booking</button>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ================= VARIAN B ================= -->
+<div class="col B">
+  <h2>VARIAN B — Hero Ramping + Baris Sinyal Percaya</h2>
+  <div class="tag">Hero gelap kompak (logo+nama sebaris seperti /riwayat), deskripsi, lalu baris sinyal percaya (Cepat · WA · 24 jam) di dalam hero. Body fokus tombol WA + form. Paling konsisten dengan kartu perawatan.</div>
+  <div class="phone"><div class="screen">
+    <div class="hero">
+      <div class="row">
+        <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 7 10 12 12c5-2 5-6 0-10z" fill="#7c3aed"/><path d="M6 13c-3 2-3 6 2 7 2-4 0-6-2-7z" fill="#06b6d4"/><path d="M18 13c3 2 3 6-2 7-2-4 0-6 2-7z" fill="#06b6d4"/></svg></div>
+        <div>
+          <h1>Jaya Mandiri</h1>
+          <div class="tagline">Servis AC Terpercaya</div>
+        </div>
+      </div>
+      <div class="desc">Servis AC cepat, jujur, dan profesional. Pesan online — tim kami menghubungi Anda via WhatsApp.</div>
+      <div class="stats">
+        <div class="s"><span class="d">⚡</span> Respons cepat</div>
+        <div class="s"><span class="d">✓</span> Via WhatsApp</div>
+        <div class="s"><span class="d">🕐</span> 24 jam</div>
+      </div>
+    </div>
+    <div class="body">
+      <button class="btn-wa"><svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.3A10 10 0 1012 2z"/></svg> Chat via WhatsApp</button>
+      <div class="sect">
+        <div class="sect-h">Layanan Kami</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+          <span class="chip">Cuci AC</span><span class="chip">Isi Freon</span><span class="chip">Perbaikan</span><span class="chip">Pasang Baru</span><span class="chip">Pengecekan</span>
+        </div>
+      </div>
+      <div class="sect">
+        <div class="sect-h">Area Layanan</div>
+        <p style="margin-top:8px;color:#334155">Jakarta</p>
+      </div>
+      <div class="card sect" style="padding:18px;box-shadow:0 4px 14px -8px rgba(0,0,0,.15)">
+        <div style="font-size:19px;font-weight:800">Booking Servis</div>
+        <div style="font-size:13px;color:var(--muted-fg);margin:4px 0 14px">Isi form, tim kami segera menghubungi Anda.</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="field">Nama lengkap Anda</div>
+          <div class="field">08xxxxxxxxxx</div>
+          <div class="field">— Pilih layanan (opsional) —</div>
+          <button class="btn-book" style="margin-top:4px">Kirim Permintaan Booking</button>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+</body>
+</html>

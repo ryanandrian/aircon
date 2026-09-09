@@ -70,9 +70,11 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/t") ||
     path.startsWith("/admin");
 
-  // Teknisi login via phone+PIN (cookie tertanda). /t cukup cek keberadaan cookie; validasi di getServerContext.
+  // Staf login via phone+PIN (cookie tertanda 'aircon_tech'): teknisi DAN admin.
+  // Teknisi memakai /t; admin memakai /app. Middleware = gerbang kasar (ada cookie);
+  // role sebenarnya (ADMIN vs TECHNICIAN) & tenant divalidasi di getServerContext.
   const hasTechCookie = Boolean(request.cookies.get("aircon_tech")?.value);
-  const techAllowed = path.startsWith("/t") && hasTechCookie;
+  const techAllowed = (path.startsWith("/t") || path.startsWith("/app")) && hasTechCookie;
 
   if (isProtected && !hasOwnerSession && !techAllowed) {
     const url = request.nextUrl.clone();

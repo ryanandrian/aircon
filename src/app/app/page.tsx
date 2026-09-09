@@ -21,6 +21,8 @@ export default async function AppDashboard() {
     if (!identity || (!identity.email && !identity.phone)) redirect("/login?next=/app");
     redirect("/onboarding");
   }
+  // Teknisi tak punya akses panel kantor — arahkan ke layar lapangan.
+  if (ctx.role === "TECHNICIAN") redirect("/t");
 
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);

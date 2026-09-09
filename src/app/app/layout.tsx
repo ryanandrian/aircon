@@ -13,6 +13,8 @@ import { AppNav } from "./_components/app-nav";
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app");
+  // Panel kantor hanya untuk OWNER & ADMIN. Teknisi (PIN) diarahkan ke layar lapangan.
+  if (ctx.role === "TECHNICIAN") redirect("/t");
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: ctx.tenantId },

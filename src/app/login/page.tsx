@@ -83,7 +83,7 @@ export default async function LoginPage({
 
           <div className="mt-6">
             <GoogleSignInButton next={next} googleDriver={isGoogleAuthDriver()} />
-            <p className="mt-2 text-center text-xs text-muted-foreground lg:text-left">Untuk pemilik usaha &amp; admin</p>
+            <p className="mt-2 text-center text-xs text-muted-foreground lg:text-left">Untuk pemilik usaha</p>
           </div>
 
           <div className="my-6 flex items-center gap-3">
@@ -94,7 +94,7 @@ export default async function LoginPage({
 
           <div className="grid gap-2">
             <Link href="/masuk-teknisi" className={buttonVariants({ variant: "outline", className: "min-h-[48px] gap-2" })}>
-              <Icon.Mobile className="h-4 w-4" aria-hidden /> Masuk sebagai Teknisi
+              <Icon.Mobile className="h-4 w-4" aria-hidden /> Masuk sebagai Staf (Admin / Teknisi)
             </Link>
             <Link href="/pratinjau" className={buttonVariants({ variant: "ghost", className: "min-h-[48px] text-sky-600" })}>
               Lihat Pratinjau Aplikasi →
