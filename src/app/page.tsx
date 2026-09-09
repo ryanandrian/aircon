@@ -12,6 +12,7 @@ import { planQuotaLines } from "@/lib/billing/plan-display";
 import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
 import { appBaseUrl } from "@/lib/unit-code/urls";
 import { LoginErrorBanner } from "./_components/login-error-banner";
+import { VisitBeacon } from "./_components/visit-beacon";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -85,6 +86,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
 
   return (
     <main className="min-h-screen bg-background">
+      <VisitBeacon />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {sp?.error ? <LoginErrorBanner code={sp.error_code} /> : null}
       {/* Header */}
@@ -277,7 +279,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         <a href="#harga" aria-label="Bonus fitur: Website profesional khusus bisnis servis AC Anda — lihat paket harga"
           className="group block overflow-hidden rounded-3xl border shadow-lg ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
           {/* Teks ringkas — HANYA mobile (teks di gambar terlalu kecil di HP). Di desktop disembunyikan (redundan). */}
-          <div className="bg-card px-5 pt-5 lg:hidden">
+          <div className="bg-card px-5 pb-5 pt-5 lg:hidden">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-3 py-1 text-sm font-bold text-white">
               <Icon.Star className="h-3.5 w-3.5" aria-hidden /> Bonus Fitur
             </span>

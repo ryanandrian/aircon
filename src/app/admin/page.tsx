@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getPlatformStats } from "@/lib/services/platform-service";
+import { getVisitorStats } from "@/lib/services/visit-service";
 import { formatIDR } from "@/lib/billing/plans";
 import { PaymentStatusBadge } from "./status-badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +31,7 @@ function StatCard({ label, value, hint }: { label: string; value: number; hint?:
 }
 
 export default async function AdminDashboardPage() {
-  const stats = await getPlatformStats();
+  const [stats, visitors] = await Promise.all([getPlatformStats(), getVisitorStats()]);
 
   return (
     <div className="space-y-6">
@@ -45,6 +46,15 @@ export default async function AdminDashboardPage() {
         <StatCard label="Masa Coba" value={stats.trial} />
         <StatCard label="Menunggak" value={stats.pastDue} />
         <StatCard label="Ditangguhkan" value={stats.suspended} />
+      </section>
+
+      <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <StatCard
+          label="Pengunjung Unik (Total)"
+          value={visitors.uniqueAllTime}
+          hint="Landing airconet.id — IP sama tak dihitung 2×"
+        />
+        <StatCard label="Pengunjung Unik (Hari ini)" value={visitors.uniqueToday} hint="Zona WIB (+07)" />
       </section>
 
       <Card className="p-0">

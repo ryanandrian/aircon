@@ -1576,3 +1576,18 @@ model InvoiceItem {
 
   @@index([invoiceId])
 }
+
+/// Kunjungan halaman publik (landing airconet.id) untuk ukur hasil campaign.
+/// PRIVASI: simpan HASH IP (SHA-256+salt), bukan IP mentah. Unik per (ipHash, day)
+/// → 1 IP per hari dihitung sekali (idempoten). Total pengunjung unik all-time =
+/// COUNT(DISTINCT ipHash). Hari ini = baris dengan day = hari ini.
+model PageVisit {
+  id        String   @id @default(cuid())
+  ipHash    String
+  path      String   @default("/")
+  day       String // "YYYY-MM-DD" (zona +07) — kunci idempoten per hari
+  createdAt DateTime @default(now())
+
+  @@unique([ipHash, day])
+  @@index([day])
+}
