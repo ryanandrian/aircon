@@ -11,6 +11,7 @@ import {
   ownerTechnicianAssignments,
   ownerUpdateAdmin,
   ownerResetAdminPin,
+  ownerSendInviteWa,
 } from "@/app/masuk-teknisi/actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,11 +88,21 @@ export function TechnicianManager({
   }
 
   function waShare(inv: Invite) {
-    const url = `${appUrl}/undangan/${inv.token}`;
-    const peran = inv.role === "ADMIN" ? (inv.jobTitle?.trim() || "admin") : "teknisi";
-    const text = `Halo ${inv.name}, Anda diundang jadi ${peran} di Aircon. Buka link ini untuk membuat PIN & mulai: ${url}`;
-    const wa = `https://wa.me/${inv.phone}?text=${encodeURIComponent(text)}`;
-    window.open(wa, "_blank");
+    // Utamakan kirim OTOMATIS via WA gateway (nomor tenant) — konsisten dgn faktur/kwitansi.
+    // Fallback ke wa.me hanya bila gateway belum tersambung / gagal (cegah jalan buntu).
+    start(async () => {
+      const res = await ownerSendInviteWa(inv.id);
+      if (res.ok) { toast.success(`Undangan terkirim via WhatsApp ke ${res.to}`); return; }
+      if (res.fallback) {
+        const url = `${appUrl}/undangan/${inv.token}`;
+        const peran = inv.role === "ADMIN" ? (inv.jobTitle?.trim() || "admin") : "teknisi";
+        const text = `Halo ${inv.name}, Anda diundang jadi ${peran} di Aircon. Buka link ini untuk membuat PIN & mulai: ${url}`;
+        window.open(`https://wa.me/${inv.phone}?text=${encodeURIComponent(text)}`, "_blank");
+        toast.message("WA gateway belum tersambung — membuka WhatsApp Anda sebagai cadangan.");
+        return;
+      }
+      toast.error(res.error);
+    });
   }
 
   function toggleAdminActive(a: Admin) {

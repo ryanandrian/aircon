@@ -88,6 +88,45 @@ export async function ownerInviteTechnician(
   }
 }
 
+/**
+ * Kirim link undangan ke HP staf via WA GATEWAY (nomor tenant) — konsisten dgn faktur/kwitansi.
+ * Bila gateway belum tersambung (mis. onboarding staf pertama), kembalikan fallback=true agar
+ * UI membuka wa.me sebagai cadangan (cegah jalan buntu). Patuh guard anti-spam gateway.
+ */
+export async function ownerSendInviteWa(inviteId: string): Promise<
+  { ok: true; to: string } | { ok: false; error: string; fallback?: boolean }
+> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const invite = await prisma.invite.findFirst({
+      where: { id: inviteId, tenantId: ctx.tenantId, status: "PENDING" },
+      select: { name: true, phone: true, token: true, role: true, jobTitle: true },
+    });
+    if (!invite) return { ok: false, error: "Undangan tidak ditemukan" };
+
+    const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
+    if (!(await isGatewayConfigured())) {
+      // Belum tersambung → biar UI pakai wa.me sebagai cadangan.
+      return { ok: false, error: "Gateway WA belum tersambung", fallback: true };
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    const url = `${appUrl}/undangan/${invite.token}`;
+    const peran = invite.role === "ADMIN" ? (invite.jobTitle?.trim() || "admin") : "teknisi";
+    const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true } });
+    const message = `Halo ${invite.name}, Anda diundang menjadi ${peran} di ${tenant?.name ?? "usaha kami"} (via Aircon). Buka tautan ini untuk membuat PIN & mulai:\n${url}`;
+
+    const res = await gatewaySend(ctx.tenantId, invite.phone, message);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", fallback: true };
+    return { ok: true, to: invite.phone };
+  } catch (err) {
+    if (err instanceof TechAuthError) return { ok: false, error: err.message };
+    console.error("[ownerSendInviteWa] gagal:", err);
+    return { ok: false, error: "Gagal mengirim undangan.", fallback: true };
+  }
+}
+
 /** Owner membatalkan undangan. */
 export async function ownerRevokeInvite(inviteId: string): Promise<Result> {
   try {
