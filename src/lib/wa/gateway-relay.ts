@@ -75,17 +75,17 @@ export async function gatewayInitSession(tenantId: string): Promise<{ ok: boolea
   }
 }
 
-/** Status sesi WA tenant (untuk polling di UI tautkan): {exists, ready, qr}. */
-export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; error?: string }> {
+/** Status sesi WA tenant (untuk polling di UI tautkan): {exists, ready, qr, phone}. */
+export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; error?: string }> {
   const cfg = await resolve();
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
   try {
     const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}`, {
       method: "GET", headers: { "X-Api-Key": cfg.key },
     });
-    const data = (await r.json().catch(() => ({}))) as { exists?: boolean; ready?: boolean; qr?: string | null; error?: string };
+    const data = (await r.json().catch(() => ({}))) as { exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; error?: string };
     if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
-    return { ok: true, exists: data.exists, ready: data.ready, qr: data.qr ?? null };
+    return { ok: true, exists: data.exists, ready: data.ready, qr: data.qr ?? null, phone: data.phone ?? null };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
   }

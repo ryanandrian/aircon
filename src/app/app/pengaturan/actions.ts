@@ -68,8 +68,8 @@ export async function actionWaInit(): Promise<{ ok: boolean; qr?: string | null;
   return gatewayInitSession(ctx.tenantId);
 }
 
-/** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr}. */
-export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; error?: string }> {
+/** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr, phone}. */
+export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; error?: string }> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
