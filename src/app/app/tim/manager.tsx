@@ -129,7 +129,9 @@ export function TechnicianManager({
               <div className="space-y-1.5">
                 <Label>Peran</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-                  <SelectTrigger className="min-h-[44px] rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="min-h-[44px] rounded-xl">
+                    <SelectValue>{(v: string | null) => (v === "ADMIN" ? "Admin (kantor)" : "Teknisi (lapangan)")}</SelectValue>
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="TECHNICIAN">Teknisi (lapangan)</SelectItem>
                     <SelectItem value="ADMIN">Admin (kantor)</SelectItem>
