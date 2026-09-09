@@ -30,6 +30,7 @@ export function WaConnect() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [qr, setQr] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
+  const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -53,7 +54,7 @@ export function WaConnect() {
 
   // Mulai proses tautkan: init → tampil QR → poll sampai ready.
   const handleConnect = useCallback(async () => {
-    setPhase("connecting"); setError(""); setQr(null);
+    setPhase("connecting"); setError(""); setQr(null); setAuthenticating(false);
     const r = await actionWaInit();
     if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memulai"); return; }
     if (r.ready) { setPhase("connected"); return; }
@@ -63,7 +64,8 @@ export function WaConnect() {
       const s = await actionWaStatus();
       if (!s.ok) return; // best-effort; jangan hentikan polling karena 1 gagal
       if (s.ready) { setPhase("connected"); setQr(null); setPhone(s.phone ?? null); stopPoll(); }
-      else if (s.qr) setQr(s.qr); // QR di-refresh gateway ~tiap 60 dtk
+      else if (s.authenticating) { setAuthenticating(true); setQr(null); } // dipindai → menyiapkan sesi
+      else if (s.qr) { setQr(s.qr); setAuthenticating(false); } // QR di-refresh gateway ~tiap 60 dtk
     }, 3000);
   }, [stopPoll]);
 
@@ -71,7 +73,7 @@ export function WaConnect() {
     if (!confirm("Putuskan WhatsApp? Pesan otomatis berhenti sampai Anda menautkan ulang.")) return;
     const r = await actionWaLogout();
     if (!r.ok) { setError(r.error ?? "Gagal memutuskan"); return; }
-    setPhase("disconnected"); setQr(null); setPhone(null);
+    setPhase("disconnected"); setQr(null); setPhone(null); setAuthenticating(false);
   }, []);
 
   return (
@@ -112,7 +114,22 @@ export function WaConnect() {
           </div>
         )}
 
-        {phase === "connecting" && (
+        {phase === "connecting" && authenticating && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+              <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" aria-hidden />
+              <span>Berhasil dipindai — menyiapkan sesi WhatsApp… (5–10 detik)</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Kode sudah terbaca. Tunggu sebentar, jangan tutup halaman — status berubah jadi “Tersambung” otomatis.
+            </p>
+            <div className="flex h-[288px] w-[288px] items-center justify-center rounded-xl border border-dashed bg-muted/30">
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-400/50 border-t-transparent" aria-hidden />
+            </div>
+          </div>
+        )}
+
+        {phase === "connecting" && !authenticating && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300">
               <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" aria-hidden />
