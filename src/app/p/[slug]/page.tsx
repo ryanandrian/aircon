@@ -9,34 +9,23 @@
  */
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { normalizeBookingPhone } from "@/lib/validation/booking";
 import { TenantLogo } from "@/components/tenant-logo";
 import BookingForm from "./booking-form";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { resolvePublicView } from "@/lib/domain/public-profile";
 import type { ComponentType } from "react";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
-/** Bentuk longgar publicProfile (Json?) — parse defensif tanpa any. */
-interface PublicProfile {
+interface PublicProfileMeta {
   description?: string;
-  services?: string[];
-  tagline?: string;
 }
-interface ServiceArea {
-  cities?: string[];
-  districts?: string[];
-}
-
-function asPublicProfile(v: unknown): PublicProfile {
-  if (v && typeof v === "object") return v as PublicProfile;
-  return {};
-}
-function asServiceArea(v: unknown): ServiceArea {
-  if (v && typeof v === "object") return v as ServiceArea;
+function asMeta(v: unknown): PublicProfileMeta {
+  if (v && typeof v === "object") return v as PublicProfileMeta;
   return {};
 }
 
@@ -49,6 +38,7 @@ async function getTenant(slug: string) {
       slug: true,
       phone: true,
       logoUrl: true,
+      tagline: true,
       publicProfile: true,
       serviceArea: true,
     },
@@ -63,7 +53,7 @@ export async function generateMetadata({
   if (!tenant) {
     return { title: "Halaman tidak ditemukan" };
   }
-  const profile = asPublicProfile(tenant.publicProfile);
+  const profile = asMeta(tenant.publicProfile);
   const title = `${tenant.name} — Servis AC Terpercaya`;
   const description =
     profile.description ??
@@ -92,100 +82,95 @@ export default async function PublicTenantPage({ params }: PageProps) {
   const tenant = await getTenant(slug);
   if (!tenant) notFound();
 
-  const profile = asPublicProfile(tenant.publicProfile);
-  const area = asServiceArea(tenant.serviceArea);
+  const view = resolvePublicView(tenant.publicProfile, tenant.serviceArea, tenant.tagline ?? null);
   const waPhone = normalizeBookingPhone(tenant.phone);
   const waHref = `https://wa.me/${waPhone}?text=${encodeURIComponent(
     `Halo ${tenant.name}, saya mau tanya soal servis AC.`,
   )}`;
 
-  const services =
-    profile.services && profile.services.length
-      ? profile.services
-      : ["Cuci AC", "Isi Freon", "Perbaikan", "Pasang Baru", "Pengecekan"];
-
-  const cities = area.cities ?? [];
-  const districts = area.districts ?? [];
-  const areaLabel = [...cities, ...districts].join(", ");
+  // Ikon sinyal percaya berputar (default 3); label dari tenant/bawaan.
+  const trustIcons = [Icon.Zap, Icon.Check, Icon.Clock];
+  const igHref = view.instagram
+    ? view.instagram.startsWith("http")
+      ? view.instagram
+      : `https://instagram.com/${view.instagram.replace(/^@/, "")}`
+    : null;
 
   return (
     <main className="min-h-screen bg-muted/30">
-      {/* Banner brand */}
-      <div aria-hidden className="h-28 bg-gradient-to-br from-sky-500 via-sky-600 to-cyan-500 sm:h-32" />
-      <div className="mx-auto -mt-16 w-full max-w-lg px-5 pb-16">
-        {/* Header usaha */}
-        <header className="animate-in-up text-center">
-          <div className="mx-auto mb-4 w-fit rounded-3xl border-4 border-background shadow-lg">
-            <TenantLogo name={tenant.name} logoUrl={tenant.logoUrl} size={80} className="rounded-[1.25rem]" />
+      {/* HERO gelap premium (senuansa halaman riwayat) */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-sky-900 via-sky-800 to-sky-700 px-5 pb-24 pt-9 text-center text-white">
+        <div aria-hidden className="pointer-events-none absolute -left-10 bottom-6 h-48 w-48 rounded-full bg-white/5" />
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-10 h-56 w-56 rounded-full bg-cyan-400/10" />
+        <div className="relative mx-auto w-full max-w-lg">
+          <div className="mx-auto w-fit rounded-3xl border-[3px] border-white/40 shadow-xl">
+            <TenantLogo name={tenant.name} logoUrl={tenant.logoUrl} size={78} className="rounded-[1.15rem]" />
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-            {tenant.name}
-          </h1>
-          {profile.tagline && (
-            <p className="mt-1 text-sm font-medium text-sky-600 dark:text-sky-400">
-              {profile.tagline}
-            </p>
-          )}
-          <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-            {profile.description ??
-              "Servis AC cepat, jujur, dan profesional. Pesan online — tim kami akan menghubungi Anda via WhatsApp."}
-          </p>
-        </header>
+          <h1 className="mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">{tenant.name}</h1>
+          {view.tagline && <p className="mt-1 text-sm font-semibold text-sky-200">{view.tagline}</p>}
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/85">{view.description}</p>
+        </div>
+      </div>
 
-        {/* Tombol WhatsApp */}
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Chat WhatsApp dengan ${tenant.name}`}
-          className="animate-in-up delay-75 mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-600 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-        >
-          <Icon.Message className="h-5 w-5" aria-hidden /> Chat via WhatsApp
-        </a>
+      <div className="mx-auto -mt-16 w-full max-w-lg px-5 pb-16">
+        {/* Kartu konversi mengambang: WA + sinyal percaya */}
+        <div className="animate-in-up relative z-10 rounded-3xl border bg-card p-4 shadow-xl shadow-sky-900/10">
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Chat WhatsApp dengan ${tenant.name}`}
+            className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5 hover:bg-emerald-600 active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+          >
+            <Icon.Message className="h-5 w-5" aria-hidden /> Chat via WhatsApp
+          </a>
+          <ul className="mt-3 grid grid-cols-3 gap-2 text-center">
+            {view.trustBadges.map((b, i) => (
+              <TrustBadge key={`${b.label}-${i}`} icon={trustIcons[i % trustIcons.length]} label={b.label} />
+            ))}
+          </ul>
+        </div>
 
-        {/* Sinyal percaya (jujur, benar untuk semua usaha) */}
-        <ul className="animate-in-up delay-150 mt-4 grid grid-cols-3 gap-2 text-center">
-          <TrustBadge icon={Icon.Zap} label="Respons cepat" />
-          <TrustBadge icon={Icon.Check} label="Dikonfirmasi WhatsApp" />
-          <TrustBadge icon={Icon.Clock} label="Pesan online 24 jam" />
-        </ul>
+        {/* Jam operasional */}
+        <div className="animate-in-up delay-75 mt-5 flex items-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm">
+          <Icon.Clock className="h-4 w-4 shrink-0 text-sky-500" aria-hidden />
+          <span className="text-muted-foreground">Jam operasional:</span>
+          <span className="font-medium text-foreground">{view.operatingHours}</span>
+        </div>
 
         {/* Layanan */}
-        <section className="mt-8" aria-labelledby="layanan-heading">
-          <h2
-            id="layanan-heading"
-            className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-          >
+        <section className="mt-7" aria-labelledby="layanan-heading">
+          <h2 id="layanan-heading" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Layanan Kami
           </h2>
           <ul className="mt-3 flex flex-wrap gap-2">
-            {services.map((s) => (
+            {view.services.map((s) => (
               <li key={s}>
-                <Badge variant="secondary" className="border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">{s}</Badge>
+                <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-sm font-medium text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">
+                  {s}
+                </span>
               </li>
             ))}
           </ul>
         </section>
 
         {/* Area layanan */}
-        {areaLabel && (
+        {view.areaLabel && (
           <section className="mt-6" aria-labelledby="area-heading">
-            <h2
-              id="area-heading"
-              className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-            >
+            <h2 id="area-heading" className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               Area Layanan
             </h2>
-            <p className="mt-2 text-foreground/80">{areaLabel}</p>
+            <p className="mt-2 flex items-start gap-2 text-foreground/80">
+              <Icon.Location className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" aria-hidden />
+              <span>{view.areaLabel}</span>
+            </p>
           </section>
         )}
 
         {/* Form booking */}
         <Card className="mt-8 shadow-sm" aria-labelledby="booking-heading">
           <CardContent className="p-6">
-            <h2 id="booking-heading" className="text-xl font-bold text-foreground">
-              Booking Servis
-            </h2>
+            <h2 id="booking-heading" className="text-xl font-bold text-foreground">Booking Servis</h2>
             <p className="mb-5 mt-1 text-sm text-muted-foreground">
               Isi form di bawah, tim kami akan segera menghubungi Anda.
             </p>
@@ -193,9 +178,27 @@ export default async function PublicTenantPage({ params }: PageProps) {
           </CardContent>
         </Card>
 
+        {/* Tautan sosial / Maps (disembunyikan bila kosong) */}
+        {(igHref || view.mapUrl) && (
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {igHref && (
+              <a href={igHref} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted">
+                <Icon.Web className="h-4 w-4 text-pink-500" aria-hidden /> Instagram
+              </a>
+            )}
+            {view.mapUrl && (
+              <a href={view.mapUrl} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted">
+                <Icon.Location className="h-4 w-4 text-sky-500" aria-hidden /> Lihat Lokasi
+              </a>
+            )}
+          </div>
+        )}
+
         <footer className="mt-10 text-center text-xs text-muted-foreground">
           Ditenagai oleh{" "}
-          <a href="/" className="font-medium text-sky-500 hover:text-sky-600">Aircon</a>
+          <Link href="/" className="font-medium text-sky-500 hover:text-sky-600">Aircon</Link>
           {" "}— Operating System untuk usaha servis AC.
         </footer>
       </div>

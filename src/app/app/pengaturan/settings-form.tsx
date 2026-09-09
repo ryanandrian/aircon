@@ -18,6 +18,9 @@ type Profile = {
   bankName: string; bankAccountNo: string; bankAccountName: string; qrisImageUrl: string;
   teamIncentiveMode: "BAGI_RATA" | "PENUH"; incentiveBasis: "LUNAS" | "TERBIT";
   incentiveEnabled: boolean;
+  publicDescription: string; services: string[]; operatingHours: string;
+  trustBadges: string[]; areaCities: string[]; areaDistricts: string[];
+  instagram: string; mapUrl: string;
 };
 
 /** Upload gambar aset tenant (logo/QRIS) via presigned PUT. Seragam dgn pola admin ImageUpload. */
@@ -71,6 +74,54 @@ function TenantImageField({
   );
 }
 
+/** Editor daftar (chip): tambah dengan Enter/koma, hapus dengan ×. Untuk layanan, area, dsb. */
+function ChipListInput({
+  label, values, onChange, placeholder, hint, max = 30,
+}: {
+  label: string; values: string[]; onChange: (next: string[]) => void;
+  placeholder: string; hint?: string; max?: number;
+}) {
+  const [draft, setDraft] = useState("");
+  function commit(text: string) {
+    const parts = text.split(",").map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    const next = [...values];
+    for (const p of parts) {
+      if (next.length >= max) break;
+      if (!next.some((v) => v.toLowerCase() === p.toLowerCase())) next.push(p);
+    }
+    onChange(next);
+    setDraft("");
+  }
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      {values.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {values.map((v, i) => (
+            <span key={`${v}-${i}`} className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">
+              {v}
+              <button type="button" aria-label={`Hapus ${v}`} className="ml-0.5 text-sky-500 hover:text-red-500"
+                onClick={() => onChange(values.filter((_, idx) => idx !== i))}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <Input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit(draft); }
+        }}
+        onBlur={() => { if (draft.trim()) commit(draft); }}
+        placeholder={placeholder}
+        disabled={values.length >= max}
+      />
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
 export function SettingsForm({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -88,6 +139,9 @@ export function SettingsForm({ profile }: { profile: Profile }) {
       qrisImageUrl: f.qrisImageUrl,
       teamIncentiveMode: f.teamIncentiveMode, incentiveBasis: f.incentiveBasis,
       incentiveEnabled: f.incentiveEnabled,
+      publicDescription: f.publicDescription, services: f.services, operatingHours: f.operatingHours,
+      trustBadges: f.trustBadges, areaCities: f.areaCities, areaDistricts: f.areaDistricts,
+      instagram: f.instagram, mapUrl: f.mapUrl,
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Gagal"); return; }
@@ -140,6 +194,82 @@ export function SettingsForm({ profile }: { profile: Profile }) {
           </div>
           <TenantImageField scope="logo" label="Logo Usaha" value={f.logoUrl} onChange={(u) => set("logoUrl", u)}
             hint="Kosongkan untuk memakai logo bawaan Aircon." />
+        </CardContent>
+      </Card>
+
+      {/* Halaman Usaha Publik (/p) */}
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <div>
+            <h2 className="text-lg font-semibold">Halaman Usaha Publik</h2>
+            <p className="text-sm text-muted-foreground">
+              Yang tampil di halaman publik usaha Anda (untuk calon pelanggan). Semua opsional — bila
+              dikosongkan, dipakai nilai bawaan yang rapi.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="pubdesc">Deskripsi Usaha</Label>
+            <textarea id="pubdesc" value={f.publicDescription} onChange={(e) => set("publicDescription", e.target.value)} rows={3}
+              placeholder="Perkenalkan usaha Anda: layanan unggulan, pengalaman, wilayah. (Kosongkan untuk teks bawaan.)"
+              maxLength={600}
+              className="w-full rounded-xl border bg-background px-3 py-2 text-sm" />
+          </div>
+
+          <ChipListInput
+            label="Layanan Kami"
+            values={f.services}
+            onChange={(v) => set("services", v)}
+            placeholder="Ketik layanan lalu Enter (mis. Cuci AC)"
+            hint="Kosong = pakai layanan bawaan (Cuci AC, Isi Freon, Perbaikan, Pasang Baru, Pengecekan). Maks 12."
+            max={12}
+          />
+
+          <ChipListInput
+            label="Area Layanan — Kota"
+            values={f.areaCities}
+            onChange={(v) => set("areaCities", v)}
+            placeholder="Ketik kota lalu Enter (mis. Depok)"
+            hint="Kota/kabupaten yang Anda layani."
+          />
+          <ChipListInput
+            label="Area Layanan — Kecamatan (opsional)"
+            values={f.areaDistricts}
+            onChange={(v) => set("areaDistricts", v)}
+            placeholder="Ketik kecamatan lalu Enter"
+          />
+
+          <div className="space-y-1.5">
+            <Label htmlFor="ophours">Jam Operasional</Label>
+            <Input id="ophours" value={f.operatingHours} onChange={(e) => set("operatingHours", e.target.value)}
+              placeholder="mis. Senin–Sabtu, 08.00–17.00" maxLength={120} />
+            <p className="text-xs text-muted-foreground">Kosong = &quot;Setiap hari, 08.00–17.00&quot;.</p>
+          </div>
+
+          <ChipListInput
+            label="Sinyal Kepercayaan (maks 3)"
+            values={f.trustBadges}
+            onChange={(v) => set("trustBadges", v)}
+            placeholder="mis. Garansi 30 hari, Teknisi bersertifikat"
+            hint="3 label singkat di bagian atas halaman. Kosong = bawaan (Respons cepat, Dikonfirmasi WhatsApp, Pesan online 24 jam)."
+            max={3}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ig">Instagram (opsional)</Label>
+              <Input id="ig" value={f.instagram} onChange={(e) => set("instagram", e.target.value)}
+                placeholder="@usaha_anda atau URL" maxLength={120} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="map">Google Maps (opsional)</Label>
+              <Input id="map" value={f.mapUrl} onChange={(e) => set("mapUrl", e.target.value)}
+                placeholder="Tautan lokasi Google Maps" maxLength={500} />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Tautan sosial &amp; Maps disembunyikan di halaman publik bila dikosongkan.
+          </p>
         </CardContent>
       </Card>
 

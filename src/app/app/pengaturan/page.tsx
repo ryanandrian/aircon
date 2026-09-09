@@ -34,6 +34,14 @@ export default async function PengaturanPage({
     teamIncentiveMode: p.teamIncentiveMode ?? "BAGI_RATA",
     incentiveBasis: p.incentiveBasis ?? "LUNAS",
     incentiveEnabled: p.incentiveEnabled ?? false,
+    publicDescription: p.publicDescription ?? "",
+    services: p.services ?? [],
+    operatingHours: p.operatingHours ?? "",
+    trustBadges: p.trustBadges ?? [],
+    areaCities: p.areaCities ?? [],
+    areaDistricts: p.areaDistricts ?? [],
+    instagram: p.instagram ?? "",
+    mapUrl: p.mapUrl ?? "",
   };
 
   return (

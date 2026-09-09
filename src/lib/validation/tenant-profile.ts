@@ -20,6 +20,16 @@ export const tenantProfileSchema = z.object({
   teamIncentiveMode: z.enum(["BAGI_RATA", "PENUH"]).optional(),
   incentiveBasis: z.enum(["LUNAS", "TERBIT"]).optional(),
   incentiveEnabled: z.boolean().optional(),
+
+  // Halaman usaha publik (/p) — semua opsional; default diterapkan saat render.
+  publicDescription: z.string().trim().max(600).optional(),
+  services: z.array(z.string().trim().min(1).max(40)).max(12).optional(),
+  operatingHours: z.string().trim().max(120).optional(),
+  trustBadges: z.array(z.string().trim().min(1).max(40)).max(3).optional(),
+  areaCities: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+  areaDistricts: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+  instagram: z.string().trim().max(120).optional(),
+  mapUrl: z.string().trim().max(500).optional(),
 });
 
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>;

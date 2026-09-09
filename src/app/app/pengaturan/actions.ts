@@ -43,6 +43,9 @@ export async function actionSaveTenantProfile(raw: {
   bankName?: string; bankAccountNo?: string; bankAccountName?: string; qrisImageUrl?: string;
   teamIncentiveMode?: "BAGI_RATA" | "PENUH"; incentiveBasis?: "LUNAS" | "TERBIT";
   incentiveEnabled?: boolean;
+  publicDescription?: string; services?: string[]; operatingHours?: string;
+  trustBadges?: string[]; areaCities?: string[]; areaDistricts?: string[];
+  instagram?: string; mapUrl?: string;
 }): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
