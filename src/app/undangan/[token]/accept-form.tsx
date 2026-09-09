@@ -21,7 +21,8 @@ export function AcceptForm({ token }: { token: string }) {
     start(async () => {
       const res = await techAcceptInvite(token, pin, confirm);
       if (!res.ok) { setMsg(res.error); return; }
-      router.replace("/t");
+      // Admin → dasbor kantor; teknisi → layar lapangan.
+      router.replace(res.role === "ADMIN" ? "/app" : "/t");
       router.refresh();
     });
   }

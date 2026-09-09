@@ -29,7 +29,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     heading: "Data & Operasional",
     items: [
       { href: "/app/layanan", label: "Daftar Layanan", icon: Icon.Catalog },
-      { href: "/app/teknisi", label: "Teknisi", icon: Icon.Technician },
+      { href: "/app/tim", label: "Tim / Staf", icon: Icon.Technician },
       { href: "/app/checklist", label: "Checklist Servis", icon: Icon.Checklist },
       { href: "/app/unit", label: "Kode QR", icon: Icon.Web },
       { href: "/app/pesan", label: "Template Pesan", icon: Icon.Message },

@@ -371,23 +371,36 @@ export const OWNER_TOPICS: HelpTopic[] = [
   },
 
   {
-    key: "teknisi",
-    title: "Teknisi",
+    key: "tim",
+    title: "Tim / Staf",
     icon: "Users",
     group: "Pengaturan Usaha",
     audience: "owner",
     order: 3,
     whatIsIt:
-      "Kelola tim teknisi Anda: undang teknisi baru, pantau yang menunggu bergabung, dan lihat status PIN mereka.",
+      "Kelola tim usaha Anda: admin (staf kantor yang mengurus pelanggan, tagihan & laporan) dan teknisi (yang menangani pekerjaan di lapangan). Undang anggota baru, pantau yang menunggu bergabung, dan lihat status PIN mereka.",
     steps: [
-      "Di 'Undang Teknisi Baru', masukkan Nomor HP teknisi.",
-      "Ketuk 'Undang' — teknisi akan menerima undangan untuk bergabung.",
-      "Teknisi yang belum bergabung tampil di 'Menunggu Bergabung' (bisa 'Batalkan').",
-      "Teknisi login di aplikasi teknisi memakai nomor HP + PIN mereka sendiri.",
+      "Di 'Undang Tim / Staf Baru', pilih Peran: Admin (kantor) atau Teknisi (lapangan).",
+      "Untuk Admin, isi Jabatan bila perlu (mis. 'Admin Keuangan' / 'Admin Operasional') — hanya label.",
+      "Masukkan Nama & Nomor HP, lalu ketuk 'Buat Undangan'.",
+      "Bagikan link undangan lewat WhatsApp atau salin link — anggota membuat PIN sendiri untuk masuk.",
+      "Gunakan tab 'Teknisi' dan 'Admin' untuk melihat masing-masing daftar; ketuk ikon untuk ubah data atau reset PIN.",
     ],
     tips: [
-      "Teknisi masuk lewat aplikasi teknisi (bukan login Google) — cukup nomor HP & PIN.",
-      "Status 'Belum set PIN' berarti teknisi belum menyelesaikan pendaftaran.",
+      "Semua anggota (admin & teknisi) masuk lewat halaman 'Masuk Staf' dengan Nomor HP + PIN — bukan login Google. Hanya pemilik yang login Google.",
+      "Admin diarahkan ke dasbor kantor (/app); teknisi ke layar lapangan. Peran menentukan otomatis ke mana mereka masuk.",
+      "Semua admin punya hak akses yang sama. 'Jabatan' hanya label untuk memudahkan Anda membedakan peran mereka.",
+      "Status 'Belum set PIN' berarti anggota belum menyelesaikan pendaftaran lewat link undangan.",
+    ],
+    faqs: [
+      {
+        q: "Apa beda Admin dan Teknisi?",
+        a: "Admin = staf kantor: mengelola pelanggan, membuat & mengirim tagihan/kwitansi, mengatur jadwal, melihat laporan. Teknisi = lapangan: menerima & menyelesaikan pekerjaan dari HP. Admin TIDAK bisa mengubah langganan usaha (itu hanya pemilik).",
+      },
+      {
+        q: "Bisakah saya punya lebih dari satu admin?",
+        a: "Bisa. Anda boleh mengundang beberapa admin (mis. satu Admin Keuangan, satu Admin Operasional) sesuai kuota paket. Akun usaha tetap satu (akun Google pemilik); admin & teknisi masuk dengan PIN masing-masing.",
+      },
     ],
   },
 

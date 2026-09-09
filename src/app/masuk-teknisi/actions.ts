@@ -4,20 +4,21 @@ import { loginTechnician, acceptInvite, TechAuthError } from "@/lib/services/tec
 import { setTechSession } from "@/lib/auth/tech-session";
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
-import { createInvite, revokeInvite, updateTechnician, resetTechnicianPin, listTechnicianAssignments } from "@/lib/services/technician-service";
+import { createInvite, revokeInvite, updateTechnician, resetTechnicianPin, listTechnicianAssignments, updateAdmin, resetAdminPin } from "@/lib/services/technician-service";
 import { getPlanConfig } from "@/lib/billing/config";
 import { prisma } from "@/lib/prisma";
 import { quotaLimit, withinQuota } from "@/lib/billing/gating-pure";
 import { revalidatePath } from "next/cache";
 
 export type Result = { ok: true } | { ok: false; error: string };
+export type LoginResult = { ok: true; role: "ADMIN" | "TECHNICIAN" } | { ok: false; error: string };
 
-/** Login teknisi (phone+PIN) → set sesi. */
-export async function techLogin(phone: string, pin: string): Promise<Result> {
+/** Login staf (phone+PIN) → set sesi. Mengembalikan role untuk redirect (admin→/app, teknisi→/t). */
+export async function techLogin(phone: string, pin: string): Promise<LoginResult> {
   try {
-    const { userId } = await loginTechnician(phone, pin);
+    const { userId, role } = await loginTechnician(phone, pin);
     await setTechSession(userId);
-    return { ok: true };
+    return { ok: true, role };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
     console.error("[techLogin] gagal:", err);
@@ -25,13 +26,13 @@ export async function techLogin(phone: string, pin: string): Promise<Result> {
   }
 }
 
-/** Terima undangan + set PIN → set sesi. */
-export async function techAcceptInvite(token: string, pin: string, pinConfirm: string): Promise<Result> {
+/** Terima undangan + set PIN → set sesi. Mengembalikan role untuk redirect. */
+export async function techAcceptInvite(token: string, pin: string, pinConfirm: string): Promise<LoginResult> {
   try {
     if (pin !== pinConfirm) return { ok: false, error: "Konfirmasi PIN tidak sama" };
-    const { userId } = await acceptInvite(token, pin);
+    const { userId, role } = await acceptInvite(token, pin);
     await setTechSession(userId);
-    return { ok: true };
+    return { ok: true, role };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
     console.error("[techAcceptInvite] gagal:", err);
@@ -39,28 +40,46 @@ export async function techAcceptInvite(token: string, pin: string, pinConfirm: s
   }
 }
 
-/** Owner mengundang teknisi (cek kuota teknisi paket). */
-export async function ownerInviteTechnician(name: string, phone: string): Promise<Result> {
+/** Owner mengundang anggota tim (teknisi/admin) — cek kuota paket sesuai peran. */
+export async function ownerInviteTechnician(
+  name: string,
+  phone: string,
+  role: "TECHNICIAN" | "ADMIN" = "TECHNICIAN",
+  jobTitle?: string,
+): Promise<Result> {
   try {
     const ctx = await getServerContext();
-    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    // Hanya OWNER yang boleh mengundang ADMIN (admin tak bisa membuat admin lain).
+    if (role === "ADMIN") assertRole(ctx.role, ["OWNER"]);
+    else assertRole(ctx.role, ["OWNER", "ADMIN"]);
 
-    // Kuota teknisi: hitung teknisi aktif + undangan pending vs batas paket.
+    // Kuota sesuai peran: teknisi vs admin (masing-masing punya batas paket).
     const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { plan: true } });
     const plan = tenant ? await getPlanConfig(tenant.plan) : null;
     if (plan) {
-      const [techCount, pendingInvites] = await Promise.all([
-        prisma.technician.count({ where: { tenantId: ctx.tenantId, active: true } }),
-        prisma.invite.count({ where: { tenantId: ctx.tenantId, status: "PENDING" } }),
-      ]);
-      const limit = quotaLimit(plan, "technicians");
-      if (!withinQuota(limit, techCount + pendingInvites)) {
-        return { ok: false, error: "Kuota teknisi paket sudah penuh. Upgrade paket untuk menambah." };
+      if (role === "TECHNICIAN") {
+        const [techCount, pendingTechInvites] = await Promise.all([
+          prisma.technician.count({ where: { tenantId: ctx.tenantId, active: true } }),
+          prisma.invite.count({ where: { tenantId: ctx.tenantId, status: "PENDING", role: "TECHNICIAN" } }),
+        ]);
+        const limit = quotaLimit(plan, "technicians");
+        if (!withinQuota(limit, techCount + pendingTechInvites)) {
+          return { ok: false, error: "Kuota teknisi paket sudah penuh. Upgrade paket untuk menambah." };
+        }
+      } else {
+        const [adminCount, pendingAdminInvites] = await Promise.all([
+          prisma.user.count({ where: { tenantId: ctx.tenantId, role: "ADMIN", status: { in: ["ACTIVE", "INVITED"] } } }),
+          prisma.invite.count({ where: { tenantId: ctx.tenantId, status: "PENDING", role: "ADMIN" } }),
+        ]);
+        const limit = quotaLimit(plan, "admins");
+        if (!withinQuota(limit, adminCount + pendingAdminInvites)) {
+          return { ok: false, error: "Kuota admin paket sudah penuh. Upgrade paket untuk menambah." };
+        }
       }
     }
 
-    await createInvite({ tenantId: ctx.tenantId, createdById: ctx.userId, name, phone });
-    revalidatePath("/app/teknisi");
+    await createInvite({ tenantId: ctx.tenantId, createdById: ctx.userId, name, phone, role, jobTitle });
+    revalidatePath("/app/tim");
     return { ok: true };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -75,7 +94,7 @@ export async function ownerRevokeInvite(inviteId: string): Promise<Result> {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
     await revokeInvite(ctx.tenantId, inviteId);
-    revalidatePath("/app/teknisi");
+    revalidatePath("/app/tim");
     return { ok: true };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -93,7 +112,7 @@ export async function ownerUpdateTechnician(
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
     await updateTechnician(ctx.tenantId, technicianId, data);
-    revalidatePath("/app/teknisi");
+    revalidatePath("/app/tim");
     return { ok: true };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -108,7 +127,7 @@ export async function ownerResetTechnicianPin(technicianId: string, newPin: stri
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
     await resetTechnicianPin(ctx.tenantId, technicianId, newPin);
-    revalidatePath("/app/teknisi");
+    revalidatePath("/app/tim");
     return { ok: true };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -134,5 +153,38 @@ export async function ownerTechnicianAssignments(
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
     console.error("[ownerTechnicianAssignments] gagal:", err);
     return { ok: false, error: "Gagal memuat riwayat penugasan." };
+  }
+}
+
+/** Owner memperbarui profil admin (nama/HP/jabatan/status aktif). Owner-only. */
+export async function ownerUpdateAdmin(
+  userId: string,
+  data: { name?: string; phone?: string; jobTitle?: string | null; active?: boolean },
+): Promise<Result> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER"]);
+    await updateAdmin(ctx.tenantId, userId, data);
+    revalidatePath("/app/tim");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TechAuthError) return { ok: false, error: err.message };
+    console.error("[ownerUpdateAdmin] gagal:", err);
+    return { ok: false, error: "Gagal menyimpan perubahan." };
+  }
+}
+
+/** Owner reset PIN admin. Owner-only. */
+export async function ownerResetAdminPin(userId: string, newPin: string): Promise<Result> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER"]);
+    await resetAdminPin(ctx.tenantId, userId, newPin);
+    revalidatePath("/app/tim");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof TechAuthError) return { ok: false, error: err.message };
+    console.error("[ownerResetAdminPin] gagal:", err);
+    return { ok: false, error: "Gagal reset PIN." };
   }
 }

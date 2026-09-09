@@ -6,14 +6,18 @@ export const dynamic = "force-dynamic";
 
 export default async function UndanganPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  let invite: { name: string; phone: string } | null = null;
+  let invite: { name: string; phone: string; role: string; jobTitle: string | null } | null = null;
   let error: string | null = null;
   try {
     const i = await getInviteByToken(token);
-    invite = { name: i.name, phone: i.phone };
+    invite = { name: i.name, phone: i.phone, role: i.role, jobTitle: i.jobTitle };
   } catch (e) {
     error = e instanceof TechAuthError ? e.message : "Undangan tidak valid";
   }
+
+  const roleLabel = invite?.role === "ADMIN"
+    ? (invite.jobTitle?.trim() || "admin")
+    : "teknisi";
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
@@ -21,7 +25,7 @@ export default async function UndanganPage({ params }: { params: Promise<{ token
         <div className="mb-6 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/aircon-logo.png" alt="Aircon" className="mx-auto h-14 w-auto" />
-          <h1 className="mt-4 text-xl font-bold text-foreground">Undangan Teknisi</h1>
+          <h1 className="mt-4 text-xl font-bold text-foreground">Undangan Bergabung</h1>
         </div>
 
         {error ? (
@@ -32,7 +36,7 @@ export default async function UndanganPage({ params }: { params: Promise<{ token
           <Card>
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground">
-                Halo <span className="font-semibold text-foreground">{invite.name}</span>, Anda diundang bergabung sebagai teknisi.
+                Halo <span className="font-semibold text-foreground">{invite.name}</span>, Anda diundang bergabung sebagai <span className="font-semibold text-foreground">{roleLabel}</span>.
                 Buat PIN 6 angka untuk masuk (nomor HP: {invite.phone}).
               </p>
               <div className="mt-4">

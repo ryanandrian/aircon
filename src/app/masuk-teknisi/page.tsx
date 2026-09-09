@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTechSessionUserId } from "@/lib/auth/tech-session";
+import { tryGetServerContext } from "@/lib/auth/context";
 import { TechLoginForm } from "./login-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -11,7 +12,11 @@ export default async function MasukTeknisiPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  if (await getTechSessionUserId()) redirect(next || "/t");
+  // Sudah login lewat PIN: admin → dasbor kantor (/app), teknisi → layar lapangan (/t).
+  if (await getTechSessionUserId()) {
+    const ctx = await tryGetServerContext();
+    redirect(ctx?.role === "ADMIN" ? "/app" : next || "/t");
+  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-muted/40 p-6">
@@ -20,8 +25,8 @@ export default async function MasukTeknisiPage({
         <div className="mb-6 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/aircon-logo.png" alt="Aircon" className="mx-auto h-14 w-auto" />
-          <h1 className="mt-4 text-xl font-bold text-foreground">Masuk Teknisi</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Gunakan nomor HP &amp; PIN dari pemilik usaha.</p>
+          <h1 className="mt-4 text-xl font-bold text-foreground">Masuk Staf</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Untuk admin &amp; teknisi. Gunakan nomor HP &amp; PIN dari pemilik usaha.</p>
         </div>
         <TechLoginForm next={next || "/t"} />
       </div>

@@ -22,7 +22,8 @@ export function TechLoginForm({ next }: { next: string }) {
     start(async () => {
       const res = await techLogin(phone, pin);
       if (!res.ok) { setMsg(res.error); return; }
-      router.replace(next);
+      // Admin → dasbor kantor (/app); teknisi → layar lapangan (next, default /t).
+      router.replace(res.role === "ADMIN" ? "/app" : next);
       router.refresh();
     });
   }

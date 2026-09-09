@@ -9,6 +9,8 @@ import {
   ownerUpdateTechnician,
   ownerResetTechnicianPin,
   ownerTechnicianAssignments,
+  ownerUpdateAdmin,
+  ownerResetAdminPin,
 } from "@/app/masuk-teknisi/actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,40 +26,48 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Position = "TEKNISI" | "KERNET";
 type UserStatus = "INVITED" | "ACTIVE" | "DISABLED";
+type Role = "TECHNICIAN" | "ADMIN";
 interface Tech { id: string; name: string; phone: string; active: boolean; position: Position; status: UserStatus }
-interface Invite { id: string; name: string; phone: string; token: string }
+interface Admin { id: string; name: string; phone: string; status: UserStatus; jobTitle: string | null }
+interface Invite { id: string; name: string; phone: string; token: string; role: Role; jobTitle: string | null }
 
 const POSITION_LABEL: Record<Position, string> = { TEKNISI: "Teknisi", KERNET: "Kernet" };
 
 export function TechnicianManager({
-  appUrl, technicians, invites,
+  appUrl, technicians, admins, invites, isOwner,
 }: {
-  appUrl: string; technicians: Tech[]; invites: Invite[];
+  appUrl: string; technicians: Tech[]; admins: Admin[]; invites: Invite[]; isOwner: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [role, setRole] = useState<Role>("TECHNICIAN");
+  const [jobTitle, setJobTitle] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const [copied, setCopied] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"TEKNISI" | "ADMIN">("TEKNISI");
 
   // Dialog state
   const [editTech, setEditTech] = useState<Tech | null>(null);
   const [pinTech, setPinTech] = useState<Tech | null>(null);
   const [assignTech, setAssignTech] = useState<Tech | null>(null);
+  const [editAdmin, setEditAdmin] = useState<Admin | null>(null);
+  const [pinAdmin, setPinAdmin] = useState<Admin | null>(null);
 
   function invite(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     start(async () => {
-      const res = await ownerInviteTechnician(name, phone);
+      const res = await ownerInviteTechnician(name, phone, role, jobTitle || undefined);
       if (!res.ok) { setMsg({ ok: false, text: res.error }); return; }
-      setMsg({ ok: true, text: "Undangan dibuat. Bagikan link ke teknisi." });
-      setName(""); setPhone("");
+      setMsg({ ok: true, text: `Undangan ${role === "ADMIN" ? "admin" : "teknisi"} dibuat. Bagikan link ke yang bersangkutan.` });
+      setName(""); setPhone(""); setJobTitle("");
       router.refresh();
     });
   }
@@ -78,9 +88,19 @@ export function TechnicianManager({
 
   function waShare(inv: Invite) {
     const url = `${appUrl}/undangan/${inv.token}`;
-    const text = `Halo ${inv.name}, Anda diundang jadi teknisi di Aircon. Buka link ini untuk membuat PIN & mulai: ${url}`;
+    const peran = inv.role === "ADMIN" ? (inv.jobTitle?.trim() || "admin") : "teknisi";
+    const text = `Halo ${inv.name}, Anda diundang jadi ${peran} di Aircon. Buka link ini untuk membuat PIN & mulai: ${url}`;
     const wa = `https://wa.me/${inv.phone}?text=${encodeURIComponent(text)}`;
     window.open(wa, "_blank");
+  }
+
+  function toggleAdminActive(a: Admin) {
+    start(async () => {
+      const res = await ownerUpdateAdmin(a.id, { active: !(a.status === "ACTIVE") });
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success(a.status === "ACTIVE" ? "Admin dinonaktifkan" : "Admin diaktifkan");
+      router.refresh();
+    });
   }
 
   function toggleActive(t: Tech) {
@@ -103,8 +123,25 @@ export function TechnicianManager({
       <Card>
         <CardContent className="p-5">
           <form onSubmit={invite} className="space-y-3">
-            <h2 className="font-semibold text-foreground">Undang Teknisi Baru</h2>
+            <h2 className="font-semibold text-foreground">Undang Tim / Staf Baru</h2>
             {msg && <p className={`text-sm ${msg.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{msg.text}</p>}
+            {isOwner && (
+              <div className="space-y-1.5">
+                <Label>Peran</Label>
+                <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+                  <SelectTrigger className="min-h-[44px] rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TECHNICIAN">Teknisi (lapangan)</SelectItem>
+                    <SelectItem value="ADMIN">Admin (kantor)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {role === "ADMIN"
+                    ? "Admin mengelola pelanggan, tagihan, jadwal & laporan (tidak termasuk langganan usaha)."
+                    : "Teknisi menangani pekerjaan lapangan dari HP."}
+                </p>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="name">Nama</Label>
@@ -118,6 +155,15 @@ export function TechnicianManager({
                   className="min-h-[44px] rounded-xl text-base" />
               </div>
             </div>
+            {isOwner && role === "ADMIN" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="jobTitle">Jabatan (opsional)</Label>
+                <Input id="jobTitle" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder="mis. Admin Keuangan / Admin Operasional"
+                  className="min-h-[44px] rounded-xl text-base" />
+                <p className="text-xs text-muted-foreground">Hanya label. Semua admin punya hak akses yang sama.</p>
+              </div>
+            )}
             <SubmitButton pending={pending} disabled={!name || !phone} pendingLabel="Memproses…"
               size="lg" className="min-h-[44px] rounded-xl bg-sky-500 px-5 text-white hover:bg-sky-600">
               Buat Undangan
@@ -135,7 +181,10 @@ export function TechnicianManager({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-foreground">{inv.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-foreground">{inv.name}</p>
+                      <Badge variant="outline" className="shrink-0">{inv.role === "ADMIN" ? (inv.jobTitle?.trim() || "Admin") : "Teknisi"}</Badge>
+                    </div>
                     <p className="text-sm text-muted-foreground">{inv.phone}</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => revoke(inv.id)} disabled={pending}
@@ -157,11 +206,62 @@ export function TechnicianManager({
         </section>
       )}
 
-      {/* Teknisi aktif */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-muted-foreground">Tim Teknisi ({technicians.length})</h2>
-        </div>
+      {/* Daftar tim dipisah per peran (kartu teknisi & admin beda bentuk) */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "TEKNISI" | "ADMIN")} className="w-full">
+        <TabsList className="w-full">
+          <TabsTrigger value="TEKNISI">Teknisi ({technicians.length})</TabsTrigger>
+          <TabsTrigger value="ADMIN">Admin ({admins.length})</TabsTrigger>
+        </TabsList>
+
+        {/* Panel Admin */}
+        <TabsContent value="ADMIN" className="mt-3">
+          {admins.length === 0 ? (
+            <EmptyState
+              icon={Icon.Users}
+              title="Belum ada admin"
+              desc="Undang admin (staf kantor) lewat form di atas — pilih peran Admin. Mereka mengelola pelanggan, tagihan & laporan."
+            />
+          ) : (
+            <div className="space-y-3">
+              {admins.map((a) => (
+                <Card key={a.id} className="py-0">
+                  <CardContent className="flex items-center gap-3 p-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500 font-bold text-white">
+                      {a.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-semibold text-foreground">{a.name}</span>
+                        <Badge variant="outline" className="shrink-0">{a.jobTitle?.trim() || "Admin"}</Badge>
+                        {a.status === "INVITED" ? (
+                          <Badge variant="secondary" className="shrink-0">Belum set PIN</Badge>
+                        ) : a.status === "ACTIVE" ? (
+                          <Badge className="shrink-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">Aktif</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="shrink-0">Nonaktif</Badge>
+                        )}
+                      </div>
+                      <p className="truncate text-sm text-muted-foreground">{a.phone}</p>
+                    </div>
+                    {isOwner && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button type="button" variant="ghost" size="icon" aria-label="Ubah" onClick={() => setEditAdmin(a)}>
+                          <Icon.Note className="h-4 w-4" aria-hidden />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" aria-label="Reset PIN" title="Reset PIN" onClick={() => setPinAdmin(a)}>
+                          <Icon.Shield className="h-4 w-4" aria-hidden />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Panel Teknisi */}
+        <TabsContent value="TEKNISI" className="mt-3 space-y-3">
         {technicians.length > 3 && (
           <Input placeholder="Cari nama atau nomor HP…" value={query} onChange={(e) => setQuery(e.target.value)}
             className="h-11 rounded-xl" />
@@ -215,7 +315,8 @@ export function TechnicianManager({
             ))}
           </div>
         )}
-      </section>
+        </TabsContent>
+      </Tabs>
 
       {editTech && (
         <EditTechnicianDialog
@@ -234,6 +335,21 @@ export function TechnicianManager({
       )}
       {assignTech && (
         <AssignmentDialog tech={assignTech} onClose={() => setAssignTech(null)} />
+      )}
+      {editAdmin && (
+        <EditAdminDialog
+          admin={editAdmin}
+          onClose={() => setEditAdmin(null)}
+          onSaved={() => { setEditAdmin(null); router.refresh(); }}
+          onToggleActive={() => { toggleAdminActive(editAdmin); setEditAdmin(null); }}
+        />
+      )}
+      {pinAdmin && (
+        <ResetAdminPinDialog
+          admin={pinAdmin}
+          onClose={() => setPinAdmin(null)}
+          onDone={() => { setPinAdmin(null); router.refresh(); }}
+        />
       )}
     </div>
   );
@@ -347,6 +463,108 @@ function ResetPinDialog({ tech, onClose, onDone }: { tech: Tech; onClose: () => 
 
 type AssignRow = { id: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string };
 
+function EditAdminDialog({
+  admin, onClose, onSaved, onToggleActive,
+}: {
+  admin: Admin; onClose: () => void; onSaved: () => void; onToggleActive: () => void;
+}) {
+  const [name, setName] = useState(admin.name);
+  const [phone, setPhone] = useState(admin.phone);
+  const [jobTitle, setJobTitle] = useState(admin.jobTitle ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    const res = await ownerUpdateAdmin(admin.id, { name, phone, jobTitle });
+    setSaving(false);
+    if (!res.ok) { toast.error(res.error); return; }
+    toast.success("Perubahan disimpan");
+    onSaved();
+  }
+
+  const active = admin.status === "ACTIVE";
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Ubah Admin</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-admin-name">Nama</Label>
+            <Input id="edit-admin-name" value={name} onChange={(e) => setName(e.target.value)} className="h-11 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-admin-phone">Nomor HP</Label>
+            <Input id="edit-admin-phone" type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-admin-title">Jabatan (opsional)</Label>
+            <Input id="edit-admin-title" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="mis. Admin Keuangan" className="h-11 rounded-xl" />
+            <p className="text-xs text-muted-foreground">Hanya label. Semua admin punya hak akses yang sama.</p>
+          </div>
+          {admin.status !== "INVITED" && (
+            <div className="flex items-center justify-between rounded-xl border p-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Status</p>
+                <p className="text-xs text-muted-foreground">{active ? "Aktif — bisa mengelola kantor" : "Nonaktif"}</p>
+              </div>
+              <Button type="button" variant={active ? "outline" : "default"} size="sm"
+                className={active ? "text-red-600" : "bg-emerald-500 text-white hover:bg-emerald-600"}
+                onClick={onToggleActive}>
+                {active ? "Nonaktifkan" : "Aktifkan"}
+              </Button>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Batal</Button>
+          <Button onClick={save} disabled={saving || name.trim().length < 2} className="bg-sky-500 text-white hover:bg-sky-600">
+            {saving ? "Menyimpan…" : "Simpan"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ResetAdminPinDialog({ admin, onClose, onDone }: { admin: Admin; onClose: () => void; onDone: () => void }) {
+  const [pin, setPin] = useState("");
+  const [saving, setSaving] = useState(false);
+  const valid = /^\d{6}$/.test(pin);
+
+  async function submit() {
+    setSaving(true);
+    const res = await ownerResetAdminPin(admin.id, pin);
+    setSaving(false);
+    if (!res.ok) { toast.error(res.error); return; }
+    toast.success(`PIN ${admin.name} berhasil direset`);
+    onDone();
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Reset PIN — {admin.name}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">Masukkan PIN baru 6 digit. Beritahukan PIN ini ke admin untuk login.</p>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-admin-pin">PIN baru (6 angka)</Label>
+            <Input id="new-admin-pin" type="tel" inputMode="numeric" maxLength={6} value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="••••••" className="h-11 rounded-xl tracking-[0.5em]" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Batal</Button>
+          <Button onClick={submit} disabled={saving || !valid} className="bg-sky-500 text-white hover:bg-sky-600">
+            {saving ? "Menyimpan…" : "Reset PIN"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 const SERVICE_LABEL: Record<string, string> = {
   CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
   INSTALL: "Pasang Baru", DISMANTLE: "Bongkar", INSPECTION: "Pengecekan", OTHER: "Lainnya",
@@ -379,7 +597,7 @@ function AssignmentDialog({ tech, onClose }: { tech: Tech; onClose: () => void }
     setPeriods(res.periods);
   }
 
-  useEffect(() => { load("ALL"); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { queueMicrotask(() => load("ALL")); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   function changePeriod(p: string | null) { const v = p ?? "ALL"; setPeriod(v); load(v); }
 

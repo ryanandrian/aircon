@@ -325,6 +325,7 @@ model User {
   phone        String
   email        String?
   role         Role
+  jobTitle     String?
   authProvider AuthProvider @default(PIN)
   pinHash      String?
   status       UserStatus   @default(INVITED)
@@ -805,6 +806,7 @@ model Invite {
   role        Role         @default(TECHNICIAN)
   name        String
   phone       String
+  jobTitle    String?
   token       String       @unique
   status      InviteStatus @default(PENDING)
   expiresAt   DateTime
