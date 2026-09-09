@@ -8,15 +8,17 @@ import { actionWaInit, actionWaStatus, actionWaLogout } from "./actions";
 
 type Phase = "loading" | "connected" | "disconnected" | "connecting" | "error";
 
-/** Format nomor WA dari gateway (mis. "628123456789") → "+62 812-3456-789" agar mudah dibaca. */
+/** Format nomor WA dari gateway (mis. "6281319150260") → "+62 813-1915-0260" agar mudah dibaca. */
 function formatWaPhone(raw: string): string {
   const d = String(raw).replace(/[^0-9]/g, "");
   if (!d) return raw;
-  // Kelompokkan: kode negara (62) + sisa per 3-4 digit.
-  const cc = d.startsWith("62") ? "62" : "";
-  const rest = cc ? d.slice(2) : d;
-  const groups = rest.match(/.{1,4}/g) ?? [rest];
-  return `+${cc ? cc + " " : ""}${groups.join("-")}`;
+  if (!d.startsWith("62")) return `+${d}`;
+  const rest = d.slice(2); // tanpa kode negara
+  // Kelompokkan gaya nomor HP Indonesia: 3 - 4 - sisa (mis. 813 1915 0260).
+  const a = rest.slice(0, 3);
+  const b = rest.slice(3, 7);
+  const c = rest.slice(7);
+  return `+62 ${[a, b, c].filter(Boolean).join("-")}`;
 }
 
 /**
