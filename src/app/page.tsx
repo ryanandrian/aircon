@@ -271,6 +271,18 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
       </section>
       )}
 
+      {/* BONUS: Website Profesional (Halaman Usaha Publik) — banner promo full-width */}
+      <section className="mx-auto max-w-6xl px-5 py-10">
+        <a href="#harga" aria-label="Bonus fitur: Website profesional khusus bisnis servis AC Anda — lihat paket harga"
+          className="group block overflow-hidden rounded-3xl border shadow-lg ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/features/bonus-website.webp"
+            alt="Bonus Fitur: Website profesional khusus bisnis servis AC Anda — bisa dikustom, dipublikasikan ke sosial media, dengan sistem booking online."
+            loading="lazy" width={1600} height={900}
+            className="block w-full" />
+        </a>
+      </section>
+
       {/* TESTIMONI — marquee 1 baris, auto-scroll perlahan, berhenti saat hover */}
       {c.showTestimonials && testimonials.length > 0 && (
       <section className="py-20">
