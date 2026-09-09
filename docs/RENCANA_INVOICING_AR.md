@@ -31,20 +31,20 @@ Perkiraan: setara ~40-50% dari total yang sudah dibangun. **Wajib bertahap + ver
 | **CustomerPricing** (harga khusus per pelanggan) | ❌ tak ada |
 | **Invoice** + **InvoiceItem** (tenant→pelanggan) | ❌ tak ada |
 | **ProformaInvoice** (untuk pembayaran tempo) | ❌ tak ada |
-| **Payment/Receipt pelanggan** (tunai/transfer/QRIS + kwitansi) | ❌ tak ada (Payment yg ada=langganan) |
+| **Payment/Receipt pelanggan** (tunai/transfer/QRIS + kwitansi) | ✅ SELESAI — Invoice/Proforma + Kwitansi (PAID) LIVE. Lihat RENCANA_INVOICING_KIRIM_DAN_BILLTO.md |
 | **Multi-personel per job** (>1 teknisi + kernet) | ❌ hanya 1 technicianId |
 | **Kernet (support)** sebagai peran | ❌ tak ada |
 | **Assignment per item layanan** (siapa kerjakan apa) | ❌ tak ada |
 | **Insentif** (teknisi/kernet, %/nilai per item) | ❌ tak ada |
-| **TOP / Terms of Payment** (Cash/Tempo 30/45/60/90) | ❌ tak ada |
-| **Kolom kategori pelanggan** (rumah/masjid/kantor…) | ❌ tak ada |
-| **Alamat penagihan** (bill-to berbeda) | ❌ tak ada |
-| **Info pajak pelanggan** (NPWP customer, PKP B2B) | ❌ tak ada |
+| **TOP / Terms of Payment** (Cash/Tempo 30/45/60/90) | ✅ SELESAI — TopType per pelanggan LIVE |
+| **Kolom kategori pelanggan** (rumah/masjid/kantor…) | ✅ SELESAI — CustomerCategory LIVE |
+| **Alamat penagihan** (bill-to berbeda) | ✅ SELESAI — billingCustomerId (kantor pusat) + pemilih di form pelanggan LIVE |
+| **Info pajak pelanggan** (NPWP customer, PKP B2B) | ⚠️ NPWP + Pemotong PPh23 ada di form; e-Faktur DJP di luar lingkup |
 | **Penugasan UMUM vs SPESIFIK** | ⚠️ sebagian (job ada, tapi tak ada mode umum) |
 | **Deteksi bentrok jadwal teknisi** | ⚠️ ada flag feasibility, belum enforce |
 | **Laporan: piutang/penerimaan/kinerja personil** | ❌ tak ada |
 | **Notifikasi penugasan ke HP teknisi/kernet** | ⚠️ ada job list, belum notif push/WA lengkap |
-| **Lazy-load ratusan card pelanggan** | ⚠️ backend siap, UI belum |
+| **Lazy-load ratusan card pelanggan** | ✅ SELESAI — cursor pagination + infinite scroll LIVE |
 
 ---
 

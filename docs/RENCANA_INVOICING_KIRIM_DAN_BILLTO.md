@@ -1,5 +1,33 @@
 # RENCANA — Cetak, Kirim (WA/Email), Bill-To Kantor Pusat & Kwitansi
 
+> Status: ✅ SELESAI & LIVE (2026-09-09). Semua lapis (A–E) dieksekusi, teruji, deploy produksi.
+> Dokumen ini disimpan sebagai jejak keputusan + hasil. Bagian "STATUS AKHIR" di bawah = kondisi NYATA;
+> bagian rencana asli dipertahankan sebagai konteks historis.
+
+## STATUS AKHIR (yang benar-benar ter-ship)
+- LAPIS A (bill-to kantor pusat): LIVE. `createInvoiceFromSession` memakai `resolveBillingCustomer`;
+  Invoice menyimpan `customerId` (outlet) + `billingCustomerId` (pusat). InvoiceView menampilkan
+  "Ditagihkan kepada: [pusat]" + "Lokasi servis: [outlet]". docType/jatuh tempo ikut TOP kantor pusat.
+  **Pemilih di UI**: form Pelanggan (seksi BADAN) → "Kantor Pusat (penerima tagihan)" + tombol
+  "+ Pilih kantor pusat" (cari pelanggan induk). listCustomerRows membawa billingCustomerId/Name.
+- LAPIS C (email opsional): LIVE. 3 kolom nullable `picFinanceEmail`, `picWorkEmail`, `email`
+  (migrasi additive). Form menampilkan Email PIC Keuangan / PIC Pekerjaan / Perusahaan. `resolveBillingContact`
+  → PIC keuangan bila terisi, else kontak utama.
+- LAPIS D (Cetak + Kirim WA): LIVE. Komponen `InvoiceActions` di /app/faktur/[id] & /t/faktur/[id]:
+  "Cetak / Simpan PDF" (window.print + print:hidden) + "Kirim via WA" (OTOMATIS via gatewaySend,
+  nomor tenant, ringkasan teks ke kontak penagihan).
+- LAPIS E (Kwitansi): LIVE. `KwitansiView` + route /app/kwitansi/[id] & /t/kwitansi/[id]; tombol
+  "Lihat / cetak Kwitansi" muncul saat invoice PAID; Cetak + Kirim WA. Nomor "KW/…" dari nomor invoice,
+  memuat "terbilang".
+- PANDUAN: topik help owner "pelanggan" & "faktur-detail" DIPERBARUI (kantor pusat, PIC keuangan, email,
+  Cetak/Kirim WA, Kwitansi) — verbatim dengan label tombol UI.
+- DITUNDA (milestone infra terpisah, belum dikerjakan): lampiran PDF via WA (butuh endpoint media di
+  gateway VPS) + kirim EMAIL otomatis (model SMTP Gmail per-tenant). Field email sudah disimpan (siap pakai).
+
+---
+
+# (RENCANA ASLI — konteks historis)
+
 > Status: RANCANGAN (belum dieksekusi). Menunggu persetujuan owner.
 > Sifat: menyentuh DB produksi bersama (migrasi) + alur uang (sensitif) → WAJIB bertahap, additive, teruji.
 > Sumber niat: RENCANA_INVOICING_AR.md (bill-to b.41/107, PIC ganda b.276, alur tempo b.166-168),

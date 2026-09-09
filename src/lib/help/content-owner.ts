@@ -76,22 +76,28 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 1,
     whatIsIt:
-      "Daftar semua pelanggan usaha Anda beserta unit AC mereka. Dari sini Anda menambah pelanggan, mengedit data, dan membuka detail tiap pelanggan.",
+      "Daftar semua pelanggan usaha Anda beserta unit AC mereka. Dari sini Anda menambah pelanggan, mengedit data, dan membuka detail tiap pelanggan. Untuk pelanggan badan/perusahaan, Anda juga bisa mengisi PIC Keuangan, email, dan menautkan ke kantor pusat penerima tagihan.",
     steps: [
       "Ketuk tombol 'Tambah Pelanggan'.",
-      "Isi nama pelanggan dan nomor WhatsApp, lalu ketuk 'Simpan'.",
-      "Ketuk sebuah pelanggan untuk membuka detailnya (unit AC, riwayat, harga khusus).",
-      "Gunakan kolom 'Cari pelanggan' untuk menemukan pelanggan dengan cepat.",
-      "Tombol 'Edit' untuk mengubah data, 'Hapus' untuk menghapus pelanggan.",
+      "Isi Nama dan No. WhatsApp (wajib), lalu lengkapi Alamat, Kategori, Jenis Pelanggan, dan Termin Pembayaran (TOP).",
+      "Bila Jenis Pelanggan = BADAN, muncul seksi 'Data Badan / Perusahaan': isi NPWP, PIC Pekerjaan, PIC Keuangan, dan email bila ada (semua opsional).",
+      "Untuk outlet/cabang yang tagihannya ditagihkan ke pusat, ketuk '+ Pilih kantor pusat' lalu cari & pilih pelanggan induknya.",
+      "Ketuk 'Simpan'. Ketuk sebuah pelanggan untuk membuka detailnya (unit AC, riwayat, harga khusus).",
+      "Gunakan kolom 'Cari pelanggan' untuk menemukan cepat; tombol 'Edit' mengubah data, 'Hapus' menghapus.",
     ],
     tips: [
       "Nomor WhatsApp yang benar adalah kunci — di situlah pengingat servis otomatis dikirim.",
-      "Tombol 'WhatsApp' pada pelanggan membuka chat langsung ke nomornya.",
+      "PIC Keuangan (nama/HP/email) dipakai sebagai tujuan pengiriman tagihan & kwitansi untuk pelanggan badan. Bila kosong, tagihan dikirim ke WhatsApp utama.",
+      "Email bersifat opsional. Bila dikosongkan, tagihan & dokumen dikirim lewat WhatsApp.",
     ],
     faqs: [
       {
         q: "Apa beda pelanggan perorangan dan instansi?",
-        a: "Saat menambah, Anda bisa menandai tipe pelanggan. Instansi (mis. kantor) biasanya punya banyak unit AC di satu lokasi.",
+        a: "Saat menambah, Anda pilih Jenis Pelanggan. BADAN (instansi/perusahaan) memunculkan data tambahan: NPWP, PIC Pekerjaan & Keuangan, email, dan kantor pusat. Perorangan cukup nama + WhatsApp.",
+      },
+      {
+        q: "Apa itu 'Kantor Pusat (penerima tagihan)' dan kapan dipakai?",
+        a: "Untuk pelanggan yang punya banyak cabang/outlet tapi tagihannya dibayar terpusat (mis. tiap outlet Pizza Hut ditagihkan ke PT pusat). Buat dulu pelanggan kantor pusatnya, lalu pada tiap outlet pilih kantor pusat itu. Saat invoice/proforma outlet dibuat, tagihan otomatis 'Ditagihkan kepada' kantor pusat, tapi lokasi servis tiap unit tetap tercantum jelas. Kosongkan bila pelanggan menagih atas namanya sendiri.",
       },
     ],
   },
@@ -233,15 +239,29 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 2,
     whatIsIt:
-      "Rincian satu invoice/proforma: item layanan, jumlah, dan status. Dari sini Anda menerbitkan, mencetak, atau membatalkan dokumen.",
+      "Rincian satu invoice/proforma: pihak yang ditagih, item layanan (dikelompokkan per unit AC), jumlah, dan status. Dari sini Anda menerbitkan, mencetak, mengirim via WhatsApp, atau membatalkan dokumen. Bila invoice sudah LUNAS, muncul juga Kwitansi.",
     steps: [
-      "Periksa rincian item & total tagihan.",
+      "Periksa 'Ditagihkan kepada' (untuk outlet dengan kantor pusat, di sini tampil nama kantor pusat + lokasi servis outlet) dan rincian item & total.",
       "Bila ini proforma, ketuk 'Terbitkan Invoice Resmi' untuk menjadikannya tagihan resmi.",
-      "Cetak atau simpan sebagai PDF untuk dikirim ke pelanggan.",
-      "Bila perlu, batalkan dokumen (tercatat sebagai dibatalkan).",
+      "Ketuk 'Cetak / Simpan PDF' untuk mencetak atau menyimpan PDF (lewat menu cetak browser).",
+      "Ketuk 'Kirim via WA' untuk mengirim ringkasan tagihan otomatis lewat WhatsApp usaha Anda ke pelanggan (atau PIC Keuangan bila diisi).",
+      "Saat pembayaran diterima, tandai lunas. Setelah LUNAS, ketuk 'Lihat / cetak Kwitansi' untuk membuka kwitansi, lalu cetak atau kirim via WA dari sana.",
+      "Bila perlu, batalkan dokumen (tercatat sebagai dibatalkan, tidak dihapus).",
     ],
     tips: [
       "Dokumen yang sudah dibatalkan tetap tersimpan sebagai riwayat, tidak dihapus.",
+      "'Kirim via WA' butuh WhatsApp usaha sudah tersambung (menu Pengaturan → Hubungkan WhatsApp). Bila belum, tombol memberi tahu Anda.",
+      "Kirim WA memuat ringkasan (nomor, total, jatuh tempo). Lampiran file PDF via WA belum tersedia — untuk file, pakai 'Cetak / Simpan PDF' lalu kirim manual.",
+    ],
+    faqs: [
+      {
+        q: "Kenapa tombol Kwitansi tidak muncul?",
+        a: "Kwitansi hanya muncul setelah invoice ditandai LUNAS. Tandai pembayaran diterima dulu, lalu tombol 'Lihat / Kirim Kwitansi' akan tampil.",
+      },
+      {
+        q: "Kirim ke nomor siapa saat 'Kirim via WA'?",
+        a: "Untuk pelanggan badan yang mengisi PIC Keuangan, dikirim ke HP PIC Keuangan. Bila tidak diisi, dikirim ke nomor WhatsApp utama pelanggan.",
+      },
     ],
   },
 
