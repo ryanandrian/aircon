@@ -19,6 +19,7 @@ import { onboardingSchema } from "@/lib/validation/onboarding";
 import {
   findDomainUser,
   createTenantForOwner,
+  DuplicatePhoneError,
 } from "@/lib/services/onboarding-service";
 
 export type OnboardingActionState =
@@ -82,6 +83,13 @@ export async function completeOnboarding(
       });
     }
   } catch (err) {
+    if (err instanceof DuplicatePhoneError) {
+      return {
+        ok: false,
+        error: "Nomor WhatsApp sudah terdaftar.",
+        fieldErrors: { whatsappPhone: "Nomor WhatsApp sudah terdaftar." },
+      };
+    }
     console.error("[completeOnboarding] gagal membuat usaha:", err);
     return {
       ok: false,

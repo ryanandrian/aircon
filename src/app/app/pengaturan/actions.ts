@@ -72,11 +72,24 @@ export async function actionWaInit(): Promise<{ ok: boolean; qr?: string | null;
 }
 
 /** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr, phone, authenticating}. */
-export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string }> {
+export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string; conflict?: boolean }> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
-  return gatewaySessionStatus(ctx.tenantId);
+  const status = await gatewaySessionStatus(ctx.tenantId);
+
+  // Anti akun-ganda (Lapis 2 — kunci keras): saat sesi READY, nomor sudah TERVERIFIKASI.
+  // Tegakkan "1 WhatsApp = 1 tenant". Bila nomor sedang dipakai tenant lain → putuskan sesi + tolak.
+  if (status.ok && status.ready && status.phone) {
+    const { reconcileVerifiedWaPhone } = await import("@/lib/services/wa-identity-service");
+    const rec = await reconcileVerifiedWaPhone(ctx.tenantId, status.phone);
+    if (!rec.ok) {
+      // Lepaskan sesi yang baru saja tertaut agar tidak aktif di dua tempat.
+      await gatewayLogoutSession(ctx.tenantId).catch(() => {});
+      return { ok: false, conflict: true, error: rec.error, exists: false, ready: false, qr: null, phone: null };
+    }
+  }
+  return status;
 }
 
 /** Putuskan sesi WA tenant (logout dari perangkat gateway). */
@@ -84,5 +97,9 @@ export async function actionWaLogout(): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
-  return gatewayLogoutSession(ctx.tenantId);
+  const res = await gatewayLogoutSession(ctx.tenantId);
+  // Bersihkan nomor terverifikasi → nomor bebas ditautkan ulang (oleh tenant ini atau tenant lain).
+  const { clearVerifiedWaPhone } = await import("@/lib/services/wa-identity-service");
+  await clearVerifiedWaPhone(ctx.tenantId).catch(() => {});
+  return res;
 }

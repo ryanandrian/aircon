@@ -62,6 +62,7 @@ export function WaConnect() {
     stopPoll();
     pollRef.current = setInterval(async () => {
       const s = await actionWaStatus();
+      if (s.conflict) { stopPoll(); setPhase("error"); setError(s.error ?? "Nomor WhatsApp sudah terdaftar."); return; }
       if (!s.ok) return; // best-effort; jangan hentikan polling karena 1 gagal
       if (s.ready) { setPhase("connected"); setQr(null); setPhone(s.phone ?? null); stopPoll(); }
       else if (s.authenticating) { setAuthenticating(true); setQr(null); } // dipindai → menyiapkan sesi

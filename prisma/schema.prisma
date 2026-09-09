@@ -271,6 +271,9 @@ model Tenant {
   inactivityReminderStage Int          @default(0) // 0=belum, 1=reminder#1 terkirim, 2=reminder#2 terkirim
   onboardingCompleted     Boolean      @default(false)
   waDriver                WaDriver     @default(WEB)
+  // Nomor WA TERVERIFIKASI dari scan gateway (client.info.wid.user). TERPISAH dari `phone`
+  // (nomor yang diketik owner) — sistem TIDAK menimpa `phone`. Unik global: 1 WA = 1 tenant.
+  waVerifiedPhone         String?      @unique
   publicProfile           Json?
   // Branding & profil bisnis tenant (Fase 1) — untuk invoice & permukaan publik tenant.
   logoUrl                 String       @default("")

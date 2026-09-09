@@ -13,7 +13,13 @@
 import { prisma } from "@/lib/prisma";
 import { seedTenantDefaults } from "@/lib/domain/provision";
 import { DEFAULT_WA_TEMPLATES } from "@/lib/domain/defaults";
+import { normalizePhone } from "@/lib/wa/gateway";
 import type { User } from "@prisma/client";
+
+/** Nomor WhatsApp usaha sudah dipakai tenant lain (1 nomor = 1 usaha). */
+export class DuplicatePhoneError extends Error {
+  constructor(msg = "Nomor WhatsApp sudah terdaftar.") { super(msg); this.name = "DuplicatePhoneError"; }
+}
 
 /** Identitas dari sesi Supabase untuk mencari/membuat user domain. */
 interface Identity {
@@ -88,6 +94,17 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
   }
 
   const displayName = fullName?.trim() || email?.split("@")[0] || businessName;
+
+  // Anti akun-ganda (Lapis 1): tolak bila nomor WA usaha yang diketik sudah dipakai tenant lain.
+  // Nomor dinormalisasi (62...) agar 0812/+62/62 dianggap sama. `phone` tenant tidak pernah ditimpa.
+  const normWa = normalizePhone(whatsappPhone);
+  if (normWa) {
+    const dup = await prisma.tenant.findFirst({
+      where: { phone: normWa },
+      select: { id: true },
+    });
+    if (dup) throw new DuplicatePhoneError();
+  }
 
   // Slug unik dari nama usaha.
   const baseSlug = makeSlug(businessName);
