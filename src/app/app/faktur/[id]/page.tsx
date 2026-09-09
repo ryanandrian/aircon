@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { getInvoiceForView } from "@/lib/services/invoice-service";
 import { InvoiceView } from "@/components/invoice-view";
+import { InvoiceActions } from "@/components/invoice-actions";
 import { PaymentPanel } from "@/components/payment-panel";
 import { ProformaConvert } from "./proforma-convert";
 import { CancelInvoiceButton } from "./cancel-button";
@@ -29,13 +30,20 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
   const canCancel = inv.status !== "PAID" && inv.status !== "CANCELLED";
 
   return (
-    <main className="min-h-screen pb-16">
-      <AppHeader title={isProforma ? "Proforma" : "Invoice"} back="/app/faktur" helpKey="faktur-detail" />
-      <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
-        <InvoiceView inv={inv} tenant={data.tenant} assetMap={data.assetMap} />
-        {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}
-        {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />}
-        {canCancel && <CancelInvoiceButton invoiceId={inv.id} isProforma={isProforma} />}
+    <main className="min-h-screen pb-16 print:pb-0">
+      <div className="print:hidden">
+        <AppHeader title={isProforma ? "Proforma" : "Invoice"} back="/app/faktur" helpKey="faktur-detail" />
+      </div>
+      <div className="mx-auto max-w-4xl space-y-4 px-5 py-6 print:max-w-none print:p-0">
+        <InvoiceView inv={inv} tenant={data.tenant} assetMap={data.assetMap} billTo={data.billTo} />
+        {inv.status !== "CANCELLED" && (
+          <InvoiceActions invoiceId={inv.id} variant="admin" docLabel={isProforma ? "Proforma" : "Invoice"} />
+        )}
+        <div className="print:hidden space-y-4">
+          {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}
+          {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />}
+          {canCancel && <CancelInvoiceButton invoiceId={inv.id} isProforma={isProforma} />}
+        </div>
       </div>
     </main>
   );

@@ -139,6 +139,14 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
     },
   });
   if (!inv) throw new ServiceError("NOT_FOUND", "Dokumen tidak ditemukan");
+  // BILL-TO: bila invoice punya billingCustomerId (kantor pusat), muat entitas penagihan itu.
+  // "Ditagihkan kepada" = bill-to; "Lokasi servis" = customer (outlet). Bila self, keduanya sama.
+  const billTo = inv.billingCustomerId
+    ? await prisma.customer.findFirst({
+        where: { id: inv.billingCustomerId, tenantId, deletedAt: null },
+        select: { name: true, phone: true, address: true, customerType: true, npwp: true },
+      })
+    : null;
   // Label unit per item (assetId scalar → ambil terpisah).
   const assetIds = [...new Set(inv.items.map((i) => i.assetId).filter(Boolean) as string[])];
   const assets = assetIds.length
@@ -153,7 +161,7 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
       bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
     },
   });
-  return { inv, tenant, assetMap };
+  return { inv, tenant, assetMap, billTo, serviceCustomer: inv.customer };
 }
 
 /** Batalkan invoice/proforma (K11: admin only, dilakukan di action). Tak bisa bila sudah PAID. */
@@ -309,5 +317,83 @@ export async function createInvoiceFromProforma(
     return inv.id;
   });
   return { invoiceId: created, number };
+}
+
+/** Label jenis dokumen utk pesan (proforma/invoice/kwitansi). */
+const DOC_WORD: Record<string, string> = { PROFORMA: "Proforma Invoice", INVOICE: "Invoice" };
+
+const fmtRp = (n: unknown) => "Rp" + Number(n).toLocaleString("id-ID");
+const fmtTgl = (d: Date | null) =>
+  d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "-";
+
+/**
+ * Bangun teks ringkasan tagihan untuk WA/Email (tanpa link internal; sesuai keputusan owner).
+ * Menyertakan: usaha, no dokumen, tgl, jatuh tempo, total, info transfer bila ada.
+ */
+export function buildInvoiceMessage(args: {
+  tenantName: string; docType: string; number: string;
+  issueDate: Date; dueDate: Date | null; total: unknown; customerName: string;
+  serviceLocation?: string | null;
+  bank?: { name: string | null; no: string | null; holder: string | null } | null;
+}): string {
+  const doc = DOC_WORD[args.docType] ?? "Tagihan";
+  const lines: string[] = [];
+  lines.push(`*${args.tenantName}*`);
+  lines.push("");
+  lines.push(`${doc}: *${args.number}*`);
+  lines.push(`Kepada: ${args.customerName}`);
+  if (args.serviceLocation) lines.push(`Lokasi servis: ${args.serviceLocation}`);
+  lines.push(`Tanggal: ${fmtTgl(args.issueDate)}`);
+  if (args.dueDate) lines.push(`Jatuh tempo: ${fmtTgl(args.dueDate)}`);
+  lines.push(`Total: *${fmtRp(args.total)}*`);
+  if (args.bank?.name && args.bank?.no) {
+    lines.push("");
+    lines.push(`Pembayaran transfer:`);
+    lines.push(`${args.bank.name} ${args.bank.no}${args.bank.holder ? ` a.n. ${args.bank.holder}` : ""}`);
+  }
+  lines.push("");
+  lines.push("Terima kasih. Mohon konfirmasi setelah pembayaran. 🙏");
+  return lines.join("\n");
+}
+
+/**
+ * KIRIM dokumen via WA gateway (teks) ke kontak penagihan (PIC keuangan → utama).
+ * Tenant-scoped, patuh guard anti-spam gateway. Dipakai admin & teknisi.
+ */
+export async function sendInvoiceViaWa(
+  tenantId: string, invoiceId: string,
+): Promise<{ ok: boolean; error?: string; to?: string }> {
+  const { resolveBillingContact } = await import("@/lib/services/customer-service");
+  const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
+
+  const inv = await prisma.invoice.findFirst({
+    where: { id: invoiceId, tenantId },
+    include: { customer: { select: { id: true, name: true } } },
+  });
+  if (!inv) return { ok: false, error: "Dokumen tidak ditemukan" };
+  if (inv.status === "CANCELLED") return { ok: false, error: "Dokumen sudah dibatalkan" };
+  if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
+
+  const contact = await resolveBillingContact(tenantId, inv.customer.id);
+  if (!contact.waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { name: true, bankName: true, bankAccountNo: true, bankAccountName: true },
+  });
+  // Lokasi servis hanya relevan bila tagihan ke kantor pusat (bill-to ≠ outlet).
+  const serviceLocation = inv.billingCustomerId ? inv.customer.name : null;
+
+  const message = buildInvoiceMessage({
+    tenantName: tenant?.name ?? "Aircon",
+    docType: inv.docType, number: inv.number,
+    issueDate: inv.issueDate, dueDate: inv.dueDate, total: inv.total,
+    customerName: contact.name, serviceLocation,
+    bank: { name: tenant?.bankName ?? null, no: tenant?.bankAccountNo ?? null, holder: tenant?.bankAccountName ?? null },
+  });
+
+  const res = await gatewaySend(tenantId, contact.waPhone, message);
+  if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+  return { ok: true, to: contact.waPhone };
 }
 

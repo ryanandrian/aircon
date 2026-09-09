@@ -220,8 +220,11 @@ export async function createCustomer(
         picWorkName: input.picWorkName ?? null,
         picWorkPhone: input.picWorkPhone ?? null,
         picWorkRole: input.picWorkRole ?? null,
+        picWorkEmail: input.picWorkEmail || null,
         picFinanceName: input.picFinanceName ?? null,
         picFinancePhone: input.picFinancePhone ?? null,
+        picFinanceEmail: input.picFinanceEmail || null,
+        email: input.email || null,
       },
     });
   } catch (err) {
@@ -274,8 +277,11 @@ export async function updateCustomer(
   if (input.picWorkName !== undefined) data.picWorkName = input.picWorkName;
   if (input.picWorkPhone !== undefined) data.picWorkPhone = input.picWorkPhone;
   if (input.picWorkRole !== undefined) data.picWorkRole = input.picWorkRole;
+  if (input.picWorkEmail !== undefined) data.picWorkEmail = input.picWorkEmail || null;
   if (input.picFinanceName !== undefined) data.picFinanceName = input.picFinanceName;
   if (input.picFinancePhone !== undefined) data.picFinancePhone = input.picFinancePhone;
+  if (input.picFinanceEmail !== undefined) data.picFinanceEmail = input.picFinanceEmail || null;
+  if (input.email !== undefined) data.email = input.email || null;
 
   try {
     return await prisma.customer.update({ where: { id }, data });
@@ -337,4 +343,26 @@ export async function resolveBillingCustomer(
     where: { id: self.billingCustomerId, tenantId, deletedAt: null },
   });
   return billTo ?? self;
+}
+
+/**
+ * Kontak penagihan untuk KIRIM (WA/Email). Prioritas: PIC Keuangan (bila terisi) → kontak utama.
+ * Mengembalikan nomor WA & email tujuan berdasar entitas PENAGIHAN (bill-to/kantor pusat).
+ * Aturan owner: bila email kosong → semua lewat WA utama.
+ */
+export interface BillingContact {
+  name: string;
+  waPhone: string | null;   // nomor WA tujuan (PIC keuangan → utama)
+  email: string | null;     // email tujuan (PIC keuangan → perusahaan) — null = tak ada
+}
+
+export async function resolveBillingContact(
+  tenantId: string,
+  customerId: string,
+): Promise<BillingContact> {
+  const billTo = await resolveBillingCustomer(tenantId, customerId);
+  const waPhone = billTo.picFinancePhone?.trim() || billTo.phone?.trim() || null;
+  const email = billTo.picFinanceEmail?.trim() || billTo.email?.trim() || null;
+  const name = billTo.picFinanceName?.trim() || billTo.name;
+  return { name, waPhone, email };
 }

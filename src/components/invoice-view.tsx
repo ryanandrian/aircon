@@ -25,11 +25,15 @@ const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draf", ISSUED: "Terbit", PAID: "Lunas", OVERDUE: "Jatuh Tempo", CANCELLED: "Batal",
 };
 
-export function InvoiceView({ inv, tenant, assetMap, backHref }: {
+export function InvoiceView({ inv, tenant, assetMap, backHref, billTo }: {
   inv: Inv; tenant: Tenant; assetMap: Map<string, string>; backHref?: string;
+  billTo?: { name: string; phone: string; address: string | null; customerType: string; npwp: string | null } | null;
 }) {
   const isProforma = inv.docType === "PROFORMA";
   const title = isProforma ? "PROFORMA INVOICE" : "INVOICE";
+  // Bill-to kantor pusat: entitas yang DITAGIH (billTo) beda dari lokasi servis (inv.customer/outlet).
+  const bill = billTo ?? inv.customer;
+  const isCentral = Boolean(billTo);
 
   // Kelompokkan item per unit (K9). Item tanpa unit → grup "Umum".
   const groups = new Map<string, InvItem[]>();
@@ -41,7 +45,7 @@ export function InvoiceView({ inv, tenant, assetMap, backHref }: {
 
   return (
     <div className="space-y-4">
-      {backHref && <a href={backHref} className="text-xs text-muted-foreground">← Kembali</a>}
+      {backHref && <a href={backHref} className="text-xs text-muted-foreground print:hidden">← Kembali</a>}
       <Card>
         <CardContent className="space-y-5 p-6">
           {/* Header: logo tenant (K2) + judul dokumen */}
@@ -67,10 +71,15 @@ export function InvoiceView({ inv, tenant, assetMap, backHref }: {
           <div className="grid grid-cols-2 gap-4 border-t pt-4 text-sm">
             <div>
               <div className="text-xs text-muted-foreground">Ditagihkan kepada</div>
-              <div className="font-medium text-foreground">{inv.customer.name}</div>
-              {inv.customer.address && <div className="text-xs text-muted-foreground">{inv.customer.address}</div>}
-              <div className="text-xs text-muted-foreground">{inv.customer.phone}</div>
-              {inv.customer.customerType === "BADAN" && inv.customer.npwp && <div className="text-xs text-muted-foreground">NPWP: {inv.customer.npwp}</div>}
+              <div className="font-medium text-foreground">{bill.name}</div>
+              {bill.address && <div className="text-xs text-muted-foreground">{bill.address}</div>}
+              <div className="text-xs text-muted-foreground">{bill.phone}</div>
+              {bill.customerType === "BADAN" && bill.npwp && <div className="text-xs text-muted-foreground">NPWP: {bill.npwp}</div>}
+              {isCentral && (
+                <div className="mt-1.5 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
+                  Lokasi servis: <span className="font-medium text-foreground">{inv.customer.name}</span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="text-xs text-muted-foreground">Tanggal terbit</div>

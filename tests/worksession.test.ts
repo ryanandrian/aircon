@@ -4,6 +4,8 @@ vi.mock("@/lib/services/customer-service", () => ({
   ServiceError: class ServiceError extends Error {
     code: string; constructor(code: string, message: string) { super(message); this.code = code; }
   },
+  // Tanpa kantor pusat (bill-to = diri sendiri) untuk skenario dasar ini.
+  resolveBillingCustomer: vi.fn(async (_t: string, id: string) => ({ id, topType: "CASH", billingCustomerId: null })),
 }));
 vi.mock("@/lib/services/service-catalog-service", () => ({
   resolvePrice: vi.fn(async () => 75000),

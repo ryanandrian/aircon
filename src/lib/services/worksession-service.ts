@@ -6,7 +6,7 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ServiceError } from "@/lib/services/customer-service";
+import { ServiceError, resolveBillingCustomer } from "@/lib/services/customer-service";
 import { resolvePrice } from "@/lib/services/service-catalog-service";
 import {
   computeInvoiceTotals, computeDueDate, nextInvoiceNumber,
@@ -153,7 +153,7 @@ export async function closeWorkSession(
 ): Promise<{ invoiceId: string; docType: "INVOICE" | "PROFORMA"; number: string }> {
   const ws = await prisma.workSession.findFirst({
     where: { id: workSessionId, tenantId, status: "OPEN" },
-    include: { items: true, customer: { select: { id: true, topType: true } } },
+    include: { items: true, customer: { select: { id: true, topType: true, billingCustomerId: true } } },
   });
   if (!ws) throw new ServiceError("NOT_FOUND", "Sesi kerja tidak aktif");
   if (ws.items.length === 0) throw new ServiceError("CONFLICT", "Sesi kosong — tambah pekerjaan dulu");
@@ -164,7 +164,14 @@ export async function closeWorkSession(
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId }, select: { isPkp: true, taxPercent: true },
   });
-  const top = (ws.customer.topType ?? "CASH") as TopType;
+
+  // BILL-TO (kantor pusat): bila customer punya billingCustomerId, tagihan mengacu ke entitas itu.
+  // docType & jatuh tempo mengikuti TOP entitas PENAGIHAN (keputusan owner). customerId invoice tetap
+  // customer LOKASI (outlet) agar jejak "servis di mana" utuh; billingCustomerId invoice = bill-to (null=self).
+  const billTo = await resolveBillingCustomer(tenantId, ws.customer.id);
+  const isCentralBilling = billTo.id !== ws.customer.id;
+  // TOP/jatuh tempo: bila tagih ke kantor pusat → ikut TOP pusat; bila diri sendiri → TOP customer sesi.
+  const top = (isCentralBilling ? billTo.topType : ws.customer.topType) as TopType ?? "CASH";
   const docType: "INVOICE" | "PROFORMA" = top === "CASH" ? "INVOICE" : "PROFORMA";
 
   const lines: InvoiceLineInput[] = ws.items.map((it) => ({
@@ -192,6 +199,7 @@ export async function closeWorkSession(
     const inv = await tx.invoice.create({
       data: {
         tenantId, docType, number, customerId: ws.customer.id,
+        billingCustomerId: isCentralBilling ? billTo.id : null,
         workSessionId: ws.id, jobId: ws.jobId ?? null,
         status: "ISSUED", issueDate, dueDate,
         subtotal: new Prisma.Decimal(totals.subtotal),

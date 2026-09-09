@@ -49,8 +49,8 @@ function emptyForm(): FormState {
   return {
     name: "", phone: "", address: "", source: "OTHER", notes: "",
     category: "RUMAH", customerType: "PERORANGAN", topType: "CASH", npwp: "",
-    isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "",
-    picFinanceName: "", picFinancePhone: "",
+    isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "", picWorkEmail: "",
+    picFinanceName: "", picFinancePhone: "", picFinanceEmail: "", email: "",
   };
 }
 
@@ -110,8 +110,8 @@ export function CustomerManager({
     setForm({
       name: c.name, phone: c.phone, address: c.address ?? "", source: c.source, notes: "",
       category: c.category ?? "RUMAH", customerType: c.customerType, topType: c.topType,
-      npwp: "", isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "",
-      picFinanceName: "", picFinancePhone: "",
+      npwp: "", isPphWithholder: false, picWorkName: "", picWorkPhone: "", picWorkRole: "", picWorkEmail: "",
+      picFinanceName: "", picFinancePhone: "", picFinanceEmail: "", email: "",
     });
     setEditing(c); setAdding(false);
   }
@@ -261,6 +261,22 @@ export function CustomerManager({
                       <Input id="c-pf-phone" value={form.picFinancePhone} onChange={(e) => set("picFinancePhone", e.target.value)} placeholder="0812…" />
                     </div>
                   </div>
+                  {/* Email opsional — bila kosong, tagihan/dokumen dikirim ke WhatsApp. */}
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pf-email">Email PIC Keuangan</Label>
+                      <Input id="c-pf-email" type="email" value={form.picFinanceEmail} onChange={(e) => set("picFinanceEmail", e.target.value)} placeholder="opsional — untuk tagihan" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-pw-email">Email PIC Pekerjaan</Label>
+                      <Input id="c-pw-email" type="email" value={form.picWorkEmail} onChange={(e) => set("picWorkEmail", e.target.value)} placeholder="opsional" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="c-email">Email Perusahaan</Label>
+                      <Input id="c-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="opsional" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Email opsional. Bila dikosongkan, tagihan &amp; dokumen dikirim lewat WhatsApp.</p>
                 </div>
               )}
 

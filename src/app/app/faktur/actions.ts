@@ -5,6 +5,7 @@ import { assertRole } from "@/lib/auth/guard";
 import {
   listInvoicesByBucket,
   countInvoicesByBucket,
+  sendInvoiceViaWa,
   type InvoiceBucket,
 } from "@/lib/services/invoice-service";
 
@@ -45,5 +46,20 @@ export async function actionCountInvoices(
     return { ok: true, counts };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal menghitung dokumen.") };
+  }
+}
+
+/** Kirim dokumen (proforma/invoice) via WA gateway ke kontak penagihan (admin). */
+export async function actionSendInvoiceWa(
+  invoiceId: string,
+): Promise<{ ok: true; to?: string } | { ok: false; error: string }> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    return { ok: true, to: res.to };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };
   }
 }

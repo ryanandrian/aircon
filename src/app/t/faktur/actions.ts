@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerContext } from "@/lib/auth/context";
-import { markInvoicePaid, createInvoiceFromProforma, cancelInvoice } from "@/lib/services/invoice-service";
+import { markInvoicePaid, createInvoiceFromProforma, cancelInvoice, sendInvoiceViaWa } from "@/lib/services/invoice-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 
 type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -60,6 +60,19 @@ export async function actionInvoiceFromProforma(
   }
 }
 
+/** Kirim dokumen via WA gateway (teknisi — untuk invoice tunai lapangan). */
+export async function actionTechSendInvoiceWa(
+  invoiceId: string,
+): Promise<Result<{ to?: string }>> {
+  try {
+    const ctx = await getServerContext();
+    const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    return { ok: true, data: { to: res.to } };
+  } catch (e) {
+    return { ok: false, error: msg(e, "Gagal mengirim WA") };
+  }
+}
 /** Batalkan invoice/proforma (K11: admin only). */
 export async function actionCancelInvoice(invoiceId: string): Promise<Result> {
   try {

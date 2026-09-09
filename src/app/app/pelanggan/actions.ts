@@ -26,8 +26,9 @@ export type CustomerFormInput = {
   name: string; phone: string; address?: string; source?: string; notes?: string;
   category?: string; customerType?: string; topType?: string; npwp?: string;
   isPphWithholder?: boolean; billingCustomerId?: string;
-  picWorkName?: string; picWorkPhone?: string; picWorkRole?: string;
-  picFinanceName?: string; picFinancePhone?: string;
+  picWorkName?: string; picWorkPhone?: string; picWorkRole?: string; picWorkEmail?: string;
+  picFinanceName?: string; picFinancePhone?: string; picFinanceEmail?: string;
+  email?: string;
 };
 
 function buildPayload(raw: CustomerFormInput) {
@@ -46,8 +47,11 @@ function buildPayload(raw: CustomerFormInput) {
     picWorkName: raw.picWorkName || undefined,
     picWorkPhone: raw.picWorkPhone || undefined,
     picWorkRole: raw.picWorkRole || undefined,
+    picWorkEmail: raw.picWorkEmail || undefined,
     picFinanceName: raw.picFinanceName || undefined,
     picFinancePhone: raw.picFinancePhone || undefined,
+    picFinanceEmail: raw.picFinanceEmail || undefined,
+    email: raw.email || undefined,
   };
 }
 

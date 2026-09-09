@@ -63,8 +63,11 @@ export const createCustomerSchema = z.object({
   picWorkName: z.string().trim().optional(),
   picWorkPhone: z.string().trim().optional(),
   picWorkRole: z.string().trim().optional(),
+  picWorkEmail: z.string().trim().email("Email PIC pekerjaan tidak valid").optional().or(z.literal("")),
   picFinanceName: z.string().trim().optional(),
   picFinancePhone: z.string().trim().optional(),
+  picFinanceEmail: z.string().trim().email("Email PIC keuangan tidak valid").optional().or(z.literal("")),
+  email: z.string().trim().email("Email perusahaan tidak valid").optional().or(z.literal("")),
 });
 
 export const updateCustomerSchema = createCustomerSchema.partial();

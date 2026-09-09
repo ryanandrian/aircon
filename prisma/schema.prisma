@@ -361,8 +361,11 @@ model Customer {
   picWorkName       String?
   picWorkPhone      String?
   picWorkRole       String?
+  picWorkEmail      String?
   picFinanceName    String?
   picFinancePhone   String?
+  picFinanceEmail   String?
+  email             String? // email perusahaan/kontak umum (opsional)
   deletedAt         DateTime?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
