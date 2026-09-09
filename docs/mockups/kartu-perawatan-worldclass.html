@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kartu Perawatan AC — Mockup World-Class (2 Varian)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand:#0ea5e9; --brand-2:#0284c7; --cyan:#06b6d4;
+    --bg:oklch(0.975 0.004 247); --fg:oklch(0.21 0.03 257); --card:#fff;
+    --muted:oklch(0.945 0.006 247); --muted-fg:oklch(0.55 0.02 257);
+    --border:oklch(0.912 0.007 247); --amber:#d97706; --amber-bg:#fffbeb; --emerald:#10b981;
+    --r:0.7rem;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Geist',system-ui,sans-serif;background:#0b1220;color:var(--fg);
+    display:flex;flex-wrap:wrap;gap:40px;justify-content:center;padding:40px 20px;min-height:100vh}
+  .col{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .col h2{color:#cbd5e1;font-size:14px;font-weight:600;letter-spacing:.02em}
+  .col .tag{color:#64748b;font-size:12px;max-width:390px;text-align:center;line-height:1.5}
+  /* phone frame */
+  .phone{width:390px;height:800px;background:var(--bg);border-radius:44px;overflow:hidden;
+    box-shadow:0 0 0 12px #1c2530,0 0 0 14px #0b1220,0 30px 60px -20px rgba(0,0,0,.7);position:relative}
+  .screen{height:100%;overflow-y:auto;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .statusbar{height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:700}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r)}
+
+  /* ---------- shared bits ---------- */
+  .chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;
+    padding:3px 9px;border-radius:999px;background:var(--muted);color:var(--muted-fg)}
+  .brandavatar{width:40px;height:40px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;
+    justify-content:center;font-weight:700;font-size:14px;color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand-2))}
+  .chev{color:#94a3b8;flex:0 0 auto}
+  .duestrip{width:3px;align-self:stretch;border-radius:999px;background:var(--amber)}
+
+  /* =========================================================
+     VARIAN A — "Hero Ringkas + List Padat"
+     ========================================================= */
+  .A .hero{background:linear-gradient(135deg,var(--brand) 0%,var(--brand-2) 55%,var(--cyan) 100%);
+    padding:20px 20px 26px;color:#fff;position:relative;overflow:hidden}
+  .A .hero::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;
+    border-radius:50%;background:rgba(255,255,255,.08)}
+  .A .hero .top{display:flex;align-items:center;gap:12px;position:relative;z-index:1}
+  .A .hero .logo{width:46px;height:46px;border-radius:14px;background:#fff;display:flex;align-items:center;
+    justify-content:center;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+  .A .hero .logo svg{width:26px;height:26px}
+  .A .hero .who .k{font-size:11px;font-weight:600;color:rgba(255,255,255,.85)}
+  .A .hero .who .v{font-size:19px;font-weight:800;line-height:1.15}
+  .A .hero h1{font-size:14px;font-weight:600;color:rgba(255,255,255,.9);margin-top:16px;position:relative;z-index:1}
+  .A .hero .sub{font-size:12px;color:rgba(255,255,255,.75);position:relative;z-index:1}
+  .A .glass{display:flex;gap:10px;margin-top:14px;position:relative;z-index:1}
+  .A .glass .g{flex:1;background:rgba(255,255,255,.16);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.25);
+    border-radius:14px;padding:10px 12px}
+  .A .glass .g .n{font-size:24px;font-weight:800;line-height:1}
+  .A .glass .g .l{font-size:11px;color:rgba(255,255,255,.85);margin-top:3px}
+  .A .glass .g.warn{background:rgba(255,255,255,.22)}
+  .A .body{padding:16px 16px 40px}
+  .A .tools{display:flex;gap:8px;margin-bottom:12px}
+  .A .search{flex:1;height:42px;border:1px solid var(--border);border-radius:12px;background:#fff;
+    display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--muted-fg);font-size:14px}
+  .A .sortbtn{height:42px;border:1px solid var(--border);border-radius:12px;background:#fff;padding:0 12px;
+    display:flex;align-items:center;gap:6px;font-size:13px;color:var(--fg)}
+  .A .ulist{display:flex;flex-direction:column;gap:8px}
+  .A .u{display:flex;align-items:center;gap:11px;padding:12px;background:#fff;border:1px solid var(--border);
+    border-radius:14px;transition:.15s;cursor:pointer}
+  .A .u:hover{box-shadow:0 8px 20px -8px rgba(2,132,199,.28);transform:translateY(-1px)}
+  .A .u .info{min-width:0;flex:1}
+  .A .u .name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:7px}
+  .A .u .name .code{font-family:ui-monospace,monospace;font-size:11px;color:var(--muted-fg);font-weight:500}
+  .A .u .meta{margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .A .u .right{text-align:right;flex:0 0 auto}
+  .A .u .right .k{font-size:10px;color:var(--muted-fg)}
+  .A .u .right .v{font-size:13px;font-weight:600}
+  .A .u .right .v.due{color:var(--amber)}
+  .A .pill{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+  .A .pill.hist{background:#ecfdf5;color:#047857}
+  .A .pill.new{background:var(--muted);color:var(--muted-fg)}
+
+  /* =========================================================
+     VARIAN B — "Kartu Premium + Timeline Rekam Medis"
+     ========================================================= */
+  .B .hero{padding:22px 20px 20px;background:
+     radial-gradient(120% 100% at 100% 0%, rgba(6,182,212,.25), transparent 60%),
+     linear-gradient(135deg,#0c4a6e,#075985 60%,#0369a1);color:#fff}
+  .B .hero .top{display:flex;align-items:center;gap:12px}
+  .B .hero .logo{width:44px;height:44px;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center}
+  .B .hero .logo svg{width:25px;height:25px}
+  .B .hero .who .k{font-size:11px;color:rgba(255,255,255,.7);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+  .B .hero .who .v{font-size:18px;font-weight:800}
+  .B .hero .title{margin-top:16px;font-size:20px;font-weight:800}
+  .B .hero .cust{font-size:13px;color:rgba(255,255,255,.8)}
+  .B .stats{display:flex;gap:22px;margin-top:16px}
+  .B .stats .s .n{font-size:26px;font-weight:800;line-height:1}
+  .B .stats .s .n.warn{color:#fbbf24}
+  .B .stats .s .l{font-size:11px;color:rgba(255,255,255,.75);margin-top:2px}
+  .B .stats .divider{width:1px;background:rgba(255,255,255,.2)}
+  .B .body{padding:16px 16px 40px}
+  .B .tools{display:flex;gap:8px;margin-bottom:12px}
+  .B .search{flex:1;height:42px;border:1px solid var(--border);border-radius:12px;background:#fff;
+    display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--muted-fg);font-size:14px}
+  .B .sortbtn{height:42px;border:1px solid var(--border);border-radius:12px;background:#fff;padding:0 12px;
+    display:flex;align-items:center;gap:6px;font-size:13px}
+  .B .u{background:#fff;border:1px solid var(--border);border-radius:16px;margin-bottom:10px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .B .u.due{border-color:#fcd34d;box-shadow:0 4px 14px -6px rgba(217,119,6,.25)}
+  .B .u .head{display:flex;align-items:center;gap:12px;padding:14px}
+  .B .u .info{min-width:0;flex:1}
+  .B .u .name{font-weight:700;font-size:15px}
+  .B .u .meta{margin-top:5px;display:flex;gap:6px;flex-wrap:wrap}
+  .B .u .duebadge{font-size:11px;font-weight:600;color:var(--amber);background:var(--amber-bg);
+    padding:3px 9px;border-radius:999px;border:1px solid #fde68a}
+  .B .u .exp{border-top:1px solid var(--border);padding:12px 14px 14px;background:oklch(0.985 0.003 247)}
+  .B .last{background:#eff6ff;border-radius:10px;padding:8px 11px;font-size:12.5px;margin-bottom:12px;color:#1e40af}
+  .B .tl{position:relative;padding-left:18px}
+  .B .tl::before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--border)}
+  .B .tl .ev{position:relative;padding:0 0 12px}
+  .B .tl .ev:last-child{padding-bottom:0}
+  .B .tl .ev::before{content:"";position:absolute;left:-16px;top:4px;width:9px;height:9px;border-radius:50%;
+    background:var(--emerald);box-shadow:0 0 0 3px #ecfdf5}
+  .B .tl .ev .d{font-size:11px;color:var(--muted-fg);font-weight:600}
+  .B .tl .ev .a{font-size:13px}
+  .footer{text-align:center;font-size:11px;color:var(--muted-fg);padding:14px}
+  .snow{fill:var(--brand)}
+</style>
+</head>
+<body>
+
+<!-- ============ VARIAN A ============ -->
+<div class="col A">
+  <h2>VARIAN A — Hero Ringkas + List Padat</h2>
+  <div class="tag">Header bekerja (bukan banner kosong): ringkasan pindah ke atas gradient dgn kartu kaca. Baris unit padat, avatar merek, strip amber utk jatuh tempo, chevron ikon.</div>
+  <div class="phone"><div class="screen">
+    <div class="statusbar"><span>12:50</span><span>••• 📶 🔋</span></div>
+    <div class="hero">
+      <div class="top">
+        <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 7 10 12 12c5-2 5-6 0-10z" fill="#7c3aed"/><path d="M6 13c-3 2-3 6 2 7 2-4 0-6-2-7z" fill="#06b6d4"/><path d="M18 13c3 2 3 6-2 7-2-4 0-6 2-7z" fill="#06b6d4"/></svg></div>
+        <div class="who"><div class="k">Dirawat oleh</div><div class="v">Jaya Mandiri</div></div>
+      </div>
+      <h1>Kartu Perawatan AC</h1>
+      <div class="sub">Dealer Motor Jaya</div>
+      <div class="glass">
+        <div class="g"><div class="n">8</div><div class="l">Unit AC dirawat</div></div>
+        <div class="g warn"><div class="n">5</div><div class="l">⚠ Jatuh tempo bulan ini</div></div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="tools">
+        <div class="search">🔍 Cari unit (merek, lokasi, kode)…</div>
+        <div class="sortbtn">↕ Jatuh tempo</div>
+      </div>
+      <div class="ulist">
+        <!-- due unit -->
+        <div class="u"><div class="duestrip"></div>
+          <div class="brandavatar">SH</div>
+          <div class="info">
+            <div class="name">Sharp 1.5 PK <span class="code">A7K2M9</span></div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">R. Meeting</span><span class="pill new">Baru</span></div>
+          </div>
+          <div class="right"><div class="k">Servis berikutnya</div><div class="v due">12 Sep 2026</div></div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="u"><div class="duestrip"></div>
+          <div class="brandavatar">DA</div>
+          <div class="info">
+            <div class="name">Daikin 2 PK</div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">Kasir</span><span class="pill new">Baru</span></div>
+          </div>
+          <div class="right"><div class="k">Servis berikutnya</div><div class="v due">18 Sep 2026</div></div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="u">
+          <div style="width:3px"></div>
+          <div class="brandavatar">PA</div>
+          <div class="info">
+            <div class="name">Panasonic 0.75 PK</div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">Kasir</span><span class="pill hist">3 riwayat</span></div>
+          </div>
+          <div class="right"><div class="k">Servis berikutnya</div><div class="v">05 Okt 2026</div></div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="u">
+          <div style="width:3px"></div>
+          <div class="brandavatar">LG</div>
+          <div class="info">
+            <div class="name">LG 1 PK</div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">Gudang</span><span class="pill hist">5 riwayat</span></div>
+          </div>
+          <div class="right"><div class="k">Servis berikutnya</div><div class="v">21 Okt 2026</div></div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Kartu perawatan digital · Ditenagai Aircon</div>
+  </div></div>
+</div>
+
+<!-- ============ VARIAN B ============ -->
+<div class="col B">
+  <h2>VARIAN B — Kartu Premium + Timeline Rekam Medis</h2>
+  <div class="tag">Header gelap elegan (biru tua, teduh). Kartu unit ber-elevasi; unit jatuh tempo di-highlight kuning. Riwayat = timeline vertikal (kesan rekam medis), bukan list datar.</div>
+  <div class="phone"><div class="screen">
+    <div class="statusbar"><span>12:50</span><span>••• 📶 🔋</span></div>
+    <div class="hero">
+      <div class="top">
+        <div class="logo"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2C7 6 7 10 12 12c5-2 5-6 0-10z" fill="#7c3aed"/><path d="M6 13c-3 2-3 6 2 7 2-4 0-6-2-7z" fill="#06b6d4"/><path d="M18 13c3 2 3 6-2 7-2-4 0-6 2-7z" fill="#06b6d4"/></svg></div>
+        <div class="who"><div class="k">Dirawat oleh</div><div class="v">Jaya Mandiri</div></div>
+      </div>
+      <div class="title">Kartu Perawatan AC</div>
+      <div class="cust">Dealer Motor Jaya</div>
+      <div class="stats">
+        <div class="s"><div class="n">8</div><div class="l">Unit AC</div></div>
+        <div class="divider"></div>
+        <div class="s"><div class="n warn">5</div><div class="l">Jatuh tempo bln ini</div></div>
+        <div class="divider"></div>
+        <div class="s"><div class="n">24</div><div class="l">Total servis</div></div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="tools">
+        <div class="search">🔍 Cari unit (merek, lokasi, kode)…</div>
+        <div class="sortbtn">↕ Tempo</div>
+      </div>
+      <!-- due unit expanded -->
+      <div class="u due">
+        <div class="head">
+          <div class="brandavatar">SH</div>
+          <div class="info">
+            <div class="name">Sharp 1.5 PK</div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">R. Meeting</span><span class="duebadge">⚠ Jatuh tempo 12 Sep</span></div>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" style="transform:rotate(90deg)"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="exp">
+          <div class="last">🛠 Perawatan terakhir: <b>02 Jun 2026 — Cuci besar + isi freon</b></div>
+          <div class="tl">
+            <div class="ev"><div class="d">02 Jun 2026</div><div class="a">Cuci besar + isi freon R32</div></div>
+            <div class="ev"><div class="d">14 Feb 2026</div><div class="a">Cuci rutin evaporator</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="u">
+        <div class="head">
+          <div class="brandavatar">DA</div>
+          <div class="info">
+            <div class="name">Daikin 2 PK</div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">Kasir</span><span class="duebadge">⚠ Jatuh tempo 18 Sep</span></div>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="u">
+        <div class="head">
+          <div class="brandavatar">PA</div>
+          <div class="info">
+            <div class="name">Panasonic 0.75 PK</div>
+            <div class="meta"><span class="chip">Split</span><span class="chip">Kasir</span><span class="chip">Servis: 05 Okt</span></div>
+          </div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="footer">Kartu perawatan digital · Ditenagai Aircon</div>
+  </div></div>
+</div>
+
+</body>
+</html>

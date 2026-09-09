@@ -13,6 +13,7 @@ import {
   Phone, Navigation, MapPin, Calendar, Snowflake, Wind, Building2, DollarSign,
   Hand, FileText, PartyPopper, Clock, ShieldCheck, Users, Package, Send,
   Menu, Settings, LayoutDashboard, BarChart3, Star, ChevronRight, HelpCircle, Trash2, Power,
+  AlertTriangle,
 } from "lucide-react";
 
 /** Pemetaan semantik nama-domain -> komponen ikon (agar konsisten lintas halaman). */
@@ -57,6 +58,7 @@ export const Icon = {
   Chart: BarChart3,           // laporan / analitik
   Star: Star,                 // rating testimoni
   ChevronRight: ChevronRight,  // accordion / navigasi
+  Alert: AlertTriangle,        // peringatan / jatuh tempo
   Settings: Settings,         // pengaturan
   Dashboard: LayoutDashboard, // ringkasan / dashboard
 };
