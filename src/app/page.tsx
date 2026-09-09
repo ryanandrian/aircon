@@ -479,7 +479,7 @@ function FeatureCard({ image, title, desc, featured }: { image: string; title: s
         <img src={image} alt={title} loading="lazy" width={800} height={600}
           className="h-full w-full object-cover" />
       </div>
-      <CardContent className="p-6">
+      <CardContent className="px-6 pb-6 pt-4">
         <h3 className="font-semibold text-foreground">{title}</h3>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
       </CardContent>
