@@ -10,6 +10,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
+import { terbilangRupiah } from "../domain/terbilang";
+import { receiptNumber } from "../domain/receipt";
 
 export type DocType = "INVOICE" | "PROFORMA";
 export type TopType = "CASH" | "TEMPO_7" | "TEMPO_14" | "TEMPO_30" | "TEMPO_45" | "TEMPO_60" | "TEMPO_90";
@@ -392,6 +394,58 @@ export async function sendInvoiceViaWa(
     bank: { name: tenant?.bankName ?? null, no: tenant?.bankAccountNo ?? null, holder: tenant?.bankAccountName ?? null },
   });
 
+  const res = await gatewaySend(tenantId, contact.waPhone, message);
+  if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+  return { ok: true, to: contact.waPhone };
+}
+
+/** Bangun teks KWITANSI (bukti terima) untuk WA. */
+export function buildReceiptMessage(args: {
+  tenantName: string; receiptNo: string; invoiceNo: string;
+  total: unknown; paidAt: Date | null; payMethod: string | null; customerName: string;
+}): string {
+  const fmtP: Record<string, string> = { CASH: "Tunai", TRANSFER: "Transfer", QRIS: "QRIS" };
+  const lines: string[] = [];
+  lines.push(`*${args.tenantName}*`);
+  lines.push("");
+  lines.push(`*KWITANSI* ${args.receiptNo}`);
+  lines.push(`Telah terima dari: ${args.customerName}`);
+  lines.push(`Sejumlah: *${fmtRp(args.total)}*`);
+  lines.push(`Terbilang: ${terbilangRupiah(Number(args.total))}`);
+  lines.push(`Untuk: Invoice ${args.invoiceNo}`);
+  if (args.payMethod) lines.push(`Metode: ${fmtP[args.payMethod] ?? args.payMethod}`);
+  lines.push(`Tanggal: ${fmtTgl(args.paidAt)}`);
+  lines.push("");
+  lines.push("Terima kasih atas pembayarannya. 🙏");
+  return lines.join("\n");
+}
+
+/**
+ * KIRIM kwitansi via WA gateway (teks) ke kontak penagihan. Hanya invoice LUNAS.
+ */
+export async function sendReceiptViaWa(
+  tenantId: string, invoiceId: string,
+): Promise<{ ok: boolean; error?: string; to?: string }> {
+  const { resolveBillingContact } = await import("@/lib/services/customer-service");
+  const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
+
+  const inv = await prisma.invoice.findFirst({
+    where: { id: invoiceId, tenantId },
+    include: { customer: { select: { id: true, name: true } } },
+  });
+  if (!inv) return { ok: false, error: "Dokumen tidak ditemukan" };
+  if (inv.status !== "PAID") return { ok: false, error: "Kwitansi hanya untuk invoice yang sudah LUNAS" };
+  if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
+
+  const contact = await resolveBillingContact(tenantId, inv.customer.id);
+  if (!contact.waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
+
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+  const message = buildReceiptMessage({
+    tenantName: tenant?.name ?? "Aircon",
+    receiptNo: receiptNumber(inv.number), invoiceNo: inv.number,
+    total: inv.total, paidAt: inv.paidAt, payMethod: inv.payMethod, customerName: contact.name,
+  });
   const res = await gatewaySend(tenantId, contact.waPhone, message);
   if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
   return { ok: true, to: contact.waPhone };

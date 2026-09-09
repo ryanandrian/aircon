@@ -6,6 +6,7 @@ import {
   listInvoicesByBucket,
   countInvoicesByBucket,
   sendInvoiceViaWa,
+  sendReceiptViaWa,
   type InvoiceBucket,
 } from "@/lib/services/invoice-service";
 
@@ -57,6 +58,21 @@ export async function actionSendInvoiceWa(
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
     const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    return { ok: true, to: res.to };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };
+  }
+}
+
+/** Kirim KWITANSI (invoice LUNAS) via WA gateway (admin). */
+export async function actionSendReceiptWa(
+  invoiceId: string,
+): Promise<{ ok: true; to?: string } | { ok: false; error: string }> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    const res = await sendReceiptViaWa(ctx.tenantId, invoiceId);
     if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
     return { ok: true, to: res.to };
   } catch (err) {

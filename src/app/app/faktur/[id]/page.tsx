@@ -39,6 +39,11 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
         {inv.status !== "CANCELLED" && (
           <InvoiceActions invoiceId={inv.id} variant="admin" docLabel={isProforma ? "Proforma" : "Invoice"} />
         )}
+        {inv.status === "PAID" && inv.docType === "INVOICE" && (
+          <a href={`/app/kwitansi/${inv.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:underline dark:text-sky-400 print:hidden">
+            Lihat / cetak Kwitansi →
+          </a>
+        )}
         <div className="print:hidden space-y-4">
           {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}
           {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />}

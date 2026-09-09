@@ -26,6 +26,11 @@ export default async function TechInvoicePage({ params }: { params: Promise<{ id
         {data.inv.status !== "CANCELLED" && (
           <InvoiceActions invoiceId={data.inv.id} variant="tech" docLabel={data.inv.docType === "PROFORMA" ? "Proforma" : "Invoice"} />
         )}
+        {data.inv.status === "PAID" && data.inv.docType === "INVOICE" && (
+          <a href={`/t/kwitansi/${data.inv.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:underline dark:text-sky-400 print:hidden">
+            Lihat / cetak Kwitansi →
+          </a>
+        )}
         {data.inv.docType === "INVOICE" && (data.inv.status === "ISSUED" || data.inv.status === "OVERDUE") && (
           <div className="print:hidden">
             <PaymentPanel invoiceId={data.inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />
