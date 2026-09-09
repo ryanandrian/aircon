@@ -276,6 +276,19 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
       <section className="mx-auto max-w-6xl px-5 py-10">
         <a href="#harga" aria-label="Bonus fitur: Website profesional khusus bisnis servis AC Anda — lihat paket harga"
           className="group block overflow-hidden rounded-3xl border shadow-lg ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-xl dark:ring-white/10">
+          {/* Teks ringkas — HANYA mobile (teks di gambar terlalu kecil di HP). Di desktop disembunyikan (redundan). */}
+          <div className="bg-card px-5 pt-5 lg:hidden">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-3 py-1 text-sm font-bold text-white">
+              <Icon.Star className="h-3.5 w-3.5" aria-hidden /> Bonus Fitur
+            </span>
+            <h3 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-foreground">
+              Website Profesional Khusus Bisnis Servis AC Anda
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Yang dapat Anda sesuaikan (Custom) dan publikasikan melalui sosial media untuk mendapatkan
+              pelanggan baru dan/atau booking layanan (Online Booking System).
+            </p>
+          </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/features/bonus-website.webp"
             alt="Bonus Fitur: Website profesional khusus bisnis servis AC Anda — bisa dikustom, dipublikasikan ke sosial media, dengan sistem booking online."
