@@ -13,7 +13,7 @@ import {
   Phone, Navigation, MapPin, Calendar, Snowflake, Wind, Building2, DollarSign,
   Hand, FileText, PartyPopper, Clock, ShieldCheck, Users, Package, Send,
   Menu, Settings, LayoutDashboard, BarChart3, Star, ChevronRight, HelpCircle, Trash2, Power,
-  AlertTriangle,
+  AlertTriangle, Download, Upload,
 } from "lucide-react";
 
 /** Pemetaan semantik nama-domain -> komponen ikon (agar konsisten lintas halaman). */
@@ -61,6 +61,8 @@ export const Icon = {
   Alert: AlertTriangle,        // peringatan / jatuh tempo
   Settings: Settings,         // pengaturan
   Dashboard: LayoutDashboard, // ringkasan / dashboard
+  Download: Download,         // unduh (template impor)
+  Upload: Upload,             // unggah (impor file)
 };
 
 export type IconName = keyof typeof Icon;

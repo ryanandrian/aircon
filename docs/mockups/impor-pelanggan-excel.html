@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Impor Pelanggan via Excel (Aircon)</title>
+<style>
+  :root{--brand:#0ea5e9;--brand-d:#0284c7;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f1f5f9;
+    --card:#fff;--radius:0.7rem;--ok:#059669;--ok-bg:#ecfdf5;--warn:#b45309;--warn-bg:#fffbeb;--err:#dc2626;--err-bg:#fef2f2;
+    --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Geist",sans-serif;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:var(--font);color:var(--ink);display:flex;flex-wrap:wrap;gap:26px;justify-content:center;padding:28px 14px 60px}
+  .phone{width:390px;background:var(--card);border-radius:22px;overflow:hidden;box-shadow:0 12px 40px rgba(2,32,71,.14);border:1px solid var(--line)}
+  .bar{background:linear-gradient(135deg,#0c4a6e,#0369a1);color:#fff;padding:16px 18px}
+  .bar h1{font-size:1.05rem;margin:0;font-weight:800}.bar p{margin:3px 0 0;font-size:.78rem;color:#bae6fd}
+  .body{padding:18px}
+  .step{display:flex;gap:11px;align-items:flex-start;margin-bottom:16px}
+  .num{width:26px;height:26px;border-radius:50%;background:var(--brand);color:#fff;font-weight:800;display:grid;place-items:center;font-size:.85rem;flex:0 0 auto}
+  .st{font-weight:700;font-size:.92rem}.sd{font-size:.8rem;color:var(--muted);margin-top:2px;line-height:1.45}
+  .btn{display:block;width:100%;text-align:center;background:var(--brand);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:.96rem;padding:13px;border-radius:var(--radius);margin-top:8px;cursor:pointer;box-shadow:0 6px 18px rgba(14,165,233,.32)}
+  .btn.ghost{background:#fff;color:var(--brand-d);border:1.5px solid var(--brand);box-shadow:none}
+  .btn.dl{background:var(--ok-bg);color:#065f46;border:1.5px solid #a7f3d0;box-shadow:none;display:flex;align-items:center;justify-content:center;gap:8px}
+  .drop{border:2px dashed #93c5fd;border-radius:var(--radius);background:#f0f9ff;padding:26px 14px;text-align:center;margin-top:8px}
+  .drop svg{width:38px;height:38px;color:var(--brand)}
+  .drop .t{font-weight:700;margin-top:8px}.drop .s{font-size:.78rem;color:var(--muted);margin-top:3px}
+  .note{font-size:.76rem;color:var(--muted);background:#f8fafc;border:1px dashed var(--line);border-radius:var(--radius);padding:11px 13px;margin-top:12px;line-height:1.5}
+  .note b{color:var(--ink)}
+  .lbl{display:block;text-align:center;font-weight:800;margin:34px 0 8px;color:var(--muted);font-size:.9rem}
+  /* preview */
+  .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:2px 0 14px}
+  .stat{border-radius:var(--radius);padding:10px 8px;text-align:center;border:1px solid var(--line)}
+  .stat .n{font-size:1.35rem;font-weight:800;line-height:1}.stat .l{font-size:.66rem;color:var(--muted);margin-top:4px;font-weight:600}
+  .stat.ok{background:var(--ok-bg);border-color:#a7f3d0}.stat.ok .n{color:var(--ok)}
+  .stat.dup{background:var(--warn-bg);border-color:#fde68a}.stat.dup .n{color:var(--warn)}
+  .stat.err{background:var(--err-bg);border-color:#fecaca}.stat.err .n{color:var(--err)}
+  .srow{display:flex;align-items:center;gap:10px;padding:10px 3px;border-bottom:1px solid var(--line)}
+  .ava{width:34px;height:34px;border-radius:50%;background:#e0f2fe;color:var(--brand-d);display:grid;place-items:center;font-weight:800;font-size:.8rem;flex:0 0 auto}
+  .nm{font-weight:600;font-size:.88rem}.ph{font-size:.76rem;color:var(--muted)}
+  .tag{margin-left:auto;font-size:.66rem;font-weight:800;padding:3px 8px;border-radius:99px}
+  .tag.ok{color:var(--ok);background:var(--ok-bg);border:1px solid #a7f3d0}
+  .tag.dup{color:var(--warn);background:var(--warn-bg);border:1px solid #fde68a}
+  .tag.err{color:var(--err);background:var(--err-bg);border:1px solid #fecaca}
+  .errbox{background:var(--err-bg);border:1px solid #fecaca;border-radius:var(--radius);padding:10px 12px;margin:12px 0;font-size:.78rem;color:#991b1b;line-height:1.5}
+  table{width:100%;border-collapse:collapse;font-size:.72rem;margin-top:6px}
+  th,td{border:1px solid var(--line);padding:5px 6px;text-align:left}
+  th{background:#0369a1;color:#fff;font-weight:700}
+  td.req{background:#e0f2fe}
+  .badge{display:inline-block;font-size:.6rem;font-weight:800;color:#fff;background:var(--err);padding:1px 6px;border-radius:99px;margin-left:5px}
+</style></head><body>
+
+<!-- 1: Download template -->
+<div><div class="lbl">Layar 1 — Unduh template</div>
+<div class="phone"><div class="bar"><h1>Impor Pelanggan</h1><p>Cara paling lengkap & rapi</p></div>
+<div class="body">
+  <div class="step"><div class="num">1</div><div><div class="st">Unduh template Excel</div><div class="sd">Sudah ada judul kolom, contoh isi, & petunjuk. Tinggal ganti dengan data Anda.</div></div></div>
+  <button class="btn dl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Unduh Template_Pelanggan.xlsx</button>
+  <div class="step" style="margin-top:20px"><div class="num">2</div><div><div class="st">Isi di HP atau laptop</div><div class="sd">Buka pakai Excel / Google Sheets / WPS. Isi Nama & Nomor (wajib), sisanya opsional.</div></div></div>
+  <div class="step"><div class="num">3</div><div><div class="st">Unggah kembali ke sini</div><div class="sd">Kami periksa & tampilkan pratinjau sebelum disimpan.</div></div></div>
+  <div class="note">💡 <b>Tidak perlu data unit AC.</b> Merek/PK AC dicatat nanti saat servis pertama — template ini khusus data pelanggan agar cepat & tak membingungkan.</div>
+</div></div></div>
+
+<!-- 2: isi template (contoh tampilan kolom) -->
+<div><div class="lbl">Layar 2 — Isi template (kolomnya)</div>
+<div class="phone"><div class="bar"><h1>Template Excel</h1><p>Kolom biru = wajib</p></div>
+<div class="body">
+  <table>
+    <tr><th>Nama<span class="badge">wajib</span></th><th>No. WA/HP<span class="badge">wajib</span></th><th>Alamat</th><th>Tipe</th></tr>
+    <tr><td class="req">Budi Santoso</td><td class="req">081234567890</td><td>Jl. Melati 12</td><td>Perorangan ▾</td></tr>
+    <tr><td class="req">Siti Wulandari</td><td class="req">0857 1122 3344</td><td>Griya Asri B2</td><td>Perorangan ▾</td></tr>
+    <tr><td class="req">PT Sejuk Abadi</td><td class="req">0215558899</td><td>Menara Lt.4</td><td>Badan ▾</td></tr>
+  </table>
+  <div class="note" style="margin-top:14px">Kolom lanjutan (opsional): <b>Email, Nama PIC, Telp PIC, NPWP, Catatan</b> — untuk pelanggan perusahaan. Boleh dikosongkan.</div>
+  <div class="note">✓ Kolom <b>Tipe</b> pakai <b>dropdown</b> (Perorangan / Badan) — tak bisa salah ketik.<br>✓ Nomor format bebas (0812 / +62 / spasi / strip) — dirapikan otomatis.</div>
+</div></div></div>
+
+<!-- 3: preview validasi -->
+<div><div class="lbl">Layar 3 — Pratinjau & simpan</div>
+<div class="phone"><div class="bar"><h1>Pratinjau Impor</h1><p>Dari file: Pelanggan.xlsx (146 baris)</p></div>
+<div class="body">
+  <div class="stats">
+    <div class="stat ok"><div class="n">138</div><div class="l">Siap disimpan</div></div>
+    <div class="stat dup"><div class="n">6</div><div class="l">Sudah ada</div></div>
+    <div class="stat err"><div class="n">2</div><div class="l">Bermasalah</div></div>
+  </div>
+  <div class="errbox">⚠ <b>2 baris perlu diperbaiki:</b><br>• Baris 15 — Nomor HP kosong (wajib)<br>• Baris 88 — Nomor tidak valid ("abc")<br><span style="color:var(--muted)">Baris valid tetap bisa disimpan; yang ini dilewati.</span></div>
+  <div class="srow"><div class="ava">BS</div><div><div class="nm">Budi Santoso</div><div class="ph">62812 3456 7890 · Perorangan</div></div><span class="tag ok">baru</span></div>
+  <div class="srow"><div class="ava">PT</div><div><div class="nm">PT Sejuk Abadi</div><div class="ph">6221 555 8899 · Badan · PIC Ibu Rina</div></div><span class="tag ok">baru</span></div>
+  <div class="srow"><div class="ava" style="background:#fef3c7;color:#b45309">RH</div><div><div class="nm">Rudi Hartono</div><div class="ph">62813 9876 5432</div></div><span class="tag dup">sudah ada</span></div>
+  <div class="srow"><div class="ava" style="background:#fee2e2;color:#dc2626">!</div><div><div class="nm">(Baris 15)</div><div class="ph">Nomor HP kosong</div></div><span class="tag err">dilewati</span></div>
+  <button class="btn" style="margin-top:14px">Simpan 138 Pelanggan</button>
+  <button class="btn ghost">Batal</button>
+</div></div></div>
+
+</body></html>

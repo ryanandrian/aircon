@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SubmitButton } from "@/components/submit-button";
 import { Icon } from "@/components/icons";
 import { EmptyState } from "@/components/empty-state";
+import { ImportPanel } from "./import-panel";
 import {
   actionCreateCustomer, actionUpdateCustomer, actionDeleteCustomer, actionLoadCustomers,
   type CustomerFormInput,
@@ -70,6 +71,7 @@ export function CustomerManager({
   const [loadingMore, setLoadingMore] = useState(false);
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<CustomerRow | null>(null);
+  const [showImport, setShowImport] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [billingName, setBillingName] = useState("");
@@ -156,12 +158,24 @@ export function CustomerManager({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Kelola data pelanggan usaha Anda</p>
-        {!showingForm && (
-          <Button size="sm" onClick={openAdd}>
-            <Icon.Users className="h-4 w-4" aria-hidden /> Tambah Pelanggan
-          </Button>
+        {!showingForm && !showImport && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
+              <Icon.Upload className="h-4 w-4" aria-hidden /> Impor
+            </Button>
+            <Button size="sm" onClick={openAdd}>
+              <Icon.Users className="h-4 w-4" aria-hidden /> Tambah Pelanggan
+            </Button>
+          </div>
         )}
       </div>
+
+      {showImport && (
+        <ImportPanel
+          onClose={() => setShowImport(false)}
+          onDone={() => { setShowImport(false); router.refresh(); }}
+        />
+      )}
 
       {showingForm && (
         <Card>

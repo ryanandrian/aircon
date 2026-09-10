@@ -159,6 +159,11 @@ export default function OnboardingWizard({ initialRef = "" }: { initialRef?: str
           >
             Mulai Pakai Aircon
           </SubmitButton>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Sudah punya daftar pelanggan? Tak perlu ketik satu per satu — nanti bisa diimpor
+            sekaligus dari Excel di menu <span className="font-medium text-foreground">Pelanggan</span>.
+          </p>
         </form>
       </CardContent>
     </Card>

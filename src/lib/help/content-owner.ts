@@ -84,6 +84,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
       "Untuk outlet/cabang yang tagihannya ditagihkan ke pusat, ketuk '+ Pilih kantor pusat' lalu cari & pilih pelanggan induknya.",
       "Ketuk 'Simpan'. Ketuk sebuah pelanggan untuk membuka detailnya (unit AC, riwayat, harga khusus).",
       "Gunakan kolom 'Cari pelanggan' untuk menemukan cepat; tombol 'Edit' mengubah data, 'Hapus' menghapus.",
+      "Punya banyak pelanggan sekaligus? Ketuk 'Impor' → 'Unduh Template' Excel → isi → unggah kembali. Aplikasi memeriksa & menampilkan pratinjau sebelum menyimpan.",
     ],
     tips: [
       "Nomor WhatsApp yang benar adalah kunci — di situlah pengingat servis otomatis dikirim.",
@@ -98,6 +99,10 @@ export const OWNER_TOPICS: HelpTopic[] = [
       {
         q: "Apa itu 'Kantor Pusat (penerima tagihan)' dan kapan dipakai?",
         a: "Untuk pelanggan yang punya banyak cabang/outlet tapi tagihannya dibayar terpusat (mis. tiap outlet Pizza Hut ditagihkan ke PT pusat). Buat dulu pelanggan kantor pusatnya, lalu pada tiap outlet pilih kantor pusat itu. Saat invoice/proforma outlet dibuat, tagihan otomatis 'Ditagihkan kepada' kantor pusat, tapi lokasi servis tiap unit tetap tercantum jelas. Kosongkan bila pelanggan menagih atas namanya sendiri.",
+      },
+      {
+        q: "Bagaimana mengimpor banyak pelanggan sekaligus dari Excel?",
+        a: "Ketuk 'Impor' lalu 'Unduh Template'. Template punya sheet Panduan (baca dulu) + dua sheet data: 'Pelanggan Tunai' (bayar di tempat, kolom ringkas) dan 'Pelanggan Tempo' (institusi yang ditagih, kolom lengkap dengan PIC Keuangan & termin). Isi yang sesuai — boleh salah satu atau keduanya. Hanya Nama & Nomor yang wajib. Unggah kembali, aplikasi menampilkan berapa yang valid, duplikat (otomatis dilewati), dan baris bermasalah sebelum Anda menyimpan. Data unit AC tidak perlu diisi — dicatat saat servis pertama.",
       },
     ],
   },
