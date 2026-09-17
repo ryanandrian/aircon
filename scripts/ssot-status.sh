@@ -22,17 +22,17 @@ echo "  /login                      : HTTP $(code "$APP_URL/login")"
 echo "  /manifest.json (PWA)        : HTTP $(code "$APP_URL/manifest.json")"
 
 line
-echo "[PEMBAYARAN / MIDTRANS]  (flag saja, bukan secret)"
+echo "[PEMBAYARAN / IPAYMU]  (flag saja, bukan secret)"
 if [ -f "$APP_KEY" ]; then
   ssh -i "$APP_KEY" -o ConnectTimeout=12 -o StrictHostKeyChecking=accept-new "$APP_VPS" \
-    "sudo grep -E '^MIDTRANS_ENV=' $ENV_FILE 2>/dev/null; \
-     sudo grep -E '^MIDTRANS_PRODUCTION_SERVER_KEY=' $ENV_FILE 2>/dev/null | sed -E 's/=.+/= [TERISI]/; t; s/=.*/= [KOSONG]/'; \
+    "sudo grep -E '^(PAYMENT_GATEWAY|IPAYMU_ENV)=' $ENV_FILE 2>/dev/null; \
+     sudo grep -E '^IPAYMU_(SANDBOX|PRODUCTION)_(VA|API_KEY)=' $ENV_FILE 2>/dev/null | sed -E 's/=.+/= [TERISI]/; t; s/=.*/= [KOSONG]/'; \
      echo \"  service aircon-app          : \$(systemctl is-active aircon-app 2>/dev/null)\"" \
     2>/dev/null | sed 's/^/  /' || echo "  (tak bisa SSH ke VPS app — cek key/jaringan)"
 else
   echo "  (lewati: $APP_KEY tak ada — jalankan dari mesin yang punya key)"
 fi
-echo "  webhook GET (harus 405)     : HTTP $(code "$APP_URL/api/billing/midtrans-webhook")"
+echo "  webhook GET (harus 405)     : HTTP $(code "$APP_URL/api/billing/ipaymu-webhook")"
 
 line
 echo "[GATEWAY WA + MQTT]"

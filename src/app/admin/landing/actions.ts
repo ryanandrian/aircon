@@ -51,7 +51,7 @@ export async function actionSaveLanding(fd: FormData): Promise<{ ok: boolean; er
       howSubtitle: str(fd, "howSubtitle"),
       featuresTitle: str(fd, "featuresTitle"),
       featuresSubtitle: str(fd, "featuresSubtitle"),
-      csWhatsapp: str(fd, "csWhatsapp"),
+      csWhatsapp: (() => { const n = str(fd, "csWhatsapp"); return n ? n.replace(/\D/g, "") : ""; })(),
       customTierTitle: str(fd, "customTierTitle"),
       customTierDesc: str(fd, "customTierDesc"),
       ctaTitle: str(fd, "ctaTitle"),

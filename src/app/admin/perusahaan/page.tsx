@@ -10,7 +10,7 @@ export default async function AdminPerusahaanPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Profil Perusahaan</h1>
         <p className="text-sm text-muted-foreground">
-          Identitas badan usaha penyedia (Lumite) untuk invoice/kwitansi &amp; data merchant Midtrans.
+          Identitas badan usaha penyedia (Lumite) untuk invoice/kwitansi &amp; data merchant iPaymu.
           Status PKP menentukan apakah pajak (PPN) dipungut — semua tanpa hardcode.
         </p>
       </div>

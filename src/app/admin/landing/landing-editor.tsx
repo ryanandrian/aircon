@@ -94,9 +94,9 @@ export function LandingEditor({ initial }: { initial: Content }) {
         <CardContent className="space-y-4 p-6">
           <h2 className="text-lg font-semibold">Kontak CS &amp; Tier Full Custom</h2>
           <div className="space-y-1.5">
-            <Label htmlFor="csWhatsapp">Nomor WhatsApp CS (format 62xxx)</Label>
-            <Input id="csWhatsapp" name="csWhatsapp" placeholder="6281234567890" defaultValue={s("csWhatsapp")} />
-            <p className="text-xs text-muted-foreground">Tombol &quot;Hubungi CS&quot; di tier Full Custom membuka WhatsApp ke nomor ini.</p>
+            <Label htmlFor="csWhatsapp">Nomor WhatsApp Customer Service (default: 6285286424691)</Label>
+            <Input id="csWhatsapp" name="csWhatsapp" placeholder="6285286424691" defaultValue={s("csWhatsapp")} />
+            <p className="text-xs text-muted-foreground">Dipakai floating button di landing dan panel owner/admin. Kosongkan untuk memakai nomor default gateway platform.</p>
           </div>
           <div className="space-y-1.5"><Label htmlFor="customTierTitle">Judul tier Full Custom</Label><Input id="customTierTitle" name="customTierTitle" defaultValue={s("customTierTitle")} /></div>
           <div className="space-y-1.5"><Label htmlFor="customTierDesc">Deskripsi tier Full Custom</Label><Textarea id="customTierDesc" name="customTierDesc" defaultValue={s("customTierDesc")} rows={3} /></div>

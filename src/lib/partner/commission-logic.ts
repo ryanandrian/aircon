@@ -11,6 +11,20 @@
 
 export type CommissionType = "FLAT_IDR" | "PERCENT";
 
+export type PlanCommissionRule = {
+  plan: string;
+  commissionType: CommissionType;
+  commissionValue: number;
+};
+
+/** Return the explicit rule for a plan; missing rules fail closed. */
+export function selectPlanCommissionRule(
+  rules: readonly PlanCommissionRule[],
+  plan: string,
+): PlanCommissionRule | null {
+  return rules.find((rule) => rule.plan === plan) ?? null;
+}
+
 /**
  * Hitung komisi agen (rupiah) dari satu pembayaran settlement.
  * @param grossIdr  rupiah settlement yang benar-benar diterima (net setelah diskon)

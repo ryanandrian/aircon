@@ -2,10 +2,10 @@
 
 > **Prinsip (wajib):** SSOT sejati = **kode + kenyataan produksi**. Dokumen adalah CERMINAN, bukan sumber.
 > Bila dokumen ≠ kenyataan, **kenyataan menang** dan dokumen itu bug yang harus diperbaiki di commit yang sama.
-> Untuk fakta yang berubah (hosting, Midtrans, service, TLS), JANGAN percaya tulisan tangan —
+> Untuk fakta yang berubah (hosting, payment gateway, service, TLS), JANGAN percaya tulisan tangan —
 > jalankan **`bash scripts/ssot-status.sh`** (read-only) untuk fakta terverifikasi.
 
-Terakhir dirapikan: 6 September 2026.
+> Terakhir dirapikan: 18 September 2026.
 
 ---
 
@@ -19,7 +19,8 @@ Perbarui SETIAP kali kode/infra berubah. Ini yang boleh dipakai untuk mengambil 
 | `Security_Model.md` | Model keamanan/otorisasi. **Dirujuk kode** (`src/lib/auth/*`). |
 | `BuildSpecPack_Part1_DataSchema_and_API.md` | Skema data & kontrak API. **Dirujuk kode** (`src/lib/domain/job-state-machine.ts`). |
 | `BuildSpecPack_Part3_BusinessRules_and_Defaults.md` | Aturan bisnis & default. **Dirujuk kode** (`src/lib/domain/defaults.ts`). |
-| `Billing_Midtrans.md` | Kontrak billing/Midtrans (env-driven, production aktif). |
+| `Ipaymu_Integration_Spec.md` | Kontrak payment iPaymu aktif: redirect, callback, signature, status, dan reconcile. |
+| `Ipaymu_Production_Runbook.md` | Runbook konfigurasi, verifikasi, cutover, dan rollback iPaymu. |
 | `ALUR_APLIKASI.md` | Alur pengguna end-to-end. |
 | `PRD_WA_Campaign_Platform.md` | Spesifikasi modul WA Campaign (aktif dikembangkan). |
 | `WA_Gateway_Integration_Pointer.md` | Pointer ke SSOT gateway (diunduh dari gw.lumite.biz.id, bukan salinan). |
@@ -61,7 +62,7 @@ Ini artefak titik-waktu (rencana, keputusan arsitektur, laporan uji, spec awal).
 
 ## Aturan menjaga SSOT (agar tak jadi sampah lagi)
 1. **Ubah dokumen di commit yang sama** dengan perubahan kode/infra yang membuatnya berubah.
-2. **Satu fakta, satu tempat.** Jangan menyalin fakta (mis. domain/URL, mode Midtrans) ke banyak file.
+2. **Satu fakta, satu tempat.** Jangan menyalin fakta (mis. domain/URL, mode payment) ke banyak file.
 3. **Fakta volatil → verifikasi, jangan tulis tangan.** Pakai `scripts/ssot-status.sh`.
 4. **Historis itu beku.** Jangan memperbarui dokumen HISTORIS; kalau ada keputusan baru, buat catatan baru atau perbarui dokumen HIDUP.
 5. **Dokumen "Dirujuk kode" tak boleh dipindah/rename** tanpa update rujukan di `src/`.

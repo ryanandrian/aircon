@@ -4,28 +4,25 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantLogo } from "@/components/tenant-logo";
+import { gatewaySessionStatus } from "@/lib/wa/gateway-relay";
+import { CustomerServiceFab } from "@/components/customer-service-fab";
 import { AppNav } from "./_components/app-nav";
 
-/**
- * App Shell tenant — sidebar persisten (desktop md+). Navigasi mobile via hamburger di AppHeader
- * tiap halaman (drawer). Navigasi seragam (AppNav) menggantikan pola launcher-card. Mobile-first.
- */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app");
-  // Panel kantor hanya untuk OWNER & ADMIN. Teknisi (PIN) diarahkan ke layar lapangan.
   if (ctx.role === "TECHNICIAN") redirect("/t");
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: ctx.tenantId },
-    select: { name: true, logoUrl: true },
-  });
+  const [tenant, platformWa] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true, logoUrl: true } }),
+    gatewaySessionStatus("lumite-platform"),
+  ]);
   const name = tenant?.name ?? "Aircon";
+  const csPhone = platformWa.ok ? (platformWa.phone ?? "").replace(/\D/g, "") : "";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
-        {/* Sidebar desktop */}
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card p-5 md:flex">
           <div className="mb-6 flex items-center gap-2.5">
             <TenantLogo name={name} logoUrl={tenant?.logoUrl} size={36} />
@@ -40,10 +37,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <ThemeToggle />
           </div>
         </aside>
-
-        {/* Kolom konten — tiap halaman punya AppHeader sendiri (judul + hamburger mobile) */}
         <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </div>
+      {csPhone && <CustomerServiceFab phone={csPhone} />}
     </div>
   );
 }

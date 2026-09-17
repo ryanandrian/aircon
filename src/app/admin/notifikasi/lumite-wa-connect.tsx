@@ -8,13 +8,19 @@ import { actionLumiteWaInit, actionLumiteWaStatus, actionLumiteWaLogout } from "
 
 type Phase = "loading" | "connected" | "disconnected" | "connecting" | "error";
 
-/**
- * Hubungkan WhatsApp LUMITE (sesi lumite-platform) — 1 nomor untuk notif platform → tenant.
- * Pola sama dengan halaman tenant: init → QR → poll tiap 3 dtk → Tersambung. Kunci gateway server-side.
- */
+function formatWaPhone(raw: string): string {
+  const d = raw.replace(/[^0-9]/g, "");
+  if (!d) return raw;
+  const rest = d.startsWith("62") ? d.slice(2) : d;
+  return `+62 ${[rest.slice(0, 3), rest.slice(3, 7), rest.slice(7)].filter(Boolean).join("-")}`;
+}
+
+/** Platform connection UI. externalId remains server-owned: lumite-platform. */
 export function LumiteWaConnect() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [qr, setQr] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -22,21 +28,24 @@ export function LumiteWaConnect() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  const refreshStatus = useCallback(async () => {
-    const r = await actionLumiteWaStatus();
-    if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memeriksa status"); return; }
-    if (r.ready) { setPhase("connected"); setQr(null); stopPoll(); }
-    else setPhase((p) => (p === "connecting" ? p : "disconnected"));
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      const r = await actionLumiteWaStatus();
+      if (cancelled) return;
+      if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memeriksa status"); return; }
+      setPhone(r.phone ?? null);
+      if (r.ready) { setPhase("connected"); setQr(null); setAuthenticating(false); stopPoll(); }
+      else if (r.authenticating) { setPhase("connecting"); setQr(null); setAuthenticating(true); }
+      else if (r.qr) { setPhase("connecting"); setQr(r.qr); setAuthenticating(false); }
+      else setPhase("disconnected");
+    };
+    queueMicrotask(() => { void check(); });
+    return () => { cancelled = true; stopPoll(); };
   }, [stopPoll]);
 
-  useEffect(() => {
-    void refreshStatus();
-    return () => stopPoll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleConnect = useCallback(async () => {
-    setPhase("connecting"); setError(""); setQr(null);
+    setPhase("connecting"); setError(""); setQr(null); setAuthenticating(false);
     const r = await actionLumiteWaInit();
     if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memulai"); return; }
     if (r.ready) { setPhase("connected"); return; }
@@ -45,8 +54,10 @@ export function LumiteWaConnect() {
     pollRef.current = setInterval(async () => {
       const s = await actionLumiteWaStatus();
       if (!s.ok) return;
-      if (s.ready) { setPhase("connected"); setQr(null); stopPoll(); }
-      else if (s.qr) setQr(s.qr);
+      setPhone(s.phone ?? null);
+      if (s.ready) { setPhase("connected"); setQr(null); setAuthenticating(false); stopPoll(); }
+      else if (s.authenticating) { setPhase("connecting"); setQr(null); setAuthenticating(true); }
+      else if (s.qr) { setPhase("connecting"); setQr(s.qr); setAuthenticating(false); }
     }, 3000);
   }, [stopPoll]);
 
@@ -54,67 +65,20 @@ export function LumiteWaConnect() {
     if (!confirm("Putuskan WhatsApp Lumite? Notifikasi platform via WA berhenti sampai ditautkan ulang.")) return;
     const r = await actionLumiteWaLogout();
     if (!r.ok) { setError(r.error ?? "Gagal memutuskan"); return; }
-    setPhase("disconnected"); setQr(null);
-  }, []);
+    stopPoll(); setPhase("disconnected"); setQr(null); setPhone(null); setAuthenticating(false);
+  }, [stopPoll]);
 
   return (
-    <Card>
-      <CardContent className="space-y-4 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">WhatsApp Lumite (Nomor Platform)</h2>
-            <p className="text-sm text-muted-foreground">
-              Satu nomor Lumite untuk mengirim notifikasi ke semua tenant (tagihan, sambutan, peringatan).
-              Terpisah dari nomor WhatsApp masing-masing usaha.
-            </p>
-          </div>
-          {phase === "connected" && <Badge className="shrink-0 bg-emerald-600 hover:bg-emerald-600">Tersambung</Badge>}
-          {(phase === "disconnected" || phase === "connecting") && <Badge variant="secondary" className="shrink-0">Belum tersambung</Badge>}
-        </div>
-
-        {phase === "loading" && <p className="text-sm text-muted-foreground">Memeriksa status…</p>}
-
-        {phase === "connected" && (
-          <div className="space-y-3">
-            <p className="text-sm text-emerald-700 dark:text-emerald-400">Nomor Lumite aktif. Notifikasi platform via WhatsApp siap terkirim.</p>
-            <Button variant="outline" size="sm" onClick={handleLogout}>Putuskan</Button>
-          </div>
-        )}
-
-        {phase === "disconnected" && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Belum ada nomor Lumite tertaut.</p>
-            <Button size="sm" onClick={handleConnect}>Hubungkan WhatsApp Lumite</Button>
-          </div>
-        )}
-
-        {phase === "connecting" && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Buka WhatsApp di HP nomor Lumite → <b>Perangkat Tertaut</b> → <b>Tautkan Perangkat</b> → pindai kode.
-            </p>
-            {qr ? (
-              <div className="inline-block rounded-xl border bg-white p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qr} alt="QR WhatsApp Lumite" width={264} height={264} />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Menyiapkan kode QR…</p>
-            )}
-            <p className="text-xs text-muted-foreground">Kode menyegar otomatis. Berubah jadi “Tersambung” begitu berhasil.</p>
-            <div>
-              <Button variant="ghost" size="sm" onClick={() => { stopPoll(); setPhase("disconnected"); setQr(null); }}>Batal</Button>
-            </div>
-          </div>
-        )}
-
-        {phase === "error" && (
-          <div className="space-y-3">
-            <p className="text-sm text-destructive">{error || "Terjadi kesalahan."}</p>
-            <Button size="sm" onClick={handleConnect}>Coba lagi</Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <Card><CardContent className="space-y-4 p-5">
+      <div className="flex items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">WhatsApp Lumite (Nomor Platform)</h2><p className="text-sm text-muted-foreground">Satu nomor Lumite untuk mengirim notifikasi ke semua tenant. Terpisah dari nomor WhatsApp usaha.</p></div>{phase === "connected" && <Badge className="shrink-0 bg-emerald-600 hover:bg-emerald-600">Tersambung</Badge>}{(phase === "disconnected" || phase === "connecting") && <Badge variant="secondary" className="shrink-0">{authenticating ? "Menyiapkan sesi…" : "Belum tersambung"}</Badge>}</div>
+      {phase === "loading" && <p className="text-sm text-muted-foreground">Memeriksa status…</p>}
+      {phase === "connected" && <div className="space-y-3"><p className="text-sm text-emerald-700 dark:text-emerald-400">Nomor Lumite aktif dan siap mengirim notifikasi.</p>{phone && <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm"><span className="text-muted-foreground">Nomor tertaut: </span><b>{formatWaPhone(phone)}</b></div>}<Button variant="outline" size="sm" onClick={handleLogout}>Putuskan</Button></div>}
+      {phase === "disconnected" && <div className="space-y-3"><p className="text-sm text-muted-foreground">Belum ada nomor Lumite tertaut.</p><Button size="sm" onClick={handleConnect}>Hubungkan WhatsApp Lumite</Button></div>}
+      {phase === "connecting" && <div className="space-y-3"><p className="text-sm text-muted-foreground">{authenticating ? "Berhasil dipindai — menyiapkan sesi WhatsApp…" : "Buka WhatsApp → Perangkat Tertaut → Tautkan Perangkat → pindai kode."}</p>{qr ? <div className="inline-block rounded-xl border bg-white p-3">
+   {/* eslint-disable-next-line @next/next/no-img-element -- QR data URL harus ditampilkan langsung dari gateway */}
+   <img src={qr} alt="QR WhatsApp Lumite" width={264} height={264} />
+ </div> : <p className="text-sm text-muted-foreground">{authenticating ? "Tunggu beberapa detik, status akan berubah otomatis." : "Menyiapkan kode QR…"}</p>}<Button variant="ghost" size="sm" onClick={() => { stopPoll(); setPhase("disconnected"); setQr(null); }}>Batal</Button></div>}
+      {phase === "error" && <div className="space-y-3"><p className="text-sm text-destructive">{error || "Terjadi kesalahan."}</p><Button size="sm" onClick={handleConnect}>Coba lagi</Button></div>}
+    </CardContent></Card>
   );
 }

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  // Hydration guard: mounted hanya true di klien, mencegah SSR/client mismatch pada tombol tema.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   const current = mounted ? (resolvedTheme ?? theme) : undefined;

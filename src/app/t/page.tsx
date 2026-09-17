@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpButton } from "@/components/help/help-button";
 import { getHelpTopic } from "@/lib/help/help-content";
-import { TechScanButton } from "./tech-scan-button";
+
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +63,6 @@ export default async function TechnicianHome() {
             <h1 className="truncate text-lg font-bold leading-tight text-foreground">{ctx.name.split(" ")[0]}</h1>
             <p className="truncate text-xs text-muted-foreground">{todayLabel}</p>
           </div>
-          <TechScanButton />
           <HelpButton topic={getHelpTopic("t-beranda")} />
           <ThemeToggle />
         </div>

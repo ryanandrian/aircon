@@ -162,7 +162,6 @@ async function processQueue() {
 async function main() {
   console.log("[wa-worker] start. Poll tiap", POLL_MS, "ms. Sesi:", SESSION_DIR);
   // loop utama
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       await processQueue();

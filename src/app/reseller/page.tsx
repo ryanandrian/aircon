@@ -43,7 +43,7 @@ export default async function ResellerDashboard() {
         )}
 
         <section className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-foreground dark:border-sky-900/40 dark:bg-sky-950/30">
-          <b>Cara kerja:</b> sebarkan kode Anda. Setiap usaha AC yang mendaftar &amp; berlangganan dengan kode Anda tercatat sebagai bawaan Anda — komisi {d.commissionType === "PERCENT" ? `${d.commissionValue}%` : rupiah(d.commissionValue)} per pembayaran. Yang membayar Anda adalah <b>agen ({d.agentName})</b>, dihitung otomatis oleh sistem.
+          <b>Cara kerja:</b> sebarkan kode Anda. Setiap usaha AC yang mendaftar &amp; berlangganan dengan kode Anda tercatat sebagai bawaan Anda — aturan komisi per paket tersimpan di sistem. Yang membayar Anda adalah <b>agen ({d.agentName})</b>, dihitung otomatis oleh sistem.
         </section>
       </div>
     </main>

@@ -114,7 +114,7 @@ export function QrScanner({ onCode, onClose }: { onCode: (code: string) => void;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/90 p-4">
+      <div className="fixed inset-0 z-[100] flex min-h-[100dvh] flex-col bg-black p-4 overscroll-none">
       <div className="flex justify-end">
         <Button type="button" variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/10" aria-label="Tutup">
           <X className="h-5 w-5" />
@@ -122,7 +122,7 @@ export function QrScanner({ onCode, onClose }: { onCode: (code: string) => void;
       </div>
 
       {!camError && (
-        <div className="relative mx-auto mt-4 aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-black">
+      <div className="relative mx-auto mt-4 aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-black shadow-2xl shadow-black">
           <video ref={videoRef} className="h-full w-full object-cover" playsInline muted autoPlay />
           {starting && (
             <div className="absolute inset-0 flex items-center justify-center text-white">

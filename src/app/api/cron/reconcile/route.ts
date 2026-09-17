@@ -1,5 +1,5 @@
 /**
- * Cron reconciler pembayaran (PULL) — penjamin akun Midtrans bersama.
+ * Cron reconciler pembayaran iPaymu (PULL).
  * Dilindungi CRON_SECRET. Dijalankan berkala (mis. tiap 30 menit).
  */
 import { NextRequest, NextResponse } from "next/server";

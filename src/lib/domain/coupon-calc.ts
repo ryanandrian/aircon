@@ -36,7 +36,7 @@ export interface CheckoutBreakdown {
   subtotal: number;      // base - discount (pra-pajak, dasar hitung pajak)
   taxPercent: number;    // persen pajak efektif (0 bila non-PKP / non-taxable)
   taxAmount: number;     // nominal pajak atas subtotal
-  total: number;         // subtotal + taxAmount (= gross_amount ke Midtrans)
+  total: number;         // subtotal + taxAmount
 }
 
 /**

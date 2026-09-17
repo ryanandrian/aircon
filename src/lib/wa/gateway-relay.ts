@@ -81,7 +81,7 @@ export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: bool
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
   try {
     const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}`, {
-      method: "GET", headers: { "X-Api-Key": cfg.key },
+      method: "GET", headers: { "X-Api-Key": cfg.key }, cache: "no-store",
     });
     const data = (await r.json().catch(() => ({}))) as { exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string };
     if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
@@ -89,6 +89,12 @@ export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: bool
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
   }
+}
+
+export async function getPlatformWaPhone(): Promise<string | null> {
+  const status = await gatewaySessionStatus("lumite-platform");
+  const phone = status.ok ? status.phone?.replace(/\D/g, "") : "";
+  return phone || null;
 }
 
 /** Putuskan (logout) sesi WA tenant. */

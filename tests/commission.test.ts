@@ -5,7 +5,27 @@ import {
   taxWithholdingPercent,
   netPayout,
   normalizeCode,
+  selectPlanCommissionRule,
 } from "../src/lib/partner/commission-logic";
+import { isPaymentStatusUpdateAllowed } from "../src/lib/billing/ipaymu-logic";
+
+describe("payment status monotonicity", () => {
+  it("does not allow late non-refund callbacks to downgrade PAID", () => {
+    expect(isPaymentStatusUpdateAllowed("PAID", "PENDING")).toBe(false);
+    expect(isPaymentStatusUpdateAllowed("PAID", "FAILED")).toBe(false);
+    expect(isPaymentStatusUpdateAllowed("PAID", "REFUNDED")).toBe(true);
+  });
+});
+describe("selectPlanCommissionRule", () => {
+  it("returns only the exact plan rule and fails closed when absent", () => {
+    const rules = [
+      { plan: "TRIAL", commissionType: "PERCENT" as const, commissionValue: 10 },
+      { plan: "BUSINESS", commissionType: "FLAT_IDR" as const, commissionValue: 50000 },
+    ];
+    expect(selectPlanCommissionRule(rules, "BUSINESS")?.commissionValue).toBe(50000);
+    expect(selectPlanCommissionRule(rules, "PROFESSIONAL")).toBeNull();
+  });
+});
 
 describe("computeCommission — rupiah PERSIS (SPEC §2.1-2.2)", () => {
   it("persen bulanan: 20% × 500rb = 100rb", () => {

@@ -271,7 +271,12 @@ export async function listTechnicianAssignments(
   all.sort((x, y) => y._ts - x._ts);
 
   const filtered = period ? all.filter((r) => r._key === period) : all;
-  const rows = filtered.map(({ _key, _ts, ...r }) => r); // buang field internal
+  const rows = filtered.map((row) => {
+    const { _key: ignoredKey, _ts: ignoredTs, ...rest } = row;
+    void ignoredKey;
+    void ignoredTs;
+    return rest;
+  }); // buang field internal
   const periods = [...periodsSet].sort().reverse();
   return { rows, periods };
 }
@@ -423,7 +428,12 @@ export async function listTechnicianJobHistory(
   all.sort((x, y) => y._ts - x._ts);
 
   const filtered = period ? all.filter((r) => r._key === period) : all;
-  const rows = filtered.map(({ _key, _ts, ...r }) => r);
+  const rows = filtered.map((row) => {
+    const { _key: ignoredKey, _ts: ignoredTs, ...rest } = row;
+    void ignoredKey;
+    void ignoredTs;
+    return rest;
+  });
   const totalIncentive = rows.reduce((s, r) => s + r.incentive, 0);
   const periods = [...periodsSet].sort().reverse();
   return { rows, periods, totalIncentive, incentiveEnabled };

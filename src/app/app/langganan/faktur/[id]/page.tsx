@@ -32,6 +32,8 @@ export default async function FakturPage({ params }: { params: Promise<{ id: str
   // KWITANSI (bukti terima) bila LUNAS; FAKTUR (tagihan) bila belum.
   const docTitle = isPaid ? "KWITANSI" : "FAKTUR";
 
+  const providerType = payment.providerPaymentType;
+  const providerTransaction = payment.providerTransactionId;
   const taxPercent = effectiveTaxPercent(company.isPkp, policy.taxPercent);
   // Fee channel (customer-imposed) hanya relevan pada transaksi LUNAS (dari rawNotif).
   const gross = isPaid ? extractGrossInfo(payment.rawNotif) : {};
@@ -194,8 +196,8 @@ export default async function FakturPage({ params }: { params: Promise<{ id: str
 
         {/* Metode & catatan kaki configurable */}
         <div className="mt-8 border-t border-slate-200 pt-4 text-xs text-slate-400">
-          {isPaid && payment.paymentType && <div>Metode pembayaran: {payment.paymentType.replace(/_/g, " ")}</div>}
-          {isPaid && payment.midtransTxId && <div>No. transaksi: {payment.midtransTxId}</div>}
+          {isPaid && providerType && <div>Metode pembayaran: {providerType.replace(/_/g, " ")}</div>}
+          {isPaid && providerTransaction && <div>No. transaksi: {providerTransaction}</div>}
           <div className="mt-1">{footerNote}</div>
           {!company.isPkp && <div className="mt-1">{company.legalName || company.brandName} bukan Pengusaha Kena Pajak (PKP) — transaksi tidak dikenakan PPN.</div>}
         </div>

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prisma validate
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm run lint
+      - run: pnpm test
+      - run: pnpm run build
+      - name: Check artifact does not contain secrets
+        run: |
+          rm -rf .next/standalone/.next/static .next/standalone/public
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+          helper=$(find node_modules/.pnpm -type d -path '*@swc+helpers*/node_modules/@swc/helpers' | head -1)
+          traced=$(find .next/standalone/node_modules/.pnpm -type d -path '*@swc+helpers*/node_modules/@swc/helpers' | head -1)
+          if [[ -n "$helper" && -n "$traced" && -d "$helper/esm" && ! -d "$traced/esm" ]]; then cp -r "$helper/esm" "$traced/esm"; fi
+          tar czf /tmp/aircon-artifact.tar.gz --exclude='*.env' --exclude='.env*' -C .next/standalone .
+          bash scripts/verify-artifact.sh /tmp/aircon-artifact.tar.gz
+      - name: Enforce tagged release scope
+        if: startsWith(github.ref, 'refs/tags/')
+        run: bash scripts/verify-release-scope.sh "${GITHUB_REF_NAME}"

@@ -1,20 +1,20 @@
 # PETA KONDISI AIRCON — Status & Rencana Lanjutan (SUMBER KEBENARAN)
 
 > Dokumen tunggal untuk melanjutkan dengan aman kapan pun. Diperbarui tiap milestone.
-> Terakhir diperbarui: 6 September 2026 (rekonsiliasi dengan kenyataan produksi). Commit HEAD: 89b7540.
+> Terakhir diperbarui: 18 September 2026 (rekonsiliasi dengan database Supabase dan source aktif).
 > Jika sesi baru: BACA FILE INI DULU untuk tahu persis di mana kita berhenti.
 >
-> ⚠️ KOREKSI PENTING (6 Sep 2026): status di bawah sebelumnya usang (per 20 Agu). Diverifikasi langsung
-> dari produksi: (1) HOSTING sudah pindah ke VPS self-host `app.airconet.id` (Vercel = cadangan/rollback,
-> bukan primary lagi); (2) MIDTRANS sudah **production** (MIDTRANS_ENV=production di /opt/aircon-app/.env,
-> production key terisi) — BUKAN sandbox. Lihat juga docs/PETA_APLIKASI_LIVE.md (peta URL live).
+> ⚠️ KOREKSI PENTING (18 Sep 2026): status payment lama sudah tidak berlaku. Payment aktif kini
+> **iPaymu-only**; verifikasi database menunjukkan transaksi terbaru dan seluruh histori Payment aktif
+> menggunakan redirect iPaymu. Referensi payment provider lama di dokumen historis tidak boleh dipakai
+> sebagai status kini. Lihat `docs/Ipaymu_Integration_Spec.md` dan `docs/Ipaymu_Production_Runbook.md`.
 
 ## 1. RINGKAS SATU PARAGRAF
 Aircon (AC Service Growth OS) — SaaS PWA multi-tenant untuk usaha servis AC kecil Indonesia,
 Digital Asset #1 dari "12 SaaS/tahun". Aplikasi LIVE self-host di **VPS BiznetGio (app.airconet.id,
 103.127.135.132, systemd `aircon-app`, Node 22, TLS Let's Encrypt)**; domain lama Vercel
 (`aircon-peach.vercel.app`) tinggal cadangan/rollback (DB sama). Infrastruktur WhatsApp+MQTT
-LIVE di VPS terpisah (103.127.138.16), HTTPS via gw.lumite.biz.id. Midtrans **production** aktif.
+LIVE di VPS terpisah (103.127.138.16), HTTPS via gw.lumite.biz.id. Payment **iPaymu-only**.
 Progress menuju go-komersial tinggi; sisa = validasi pilot end-to-end (bayar production + WA nyata),
 bukan coding.
 
@@ -23,8 +23,8 @@ bukan coding.
   key ~/.ssh/airconet-app.pem), systemd `aircon-app` (active), WorkingDirectory /opt/aircon-app,
   EnvironmentFile /opt/aircon-app/.env. TLS Let's Encrypt.
 - App CADANGAN (rollback): https://aircon-peach.vercel.app (DB Supabase sama). Bukan primary.
-- Midtrans: **PRODUCTION** (MIDTRANS_ENV=production, production key terisi). Webhook /api/billing/midtrans-webhook
-  live (tolak GET=405, verifikasi signature=400 utk body kosong). Uji transaksi production end-to-end = PENDING.
+- iPaymu: gateway aktif tunggal. Payment terbaru berstatus `PENDING` dengan redirect host
+  `sandbox-payment.ipaymu.com`; empat transaksi sebelumnya berstatus `PAID` dengan redirect host yang sama.
 - DB: Supabase Tokyo (ref ksvdjtzfpictmwuksmuu)
 - Gateway WhatsApp: https://gw.lumite.biz.id (HTTPS Let's Encrypt, auto-renew, port 8080 ditutup)
 - VPS-INFRA: 103.127.138.16 (rad4ssh, key ~/.ssh/aircon-ssh.pem) — service systemd aktif+enabled:
@@ -41,9 +41,9 @@ bukan coding.
 ## 3. FITUR SELESAI (per domain)
 - Inti: multi-tenant, onboarding, 4 peran (owner Google SSO / admin / teknisi phone+PIN / customer booking publik)
 - Job Order FSM + app teknisi (checklist, foto S3, timeline) + kuota per paket
-- Billing Midtrans (langganan + IoT jual-putus) — **PRODUCTION aktif** (MIDTRANS_ENV=production); PPN PKP-aware; faktur/kwitansi
+- Billing iPaymu (langganan + IoT jual-putus) — **aktif** melalui redirect/callback iPaymu; PPN PKP-aware; faktur/kwitansi
 - Dunning otomatis + teks penagihan editable admin
-- Program keagenan LENGKAP: F1 mesin uang (komisi/clawback/PPh) + F2/F3 portal agen & reseller + CSV
+- Program keagenan Tahap 1 berjalan untuk jalur Agen → Tenant → PAID → ledger → payout manual; rate per plan dan snapshot ledger tersedia. Full reseller E2E dan payout otomatis belum dianggap selesai.
 - IoT: ingest + deteksi alert (ambang editable admin) + 1-tap buat pekerjaan
 - Shared WA+MQTT gateway multi-app (untuk 12-SaaS) + dokumentasi developer (docs/infra/)
 - No-hardcode 100%: semua aturan bisnis DB-driven + editable admin (paket, kebijakan, infra,
@@ -51,16 +51,13 @@ bukan coding.
 
 ## 4. YANG BELUM SELESAI (prioritas menuju go-komersial)
 ### KRITIS (butuh input/keputusan owner)
-1. Midtrans PRODUCTION — ✅ SELESAI (20 Agu 2026). MIDTRANS_ENV + NEXT_PUBLIC_MIDTRANS_ENV =
-   production di Vercel; server key production terverifikasi VALID (HTTP 200 api.midtrans.com);
-   webhook via X-Override-Notification -> NEXT_PUBLIC_APP_URL. Merchant G523181402.
-   CATATAN: kini pembayaran = UANG NYATA (kartu test tak berlaku). Belum ada transaksi produksi nyata.
+1. iPaymu production — menunggu verifikasi merchant/credential production dan controlled production payment.
 2. Warm-up nomor WA — 7 hari (by-design pelan agar tak diblokir). Mulai setelah nomor bisnis final.
 3. Pilot 3-5 tenant NYATA — penemu bug lapangan, tak tergantikan.
 
 ### PENTING
 4. Status PKP Lumite — konfirmasi (default isPkp=false). Pengaruh ke PPN faktur.
-5. Rotate kredensial — SEMUA kredensial pernah lewat chat (S3, gateway key, MQTT, VPS, Midtrans,
+5. Rotate kredensial — SEMUA kredensial pernah lewat chat (S3, gateway key, MQTT, VPS,
    PARTNER_ENC_KEY, IOT_BRIDGE_TOKEN). Setelah stabil, regenerate di panel masing-masing.
 
 ### NICE-TO-HAVE (pasca-launch)

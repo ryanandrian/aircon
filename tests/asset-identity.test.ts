@@ -6,7 +6,7 @@ const store: { assets: any[] } = { assets: [] };
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     asset: {
-      findMany: vi.fn(async ({ where, select }: any) => {
+      findMany: vi.fn(async ({ where }: any) => {
         let rows = store.assets.filter((a) => a.tenantId === where.tenantId && a.deletedAt === null);
         if (where.customerId) rows = rows.filter((a) => a.customerId === where.customerId);
         if (where.roomLocation?.not === null) rows = rows.filter((a) => a.roomLocation !== null);

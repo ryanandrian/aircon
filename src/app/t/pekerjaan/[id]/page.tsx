@@ -8,6 +8,7 @@ import { isStorageConfigured } from "@/lib/storage/s3";
 import { normalizePhone } from "@/lib/wa/gateway";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { TechJobWork } from "./work";
+import { JobScanButton } from "./job-scan-button";
 import { SaveLocationButton } from "./save-location";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,11 +76,17 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
           </div>
         </div>
 
-        {/* Mulai pengerjaan → WorkSession (K8): entry per unit → invoice/proforma */}
-        <a href={`/t/kerja/${job.customerId}?job=${job.id}`}
-          className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-sky-500 font-semibold text-white hover:bg-sky-600">
-          <Icon.Job className="h-5 w-5" aria-hidden /> Catat Pekerjaan & Buat Tagihan
-        </a>
+        {/* Mulai pengerjaan → WorkSession (K8): entry per unit → invoice/proforma.
+            HANYA tampil setelah teknisi tiba (ARRIVED) — sebelumnya fokus terima/berangkat dulu. */}
+        {(job.status === "ARRIVED" || job.status === "IN_PROGRESS" || job.status === "WAITING") && (
+          <>
+            <JobScanButton status={job.status} />
+            <a href={`/t/kerja/${job.customerId}?job=${job.id}`}
+              className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-sky-500 font-semibold text-white hover:bg-sky-600">
+              <Icon.Job className="h-5 w-5" aria-hidden /> Catat Pekerjaan &amp; Buat Tagihan
+            </a>
+          </>
+        )}
 
         {job.notes && (
           <Card>

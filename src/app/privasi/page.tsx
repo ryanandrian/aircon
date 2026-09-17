@@ -38,7 +38,7 @@ export default function PrivasiPage() {
               <li><strong>Data usaha:</strong> nama usaha, kota, nomor WhatsApp, logo, dan data operasional yang Anda masukkan (pelanggan, unit AC, pekerjaan, faktur).</li>
               <li><strong>Data pelanggan Anda:</strong> nama, nomor telepon/WhatsApp, dan alamat pelanggan yang Anda kelola melalui Layanan.</li>
               <li><strong>Data teknis:</strong> alamat IP, jenis perangkat, dan log aktivitas untuk keamanan dan pemeliharaan sistem.</li>
-              <li><strong>Data pembayaran:</strong> diproses oleh mitra pembayaran resmi (Midtrans); kami tidak menyimpan nomor kartu Anda.</li>
+              <li><strong>Data pembayaran:</strong> diproses oleh mitra pembayaran resmi (iPaymu); kami tidak menyimpan nomor kartu Anda.</li>
             </ul>
           </section>
 
@@ -75,7 +75,7 @@ export default function PrivasiPage() {
             <h2 className="text-xl font-bold text-foreground">5. Berbagi Data dengan Pihak Ketiga</h2>
             <p>Kami hanya membagikan data seperlunya kepada penyedia layanan yang mendukung operasional:</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li><strong>Midtrans</strong> — pemrosesan pembayaran.</li>
+              <li><strong>iPaymu</strong> — pemrosesan pembayaran.</li>
               <li><strong>Supabase & penyedia infrastruktur cloud</strong> — penyimpanan data & autentikasi.</li>
               <li><strong>Penyedia gateway WhatsApp</strong> — pengiriman pesan pengingat.</li>
             </ul>

@@ -24,18 +24,6 @@ interface ProductView {
   warrantyDays: number;
 }
 
-function loadSnap(snapUrl: string, clientKey: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const w = window as unknown as { snap?: unknown };
-    if (w.snap) return resolve();
-    const s = document.createElement("script");
-    s.src = snapUrl;
-    s.setAttribute("data-client-key", clientKey);
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Gagal memuat pembayaran"));
-    document.head.appendChild(s);
-  });
-}
 
 const rupiah = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
@@ -59,20 +47,7 @@ export function OrderForm({ products, taxPercent }: { products: ProductView[]; t
         setMsg(res.error);
         return;
       }
-      try {
-        await loadSnap(res.client.snapUrl, res.client.clientKey);
-        const w = window as unknown as {
-          snap?: { pay: (t: string, o: Record<string, unknown>) => void };
-        };
-        w.snap?.pay(res.snapToken, {
-          onSuccess: () => (window.location.href = "/app/perangkat/pesanan?status=sukses"),
-          onPending: () => (window.location.href = "/app/perangkat/pesanan?status=pending"),
-          onError: () => setMsg("Pembayaran gagal. Coba lagi."),
-          onClose: () => (window.location.href = "/app/perangkat/pesanan"),
-        });
-      } catch {
-        window.location.href = res.redirectUrl;
-      }
+      window.location.href = res.redirectUrl;
     });
   }
 
@@ -138,7 +113,7 @@ export function OrderForm({ products, taxPercent }: { products: ProductView[]; t
         Bayar Sekarang
       </SubmitButton>
       <p className="text-center text-xs text-muted-foreground">
-        Perangkat dijual putus dengan garansi. Pembayaran aman via Midtrans.
+        Perangkat dijual putus dengan garansi. Pembayaran aman via iPaymu.
       </p>
     </div>
   );

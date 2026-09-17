@@ -38,17 +38,21 @@ export function WaConnect() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  // Cek status awal saat komponen dibuka.
-  const refreshStatus = useCallback(async () => {
-    const r = await actionWaStatus();
-    if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memeriksa status"); return; }
-    if (r.ready) { setPhase("connected"); setQr(null); setPhone(r.phone ?? null); stopPoll(); }
-    else if (phase !== "connecting") { setPhase("disconnected"); }
-  }, [phase, stopPoll]);
-
   useEffect(() => {
-    void refreshStatus();
-    return () => stopPoll();
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const r = await actionWaStatus();
+        if (cancelled) return;
+        if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memeriksa status"); return; }
+        if (r.ready) { setPhase("connected"); setQr(null); setPhone(r.phone ?? null); stopPoll(); }
+        else setPhase((p) => (p === "connecting" ? p : "disconnected"));
+      } catch {
+        if (!cancelled) { setPhase("error"); setError("Gagal memeriksa status"); }
+      }
+    };
+    void check();
+    return () => { cancelled = true; stopPoll(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

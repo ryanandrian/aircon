@@ -610,7 +610,9 @@ function AssignmentDialog({ tech, onClose }: { tech: Tech; onClose: () => void }
     setPeriods(res.periods);
   }
 
-  useEffect(() => { queueMicrotask(() => load("ALL")); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  // Intentionally runs once when the dialog opens; period changes call load explicitly.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { queueMicrotask(() => load("ALL")); }, []);
 
   function changePeriod(p: string | null) { const v = p ?? "ALL"; setPeriod(v); load(v); }
 

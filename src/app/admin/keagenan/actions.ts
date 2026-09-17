@@ -4,13 +4,21 @@ import { requirePlatformAdmin } from "@/lib/auth/platform-admin";
 import {
   createAgent, updateAgent, buildMonthlyPayouts, markPayoutPaid,
 } from "@/lib/partner/partner-admin-service";
-import type { CommissionType, PartnerTaxStatus, PartnerStatus } from "@prisma/client";
+import type { CommissionType, PartnerTaxStatus, PartnerStatus, TenantPlan } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export type PartnerResult = { ok: true } | { ok: false; error: string };
 
 function num(fd: FormData, k: string): number { return Number(fd.get(k) ?? 0); }
 function str(fd: FormData, k: string): string { return String(fd.get(k) ?? "").trim(); }
+function planRules(fd: FormData, fallbackType: CommissionType, fallbackValue: number) {
+  return (["TRIAL", "PROFESSIONAL", "BUSINESS"] as const).map((plan): { plan: TenantPlan; commissionType: CommissionType; commissionValue: number } => ({
+    plan,
+    commissionType: (str(fd, `${plan}_commissionType`) || fallbackType) as CommissionType,
+    commissionValue: fd.get(`${plan}_commissionValue`) != null ? num(fd, `${plan}_commissionValue`) : fallbackValue,
+  }));
+}
+
 
 export async function actionCreateAgent(fd: FormData): Promise<PartnerResult> {
   try {
@@ -31,6 +39,7 @@ export async function actionCreateAgent(fd: FormData): Promise<PartnerResult> {
       bankAccount: str(fd, "bankAccount"),
       bankHolder: str(fd, "bankHolder"),
       notes: str(fd, "notes"),
+      planCommissions: planRules(fd, (str(fd, "commissionType") || "PERCENT") as CommissionType, num(fd, "commissionValue")),
     });
     revalidatePath("/admin/keagenan");
     return { ok: true };
@@ -49,7 +58,8 @@ export async function actionUpdateAgent(agentId: string, fd: FormData): Promise<
       taxStatus: (str(fd, "taxStatus") || undefined) as PartnerTaxStatus | undefined,
       bankName: fd.get("bankName") != null ? str(fd, "bankName") : undefined,
       bankAccount: str(fd, "bankAccount") || undefined,
-      bankHolder: fd.get("bankHolder") != null ? str(fd, "bankHolder") : undefined,
+      bankHolder: str(fd, "bankHolder"),
+      planCommissions: planRules(fd, (str(fd, "commissionType") || "PERCENT") as CommissionType, num(fd, "commissionValue")),
     });
     revalidatePath("/admin/keagenan");
     return { ok: true };

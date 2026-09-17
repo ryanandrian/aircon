@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { formatIDR } from "@/lib/billing/plans";
 import { planQuotaLines } from "@/lib/billing/plan-display";
-import { isMidtransConfigured } from "@/lib/billing/midtrans-client";
+import { isIpaymuActive, isIpaymuConfigured } from "@/lib/billing/ipaymu-client";
 import { PlanCards } from "./plan-cards";
 import { ResumePayButton } from "./resume-pay-button";
 import { AppHeader } from "../_components/app-header";
@@ -27,20 +27,31 @@ export default async function LanggananPage() {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/langganan");
 
+  const isOwner = ctx.role === "OWNER";
+  const paymentHistoryCutoff = new Date();
+  paymentHistoryCutoff.setDate(paymentHistoryCutoff.getDate() - 90);
   const [tenant, plans, policy, payments] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
     getActivePlans(),
     getBillingPolicy(),
+    // Riwayat utama berisi pembayaran yang relevan: lunas selalu dipertahankan,
+    // transaksi belum selesai hanya ditampilkan selama 90 hari. Transaksi lama yang
+    // sudah kedaluwarsa tidak boleh terus mendominasi layar setelah proses rekonsiliasi.
     prisma.payment.findMany({
-      where: { tenantId: ctx.tenantId },
+      where: {
+        tenantId: ctx.tenantId,
+        OR: [
+          { status: "PAID" },
+          { status: { in: ["PENDING", "FAILED", "EXPIRED"] }, createdAt: { gte: paymentHistoryCutoff } },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
   ]);
   if (!tenant) redirect("/login");
 
-  const configured = isMidtransConfigured();
-  const isOwner = ctx.role === "OWNER";
+  const configured = isIpaymuActive() && await isIpaymuConfigured();
   const currentPlanName =
     plans.find((p) => p.plan === tenant.plan)?.displayName ?? tenant.plan;
 

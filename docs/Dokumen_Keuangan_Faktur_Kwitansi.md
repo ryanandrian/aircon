@@ -48,4 +48,4 @@ Juga configurable: legalName, npwp, isPkp, taxLabel, alamat, logo, checkoutExpir
 - `src/lib/domain/terbilang.ts` — angka → kata (teruji `tests/finance-doc.test.ts`).
 - `src/lib/domain/finance-doc.ts` — extractGrossInfo + computeFinanceBreakdown (teruji).
 - `src/app/admin/perusahaan/company-editor.tsx` — editor catatan configurable.
-- Anti-tamper fee-aware & pemulihan: lihat `Billing_Midtrans.md`.
+- Anti-tamper fee-aware & pemulihan: lihat `Ipaymu_Integration_Spec.md`.

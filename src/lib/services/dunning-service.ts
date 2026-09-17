@@ -10,7 +10,7 @@ import {
   dunningAction,
   shouldSendReminderToday,
 } from "@/lib/billing/dunning-pure";
-import { renderTemplate, normalizePhone } from "@/lib/wa/gateway";
+import { normalizePhone } from "@/lib/wa/gateway";
 
 export interface DunningSummary {
   checked: number;

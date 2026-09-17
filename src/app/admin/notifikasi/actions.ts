@@ -69,7 +69,7 @@ export async function actionLumiteWaInit(): Promise<{ ok: boolean; qr?: string |
 }
 
 /** Status sesi WA Lumite (untuk polling QR → ready). */
-export async function actionLumiteWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; error?: string }> {
+export async function actionLumiteWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string }> {
   try {
     await requirePlatformAdmin();
     return await gatewaySessionStatus(LUMITE_SESSION);

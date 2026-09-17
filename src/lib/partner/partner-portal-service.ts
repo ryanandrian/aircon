@@ -6,7 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { hashPin, verifyPin, isValidPin } from "@/lib/auth/tech-crypto";
 import { encryptSecret, maskAccount } from "@/lib/partner/vault-crypto";
-import { normalizeCode } from "@/lib/partner/commission-logic";
+import type { CommissionType, TenantPlan } from "@prisma/client";
 import crypto from "crypto";
 
 export class PartnerPortalError extends Error {}
@@ -14,6 +14,14 @@ export class PartnerPortalError extends Error {}
 function genToken(): string {
   return crypto.randomBytes(24).toString("base64url");
 }
+
+function assertCommissionValue(type: CommissionType, value: number): void {
+  if (!Number.isFinite(value) || value < 0) throw new PartnerPortalError("Nilai komisi tidak valid");
+  if (type === "PERCENT" && value > 100) throw new PartnerPortalError("Komisi persen 0-100");
+  if (type === "FLAT_IDR" && value > 100_000_000) throw new PartnerPortalError("Komisi flat terlalu besar");
+}
+
+export type PlanCommissionInput = { plan: TenantPlan; commissionType: CommissionType; commissionValue: number };
 
 async function uniquePartnerCode(): Promise<string> {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -69,7 +77,7 @@ export async function loginReseller(email: string, pin: string): Promise<{ id: s
 
 /** DASBOR AGEN — semua tenant bawaan + komisi + reseller + pencairan (isolasi ketat). */
 export async function agentDashboard(agentId: string) {
-  const agent = await prisma.agent.findUnique({ where: { id: agentId } });
+  const agent = await prisma.agent.findUnique({ where: { id: agentId }, include: { planCommissions: true } });
   if (!agent) throw new PartnerPortalError("Agen tak ditemukan");
 
   const period = new Date();
@@ -83,22 +91,15 @@ export async function agentDashboard(agentId: string) {
       include: { tenant: { select: { name: true, status: true } }, reseller: { select: { name: true } } },
       orderBy: { lockedAt: "desc" }, take: 100,
     }),
-    prisma.commissionLedger.aggregate({
-      where: { agentId, periodMonth: periodStart, status: { in: ["ACCRUED", "APPROVED"] } },
-      _sum: { agentAmountIdr: true },
-    }),
-    prisma.commissionLedger.aggregate({
-      where: { agentId, status: { in: ["ACCRUED", "APPROVED", "PAID"] } },
-      _sum: { agentAmountIdr: true },
-    }),
+    prisma.commissionLedger.aggregate({ where: { agentId, periodMonth: periodStart, status: { in: ["ACCRUED", "APPROVED"] }, entryKind: { in: ["ACCRUAL", "REVERSAL"] } }, _sum: { agentAmountIdr: true } }),
+    prisma.commissionLedger.aggregate({ where: { agentId, status: { in: ["ACCRUED", "APPROVED", "PAID"] }, entryKind: { in: ["ACCRUAL", "REVERSAL"] } }, _sum: { agentAmountIdr: true } }),
     prisma.agentPayout.findMany({ where: { agentId }, orderBy: { periodMonth: "desc" }, take: 12 }),
   ]);
 
   return {
     agent: {
       companyName: agent.companyName,
-      commissionType: agent.commissionType,
-      commissionValue: agent.commissionValue,
+      planCommissions: agent.planCommissions,
       code: code?.code ?? null,
       joinCode: agent.joinCode,
       bankMasked: agent.bankAccountEnc ? "tersimpan (terenkripsi)" : null,
@@ -150,19 +151,30 @@ export async function registerReseller(joinCode: string, input: {
 }
 
 /** AGEN: setujui reseller → aktif + kode + token aktivasi. */
-export async function approveReseller(agentId: string, resellerId: string, commission: { type: "FLAT_IDR" | "PERCENT"; value: number }): Promise<{ code: string; token: string }> {
+export async function approveReseller(agentId: string, resellerId: string, commission: { type: CommissionType; value: number; planCommissions?: PlanCommissionInput[] }): Promise<{ code: string; token: string }> {
   const rs = await prisma.reseller.findFirst({ where: { id: resellerId, agentId } });
   if (!rs) throw new PartnerPortalError("Reseller tak ditemukan");
-  if (commission.type === "PERCENT" && (commission.value < 0 || commission.value > 100)) throw new PartnerPortalError("Komisi persen 0-100");
+  assertCommissionValue(commission.type, commission.value);
+  const rules = commission.planCommissions ?? (["TRIAL", "PROFESSIONAL", "BUSINESS"] as const).map((plan) => ({ plan, commissionType: commission.type, commissionValue: commission.value }));
+  if (rules.length !== 3 || new Set(rules.map((rule) => rule.plan)).size !== 3 || !rules.every((rule) => ["TRIAL", "PROFESSIONAL", "BUSINESS"].includes(rule.plan))) {
+    throw new PartnerPortalError("Aturan komisi harus lengkap untuk Basic, Professional, dan Business");
+  }
+  rules.forEach((rule) => assertCommissionValue(rule.commissionType, rule.commissionValue));
+
   const code = await uniquePartnerCode();
   const token = genToken();
-  await prisma.$transaction([
-    prisma.reseller.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.reseller.update({
       where: { id: resellerId },
       data: { status: "ACTIVE", commissionType: commission.type, commissionValue: commission.value, loginToken: token },
-    }),
-    prisma.partnerCode.create({ data: { code, ownerKind: "reseller", agentId, resellerId } }),
-  ]);
+    });
+    await Promise.all(rules.map((rule) => tx.partnerPlanCommission.upsert({
+      where: { resellerId_plan: { resellerId, plan: rule.plan } },
+      create: { resellerId, plan: rule.plan, commissionType: rule.commissionType, commissionValue: rule.commissionValue },
+      update: { commissionType: rule.commissionType, commissionValue: rule.commissionValue },
+    })));
+    await tx.partnerCode.create({ data: { code, ownerKind: "reseller", agentId, resellerId } });
+  });
   return { code, token };
 }
 
@@ -180,7 +192,7 @@ export async function resellerBreakdown(agentId: string, periodMonth: Date) {
   const rows = [];
   for (const r of resellers) {
     const agg = await prisma.commissionLedger.aggregate({
-      where: { agentId, resellerId: r.id, periodMonth: periodStart, entryKind: "ACCRUAL" },
+      where: { agentId, resellerId: r.id, periodMonth: periodStart, entryKind: { in: ["ACCRUAL", "REVERSAL"] } },
       _sum: { resellerAmountIdr: true },
     });
     const total = agg._sum.resellerAmountIdr ?? 0;
@@ -201,20 +213,19 @@ export async function resellerBreakdown(agentId: string, periodMonth: Date) {
 
 /** DASBOR RESELLER — pencapaian miliknya per periode (isolasi). */
 export async function resellerDashboard(resellerId: string) {
-  const rs = await prisma.reseller.findUnique({ where: { id: resellerId }, include: { agent: { select: { companyName: true } } } });
+  const rs = await prisma.reseller.findUnique({ where: { id: resellerId }, include: { agent: { select: { companyName: true } }, planCommissions: true } });
   if (!rs) throw new PartnerPortalError("Reseller tak ditemukan");
   const period = new Date();
   const periodStart = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth(), 1));
   const [code, tenantCount, monthAgg, totalAgg] = await Promise.all([
     prisma.partnerCode.findFirst({ where: { resellerId, ownerKind: "reseller" }, select: { code: true } }),
     prisma.tenantAttribution.count({ where: { resellerId } }),
-    prisma.commissionLedger.aggregate({ where: { resellerId, periodMonth: periodStart, entryKind: "ACCRUAL" }, _sum: { resellerAmountIdr: true } }),
-    prisma.commissionLedger.aggregate({ where: { resellerId, entryKind: "ACCRUAL" }, _sum: { resellerAmountIdr: true } }),
+    prisma.commissionLedger.aggregate({ where: { resellerId, periodMonth: periodStart, entryKind: { in: ["ACCRUAL", "REVERSAL"] } }, _sum: { resellerAmountIdr: true } }),
+    prisma.commissionLedger.aggregate({ where: { resellerId, entryKind: { in: ["ACCRUAL", "REVERSAL"] } }, _sum: { resellerAmountIdr: true } }),
   ]);
   return {
     name: rs.name, agentName: rs.agent.companyName,
-    commissionType: rs.commissionType, commissionValue: rs.commissionValue,
-    code: code?.code ?? null, tenantCount,
+    planCommissions: rs.planCommissions, code: code?.code ?? null, tenantCount,
     commissionThisMonth: monthAgg._sum.resellerAmountIdr ?? 0,
     commissionTotal: totalAgg._sum.resellerAmountIdr ?? 0,
   };

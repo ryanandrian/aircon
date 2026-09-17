@@ -1,6 +1,14 @@
-# BILLING & SUBSCRIPTION — Midtrans
+# HISTORICAL — BILLING & SUBSCRIPTION — Legacy Payment Notes
 
-Model langganan SaaS Aircon: trial 14 hari → bayar via Midtrans (Snap) → ACTIVE.
+Primary SSOT: `docs/Payment_Dunning_SSOT.md`
+Provider implementation spec: `docs/Ipaymu_Integration_Spec.md`
+Migration/runbook: `docs/Ipaymu_Migration_Plan.md`, `docs/Ipaymu_Production_Runbook.md`
+
+⚠️ HISTORICAL — bukan status kini dan bukan kontrak runtime. Payment aktif Aircon sekarang iPaymu-only.
+Gunakan `docs/Payment_Dunning_SSOT.md` untuk aturan domain, `docs/Ipaymu_Integration_Spec.md` untuk kontrak
+provider, dan `docs/Ipaymu_Production_Runbook.md` untuk operasi. File ini dipertahankan hanya sebagai jejak
+historis dan tidak boleh dijadikan dasar konfigurasi, implementasi, atau diagnosis transaksi baru.
+
 
 ## Paket (hipotesis pilot)
 - Pemula (STARTER): Rp199.000/bln — kelola pelanggan, pekerjaan, pengingat servis, ≤3 teknisi
@@ -15,20 +23,16 @@ TRIAL → ACTIVE (setelah bayar) → PAST_DUE (periode habis, grace) → SUSPEND
 
 ## Alur pembayaran
 1. Owner buka /app/langganan → pilih paket + durasi → startPayment (server action, OWNER only)
-2. subscription-service.startSubscriptionPayment: buat Payment(PENDING) + Snap token (Midtrans)
-3. startPayment JUGA balikkan midtransClientConfig() {env, clientKey, snapUrl} — SATU SUMBER KEBENARAN dari server
-4. Snap.js dimuat dari config server itu (client TAK memutuskan env sendiri) → popup → user bayar
-5. Midtrans kirim webhook → /api/billing/midtrans-webhook (tujuan di-override per-transaksi via header X-Override-Notification ke NEXT_PUBLIC_APP_URL, akun Midtrans dipakai bersama aiwa/mesinviral/aircon)
-6. verifySignature (sha512) → processPaymentNotification → bila PAID: activateSubscription (tenant ACTIVE + periode)
+2. [HISTORIS] `subscription-service.startSubscriptionPayment` dahulu membuat Payment(PENDING) + token hosted checkout provider legacy.
+3. [HISTORIS] Jalur lama menggunakan konfigurasi provider dan client popup.
+4. [HISTORIS] Jalur lama menggunakan hosted checkout provider legacy.
+5. [HISTORIS] Jalur lama menggunakan webhook provider legacy.
+6. [HISTORIS] Verifikasi callback provider legacy → `processPaymentNotification` → bila PAID: `activateSubscription`.
 
 ## Konfigurasi env (nama PERSIS sesuai kode — SATU saklar, anti-drift)
-- `MIDTRANS_ENV` = sandbox | production  (SATU saklar server, runtime)
-- `MIDTRANS_SANDBOX_SERVER_KEY` / `MIDTRANS_PRODUCTION_SERVER_KEY` (server-only, keduanya permanen)
-- `NEXT_PUBLIC_MIDTRANS_SANDBOX_CLIENT_KEY` / `NEXT_PUBLIC_MIDTRANS_PRODUCTION_CLIENT_KEY` (publik)
-- ANTI-DRIFT: klien TIDAK membaca `NEXT_PUBLIC_MIDTRANS_ENV` (di-'bakar' saat build → sumber bug env mismatch). Server memutuskan env sekali (MIDTRANS_ENV) + memberi clientKey+snapUrl cocok ke klien. Ganti lingkungan = ubah `MIDTRANS_ENV` saja.
-- Deploy VPS: `scripts/deploy-vps.sh` build memakai `.env` PRODUKSI VPS + guard bundle bebas-sandbox.
+- Konfigurasi aktif iPaymu ada di `docs/Ipaymu_Integration_Spec.md` dan `docs/Payment_Dunning_SSOT.md`.
 
-Webhook: TIDAK bergantung Payment Notification URL global dashboard (akun berbagi). Setiap transaksi aircon meng-override ke `NEXT_PUBLIC_APP_URL/api/billing/midtrans-webhook` (kini https://app.airconet.id/...).
+Webhook aktif menggunakan `https://app.airconet.id/api/billing/ipaymu-webhook`.
 
 Tanpa server key, /app/langganan menampilkan "pembayaran belum diaktifkan" (aman, tidak error).
 
@@ -42,10 +46,18 @@ Bila akun Midtrans membebankan biaya channel ke PELANGGAN, gross_amount ditagih 
 - PELAJARAN: anti-tamper lama (`gross !== amount → FAILED`) salah menandai transaksi LUNAS ber-fee sbg GAGAL. Diperbaiki.
 
 ## Reconcile (PULL) — penjamin + pemulih transaksi hantu
-Cron reconcile PULL status ke Midtrans untuk Payment berstatus PENDING/FAILED/EXPIRED usia <48 jam,
-terapkan via processPaymentNotification (idempoten, fee-aware). Ini memulihkan "transaksi hantu"
-(lunas di Midtrans tapi ter-tolak lokal). Resume TIDAK menandai transaksi lama FAILED/EXPIRED kecuali
-Midtrans mengonfirmasi mati (expire/cancel/deny) — VA lama yang masih hidup tak dibunuh.
+Cron reconcile PULL status ke Midtrans. Semua `PENDING` dipantau tanpa batas usia sampai Midtrans mengembalikan status final,
+sementara `FAILED/EXPIRED` hanya dipindai ulang selama 48 jam untuk memulihkan kasus webhook terlambat.
+Jika `PENDING` berusia lebih dari 48 jam dan Midtrans mengembalikan 404 (order tidak pernah tersedia), transaksi lokal
+ditutup sebagai `EXPIRED`; transaksi muda tidak ditutup otomatis. Semua perubahan diterapkan via
+`processPaymentNotification` (idempoten, fee-aware). Ini mencegah transaksi lama menumpuk sebagai "Menunggu" tanpa
+membunuh pembayaran aktif atau pembayaran terlambat yang benar-benar tercatat di Midtrans.
+Resume TIDAK menandai transaksi lama FAILED/EXPIRED kecuali Midtrans mengonfirmasi mati (expire/cancel/deny) — VA lama
+yang masih hidup tak dibunuh.
+
+### Riwayat pembayaran
+Halaman `/app/langganan` menampilkan seluruh pembayaran `PAID`, serta pembayaran belum lunas/bermasalah dalam 90 hari terakhir.
+Transaksi lama yang sudah selesai tidak mengotori riwayat utama; faktur detail tetap dapat diakses melalui URL yang sudah ada.
 
 ## Siklus Hidup Langganan & Penagihan Otomatis (Dunning) — SSOT
 Penagihan langganan Lumite→tenant BERBEDA dari reminder servis tenant→pelanggan (itu reminder-service).
@@ -94,11 +106,11 @@ trialDays, taxPercent, + parameter inactivity sweeper.
 Transaksi belum lunas (PENDING/FAILED/EXPIRED) bisa dilanjutkan owner dari panel (/app/langganan riwayat) & halaman faktur. Tombol "Bayar Sekarang" (PENDING) / "Ulangi" (FAILED/EXPIRED).
 - `resumeSubscriptionPayment(orderId)` cek status ke Midtrans (sumber kebenaran) → `decideResumeAction` (PURE, teruji) memutuskan:
   - PAID → sinkronkan via processPaymentNotification (aktivasi+kupon+komisi), tampilkan lunas.
-  - PENDING + token belum lewat `checkoutExpiryHours` + ada snapToken → REUSE token lama (snap.pay token lama → Snap muncul lagi, VA/metode sama). TIDAK buat order baru.
+  - [HISTORIS] PENDING + token belum lewat `checkoutExpiryHours` dahulu memakai ulang token hosted checkout provider legacy. Jalur aktif kini membuat/melanjutkan redirect iPaymu.
   - expire/cancel/deny ATAU pending-token-kadaluarsa ATAU 404 → REGENERATE: tandai Payment lama EXPIRED/FAILED, buat transaksi BARU (order_id BARU — Midtrans tolak order_id duplikat) utk paket+durasi yang sama.
 - Kupon terbawa saat regenerate bila dulu MANUAL; bila kupon manual lama sudah tak valid (kuota habis) → ulangi tanpa kupon (harga normal, jujur). Diskon recurring melekat otomatis dihitung ulang oleh startSubscriptionPayment.
 - TIDAK ada email dari aplikasi: instruksi VA/metode dikirim Midtrans sendiri (email resmi Midtrans). Aplikasi hanya menyediakan jalur in-app.
-- Snap token & redirect_url disimpan di Payment (snapToken/snapRedirect) untuk reuse.
+- [HISTORIS] Token dan redirect provider legacy dahulu disimpan untuk reuse; schema aktif kini memakai `checkoutRedirect` dan `providerTransactionId`.
 
 ## Kupon Diskon (admin-driven, SSOT harga tetap di PlanConfig)
 Model: `Coupon` + `CouponRedemption` (audit). TIDAK mengubah PlanConfig/kuota tenant — hanya harga bayar.

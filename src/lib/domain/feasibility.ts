@@ -57,7 +57,6 @@ export function estimateTravelMin(lat1: number, lng1: number, lat2: number, lng2
 
 export function evaluateFeasibility(input: FeasibilityInput): FeasibilityResult {
   const missing: string[] = [];
-  const reasons: FeasibilityResult["reasons"] = [];
   const buffer = input.bufferMinutes ?? SCHED_DEFAULTS.bufferMinutes;
 
   // Skill check dulu (CONFLICT keras)

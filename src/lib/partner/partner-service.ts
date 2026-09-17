@@ -7,9 +7,8 @@
  * Anti-komisi-diri, snapshot rate per baris, gagal-jujur (tak ganggu pembayaran tenant).
  */
 import { prisma } from "@/lib/prisma";
-import { computeCommission } from "@/lib/partner/commission-logic";
-import { normalizeCode } from "@/lib/partner/commission-logic";
-import type { CommissionType } from "@prisma/client";
+import { computeCommission, normalizeCode, selectPlanCommissionRule } from "@/lib/partner/commission-logic";
+import type { CommissionType, TenantPlan } from "@prisma/client";
 
 export interface ResolvedCode {
   code: string;
@@ -44,13 +43,20 @@ export async function attributeTenant(tenantId: string, rawCode: string): Promis
   const existing = await prisma.tenantAttribution.findUnique({ where: { tenantId } });
   if (existing) return { attributed: false, reason: "tenant sudah ter-atribusi" };
 
-  await prisma.$transaction([
-    prisma.tenantAttribution.create({
-      data: { tenantId, agentId: resolved.agentId, resellerId: resolved.resellerId, code: resolved.code },
-    }),
-    prisma.partnerCode.update({ where: { code: resolved.code }, data: { usedCount: { increment: 1 } } }),
-  ]);
-  return { attributed: true };
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.tenantAttribution.create({
+        data: { tenantId, agentId: resolved.agentId, resellerId: resolved.resellerId, code: resolved.code },
+      });
+      await tx.partnerCode.update({ where: { code: resolved.code }, data: { usedCount: { increment: 1 } } });
+    });
+    return { attributed: true };
+  } catch (error) {
+    // Unique tenantId is the concurrency authority: a simultaneous onboarding
+    // attempt must become a harmless no-op, not an onboarding failure.
+    if ((error as { code?: string }).code !== "P2002") throw error;
+    return { attributed: false, reason: "tenant sudah ter-atribusi" };
+  }
 }
 
 /** Awal bulan (tanggal 1) untuk periode komisi dari tanggal settlement. */
@@ -67,6 +73,7 @@ function periodMonthOf(d: Date): Date {
 export async function accrueCommission(params: {
   orderId: string;
   tenantId: string;
+  plan: TenantPlan;
   grossIdr: number;      // rupiah settlement (net)
   monthsPaid: number;
   settledAt?: Date;
@@ -80,10 +87,10 @@ export async function accrueCommission(params: {
   });
   if (dup) return { ledgerId: dup.id, agentAmountIdr: dup.agentAmountIdr };
 
-  const agent = await prisma.agent.findUnique({ where: { id: attribution.agentId } });
+  const agent = await prisma.agent.findUnique({ where: { id: attribution.agentId }, include: { planCommissions: true } });
   if (!agent) return null;
   const reseller = attribution.resellerId
-    ? await prisma.reseller.findUnique({ where: { id: attribution.resellerId } })
+    ? await prisma.reseller.findUnique({ where: { id: attribution.resellerId }, include: { planCommissions: true } })
     : null;
 
   // Anti-komisi-diri: owner tenant = pemilik login agen/reseller → nominal di-nol-kan.
@@ -95,34 +102,52 @@ export async function accrueCommission(params: {
   const agentIsSelf = agent.userId ? ownerIds.has(agent.userId) : false;
   const resellerIsSelf = reseller?.userId ? ownerIds.has(reseller.userId) : false;
 
+  const agentRule = selectPlanCommissionRule(agent.planCommissions, params.plan);
+  const resellerRule = reseller
+    ? selectPlanCommissionRule(reseller.planCommissions, params.plan)
+    : null;
+  if (!agentRule || (reseller && !resellerRule)) {
+    throw new Error(`Aturan komisi plan ${params.plan} belum dikonfigurasi`);
+  }
+
   const agentAmount = agentIsSelf
     ? 0
-    : computeCommission(params.grossIdr, params.monthsPaid, agent.commissionType, agent.commissionValue);
+    : computeCommission(params.grossIdr, params.monthsPaid, agentRule.commissionType, agentRule.commissionValue);
   const resellerAmount = reseller && !resellerIsSelf
-    ? computeCommission(params.grossIdr, params.monthsPaid, reseller.commissionType, reseller.commissionValue)
+    ? computeCommission(params.grossIdr, params.monthsPaid, resellerRule!.commissionType, resellerRule!.commissionValue)
     : 0;
 
   const settledAt = params.settledAt ?? new Date();
-  const row = await prisma.commissionLedger.create({
-    data: {
-      orderId: params.orderId,
-      tenantId: params.tenantId,
-      agentId: agent.id,
-      resellerId: reseller?.id ?? null,
-      grossIdr: params.grossIdr,
-      monthsPaid: params.monthsPaid,
-      agentRateType: agent.commissionType,
-      agentRateValue: agent.commissionValue,
-      agentAmountIdr: agentAmount,
-      resellerRateType: reseller?.commissionType ?? null,
-      resellerRateValue: reseller?.commissionValue ?? null,
-      resellerAmountIdr: resellerAmount,
-      entryKind: "ACCRUAL",
-      status: "ACCRUED",
-      periodMonth: periodMonthOf(settledAt),
-    },
-  });
-  return { ledgerId: row.id, agentAmountIdr: agentAmount };
+  try {
+    const row = await prisma.commissionLedger.create({
+      data: {
+        orderId: params.orderId,
+        tenantId: params.tenantId,
+        plan: params.plan,
+        agentId: agent.id,
+        resellerId: reseller?.id ?? null,
+        grossIdr: params.grossIdr,
+        monthsPaid: params.monthsPaid,
+        agentRateType: agentRule.commissionType,
+        agentRateValue: agentRule.commissionValue,
+        agentAmountIdr: agentAmount,
+        resellerRateType: reseller ? resellerRule!.commissionType : null,
+        resellerRateValue: reseller ? resellerRule!.commissionValue : null,
+        resellerAmountIdr: resellerAmount,
+        entryKind: "ACCRUAL",
+        status: "ACCRUED",
+        periodMonth: periodMonthOf(settledAt),
+      },
+    });
+    return { ledgerId: row.id, agentAmountIdr: agentAmount };
+  } catch (error) {
+    if ((error as { code?: string }).code !== "P2002") throw error;
+    const concurrent = await prisma.commissionLedger.findUnique({
+      where: { orderId_entryKind: { orderId: params.orderId, entryKind: "ACCRUAL" } },
+    });
+    if (!concurrent) throw error;
+    return { ledgerId: concurrent.id, agentAmountIdr: concurrent.agentAmountIdr };
+  }
 }
 
 /**
@@ -135,37 +160,49 @@ export async function reverseCommission(orderId: string): Promise<{ reversed: bo
   });
   if (!accrual) return { reversed: false };
 
-  const dup = await prisma.commissionLedger.findUnique({
+  const existing = await prisma.commissionLedger.findUnique({
     where: { orderId_entryKind: { orderId, entryKind: "REVERSAL" } },
   });
-  if (dup) return { reversed: true };
+  if (existing) return { reversed: true };
 
-  await prisma.$transaction([
-    prisma.commissionLedger.create({
-      data: {
-        orderId,
-        tenantId: accrual.tenantId,
-        agentId: accrual.agentId,
-        resellerId: accrual.resellerId,
-        grossIdr: -accrual.grossIdr,
-        monthsPaid: accrual.monthsPaid,
-        agentRateType: accrual.agentRateType,
-        agentRateValue: accrual.agentRateValue,
-        agentAmountIdr: -accrual.agentAmountIdr,
-        resellerRateType: accrual.resellerRateType,
-        resellerRateValue: accrual.resellerRateValue,
-        resellerAmountIdr: -accrual.resellerAmountIdr,
-        entryKind: "REVERSAL",
-        reversalOf: accrual.id,
-        status: "ACCRUED",
-        periodMonth: accrual.periodMonth,
-      },
-    }),
-    // Bila accrual belum dibayar/dikunci: tandai reversed (saling meniadakan).
-    ...(accrual.status === "ACCRUED"
-      ? [prisma.commissionLedger.update({ where: { id: accrual.id }, data: { status: "REVERSED" } })]
-      : []),
-  ]);
+  try {
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.commissionLedger.findUnique({
+        where: { orderId_entryKind: { orderId, entryKind: "ACCRUAL" } },
+      });
+      if (!current) return;
+      const reversal = await tx.commissionLedger.findUnique({
+        where: { orderId_entryKind: { orderId, entryKind: "REVERSAL" } },
+      });
+      if (reversal) return;
+      await tx.commissionLedger.create({
+        data: {
+          orderId,
+          tenantId: current.tenantId,
+          plan: current.plan,
+          agentId: current.agentId,
+          resellerId: current.resellerId,
+          grossIdr: -current.grossIdr,
+          monthsPaid: current.monthsPaid,
+          agentRateType: current.agentRateType,
+          agentRateValue: current.agentRateValue,
+          agentAmountIdr: -current.agentAmountIdr,
+          resellerRateType: current.resellerRateType,
+          resellerRateValue: current.resellerRateValue,
+          resellerAmountIdr: -current.resellerAmountIdr,
+          entryKind: "REVERSAL",
+          reversalOf: current.id,
+          status: "ACCRUED",
+          periodMonth: current.periodMonth,
+        },
+      });
+      if (current.status === "ACCRUED") {
+        await tx.commissionLedger.update({ where: { id: current.id }, data: { status: "REVERSED" } });
+      }
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code !== "P2002") throw error;
+  }
   return { reversed: true };
 }
 

@@ -28,9 +28,9 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export function JobHistoryView({
-  technicianId, initialRows, initialPeriods, initialTotal, usesIncentive: initialUsesIncentive = true, initialPeriod = "ALL",
+  initialRows, initialPeriods, initialTotal, usesIncentive: initialUsesIncentive = true, initialPeriod = "ALL",
 }: {
-  technicianId: string; initialRows: Row[]; initialPeriods: string[]; initialTotal: number; usesIncentive?: boolean; initialPeriod?: string;
+  initialRows: Row[]; initialPeriods: string[]; initialTotal: number; usesIncentive?: boolean; initialPeriod?: string;
 }) {
   const [rows, setRows] = useState<Row[]>(initialRows);
   const [periods] = useState<string[]>(initialPeriods);

@@ -18,23 +18,29 @@ function canManage(role: string): boolean {
 const CATEGORIES = ["MAINTENANCE", "SERVICE", "CONSUMABLE", "SPAREPART", "PAKET", "SURVEI", "GARANSI", "LAINNYA"] as const;
 const INC = ["PERCENT", "VALUE"] as const;
 
-function sanitize(raw: any): CatalogInput {
+function sanitize(raw: Record<string, unknown>): CatalogInput {
+  const cat = String(raw.category ?? "");
+  const catVal = CATEGORIES.includes(cat as typeof CATEGORIES[number]) ? (cat as typeof CATEGORIES[number]) : "SERVICE";
+  const incT = String(raw.techIncentiveType ?? "");
+  const techIncType = INC.includes(incT as typeof INC[number]) ? (incT as typeof INC[number]) : "VALUE";
+  const kncT = String(raw.kernetIncentiveType ?? "");
+  const kncIncType = INC.includes(kncT as typeof INC[number]) ? (kncT as typeof INC[number]) : "VALUE";
   return {
     code: String(raw.code ?? "").trim(),
     name: String(raw.name ?? "").trim(),
-    category: (CATEGORIES.includes(raw.category) ? raw.category : "SERVICE"),
+    category: catVal,
     standardPrice: Number(raw.standardPrice) || 0,
     unit: String(raw.unit ?? "unit").trim() || "unit",
     description: raw.description ? String(raw.description).trim() : undefined,
     active: raw.active !== false,
-    techIncentiveType: INC.includes(raw.techIncentiveType) ? raw.techIncentiveType : "VALUE",
+    techIncentiveType: techIncType,
     techIncentiveValue: Number(raw.techIncentiveValue) || 0,
-    kernetIncentiveType: INC.includes(raw.kernetIncentiveType) ? raw.kernetIncentiveType : "VALUE",
+    kernetIncentiveType: kncIncType,
     kernetIncentiveValue: Number(raw.kernetIncentiveValue) || 0,
   };
 }
 
-export async function actionCreateCatalog(raw: any): Promise<Result> {
+export async function actionCreateCatalog(raw: Record<string, unknown>): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
@@ -51,7 +57,7 @@ export async function actionCreateCatalog(raw: any): Promise<Result> {
   }
 }
 
-export async function actionUpdateCatalog(id: string, raw: any): Promise<Result> {
+export async function actionUpdateCatalog(id: string, raw: Record<string, unknown>): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };

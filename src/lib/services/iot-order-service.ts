@@ -1,13 +1,13 @@
 /**
- * IoT Order Service — pemesanan device jual-putus + pembayaran Midtrans.
+ * IoT Order Service — pemesanan device jual-putus + pembayaran iPaymu.
  * Harga dari IotProduct (DB, editable admin). Semua tenant-scoped.
  */
 import { prisma } from "@/lib/prisma";
 import type { IotOrder, IotProduct } from "@prisma/client";
 import { getBillingPolicy } from "@/lib/billing/config";
 import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
-import { createSnapTransaction, isMidtransConfigured } from "@/lib/billing/midtrans-client";
-import { makeOrderId, parseMidtransStatus, isNotifAmountValid } from "@/lib/billing/midtrans-logic";
+import { createIpaymuRedirect, isIpaymuConfigured } from "@/lib/billing/ipaymu-client";
+import { mapIpaymuStatus, mapIpaymuStatusCode } from "@/lib/billing/ipaymu-logic";
 import { makeIotOrderNo, computeOrderTotals } from "@/lib/services/iot-order-logic";
 
 export class IotOrderError extends Error {
@@ -83,8 +83,8 @@ export async function startIotOrderPayment(
   customerName: string,
   email?: string,
   phone?: string,
-): Promise<{ snapToken: string; redirectUrl: string }> {
-  if (!isMidtransConfigured()) {
+): Promise<{ redirectUrl: string }> {
+  if (!(await isIpaymuConfigured())) {
     throw new IotOrderError("NOT_CONFIGURED", "Pembayaran belum dikonfigurasi. Hubungi admin.");
   }
   const order = await prisma.iotOrder.findFirst({
@@ -94,7 +94,7 @@ export async function startIotOrderPayment(
   if (!order) throw new IotOrderError("NOT_FOUND", "Pesanan tidak ditemukan");
   if (order.status !== "PENDING_PAYMENT") throw new IotOrderError("INVALID", "Pesanan sudah diproses");
 
-  const paymentOrderId = makeOrderId(tenantId);
+  const paymentOrderId = `AIRCON-IOT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   const deviceName = order.items[0]?.product?.name ?? "Perangkat IoT Aircon";
   const company = await getCompanyProfile();
   const taxLabel = company.taxLabel || "Pajak";
@@ -113,56 +113,37 @@ export async function startIotOrderPayment(
       : []),
   ];
 
-  const snap = await createSnapTransaction({
-    orderId: paymentOrderId,
+  const redirect = await createIpaymuRedirect({
+    referenceId: paymentOrderId,
     amount: order.total,
-    customer: { firstName: customerName, email, phone },
-    items,
-    expiryHours: company.checkoutExpiryHours,
-    finishUrl: company.finishUrl || undefined,
-    // Alamat kirim device (jual putus perlu pengiriman fisik).
-    ...(order.shippingAddress
-      ? { shipping: { address: order.shippingAddress, phone } }
-      : {}),
+    product: items.map((item) => ({ name: item.name, price: item.price, qty: item.quantity })),
+    buyerName: customerName, buyerEmail: email, buyerPhone: phone,
+    returnUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/app/perangkat/pesanan?status=sukses`,
+    notifyUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/billing/ipaymu-webhook`,
+    cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/app/perangkat/pesanan?status=cancel`,
   });
 
   await prisma.iotOrder.update({
     where: { id: order.id },
-    data: { paymentOrderId, snapToken: snap.token, snapRedirect: snap.redirectUrl },
+    data: { paymentOrderId, checkoutRedirect: redirect.url },
   });
 
-  return { snapToken: snap.token, redirectUrl: snap.redirectUrl };
+  return { redirectUrl: redirect.url };
 }
 
-/** Proses notifikasi Midtrans untuk pesanan IoT (dipanggil webhook). Idempoten. */
+/** Proses notifikasi iPaymu untuk pesanan IoT (dipanggil webhook). Idempoten. */
 export async function processIotPayment(notif: {
   order_id: string;
-  transaction_status?: string;
-  fraud_status?: string;
-  gross_amount?: string;
+  status?: string;
+  status_code?: number;
+  amount?: number;
   raw: unknown;
 }): Promise<{ paid: boolean; tenantId: string | null }> {
   const order = await prisma.iotOrder.findUnique({ where: { paymentOrderId: notif.order_id } });
   if (!order) return { paid: false, tenantId: null };
 
-  // Anti-tamper SADAR FEE: gross bisa = total + fee channel (customer-imposed). Cocokkan via helper.
-  if (notif.gross_amount !== undefined) {
-    const info = (() => {
-      try {
-        const raw = notif.raw as { metadata?: { extra_info?: { gross_amount_info?: Record<string, unknown> } } } | undefined;
-        return raw?.metadata?.extra_info?.gross_amount_info ?? undefined;
-      } catch { return undefined; }
-    })();
-    const ok = isNotifAmountValid({
-      storedAmount: order.total,
-      grossAmount: notif.gross_amount,
-      originalAmount: info?.original_amount as string | number | undefined,
-      customerImposedFee: info?.customer_imposed_payment_fee as string | number | undefined,
-    });
-    if (!ok) return { paid: false, tenantId: order.tenantId };
-  }
-
-  const status = parseMidtransStatus(notif);
+  if (notif.amount != null && notif.amount !== order.total) return { paid: false, tenantId: order.tenantId };
+  const status = notif.status ? mapIpaymuStatus(notif.status) : mapIpaymuStatusCode(notif.status_code ?? -99);
   const alreadyPaid = order.status !== "PENDING_PAYMENT";
 
   if (status === "PAID" && !alreadyPaid) {

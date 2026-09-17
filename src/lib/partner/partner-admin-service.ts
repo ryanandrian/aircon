@@ -6,7 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, maskAccount } from "@/lib/partner/vault-crypto";
 import { normalizeCode, computeTaxWithholding, netPayout } from "@/lib/partner/commission-logic";
-import type { CommissionType, PartnerTaxStatus, PartnerStatus } from "@prisma/client";
+import type { CommissionType, PartnerTaxStatus, PartnerStatus, TenantPlan } from "@prisma/client";
 import crypto from "crypto";
 
 /** Buat kode partner unik-global default (8 char A-Z0-9). */
@@ -34,6 +34,12 @@ function assertCommissionValue(type: CommissionType, value: number): void {
   if (type === "FLAT_IDR" && value > 100_000_000) throw new Error("Komisi flat terlalu besar (maks Rp100jt)");
 }
 
+export interface PlanCommissionInput {
+  plan: TenantPlan;
+  commissionType: CommissionType;
+  commissionValue: number;
+}
+
 export interface CreateAgentInput {
   companyName: string;
   picName?: string;
@@ -47,6 +53,7 @@ export interface CreateAgentInput {
   bankAccount?: string; // plaintext dari form → dienkripsi
   bankHolder?: string;
   notes?: string;
+  planCommissions?: PlanCommissionInput[];
 }
 
 /** Buat agen baru + kode agen + joinCode reseller. Rekening dienkripsi. */
@@ -77,6 +84,18 @@ export async function createAgent(input: CreateAgentInput) {
         notes: input.notes?.trim() || null,
       },
     });
+    if (input.planCommissions?.length) {
+      const rules = input.planCommissions;
+      if (rules.length !== 3 || new Set(rules.map((rule) => rule.plan)).size !== 3 || !rules.every((rule) => ["TRIAL", "PROFESSIONAL", "BUSINESS"].includes(rule.plan))) {
+        throw new Error("Aturan komisi harus lengkap untuk Basic, Professional, dan Business");
+      }
+      for (const rule of rules) {
+        assertCommissionValue(rule.commissionType, rule.commissionValue);
+        await tx.partnerPlanCommission.create({
+          data: { agentId: agent.id, plan: rule.plan, commissionType: rule.commissionType, commissionValue: rule.commissionValue },
+        });
+      }
+    }
     await tx.partnerCode.create({
       data: { code: agentCode, ownerKind: "agent", agentId: agent.id },
     });
@@ -93,6 +112,7 @@ export async function updateAgent(agentId: string, data: {
   bankName?: string;
   bankAccount?: string;
   bankHolder?: string;
+  planCommissions?: PlanCommissionInput[];
 }) {
   const patch: Record<string, unknown> = {};
   if (data.commissionType) patch.commissionType = data.commissionType;
@@ -108,12 +128,28 @@ export async function updateAgent(agentId: string, data: {
   if (data.bankName !== undefined) patch.bankName = data.bankName.trim() || null;
   if (data.bankHolder !== undefined) patch.bankHolder = data.bankHolder.trim() || null;
   if (data.bankAccount) patch.bankAccountEnc = encryptSecret(data.bankAccount.trim());
-  return prisma.agent.update({ where: { id: agentId }, data: patch });
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.agent.update({ where: { id: agentId }, data: patch });
+    if (data.planCommissions) {
+      if (data.planCommissions.length !== 3 || new Set(data.planCommissions.map((rule) => rule.plan)).size !== 3 || !data.planCommissions.every((rule) => ["TRIAL", "PROFESSIONAL", "BUSINESS"].includes(rule.plan))) {
+        throw new Error("Aturan komisi harus lengkap untuk Basic, Professional, dan Business");
+      }
+      for (const rule of data.planCommissions) {
+        assertCommissionValue(rule.commissionType, rule.commissionValue);
+        await tx.partnerPlanCommission.upsert({
+          where: { agentId_plan: { agentId, plan: rule.plan } },
+          create: { agentId, plan: rule.plan, commissionType: rule.commissionType, commissionValue: rule.commissionValue },
+          update: { commissionType: rule.commissionType, commissionValue: rule.commissionValue },
+        });
+      }
+    }
+    return updated;
+  });
 }
 
 /** Daftar agen + ringkasan (komisi berjalan bulan ini, jumlah reseller/tenant). */
 export async function listAgents() {
-  const agents = await prisma.agent.findMany({ orderBy: { createdAt: "desc" } });
+  const agents = await prisma.agent.findMany({ orderBy: { createdAt: "desc" }, include: { planCommissions: true } });
   const period = new Date();
   const periodStart = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth(), 1));
 
@@ -122,7 +158,7 @@ export async function listAgents() {
       prisma.reseller.count({ where: { agentId: a.id } }),
       prisma.tenantAttribution.count({ where: { agentId: a.id } }),
       prisma.commissionLedger.aggregate({
-        where: { agentId: a.id, periodMonth: periodStart, status: { in: ["ACCRUED", "APPROVED"] } },
+        where: { agentId: a.id, periodMonth: periodStart, status: { in: ["ACCRUED", "APPROVED", "PAID"] }, entryKind: { in: ["ACCRUAL", "REVERSAL"] } },
         _sum: { agentAmountIdr: true },
       }),
       prisma.partnerCode.findFirst({ where: { agentId: a.id, ownerKind: "agent" }, select: { code: true } }),
@@ -135,6 +171,7 @@ export async function listAgents() {
       commissionType: a.commissionType,
       commissionValue: a.commissionValue,
       taxStatus: a.taxStatus,
+      planCommissions: a.planCommissions,
       bankMasked: a.bankAccountEnc ? maskAccount("xxxx") : null, // tak dekripsi di list
       code: code?.code ?? null,
       joinCode: a.joinCode,
@@ -172,8 +209,7 @@ export async function buildMonthlyPayouts(periodMonth: Date) {
   const results = [];
 
   for (const agent of agents) {
-    // Sapu SEMUA baris ACCRUED sampai periode ini (termasuk reversal menggantung dari
-    // bulan lampau — clawback §2.3: refund pasca-payout jadi pengurang bulan berikutnya).
+  // Payout hanya memasukkan accrual positif dan reversal negatif yang belum dikunci.
     const rows = await prisma.commissionLedger.findMany({
       where: { agentId: agent.id, periodMonth: { lte: periodStart }, status: "ACCRUED" },
     });
@@ -213,16 +249,20 @@ export async function buildMonthlyPayouts(periodMonth: Date) {
 
 /** Tandai payout PAID (setelah owner transfer + catat bukti). Guard: hanya DRAFT/APPROVED. */
 export async function markPayoutPaid(payoutId: string, transferRef: string) {
+  const ref = transferRef.trim();
+  if (!ref) throw new Error("Referensi transfer wajib diisi");
   return prisma.$transaction(async (tx) => {
     const current = await tx.agentPayout.findUnique({ where: { id: payoutId }, select: { status: true } });
     if (!current) throw new Error("Pencairan tak ditemukan");
     if (current.status === "PAID") throw new Error("Pencairan sudah lunas");
-    const p = await tx.agentPayout.update({
-      where: { id: payoutId },
-      data: { status: "PAID", paidAt: new Date(), transferRef, approvedAt: new Date() },
+    const p = await tx.agentPayout.updateMany({
+      where: { id: payoutId, status: { in: ["DRAFT", "APPROVED"] } },
+      data: { status: "PAID", paidAt: new Date(), transferRef: ref, approvedAt: new Date() },
     });
-    await tx.commissionLedger.updateMany({ where: { payoutId }, data: { status: "PAID" } });
-    return p;
+    if (p.count !== 1) throw new Error("Pencairan sudah diproses oleh request lain");
+    const result = await tx.agentPayout.findUniqueOrThrow({ where: { id: payoutId } });
+    await tx.commissionLedger.updateMany({ where: { payoutId, status: "APPROVED" }, data: { status: "PAID" } });
+    return result;
   });
 }
 

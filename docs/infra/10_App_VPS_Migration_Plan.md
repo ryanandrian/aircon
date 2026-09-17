@@ -1,4 +1,7 @@
-# Rencana Migrasi APP Aircon: Vercel → VPS (bebas-bug, terverifikasi)
+# HISTORICAL — Rencana Migrasi APP Aircon: Vercel → VPS
+
+⚠️ HISTORICAL — bukan status infrastruktur atau payment saat ini. Untuk status kini lihat
+`docs/PROJECT_STATUS.md`, `docs/Payment_Dunning_SSOT.md`, dan `docs/Ipaymu_Production_Runbook.md`.
 
 Status: RENCANA (belum eksekusi). Prinsip: tiap tahap punya GERBANG VERIFIKASI — tak lanjut sebelum hijau.
 Tujuan: pindah APP aircon (bukan gateway) dari Vercel serverless ke VPS Node, tanpa bug baru & tanpa downtime tak terkendali.
@@ -34,7 +37,7 @@ Tujuan: pindah APP aircon (bukan gateway) dari Vercel serverless ke VPS Node, ta
 Kelompok (nilai diambil dari Vercel env / yang Anda pegang; JANGAN commit):
 - Supabase: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL
 - App: NEXT_PUBLIC_APP_URL (→ domain VPS)
-- Midtrans (PROD live): MIDTRANS_ENV, *_SERVER_KEY, NEXT_PUBLIC_* client keys, MERCHANT_ID
+- iPaymu: `PAYMENT_GATEWAY`, `IPAYMU_ENV`, environment-specific VA/API key melalui konfigurasi server/admin
 - IoT/EMQX: EMQX_*, IOT_BRIDGE_TOKEN
 - WA gateway: WA_GATEWAY_URL/KEY/CALLBACK_SECRET
 - Lain: PARTNER_ENC_KEY, SESSION_SECRET, CRON_SECRET
@@ -51,7 +54,7 @@ Di VPS Vercel cron TIDAK jalan. Ganti dengan 3 systemd timer yang `curl` endpoin
 
 ## 5. CUTOVER (tanpa kaget)
 - [ ] Deploy app ke VPS + semua GERBANG 1-4 hijau, TAPI DNS masih ke Vercel.
-- [ ] Uji VPS via IP/hosts sementara: login Google, buat pekerjaan, invoice, bayar (Midtrans), kirim WA, cron manual. SEMUA hijau.
+- [ ] Uji VPS via IP/hosts sementara: login Google, buat pekerjaan, invoice, bayar (iPaymu), kirim WA, cron manual. SEMUA hijau.
 - [ ] Baru arahkan DNS domain → VPS. TTL rendah dulu.
 - [ ] Pantau 24 jam. Rollback = arahkan DNS balik ke Vercel (DB sama, aman).
 
@@ -59,7 +62,7 @@ Di VPS Vercel cron TIDAK jalan. Ganti dengan 3 systemd timer yang `curl` endpoin
 - [ ] Landing + SEO (sitemap/robots/JSON-LD) 200 di domain baru.
 - [ ] Login owner (Google) — redirect URI baru bekerja.
 - [ ] Login teknisi (phone+PIN).
-- [ ] Alur uang: kerja→invoice→bayar Midtrans→webhook masuk→status update.
+- [ ] Alur uang: kerja→invoice→bayar iPaymu→webhook masuk→status update.
 - [ ] WA nyata terkirim (bukan queued).
 - [ ] Upload logo (server-side) sukses.
 - [ ] 3 cron timer jalan + efek benar.
@@ -67,7 +70,7 @@ Di VPS Vercel cron TIDAK jalan. Ganti dengan 3 systemd timer yang `curl` endpoin
 
 ## RISIKO UTAMA (yang biasa bikin "banyak bug saat pindah") & mitigasi
 1. **OAuth Google callback** beda domain → login gagal. Mitigasi: daftarkan redirect URI domain VPS di Google Console + Supabase SEBELUM cutover.
-2. **Midtrans notification URL** masih ke Vercel → status bayar tak update. Mitigasi: update di Midtrans dashboard saat cutover.
+2. **iPaymu notify URL** harus menunjuk ke deployment aktif → status bayar tak update bila callback salah tujuan. Mitigasi: verifikasi URL HTTPS publik sebelum cutover.
 3. **Cron tak jalan** (lupa timer) → dunning/reminder mati diam. Mitigasi: GERBANG #4 wajib.
 4. **Env kurang 1 var** → crash saat fitur dipakai. Mitigasi: fail-fast check 28 var.
 5. **Standalone build** kurang file statis/public. Mitigasi: copy `.next/static` + `public` sesuai dok Next standalone. GERBANG boot lokal.

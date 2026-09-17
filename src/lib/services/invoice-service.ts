@@ -108,7 +108,6 @@ export function computeInvoiceTotals(params: {
 export async function nextInvoiceNumber(tenantId: string, docType: DocType, year?: number): Promise<string> {
   const yr = year ?? new Date().getFullYear();
   const prefix = docType === "PROFORMA" ? "PRO" : "INV";
-  const like = `${prefix}/${yr}/%`;
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const last = await prisma.invoice.findFirst({

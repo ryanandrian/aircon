@@ -13,6 +13,7 @@ import type { CommissionType, PartnerStatus, PartnerTaxStatus, PayoutStatus } fr
 interface AgentView {
   id: string; companyName: string; picEmail: string; status: PartnerStatus;
   commissionType: CommissionType; commissionValue: number; taxStatus: PartnerTaxStatus;
+  planCommissions: Array<{ plan: string; commissionType: CommissionType; commissionValue: number }>;
   code: string | null; joinCode: string | null; resellerCount: number; tenantCount: number; commissionThisMonth: number;
 }
 interface PayoutView {
@@ -26,6 +27,20 @@ const TAX_LABEL: Record<PartnerTaxStatus, string> = {
 };
 
 const selectCls = "mt-1 min-h-[42px] w-full rounded-xl border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+const PLAN_LABEL: Record<string, string> = { TRIAL: "Basic", PROFESSIONAL: "Professional", BUSINESS: "Business" };
+
+function PlanRuleFields({ rules = [] }: { rules?: Array<{ plan: string; commissionType: CommissionType; commissionValue: number }> }) {
+  const defaults = Object.fromEntries(rules.map((r) => [r.plan, r]));
+  return <div className="sm:col-span-2 grid gap-3 rounded-lg border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
+    <div className="text-xs font-semibold text-foreground">Rate canonical per paket</div>
+    {Object.entries(PLAN_LABEL).map(([plan, label]) => <div key={plan} className="grid gap-2 sm:grid-cols-3">
+      <div className="self-center text-sm text-foreground">{label}</div>
+      <select name={`${plan}_commissionType`} className={selectCls} defaultValue={defaults[plan]?.commissionType ?? "PERCENT"}><option value="PERCENT">Persen (%)</option><option value="FLAT_IDR">Rupiah / bulan</option></select>
+      <Input name={`${plan}_commissionValue`} type="number" step="0.01" min="0" required className="min-h-[42px]" defaultValue={defaults[plan]?.commissionValue ?? 0} />
+    </div>)}
+  </div>;
+}
 
 export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payouts: PayoutView[] }) {
   const router = useRouter();
@@ -104,13 +119,14 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
             <label className="text-sm text-foreground">Nama PIC<Input name="picName" className="mt-1 min-h-[42px]" /></label>
             <label className="text-sm text-foreground">Email PIC*<Input name="picEmail" type="email" required className="mt-1 min-h-[42px]" /></label>
             <label className="text-sm text-foreground">No. HP PIC<Input name="picPhone" className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">Tipe Komisi
+            <label className="text-sm text-foreground">Tipe Komisi (fallback legacy)
               <select name="commissionType" className={selectCls} defaultValue="PERCENT">
                 <option value="PERCENT">Persen (%)</option>
                 <option value="FLAT_IDR">Rupiah tetap / bulan</option>
               </select>
             </label>
-            <label className="text-sm text-foreground">Nilai Komisi<Input name="commissionValue" type="number" step="0.01" min="0" required className="mt-1 min-h-[42px]" placeholder="mis. 20 atau 50000" /></label>
+            <label className="text-sm text-foreground">Nilai Komisi (fallback legacy)<Input name="commissionValue" type="number" step="0.01" min="0" required className="mt-1 min-h-[42px]" placeholder="mis. 20 atau 50000" /></label>
+            <PlanRuleFields />
             <label className="text-sm text-foreground">Status Pajak
               <select name="taxStatus" className={selectCls} defaultValue="BADAN_NPWP">
                 {Object.entries(TAX_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -147,7 +163,7 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">{a.picEmail}</div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Komisi: <b className="text-foreground">{a.commissionType === "PERCENT" ? `${a.commissionValue}%` : rupiah(a.commissionValue) + "/bln"}</b>
+                    Aturan paket: {a.planCommissions.map((r) => `${PLAN_LABEL[r.plan] ?? r.plan} ${r.commissionType === "PERCENT" ? `${r.commissionValue}%` : rupiah(r.commissionValue) + "/bln"}`).join(" · ")}
                     {" · "}{a.tenantCount} pelanggan · {a.resellerCount} reseller
                   </div>
                 </div>
@@ -178,12 +194,13 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
 
               {editId === a.id && (
                 <form action={(fd) => updateAgent(a.id, fd)} className="mt-3 grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-4">
-                  <label className="text-xs text-foreground">Tipe
+                  <label className="text-xs text-foreground">Tipe fallback legacy
                     <select name="commissionType" defaultValue={a.commissionType} className={selectCls}>
                       <option value="PERCENT">Persen</option><option value="FLAT_IDR">Rupiah</option>
                     </select>
                   </label>
-                  <label className="text-xs text-foreground">Nilai<Input name="commissionValue" type="number" step="0.01" defaultValue={a.commissionValue} className="mt-1 min-h-[42px]" /></label>
+                  <label className="text-xs text-foreground">Nilai fallback<Input name="commissionValue" type="number" step="0.01" defaultValue={a.commissionValue} className="mt-1 min-h-[42px]" /></label>
+                  <div className="sm:col-span-4"><PlanRuleFields rules={a.planCommissions} /></div>
                   <label className="text-xs text-foreground">Status
                     <select name="status" defaultValue={a.status} className={selectCls}>
                       <option value="ACTIVE">Aktif</option><option value="SUSPENDED">Nonaktif</option>

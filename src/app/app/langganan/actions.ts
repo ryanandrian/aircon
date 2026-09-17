@@ -3,16 +3,16 @@
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole } from "@/lib/auth/guard";
 import { prisma } from "@/lib/prisma";
-import { startSubscriptionPayment, resumeSubscriptionPayment, BillingError } from "@/lib/services/subscription-service";
-import { midtransClientConfig, type MidtransClientConfig } from "@/lib/billing/midtrans-client";
+import { startIpaymuPayment, BillingError } from "@/lib/services/subscription-service";
+import { isIpaymuConfigured } from "@/lib/billing/ipaymu-client";
 import type { TenantPlan } from "@prisma/client";
 
 export type StartPaymentResult =
-  | { ok: true; snapToken: string; redirectUrl: string; client: MidtransClientConfig }
+  | { ok: true; redirectUrl: string }
   | { ok: false; error: string };
 
 export type ResumePaymentResult =
-  | { ok: true; kind: "resume"; snapToken: string; redirectUrl: string; client: MidtransClientConfig }
+  | { ok: true; kind: "resume"; redirectUrl: string }
   | { ok: true; kind: "paid" }
   | { ok: false; error: string };
 
@@ -29,7 +29,8 @@ export async function startPayment(
     const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
     if (!tenant) return { ok: false, error: "Usaha tidak ditemukan." };
 
-    const res = await startSubscriptionPayment({
+    if (!(await isIpaymuConfigured())) throw new BillingError("NOT_CONFIGURED", "iPaymu belum dikonfigurasi");
+    const res = await startIpaymuPayment({
       tenantId: ctx.tenantId,
       plan,
       periodMonths,
@@ -38,7 +39,7 @@ export async function startPayment(
       customerPhone: tenant.phone ?? undefined,
       couponCode: couponCode?.trim() || undefined,
     });
-    return { ok: true, snapToken: res.snapToken, redirectUrl: res.redirectUrl, client: midtransClientConfig() };
+    return { ok: true, redirectUrl: res.redirectUrl };
   } catch (err) {
     if (err instanceof BillingError) {
       return { ok: false, error: err.message };
@@ -115,8 +116,9 @@ export async function previewCheckout(
 }
 
 /**
- * LANJUTKAN pembayaran transaksi belum lunas (best-practice Midtrans: reuse token bila hidup,
- * regenerate bila mati). SECURITY: OWNER only + kepemilikan orderId diverifikasi di service.
+ * LANJUTKAN pembayaran transaksi belum lunas.
+ * iPaymu-only: pending payment selalu membuat/menggunakan redirect iPaymu.
+ * SECURITY: OWNER only + kepemilikan orderId diverifikasi.
  */
 export async function resumePayment(orderId: string): Promise<ResumePaymentResult> {
   try {
@@ -125,15 +127,18 @@ export async function resumePayment(orderId: string): Promise<ResumePaymentResul
     const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
     if (!tenant) return { ok: false, error: "Usaha tidak ditemukan." };
 
-    const res = await resumeSubscriptionPayment({
-      orderId,
-      tenantId: ctx.tenantId,
-      customerName: ctx.name,
-      customerEmail: ctx.email ?? undefined,
-      customerPhone: tenant.phone ?? undefined,
+    const payment = await prisma.payment.findUnique({ where: { orderId } });
+    if (!payment || payment.tenantId !== ctx.tenantId) return { ok: false, error: "Transaksi tidak ditemukan." };
+    if (payment.status === "PAID") return { ok: true, kind: "paid" };
+    if (payment.status === "PENDING" && payment.checkoutRedirect?.includes("ipaymu")) {
+      return { ok: true, kind: "resume", redirectUrl: payment.checkoutRedirect };
+    }
+    const fresh = await startIpaymuPayment({
+      tenantId: ctx.tenantId, plan: payment.plan, periodMonths: payment.periodMonths,
+      customerName: ctx.name, customerEmail: ctx.email ?? undefined, customerPhone: tenant.phone ?? undefined,
+      couponCode: payment.couponCode ?? undefined,
     });
-    if (res.kind === "paid") return { ok: true, kind: "paid" };
-    return { ok: true, kind: "resume", snapToken: res.snapToken, redirectUrl: res.redirectUrl, client: midtransClientConfig() };
+    return { ok: true, kind: "resume", redirectUrl: fresh.redirectUrl };
   } catch (err) {
     if (err instanceof BillingError) return { ok: false, error: err.message };
     console.error("[resumePayment] gagal:", err);

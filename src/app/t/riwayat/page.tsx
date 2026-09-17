@@ -36,7 +36,6 @@ export default async function TechnicianHistoryPage() {
       </header>
       <div className="mx-auto max-w-md px-4 py-5">
         <JobHistoryView
-          technicianId={tech.id}
           initialRows={rows}
           initialPeriods={periods}
           initialTotal={totalIncentive}

@@ -719,21 +719,21 @@ model Subscription {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }
 
-// Pembayaran langganan via Midtrans (Snap).
+// Pembayaran langganan via iPaymu redirect.
 model Payment {
   id           String        @id @default(cuid())
   tenantId     String
-  orderId      String        @unique // order_id yang dikirim ke Midtrans
+  orderId      String        @unique // reference ID yang dikirim ke iPaymu
   plan         TenantPlan
   amount       Int // IDR
   status       PaymentStatus @default(PENDING)
   periodMonths Int           @default(1)
-  snapToken    String?
-  snapRedirect String?
-  midtransTxId String? // transaction_id dari Midtrans
-  paymentType  String? // gopay, bank_transfer, dst
+  providerTransactionId String?
+  checkoutRedirect String?
+  providerPaymentType String?
   couponCode   String? // kupon yang dipakai transaksi ini (audit)
   discountAmount Int    @default(0) // potongan pra-pajak (IDR) dari kupon
+  commissionBaseIdr Int? // subtotal pra-pajak yang dikunci saat checkout
   // true = diskon ini berasal dari RECURRING melekat di tenant (perpanjangan otomatis);
   // false = kupon manual diketik owner (penebusan awal). Menentukan cabang redeem di webhook.
   couponRecurringApplied Boolean @default(false)
@@ -1002,6 +1002,33 @@ model InfraConfig {
   updatedAt           DateTime @updatedAt
 }
 
+enum IpaymuEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+model IpaymuConfig {
+  id                  String            @id @default("singleton")
+  activeEnvironment   IpaymuEnvironment @default(SANDBOX)
+  sandboxVaEnc        String?
+  sandboxApiKeyEnc    String?
+  productionVaEnc     String?
+  productionApiKeyEnc String?
+  updatedBy           String?
+  updatedAt           DateTime          @updatedAt
+}
+
+model PlatformAuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  target    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([target, createdAt])
+}
+
 // ================= PLATFORM NOTIFICATION (Lumite → tenant, autopilot) =================
 // TERPISAH TOTAL dari MessageLog (tenant → pelanggan) agar tak ada regresi ke jalur yang sudah jalan.
 // Antrean durable event-driven: engine tulis PENDING, dispatcher kirim (WA sesi lumite-platform / EMAIL SMTP),
@@ -1119,10 +1146,9 @@ model IotOrder {
   taxPercent      Float          @default(0)
   taxAmount       Int            @default(0)
   total           Int
-  // pembayaran (reuse pola Midtrans)
+  // pembayaran iPaymu redirect
   paymentOrderId  String?        @unique
-  snapToken       String?
-  snapRedirect    String?
+  checkoutRedirect String?
   paidAt          DateTime?
   shippingAddress String?
   trackingNote    String?
@@ -1150,7 +1176,7 @@ model IotOrderItem {
 // ================= PROGRAM KEAGENAN (PARTNER) — adaptasi mesinviral =================
 // Model 2-tingkat: Agen (mitra pemasaran) -> Reseller (tim penjual agen) -> Tenant.
 // Prinsip (dari mesinviral AGENT_AND_AFILIATION_ARCITECTURE.md):
-//  - Uang pelanggan SELALU ke Midtrans Lumite (harga resmi). Agen/reseller tak pegang uang.
+//  - Uang pelanggan SELALU ke iPaymu Lumite (harga resmi). Agen/reseller tak pegang uang.
 //  - Lumite transfer komisi ke AGEN 1x/bulan; reseller dibayar agennya (kita hitung + export).
 //  - Atribusi = kode unik saat daftar, PERMANEN (unique tenantId = anti-rebutan).
 //  - Ledger APPEND-ONLY: koreksi/refund = baris reversal, tak pernah UPDATE nilai.
@@ -1167,6 +1193,24 @@ enum ResellerStatus {
   ACTIVE
   SUSPENDED
   REJECTED
+}
+
+model PartnerPlanCommission {
+  id              String         @id @default(cuid())
+  agentId         String?
+  resellerId      String?
+  plan            TenantPlan
+  commissionType  CommissionType
+  commissionValue Float
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  agent    Agent?    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  reseller Reseller? @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, plan])
+  @@unique([resellerId, plan])
+  @@index([plan])
 }
 
 enum CommissionType {
@@ -1228,6 +1272,7 @@ model Agent {
   attributions TenantAttribution[]
   payouts      AgentPayout[]
   ledger       CommissionLedger[]
+  planCommissions PartnerPlanCommission[]
 }
 
 // Reseller: di bawah agen. Komisi diatur AGEN. Aktif setelah agen menyetujui.
@@ -1252,6 +1297,7 @@ model Reseller {
   agent        Agent               @relation(fields: [agentId], references: [id])
   codes        PartnerCode[]
   attributions TenantAttribution[]
+  planCommissions PartnerPlanCommission[]
 
   @@index([agentId, status])
 }
@@ -1315,6 +1361,7 @@ model CommissionLedger {
   id                Int             @id @default(autoincrement())
   orderId           String // Payment.orderId
   tenantId          String
+  plan              TenantPlan
   agentId           String
   resellerId        String?
   grossIdr          Int // rupiah settlement (basis-net)

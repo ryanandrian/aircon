@@ -1,4 +1,7 @@
-# Status Migrasi App Aircon → VPS airconet.id
+# HISTORICAL — Status Migrasi App Aircon → VPS airconet.id
+
+⚠️ HISTORICAL — snapshot infrastruktur lama. Referensi payment di bawah hanya arsip dan bukan
+konfigurasi aktif. Status payment kini ada di `docs/Payment_Dunning_SSOT.md`.
 
 Terakhir diperbarui: 3 Sep 2026. Diisi otomatis dari eksekusi terverifikasi.
 
@@ -20,7 +23,7 @@ Tahap 1–5 SELESAI & terverifikasi bukti nyata. Sisa: Tahap 6 (arahkan 3 callba
 - ENV: `/opt/aircon-app/.env` (chmod 600) — 24/24 var kritis terisi (gerbang `check-env.sh` HIJAU).
   - Nilai dirakit dari `.env` lokal + `.secrets/vps-infra-credentials.txt` + nilai domain/SMTP.
   - EMQX_* & SUPABASE_SERVICE_ROLE_KEY = DEAD (0 pemakaian di kode; IoT pakai Mosquitto). Tak diisi = benar.
-  - Midtrans: 2 kunci permanen (SANDBOX+PRODUCTION_SERVER_KEY) + MIDTRANS_ENV=production.
+  - iPaymu: kredensial Sandbox/Production dikelola melalui konfigurasi payment iPaymu; secret tidak dicatat di dokumen.
   - SMTP admin@lumite.biz.id (mail.lumite.biz.id:465) — TERBUKTI kirim email (250 OK).
 
 ## VERIFIKASI FUNGSIONAL (bukti nyata)
@@ -51,11 +54,11 @@ Sudah diterapkan & teruji (callback 307, bukan 502). Catatan owner: cookie basi 
 1. **OAuth (Supabase dashboard SAJA — Google Console TAK berubah):**
    - Authentication → URL Configuration → Redirect URLs tambah `https://app.airconet.id/**`
    - Site URL → `https://app.airconet.id`  (project ref: ksvdjtzfpictmwuksmuu)
-2. **Midtrans dashboard:** Payment Notification URL → `https://app.airconet.id/api/billing/midtrans-webhook`
+2. **iPaymu dashboard:** pastikan domain/IP dan callback → `https://app.airconet.id/api/billing/ipaymu-webhook`
 3. **WA gateway callback (BISA dikerjakan agent, tapi gateway LIVE — konfirmasi dulu):**
    - Di VPS gateway 103.127.138.16, GATEWAY_APPS app `aircon` webhook: `aircon-peach.vercel.app` → `app.airconet.id`
 4. **Verifikasi end-to-end di app.airconet.id lalu cutover DNS/rollout final:**
-   - login Google, buat pekerjaan, invoice, bayar Midtrans NYATA (webhook masuk→status update), WA nyata terkirim, upload logo/foto (S3).
+   - login Google, buat pekerjaan, invoice, bayar iPaymu NYATA (webhook masuk→status update), WA nyata terkirim, upload logo/foto (S3).
    - Rollback = arahkan balik ke Vercel (DB sama, aman).
 
 ## CATATAN

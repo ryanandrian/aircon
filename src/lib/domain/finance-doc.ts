@@ -1,7 +1,7 @@
 /**
  * Rincian dokumen keuangan (faktur/kwitansi) — PURE, no I/O, teruji.
  * Sumber angka: Payment (amount = harga setelah diskon+pajak yang DITAGIH & DITERIMA Lumite),
- * discountAmount, couponCode, dan rawNotif Midtrans (untuk fee channel bila customer-imposed).
+ * discountAmount, couponCode, dan rawNotif provider (untuk fee channel bila tersedia).
  *
  * Prinsip akuntansi (Indonesia, non-PKP):
  * - Pendapatan Lumite = harga jual = payment.amount (yang benar-benar diterima). Kwitansi = angka ini.
@@ -11,13 +11,13 @@
  */
 
 export interface FinanceGrossInfo {
-  originalAmount?: number;      // harga yang KITA kirim ke Midtrans (== payment.amount)
-  customerImposedFee?: number;  // fee channel dibebankan ke pelanggan (bila ada)
+  originalAmount?: number;
+  customerImposedFee?: number;
   grossPaidByCustomer?: number; // total yang benar-benar dibayar pelanggan (amount + fee)
 }
 
 /**
- * Ekstrak info fee dari rawNotif Midtrans (metadata.extra_info.gross_amount_info).
+ * Ekstrak info fee dari payload provider (metadata.extra_info.gross_amount_info).
  * Mengembalikan objek kosong bila tak ada (fee ditanggung merchant / belum bayar).
  */
 export function extractGrossInfo(rawNotif: unknown): FinanceGrossInfo {

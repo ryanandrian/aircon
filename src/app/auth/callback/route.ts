@@ -29,8 +29,10 @@ async function resolveBaseUrl(requestUrl: string): Promise<string> {
  * authorize (auth/google/start) & yang terdaftar di Google — TIDAK boleh dari host request.
  */
 function canonicalBaseUrl(): string {
+  // Next may inline NEXT_PUBLIC_* during build; production OAuth must be immutable.
+  if (process.env.NODE_ENV === "production") return "https://app.airconet.id";
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
-  return envUrl ? envUrl.replace(/\/$/, "") : "https://app.airconet.id";
+  return envUrl ? envUrl.replace(/\/$/, "") : "http://localhost:3000";
 }
 
 export async function GET(request: Request) {

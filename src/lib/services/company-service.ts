@@ -1,6 +1,6 @@
 /**
  * Company Profile (Lumite) — profil perusahaan penyedia, DB-driven (no hardcode).
- * Dipakai untuk invoice/kwitansi + data merchant di transaksi Midtrans.
+ * Dipakai untuk invoice/kwitansi + data merchant di transaksi iPaymu.
  * PKP menentukan apakah PPN boleh dipungut (jika bukan PKP → pajak efektif 0).
  */
 import { prisma } from "@/lib/prisma";

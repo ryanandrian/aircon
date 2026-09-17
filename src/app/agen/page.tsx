@@ -76,6 +76,9 @@ export default async function AgentDashboard() {
                 </div>
               )}
             </div>
+            <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+              {d.agent.planCommissions.map((r) => <div key={r.plan}>Paket {r.plan === "TRIAL" ? "Basic" : r.plan === "PROFESSIONAL" ? "Professional" : "Business"}: {r.commissionType === "PERCENT" ? `${r.commissionValue}%` : rupiah(r.commissionValue) + "/bln"}</div>)}
+            </div>
           </CardContent>
         </Card>
 

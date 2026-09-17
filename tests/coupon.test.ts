@@ -88,7 +88,7 @@ describe("resolveCheckout (pure) — base/diskon/pajak/total satu sumber", () =>
     expect(r.total).toBe(0);
   });
 
-  it("item Midtrans: subtotal + taxAmount = total (jumlah item = gross)", () => {
+  it("item iPaymu: subtotal + taxAmount = total (jumlah item = total)", () => {
     for (const [base, disc, tax] of [[149_000, 0, 11], [499_000, 250_000, 11], [199_000, 50_000, 0]] as const) {
       const r = resolveCheckout(base, disc, tax);
       expect(r.subtotal + r.taxAmount).toBe(r.total);

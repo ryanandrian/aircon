@@ -31,7 +31,6 @@ const QUEUE_FILE = process.env.WA_QUEUE_FILE ?? path.join(SESSION_DIR, "queue.js
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rand = (a, b) => Math.floor(a + Math.random() * (b - a));
-const chatId = (phone) => `${String(phone).replace(/[^0-9]/g, "")}@c.us`;
 
 /**
  * Bungkus promise dengan timeout. KRUSIAL: getNumberId/sendMessage whatsapp-web bisa

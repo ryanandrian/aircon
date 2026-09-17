@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/icons";
 import { QrScanner } from "@/app/app/unit/qr-scanner";
 import { actionTechScan } from "@/app/t/kerja/actions";
@@ -38,15 +37,15 @@ export function TechScanButton() {
   return (
     <>
       {scanning && <QrScanner onCode={onCode} onClose={() => setScanning(false)} />}
-      <Button
+      <button
         type="button"
-        variant="ghost"
-        size="icon"
-        aria-label="Scan Kode QR unit"
         onClick={() => setScanning(true)}
+        className="flex flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        aria-label="Scan Kode QR unit"
       >
-        <Icon.Web className="h-5 w-5" aria-hidden />
-      </Button>
+        <Icon.Scan className="h-5 w-5" aria-hidden />
+        <span>Scan</span>
+      </button>
     </>
   );
 }

@@ -17,6 +17,17 @@ interface ResellerView {
 
 const selectCls = "mt-1 min-h-[40px] w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
+function PlanRuleFields() {
+  return <div className="sm:col-span-3 grid gap-2 rounded-lg border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
+    <div className="text-xs font-semibold text-foreground">Rate canonical per paket</div>
+    {(["TRIAL", "PROFESSIONAL", "BUSINESS"] as const).map((plan) => <div key={plan} className="grid gap-2 sm:grid-cols-3">
+      <div className="self-center text-xs text-foreground">{plan === "TRIAL" ? "Basic" : plan === "PROFESSIONAL" ? "Professional" : "Business"}</div>
+      <select name={`${plan}_commissionType`} className={selectCls} defaultValue="FLAT_IDR"><option value="FLAT_IDR">Rupiah / bulan</option><option value="PERCENT">Persen</option></select>
+      <Input name={`${plan}_commissionValue`} type="number" min="0" step="0.01" required className="min-h-[40px]" defaultValue="0" />
+    </div>)}
+  </div>;
+}
+
 export function ResellerManager({ joinCode, resellers }: { joinCode: string | null; resellers: ResellerView[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -71,15 +82,16 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
               <form key={r.id} action={(fd) => approve(r.id, fd)} className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-950/30">
                 <div className="font-medium text-foreground">{r.name}</div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                  <label className="text-xs text-foreground">Tipe komisi
+                  <label className="text-xs text-foreground">Tipe fallback legacy
                     <select name="commissionType" defaultValue="FLAT_IDR" className={selectCls}>
-                      <option value="FLAT_IDR">Rupiah / pembayaran</option>
+                      <option value="FLAT_IDR">Rupiah / bulan</option>
                       <option value="PERCENT">Persen</option>
                     </select>
                   </label>
-                  <label className="text-xs text-foreground">Nilai
+                  <label className="text-xs text-foreground">Nilai fallback legacy
                     <Input name="commissionValue" type="number" min="0" step="0.01" required className="mt-1 min-h-[40px]" placeholder="mis. 25000" />
                   </label>
+                  <PlanRuleFields />
                   <div className="flex items-end gap-2">
                     <Button type="submit" disabled={pending} className="min-h-[40px] flex-1 bg-sky-500 text-white hover:bg-sky-600">
                       {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}

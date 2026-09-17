@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Lightbulb, ListChecks, Sparkles, HelpCircle } from "lucide-react";
+import { ListChecks, Sparkles, HelpCircle } from "lucide-react";
 import type { HelpTopic } from "@/lib/help/help-content";
 
 /**

@@ -282,13 +282,13 @@ export const OWNER_TOPICS: HelpTopic[] = [
     steps: [
       "Pilih paket (mis. Professional atau Business) dan durasi (1/3/12 bulan).",
       "Bila punya kode diskon, masukkan di kolom kupon saat checkout.",
-      "Ketuk 'Lanjutkan Pembayaran' — Anda diarahkan ke halaman pembayaran aman (Midtrans).",
+      "Ketuk 'Lanjutkan Pembayaran' — Anda diarahkan ke halaman pembayaran aman (iPaymu).",
       "Untuk transaksi yang belum lunas, gunakan tombol 'Bayar Sekarang' di Riwayat Pembayaran.",
       "Ketuk 'Kwitansi' pada pembayaran lunas untuk bukti terima, atau 'Faktur' untuk yang belum lunas.",
     ],
     tips: [
       "Paket bisa dibayar via transfer bank (VA), QRIS, atau e-wallet.",
-      "Instruksi pembayaran juga dikirim otomatis oleh Midtrans ke email Anda.",
+      "Instruksi pembayaran juga dikirim otomatis oleh iPaymu ke email Anda.",
       "Bayar sebelum jatuh tempo agar layanan tidak terhenti.",
     ],
     faqs: [

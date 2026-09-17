@@ -8,12 +8,10 @@ import {
   startIotOrderPayment,
   IotOrderError,
 } from "@/lib/services/iot-order-service";
-import { midtransClientConfig, type MidtransClientConfig } from "@/lib/billing/midtrans-client";
 
 export type OrderActionResult =
-  | { ok: true; snapToken: string; redirectUrl: string; client: MidtransClientConfig }
+  | { ok: true; redirectUrl: string }
   | { ok: false; error: string };
-
 /** Buat pesanan device lalu mulai pembayaran. SECURITY: OWNER/ADMIN saja. */
 export async function orderAndPay(
   productId: string,
@@ -37,7 +35,7 @@ export async function orderAndPay(
       select: { phone: true },
     });
     const pay = await startIotOrderPayment(order.id, ctx.tenantId, ctx.name, ctx.email ?? undefined, tenant?.phone ?? undefined);
-    return { ok: true, snapToken: pay.snapToken, redirectUrl: pay.redirectUrl, client: midtransClientConfig() };
+    return { ok: true, redirectUrl: pay.redirectUrl };
   } catch (err) {
     if (err instanceof IotOrderError) return { ok: false, error: err.message };
     console.error("[orderAndPay] gagal:", err);

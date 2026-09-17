@@ -10,6 +10,7 @@
 import {
   ClipboardList, Wrench, Bell, Zap, HardHat, Radio, Smartphone, CreditCard,
   MessageSquare, ClipboardCheck, Globe, RefreshCw, Check, X, Copy, Printer,
+  QrCode,
   Phone, Navigation, MapPin, Calendar, Snowflake, Wind, Building2, DollarSign,
   Hand, FileText, PartyPopper, Clock, ShieldCheck, Users, Package, Send,
   Menu, Settings, LayoutDashboard, BarChart3, Star, ChevronRight, HelpCircle, Trash2, Power,
@@ -29,6 +30,7 @@ export const Icon = {
   Message: MessageSquare,     // template pesan / chat WA
   Checklist: ClipboardCheck,  // checklist servis
   Web: Globe,                 // halaman usaha / booking online
+  Scan: QrCode,               // scan QR unit
   Repeat: RefreshCw,          // money loop / pelanggan datang lagi
   Check: Check,               // status sukses / poin fitur / tersalin
   Close: X,                   // hapus / tutup

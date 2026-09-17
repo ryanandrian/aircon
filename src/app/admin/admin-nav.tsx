@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/tenants", label: "Daftar Usaha", icon: Building2 },
   { href: "/admin/notifikasi", label: "Notifikasi Platform", icon: Bell },
   { href: "/admin/landing", label: "Landing Page", icon: Globe },
+  { href: "/admin/pembayaran", label: "Pembayaran iPaymu", icon: CreditCard },
   { href: "/admin/paket", label: "Paket Langganan", icon: CreditCard },
   { href: "/admin/kupon", label: "Kupon Diskon", icon: Ticket },
   { href: "/admin/kebijakan", label: "Kebijakan Billing", icon: Scale },

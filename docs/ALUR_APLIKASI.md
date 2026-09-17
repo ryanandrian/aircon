@@ -220,14 +220,14 @@ flowchart TD
 flowchart TD
   subgraph UPGRADE["Upgrade (owner)"]
     LG["/app/langganan"] --> PICK["Pilih paket Pro/Business"]
-    PICK --> SNAP["createSnapTransaction → Midtrans"]
-    SNAP --> PAY["Pelanggan bayar (Snap)"]
-    PAY --> WH["Webhook /api/billing/midtrans-webhook (verif sha512)"]
+    PICK --> IPAY["createIpaymuRedirect → iPaymu"]
+    IPAY --> PAY["Pelanggan bayar (hosted redirect)"]
+    PAY --> WH["Webhook /api/billing/ipaymu-webhook (verif signature)"]
     WH --> ACT["Subscription aktif + nextDueDate diset"]
   end
 
   subgraph JAGA["Penjamin (bila webhook meleset)"]
-    CRON["/api/cron/reconcile (harian)"] --> PULL["getTransactionStatus (PULL Midtrans)"]
+    CRON["/api/cron/reconcile (harian)"] --> PULL["checkTransaction (PULL iPaymu)"]
     PULL --> ACT
   end
 
@@ -242,8 +242,8 @@ flowchart TD
   NOTE["Basic gratis: nextDueDate NULL → TAK PERNAH masuk dunning"]
 ```
 
-- **Midtrans env-driven** (sandbox↔production 1 saklar `MIDTRANS_ENV`; PRODUCTION aktif).
-- **Webhook + reconciler** = dua lapis penjamin (push + pull) karena akun Midtrans dipakai bersama beberapa app (X-Override-Notification).
+- **iPaymu environment-driven** (sandbox↔production melalui konfigurasi server/admin; satu gateway aktif).
+- **Webhook + reconciler** = dua lapis penjamin (push + pull iPaymu), keduanya memakai processor payment yang idempoten.
 - **Purge bertahap & reversible**: mark → grace 24 jam → purge (jendela bayar sebelum data hilang).
 
 ---
@@ -253,7 +253,7 @@ flowchart TD
 ```mermaid
 flowchart LR
   ORDER["Owner pesan perangkat /app/perangkat/pesan"] --> IOTORD["IotOrder"]
-  IOTORD --> IWH["/api/billing/iot-webhook (bayar)"]
+  IOTORD --> IWH["/api/billing/ipaymu-webhook (bayar)"]
   IWH --> SHIP["Admin proses & kirim (/admin/iot)"]
   SHIP --> INSTALL["Terpasang di unit AC"]
   INSTALL --> INGEST["/api/iot/ingest (token) → telemetry"]
@@ -285,9 +285,8 @@ flowchart TD
 |---|---|---|---|
 | `/api/cron/reminders` | Cron harian | Kirim WA reminder due (batch/pelanggan) | `CRON_SECRET` |
 | `/api/cron/dunning` | Cron harian | Siklus tunggakan + purge | `CRON_SECRET` |
-| `/api/cron/reconcile` | Cron harian | PULL status Midtrans (penjamin) | `CRON_SECRET` |
-| `/api/billing/midtrans-webhook` | Midtrans | Aktifkan langganan | sha512 signature |
-| `/api/billing/iot-webhook` | Midtrans | Bayar perangkat IoT | signature |
+| `/api/cron/reconcile` | Cron harian | PULL status iPaymu (penjamin) | `CRON_SECRET` |
+| `/api/billing/ipaymu-webhook` | iPaymu | Aktifkan langganan/perangkat | iPaymu signature |
 | `/api/iot/ingest` | Perangkat IoT | Telemetry masuk | `IOT_BRIDGE_TOKEN` |
 | `/api/wa/callback` `/api/wa/policy` | Gateway WA | Status/kebijakan WA | secret header |
 | `/api/customers`, `/api/assets` (+`/[id]`) | App | CRUD (REST) | `requireApiContext` (sesi) |

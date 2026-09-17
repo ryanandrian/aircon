@@ -33,7 +33,7 @@ describe("terbilang (pure)", () => {
 });
 
 describe("finance-doc (pure)", () => {
-  it("extractGrossInfo: baca fee dari rawNotif Midtrans", () => {
+  it("extractGrossInfo: provider payload fee fields", () => {
     const raw = { metadata: { extra_info: { gross_amount_info: {
       gross_amount: "14440", original_amount: "10000", customer_imposed_payment_fee: "4440",
     } } } };

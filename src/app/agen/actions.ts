@@ -6,6 +6,7 @@ import {
   approveReseller, rejectReseller, PartnerPortalError,
 } from "@/lib/partner/partner-portal-service";
 import { setPartnerSession, clearPartnerSession, getPartnerSession } from "@/lib/partner/partner-session";
+import type { PlanCommissionInput } from "@/lib/partner/partner-portal-service";
 import { revalidatePath } from "next/cache";
 
 export type PortalResult = { ok: true } | { ok: false; error: string };
@@ -68,6 +69,11 @@ export async function actionApproveReseller(resellerId: string, fd: FormData): P
     await approveReseller(sess.id, resellerId, {
       type: (s(fd, "commissionType") || "FLAT_IDR") as "FLAT_IDR" | "PERCENT",
       value: Number(fd.get("commissionValue") ?? 0),
+      planCommissions: (["TRIAL", "PROFESSIONAL", "BUSINESS"] as const).map((plan): PlanCommissionInput => ({
+        plan,
+        commissionType: (s(fd, `${plan}_commissionType`) || s(fd, "commissionType") || "FLAT_IDR") as "FLAT_IDR" | "PERCENT",
+        commissionValue: fd.get(`${plan}_commissionValue`) != null ? Number(fd.get(`${plan}_commissionValue`)) : Number(fd.get("commissionValue") ?? 0),
+      })),
     });
     revalidatePath("/agen/reseller");
     return { ok: true };

@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useEffect, useCallback } from "react";
 import { startPayment, previewCheckout } from "./actions";
+// isIpaymuActive dipanggil server-side via startPayment
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,19 +22,6 @@ interface PlanView {
 
 // Muat Snap.js dari config yang DIBERIKAN SERVER (env yang sama dgn pencetak token).
 // TIDAK memutuskan env sendiri → mustahil melenceng dari token.
-function loadSnap(snapUrl: string, clientKey: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return reject();
-    const w = window as unknown as { snap?: unknown };
-    if (w.snap) return resolve();
-    const s = document.createElement("script");
-    s.src = snapUrl;
-    s.setAttribute("data-client-key", clientKey);
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Gagal memuat pembayaran"));
-    document.head.appendChild(s);
-  });
-}
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
@@ -152,6 +140,8 @@ function CheckoutSheet({
   }, [plan.id, months]);
 
   // Muat rincian saat sheet dibuka / durasi berubah (tanpa kode → termasuk diskon recurring melekat).
+  // load() memanggil startLoad (useTransition) → setState terjadi di dalam transition, bukan sinkron.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   function applyCoupon() {
@@ -168,20 +158,7 @@ function CheckoutSheet({
         setMsg(res.error);
         return;
       }
-      try {
-        await loadSnap(res.client.snapUrl, res.client.clientKey);
-        const w = window as unknown as {
-          snap?: { pay: (token: string, opts: Record<string, unknown>) => void };
-        };
-        w.snap?.pay(res.snapToken, {
-          onSuccess: () => (window.location.href = "/app/langganan?status=sukses"),
-          onPending: () => (window.location.href = "/app/langganan?status=pending"),
-          onError: () => setMsg("Pembayaran gagal. Coba lagi."),
-          onClose: () => setMsg("Pembayaran dibatalkan."),
-        });
-      } catch {
-        window.location.href = res.redirectUrl;
-      }
+      window.location.href = res.redirectUrl;
     });
   }
 

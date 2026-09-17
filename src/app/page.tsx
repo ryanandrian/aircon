@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { planQuotaLines } from "@/lib/billing/plan-display";
-import { getLandingContent, listTestimonials, listPreviewItems } from "@/lib/services/landing-service";
+import { getLandingContent, listTestimonials } from "@/lib/services/landing-service";
 import { appBaseUrl } from "@/lib/unit-code/urls";
 import { LoginErrorBanner } from "./_components/login-error-banner";
 import { VisitBeacon } from "./_components/visit-beacon";
+import { getPlatformWaPhone } from "@/lib/wa/gateway-relay";
+import { CustomerServiceFab } from "@/components/customer-service-fab";
 
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
@@ -27,15 +29,15 @@ const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string; error_code?: string }> }) {
   const sp = await searchParams;
   const siteUrl = appBaseUrl();
-  const [plans, policy, c, testimonials, previews] = await Promise.all([
+  const [plans, policy, c, testimonials, platformWaPhone] = await Promise.all([
     getActivePlans(),
     getBillingPolicy(),
     getLandingContent(),
     listTestimonials(true),
-    listPreviewItems(true),
+    getPlatformWaPhone(),
   ]);
   const logo = c.logoUrl || "/brand/aircon-logo.png";
-  const csWa = (c.csWhatsapp || "").replace(/[^0-9]/g, "");
+  const csWa = platformWaPhone ?? "";
   const csWaUrl = csWa
     ? `https://wa.me/${csWa}?text=${encodeURIComponent("Halo Lumite, saya tertarik dengan solusi Full Custom Aircon untuk perusahaan saya.")}`
     : "";
@@ -429,12 +431,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         </Link>
       </section>
 
+      {platformWaPhone && <CustomerServiceFab phone={platformWaPhone} />}
       <footer className="border-t py-10 text-center text-sm text-muted-foreground">
         <div>{c.footerTagline}</div>
-        <div className="mt-3 flex items-center justify-center gap-4">
-          <a href="/privasi" className="hover:text-foreground hover:underline">Kebijakan Privasi</a>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+          <Link href="/privasi" className="hover:text-foreground hover:underline">Kebijakan Privasi</Link>
           <span aria-hidden>·</span>
-          <a href="/ketentuan" className="hover:text-foreground hover:underline">Ketentuan Layanan</a>
+          <Link href="/ketentuan" className="hover:text-foreground hover:underline">Ketentuan Layanan</Link>
+          <span aria-hidden>·</span>
+          <Link href="/refund" className="hover:text-foreground hover:underline">Kebijakan Pengembalian Dana</Link>
+          <span aria-hidden>·</span>
+          <Link href="/kontak" className="hover:text-foreground hover:underline">Kontak</Link>
         </div>
       </footer>
     </main>

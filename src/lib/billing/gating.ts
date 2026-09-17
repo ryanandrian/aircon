@@ -8,7 +8,6 @@ import { prisma } from "@/lib/prisma";
 import { getPlanConfig, getBillingPolicy } from "@/lib/billing/config";
 import {
   quotaLimit,
-  withinQuota,
   type QuotaKind,
 } from "@/lib/billing/gating-pure";
 

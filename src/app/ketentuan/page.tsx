@@ -52,7 +52,7 @@ export default function KetentuanPage() {
             <h2 className="text-xl font-bold text-foreground">3. Langganan & Pembayaran</h2>
             <ul className="list-disc space-y-1 pl-5">
               <li>Tersedia paket gratis (dengan batasan) dan paket berbayar dengan fitur/kapasitas lebih.</li>
-              <li>Pembayaran diproses melalui mitra resmi (Midtrans). Harga dan pajak yang berlaku ditampilkan sebelum pembayaran.</li>
+              <li>Pembayaran diproses melalui mitra resmi (iPaymu atau penyedia pembayaran lain yang ditampilkan saat checkout). Harga dan pajak yang berlaku ditampilkan sebelum pembayaran.</li>
               <li>Langganan berlaku untuk periode yang dipilih. Keterlambatan pembayaran dapat menyebabkan penonaktifan sementara sesuai kebijakan yang berlaku.</li>
             </ul>
           </section>
