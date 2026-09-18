@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
+import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { planQuotaLines } from "@/lib/billing/plan-display";
 import { getLandingContent, listTestimonials } from "@/lib/services/landing-service";
 import { appBaseUrl } from "@/lib/unit-code/urls";
@@ -29,12 +30,13 @@ const rupiah = (n: number) => new Intl.NumberFormat("id-ID").format(n);
 export default async function Home({ searchParams }: { searchParams: Promise<{ error?: string; error_code?: string }> }) {
   const sp = await searchParams;
   const siteUrl = appBaseUrl();
-  const [plans, policy, c, testimonials, platformWaPhone] = await Promise.all([
+  const [plans, policy, c, testimonials, platformWaPhone, company] = await Promise.all([
     getActivePlans(),
     getBillingPolicy(),
     getLandingContent(),
     listTestimonials(true),
     getPlatformWaPhone(),
+    getCompanyProfile(),
   ]);
   const logo = c.logoUrl || "/brand/aircon-logo.png";
   const csWa = platformWaPhone ?? "";
@@ -347,7 +349,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         <p className="mt-2 text-center text-muted-foreground">Paket Basic gratis selamanya. Upgrade hanya bila usaha Anda tumbuh. Tanpa kartu kredit.</p>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {plans.map((p, i) => {
-            const t = withTax(p.priceMonthly, p.taxable ? policy.taxPercent : 0);
+            const effectiveTax = p.taxable ? effectiveTaxPercent(company.isPkp, policy.taxPercent) : 0;
+            const t = withTax(p.priceMonthly, effectiveTax);
             const featured = i === 1;
             return (
               <Card key={p.id} className={`relative flex flex-col ${featured ? "ring-2 ring-sky-500 shadow-lg" : ""}`}>
@@ -361,7 +364,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
                     ) : (
                       <>
                         <div className="text-3xl font-extrabold text-foreground">Rp{rupiah(p.priceMonthly)}<span className="text-base font-medium text-muted-foreground">/bln</span></div>
-                        {p.taxable && policy.taxPercent > 0 && <div className="mt-1 text-xs text-muted-foreground">Rp{rupiah(t.total)} termasuk pajak {policy.taxPercent}%</div>}
+                        {effectiveTax > 0 && <div className="mt-1 text-xs text-muted-foreground">Rp{rupiah(t.total)} termasuk pajak {effectiveTax}%</div>}
                       </>
                     )}
                   </div>

@@ -61,7 +61,7 @@ export async function createIotOrder(params: {
       quantity: qty,
       unitPrice: product.priceUnit,
       subtotal,
-      taxPercent: policy.taxPercent,
+      taxPercent,
       taxAmount,
       total,
       shippingAddress: params.shippingAddress ?? null,

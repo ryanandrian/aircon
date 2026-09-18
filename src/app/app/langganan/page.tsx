@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
+import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
 import { formatIDR } from "@/lib/billing/plans";
 import { planQuotaLines } from "@/lib/billing/plan-display";
 import { isIpaymuActive, isIpaymuConfigured } from "@/lib/billing/ipaymu-client";
@@ -30,10 +31,11 @@ export default async function LanggananPage() {
   const isOwner = ctx.role === "OWNER";
   const paymentHistoryCutoff = new Date();
   paymentHistoryCutoff.setDate(paymentHistoryCutoff.getDate() - 90);
-  const [tenant, plans, policy, payments] = await Promise.all([
+  const [tenant, plans, policy, company, payments] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
     getActivePlans(),
     getBillingPolicy(),
+    getCompanyProfile(),
     // Riwayat utama berisi pembayaran yang relevan: lunas selalu dipertahankan,
     // transaksi belum selesai hanya ditampilkan selama 90 hari. Transaksi lama yang
     // sudah kedaluwarsa tidak boleh terus mendominasi layar setelah proses rekonsiliasi.
@@ -63,14 +65,14 @@ export default async function LanggananPage() {
         : null;
 
   const planViews = plans.map((p) => {
-    const taxPercent = p.taxable ? policy.taxPercent : 0;
+    const taxPercent = p.taxable ? effectiveTaxPercent(company.isPkp, policy.taxPercent) : 0;
     const { total } = withTax(p.priceMonthly, taxPercent);
     return {
       id: p.plan,
       name: p.displayName,
       price: p.priceMonthly === 0 ? "Gratis" : formatIDR(p.priceMonthly),
       priceWithTax: p.priceMonthly === 0 ? "Gratis" : formatIDR(total),
-      taxNote: p.taxable && p.priceMonthly > 0 ? `Termasuk pajak ${policy.taxPercent}%` : "",
+      taxNote: taxPercent > 0 && p.priceMonthly > 0 ? `Termasuk pajak ${taxPercent}%` : "",
       tagline: p.tagline ?? "",
       quotas: planQuotaLines(p),
       isFree: p.priceMonthly === 0,
