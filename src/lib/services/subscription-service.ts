@@ -42,7 +42,7 @@ export async function startIpaymuPayment(params: {
   const app = (process.env.IPAYMU_APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
   const redirect = await createIpaymuRedirect({
     referenceId, amount: checkout.total,
-    product: [{ name: `Langganan ${plan.displayName} (${months} bulan)`, price: checkout.subtotal, qty: 1 }],
+    product: [{ name: `Langganan ${plan.displayName} (${months} bulan)`, price: checkout.subtotal, qty: 1, description: `Paket ${plan.displayName} Aircon`, imageUrl: `${app}/brand/aircon-logo.png` }],
     buyerName: params.customerName, buyerEmail: params.customerEmail, buyerPhone: params.customerPhone,
     returnUrl: `${app}/app/langganan?payment=success&order_id=${referenceId}`,
     notifyUrl: `${app}/api/billing/ipaymu-webhook`,

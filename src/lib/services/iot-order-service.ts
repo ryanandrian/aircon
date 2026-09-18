@@ -116,7 +116,7 @@ export async function startIotOrderPayment(
   const redirect = await createIpaymuRedirect({
     referenceId: paymentOrderId,
     amount: order.total,
-    product: items.map((item) => ({ name: item.name, price: item.price, qty: item.quantity })),
+    product: items.map((item) => ({ name: item.name, price: item.price, qty: item.quantity, imageUrl: `${(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "")}/brand/aircon-logo.png` })),
     buyerName: customerName, buyerEmail: email, buyerPhone: phone,
     returnUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/app/perangkat/pesanan?status=sukses`,
     notifyUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/api/billing/ipaymu-webhook`,

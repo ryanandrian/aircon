@@ -22,6 +22,7 @@ Aircon uses iPaymu as its sole active payment gateway. The active sandbox config
 - Aircon return URL: `https://app.airconet.id/app/langganan?status=sukses`.
 - Aircon cancel URL: `https://app.airconet.id/app/langganan?status=dibatalkan`.
 - Actual sandbox request shape accepted by provider: `product[]`, `qty[]`, `price[]`, `buyerName`, `referenceId`, `amount`, URLs.
+- Optional product presentation fields from the current official Redirect Payment documentation: `description[]` and `imageUrl[]`; both arrays follow the same product index. Aircon sends the public HTTPS logo URL `/brand/aircon-logo.png` for each product line.
 - Successful response shape observed: `Data.SessionID`, `Data.Url`.
 
 The browser redirect and callback are independent: callback does not navigate a browser; `returnUrl` does.
