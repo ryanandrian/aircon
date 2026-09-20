@@ -188,7 +188,7 @@ export function WaConnect() {
           </div>
         )}
 
-        {phase === "connecting" && !authenticating && (
+        {phase === "connecting" && !pairing && !authenticating && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300">
               <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-sky-400 border-t-transparent" aria-hidden />
