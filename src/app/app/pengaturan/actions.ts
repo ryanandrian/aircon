@@ -6,7 +6,7 @@ import { tenantProfileSchema } from "@/lib/validation/tenant-profile";
 import { updateTenantProfile } from "@/lib/services/tenant-profile-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 import { ServiceError } from "@/lib/services/customer-service";
-import { gatewayInitSession, gatewaySessionStatus, gatewayLogoutSession } from "@/lib/wa/gateway-relay";
+import { gatewayInitSession, gatewayPairSession, gatewayCancelPairSession, gatewaySessionStatus, gatewayLogoutSession } from "@/lib/wa/gateway-relay";
 
 type Result = { ok: boolean; error?: string };
 
@@ -71,8 +71,24 @@ export async function actionWaInit(): Promise<{ ok: boolean; qr?: string | null;
   return gatewayInitSession(ctx.tenantId);
 }
 
-/** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr, phone, authenticating}. */
-export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string; conflict?: boolean }> {
+/** Mulai pairing code dari HP tenant tanpa mengubah QR flow. */
+export async function actionWaPair(phone: string): Promise<{ ok: boolean; pairingCode?: string | null; pairing?: boolean; ready?: boolean; phone?: string | null; error?: string }> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  return gatewayPairSession(ctx.tenantId, phone);
+}
+
+/** Batalkan pairing code tanpa logout sesi WhatsApp. */
+export async function actionWaPairCancel(): Promise<Result> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  return gatewayCancelPairSession(ctx.tenantId);
+}
+
+/** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr, phone, pairing}. */
+export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; pairing?: boolean; pairingCode?: string | null; pairingPhone?: string | null; error?: string; conflict?: boolean }> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };

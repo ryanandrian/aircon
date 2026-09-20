@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================================
-# VPS-INFRA provisioning — NATIVE systemd (TANPA Docker). BiznetGio Ubuntu 22.04, 4GB.
+# DEPRECATED: shared Lumite Gateway provisioning no longer originates from Aircon.
+# Use /home/rad/lumite-gateway exact-SHA release/deployment procedure.
+# Historical VPS-INFRA provisioning — NATIVE systemd (TANPA Docker).
 # Menyiapkan: swap, Node 20, Mosquitto (native), dependensi Chromium, firewall,
 #             service systemd untuk messaging-gateway + iot-bridge (ber-MemoryMax).
 # Idempoten (aman diulang). Jalankan sebagai user sudo di VPS.

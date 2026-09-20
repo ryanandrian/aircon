@@ -75,17 +75,49 @@ export async function gatewayInitSession(tenantId: string): Promise<{ ok: boolea
   }
 }
 
-/** Status sesi WA tenant (untuk polling di UI tautkan): {exists, ready, qr, phone, authenticating}. */
-export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string }> {
+/** Minta kode pairing WhatsApp untuk tenant yang hanya memiliki satu HP. */
+export async function gatewayPairSession(tenantId: string, phone: string): Promise<{ ok: boolean; pairingCode?: string | null; pairing?: boolean; ready?: boolean; phone?: string | null; error?: string }> {
+  const cfg = await resolve();
+  if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
+  try {
+    const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}/pair`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": cfg.key },
+      body: JSON.stringify({ phone }),
+    });
+    const data = (await r.json().catch(() => ({}))) as { pairingCode?: string | null; pairing?: boolean; ready?: boolean; phone?: string | null; error?: string };
+    if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
+    return { ok: true, pairingCode: data.pairingCode ?? null, pairing: data.pairing, ready: data.ready, phone: data.phone ?? null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
+  }
+}
+
+export async function gatewayCancelPairSession(tenantId: string): Promise<{ ok: boolean; error?: string }> {
+  const cfg = await resolve();
+  if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
+  try {
+    const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}/pair/cancel`, {
+      method: "POST", headers: { "X-Api-Key": cfg.key },
+    });
+    const data = (await r.json().catch(() => ({}))) as { error?: string };
+    if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
+  }
+}
+
+/** Status sesi WA tenant (untuk polling di UI tautkan): {exists, ready, qr, phone, authenticating, pairing}. */
+export async function gatewaySessionStatus(tenantId: string): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; pairing?: boolean; pairingCode?: string | null; pairingPhone?: string | null; error?: string }> {
   const cfg = await resolve();
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
   try {
     const r = await fetch(`${cfg.url}/v1/wa/sessions/${encodeURIComponent(tenantId)}`, {
       method: "GET", headers: { "X-Api-Key": cfg.key }, cache: "no-store",
     });
-    const data = (await r.json().catch(() => ({}))) as { exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; error?: string };
+    const data = (await r.json().catch(() => ({}))) as { exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; pairing?: boolean; pairingCode?: string | null; pairingPhone?: string | null; error?: string };
     if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
-    return { ok: true, exists: data.exists, ready: data.ready, qr: data.qr ?? null, phone: data.phone ?? null, authenticating: data.authenticating ?? false };
+    return { ok: true, exists: data.exists, ready: data.ready, qr: data.qr ?? null, phone: data.phone ?? null, authenticating: data.authenticating ?? false, pairing: data.pairing ?? false, pairingCode: data.pairingCode ?? null, pairingPhone: data.pairingPhone ?? null };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
   }

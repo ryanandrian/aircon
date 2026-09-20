@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { actionWaInit, actionWaStatus, actionWaLogout } from "./actions";
+import { actionWaInit, actionWaPair, actionWaPairCancel, actionWaStatus, actionWaLogout } from "./actions";
 
 type Phase = "loading" | "connected" | "disconnected" | "connecting" | "error";
 
@@ -32,6 +32,11 @@ export function WaConnect() {
   const [phone, setPhone] = useState<string | null>(null);
   const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState<string>("");
+  const [pairing, setPairing] = useState(false);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingPhone, setPairingPhone] = useState("");
+  const [pairingBusy, setPairingBusy] = useState(false);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPoll = useCallback(() => {
@@ -45,8 +50,8 @@ export function WaConnect() {
         const r = await actionWaStatus();
         if (cancelled) return;
         if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memeriksa status"); return; }
-        if (r.ready) { setPhase("connected"); setQr(null); setPhone(r.phone ?? null); stopPoll(); }
-        else setPhase((p) => (p === "connecting" ? p : "disconnected"));
+        if (r.ready) { setPhase("connected"); setQr(null); setPhone(r.phone ?? null); setPairing(false); setPairingCode(null); stopPoll(); }
+        else { setPairing(Boolean(r.pairing)); setPairingCode(r.pairingCode ?? null); setPhase((p) => (p === "connecting" ? p : "disconnected")); }
       } catch {
         if (!cancelled) { setPhase("error"); setError("Gagal memeriksa status"); }
       }
@@ -58,7 +63,7 @@ export function WaConnect() {
 
   // Mulai proses tautkan: init → tampil QR → poll sampai ready.
   const handleConnect = useCallback(async () => {
-    setPhase("connecting"); setError(""); setQr(null); setAuthenticating(false);
+    setPhase("connecting"); setError(""); setQr(null); setAuthenticating(false); setPairing(false); setPairingCode(null);
     const r = await actionWaInit();
     if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memulai"); return; }
     if (r.ready) { setPhase("connected"); return; }
@@ -68,18 +73,42 @@ export function WaConnect() {
       const s = await actionWaStatus();
       if (s.conflict) { stopPoll(); setPhase("error"); setError(s.error ?? "Nomor WhatsApp sudah terdaftar."); return; }
       if (!s.ok) return; // best-effort; jangan hentikan polling karena 1 gagal
-      if (s.ready) { setPhase("connected"); setQr(null); setPhone(s.phone ?? null); stopPoll(); }
+      if (s.ready) { setPhase("connected"); setQr(null); setPhone(s.phone ?? null); setPairing(false); setPairingCode(null); stopPoll(); }
+      else if (s.pairing) { setPairing(true); setPairingCode(s.pairingCode ?? null); setQr(null); }
       else if (s.authenticating) { setAuthenticating(true); setQr(null); } // dipindai → menyiapkan sesi
-      else if (s.qr) { setQr(s.qr); setAuthenticating(false); } // QR di-refresh gateway ~tiap 60 dtk
+      else if (s.qr) { setPairing(false); setPairingCode(null); setQr(s.qr); setAuthenticating(false); } // QR di-refresh gateway ~tiap 60 dtk
     }, 3000);
+  }, [stopPoll]);
+
+  const handlePair = useCallback(async () => {
+    setPairingBusy(true); setError(""); setPhase("connecting"); setPairing(true); setQr(null); setAuthenticating(false);
+    const r = await actionWaPair(pairingPhone);
+    setPairingBusy(false);
+    if (!r.ok) { setPairing(false); setPhase("error"); setError(r.error ?? "Gagal meminta kode tautan"); return; }
+    setPairingCode(r.pairingCode ?? null);
+    if (r.ready) { setPhase("connected"); setPhone(r.phone ?? null); setPairing(false); stopPoll(); return; }
+    stopPoll();
+    pollRef.current = setInterval(async () => {
+      const s = await actionWaStatus();
+      if (s.conflict) { stopPoll(); setPhase("error"); setPairing(false); setError(s.error ?? "Nomor WhatsApp sudah terdaftar."); return; }
+      if (!s.ok) return;
+      if (s.ready) { setPhase("connected"); setPhone(s.phone ?? null); setPairing(false); setPairingCode(null); stopPoll(); }
+      else if (s.pairing) { setPairingCode(s.pairingCode ?? null); }
+    }, 3000);
+  }, [pairingPhone, stopPoll]);
+  const handlePairCancel = useCallback(async () => {
+    stopPoll();
+    const r = await actionWaPairCancel();
+    if (!r.ok) { setError(r.error ?? "Gagal membatalkan pairing"); return; }
+    setPhase("disconnected"); setPairing(false); setPairingCode(null);
   }, [stopPoll]);
 
   const handleLogout = useCallback(async () => {
     if (!confirm("Putuskan WhatsApp? Pesan otomatis berhenti sampai Anda menautkan ulang.")) return;
     const r = await actionWaLogout();
     if (!r.ok) { setError(r.error ?? "Gagal memutuskan"); return; }
-    setPhase("disconnected"); setQr(null); setPhone(null); setAuthenticating(false);
-  }, []);
+    stopPoll(); setPhase("disconnected"); setQr(null); setPhone(null); setAuthenticating(false); setPairing(false); setPairingCode(null);
+  }, [stopPoll]);
 
   return (
     <Card>
@@ -113,9 +142,34 @@ export function WaConnect() {
         )}
 
         {phase === "disconnected" && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Belum ada nomor WhatsApp tertaut.</p>
-            <Button size="sm" onClick={handleConnect}>Hubungkan WhatsApp</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={handleConnect}>Hubungkan dengan QR</Button>
+              <Button variant="outline" size="sm" onClick={() => { setPhase("connecting"); setError(""); }}>Gunakan kode tautan (HP saja)</Button>
+            </div>
+          </div>
+        )}
+
+        {phase === "connecting" && !qr && !authenticating && !pairing && (
+          <div className="space-y-3 rounded-lg border p-3">
+            <p className="text-sm font-medium">Hubungkan dari satu HP</p>
+            <p className="text-xs text-muted-foreground">Masukkan nomor WhatsApp usaha dalam format internasional, misalnya 6281234567890.</p>
+            <div className="flex gap-2">
+              <input className="h-9 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm" inputMode="tel" placeholder="6281234567890" value={pairingPhone} onChange={(e) => setPairingPhone(e.target.value)} />
+              <Button size="sm" disabled={pairingBusy || !pairingPhone.trim()} onClick={handlePair}>{pairingBusy ? "Menyiapkan…" : "Dapatkan kode"}</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Di WhatsApp HP: Perangkat Tertaut → Tautkan Perangkat → Tautkan dengan nomor telepon.</p>
+            <Button variant="ghost" size="sm" onClick={() => { stopPoll(); setPhase("disconnected"); }}>Kembali</Button>
+          </div>
+        )}
+
+        {phase === "connecting" && pairing && (
+          <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+            <p className="text-sm font-medium">Kode tautan WhatsApp</p>
+            {pairingCode ? <p className="rounded-md bg-background px-3 py-3 text-center font-mono text-2xl font-bold tracking-[0.3em]">{pairingCode}</p> : <p className="text-sm text-muted-foreground">Menyiapkan kode…</p>}
+            <p className="text-xs text-muted-foreground">Masukkan kode ini di WhatsApp HP nomor usaha. Halaman akan berubah otomatis setelah tersambung.</p>
+            <Button variant="ghost" size="sm" onClick={handlePairCancel}>Batal</Button>
           </div>
         )}
 

@@ -1,4 +1,8 @@
-# VPS-INFRA — shared WhatsApp Gateway + Mosquitto MQTT + iot-bridge (portofolio 12 SaaS).
+# DEPRECATED NON-AUTHORITATIVE — shared gateway deployment is owned by
+# /home/rad/lumite-gateway and its exact-SHA release pipeline. This legacy
+# compose file must not be used for production or pairing-code releases.
+#
+# Historical VPS-INFRA — shared WhatsApp Gateway + Mosquitto MQTT + iot-bridge.
 # SATU file untuk semua ukuran VPS: limit RAM & jumlah sesi dibaca dari .env (lihat infra.env.example).
 #   4GB (hemat, pilot):  GW_MEM_LIMIT=2500m GW_SHM=512m  (WA_MAX_LIVE_SESSIONS=6 di gateway .env)
 #   8GB (tumbuh):        GW_MEM_LIMIT=6g    GW_SHM=1gb   (WA_MAX_LIVE_SESSIONS=15)

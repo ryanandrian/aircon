@@ -70,7 +70,7 @@ crash/OOM) TIDAK sekamar dengan app pelanggan. Isolasi failure domain = wajib.
 - **Kontrol tetap sederhana:** hanya 2 box, keduanya Docker Compose — bukan 12 infra.
 
 ## 4. Yang dibangun SEKARANG (agar tim bisa integrasi)
-1. `apps/messaging-gateway/` — WA Gateway sebagai **service ber-REST-API** (multi-app,
+1. `/home/rad/lumite-gateway/gateway-engine/` — WA Gateway sebagai **service ber-REST-API** (multi-app,
    API key, webhook callback) — menggantikan pola "worker poll DB aircon" agar bisa dipakai
    app mana pun. (Abstraksi: app cukup `POST /v1/wa/send`; mesin WA bisa waweb.js→Cloud API
    tanpa app berubah.)

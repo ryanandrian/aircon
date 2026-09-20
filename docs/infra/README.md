@@ -34,7 +34,7 @@ bersama, dipakai banyak aplikasi. **Developer app lain: mulai dari SSOT lalu gui
 4. **Docker Compose + limit RAM + auto-restart.** Chromium (WA) ter-isolasi dari layanan lain.
 
 ## Kode terkait di repo
-- `apps/messaging-gateway/` — WA Gateway (service REST multi-app).
+- Shared WA Gateway source is owned by `/home/rad/lumite-gateway/gateway-engine/`; this Aircon repository contains only the integration client. Legacy `apps/messaging-gateway/` is not a production deployment source.
 - `infra/vps-infra/docker-compose.yml` — gateway + Mosquitto (VPS-INFRA).
 - `apps/iot-bridge/` — bridge MQTT → HTTP ingest (referensi aircon).
 - `apps/wa-worker/` — worker WA lama aircon (poll DB); digantikan pola gateway untuk portofolio.

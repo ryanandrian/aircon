@@ -1,4 +1,6 @@
-# Deploy & Rollout VPS-INFRA (runbook)
+# Deploy & Rollout VPS-INFRA (historical runbook)
+
+> **DEPRECATED:** shared Lumite Gateway production deployment is owned by `/home/rad/lumite-gateway` and its exact-SHA release pipeline. Do not execute the legacy steps below for the shared gateway.
 
 > ⚠️ **PENTING — deploy NYATA memakai NATIVE/systemd, BUKAN Docker.** Isi di bawah (Docker Compose)
 > adalah alternatif yang **TIDAK dipakai** di server aircon saat ini. Untuk operasi & deploy yang
@@ -17,7 +19,8 @@ ufw allow 22/tcp && ufw allow 8883/tcp && ufw enable
 ## 2. Ambil repo & konfigurasi
 ```bash
 git clone <repo> /opt/aircon && cd /opt/aircon/infra/vps-infra
-cp ../../apps/messaging-gateway/.env.example ../../apps/messaging-gateway/.env
+# DEPRECATED: shared gateway deployment no longer originates from this Aircon repository.
+# Use /home/rad/lumite-gateway exact-SHA release pipeline.
 # EDIT .env: isi GATEWAY_APPS (id/key/webhook tiap app). Buat key: openssl rand -hex 24
 # Mosquitto: buat password
 docker run --rm -v $PWD/mosquitto/config:/c eclipse-mosquitto:2 \
@@ -42,7 +45,7 @@ Profil resource:
 
 ## 3a. Naik dari 4GB → 8GB TANPA migrasi
 1. Resize instance di panel BiznetGio (RAM 4→8GB) — reboot singkat, data volume tetap.
-2. Set `WA_MAX_LIVE_SESSIONS=15` di `apps/messaging-gateway/.env`.
+2. Legacy setting only; production capacity is configured by the Lumite release/runtime configuration.
 3. `docker compose --env-file infra.env.8gb up -d` — selesai. Tanpa pindah server, tanpa kehilangan sesi WA.
 
 ## 4. Tautkan sesi WA (per nomor/tenant)
