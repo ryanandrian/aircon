@@ -307,18 +307,22 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 1,
     whatIsIt:
-      "Sambungkan WhatsApp usaha Anda ke Aircon agar pengingat servis terkirim OTOMATIS ke pelanggan — inti keunggulan Aircon. Ada di menu Pengaturan Usaha.",
+      "Sambungkan nomor WhatsApp usaha ke Aircon agar pengingat servis dan notifikasi terkirim otomatis ke pelanggan. Ada dua cara: QR untuk laptop/PC, atau kode tautan untuk Anda yang hanya memakai satu HP.",
     steps: [
       "Siapkan HP dengan WhatsApp usaha (bukan WA pribadi).",
-      "Ketuk 'Hubungkan WhatsApp' — muncul kode QR di layar.",
-      "Di HP: buka WhatsApp → Setelan → Perangkat Tertaut → Tautkan Perangkat.",
-      "Arahkan kamera HP ke kode QR di layar ini.",
-      "Tunggu sampai status berubah menjadi 'Tersambung' (hijau).",
+      "Untuk cara QR: di Pengaturan Usaha, ketuk 'Hubungkan dengan QR'.",
+      "Di HP: buka WhatsApp → Perangkat Tertaut → Tautkan Perangkat.",
+      "Arahkan kamera HP ke kode QR di layar komputer/laptop.",
+      "Untuk cara satu HP: ketuk 'Gunakan kode tautan (HP saja)', masukkan nomor WhatsApp dalam format internasional (contoh 6281234567890), lalu ketuk 'Dapatkan kode'.",
+      "Di HP: WhatsApp → Perangkat Tertaut → Tautkan Perangkat → Tautkan dengan nomor telepon. Masukkan kode 8 karakter yang tampil di Aircon.",
+      "Tunggu sampai status berubah menjadi 'Tersambung' (hijau). Jangan menutup halaman saat proses berlangsung.",
     ],
     tips: [
       "Gunakan nomor WhatsApp khusus usaha — jangan nomor pribadi.",
       "Jangan keluarkan (logout) perangkat tertaut ini, atau pengingat berhenti terkirim.",
-      "Bila terputus, Anda akan diberi tahu — tinggal hubungkan ulang dengan scan QR lagi.",
+      "QR membutuhkan layar kedua (komputer/laptop). Jika hanya punya satu HP, gunakan kode tautan.",
+      "Nomor harus ditulis dengan kode negara 62, tanpa tanda + dan tanpa awalan 0.",
+      "Bila terputus, Anda akan diberi tahu — tinggal hubungkan ulang dengan QR atau kode tautan.",
     ],
     faqs: [
       {
@@ -328,6 +332,14 @@ export const OWNER_TOPICS: HelpTopic[] = [
       {
         q: "Apakah HP harus selalu menyala?",
         a: "WhatsApp Anda cukup aktif seperti biasa — mirip cara kerja WhatsApp Web.",
+      },
+      {
+        q: "Saya hanya punya satu HP, bagaimana cara menyambungkan?",
+        a: "Gunakan 'Gunakan kode tautan (HP saja)'. Masukkan nomor WhatsApp dalam format 62xxxxxxxxxx, ketuk 'Dapatkan kode', lalu masukkan kode 8 karakter melalui WhatsApp → Perangkat Tertaut → Tautkan Perangkat → Tautkan dengan nomor telepon.",
+      },
+      {
+        q: "Mengapa QR hanya berputar atau tidak muncul?",
+        a: "QR hanya untuk mode QR dan membutuhkan layar komputer/laptop. Jika Anda memakai satu HP, kembali lalu pilih kode tautan. Jika tetap macet, batalkan proses, muat ulang halaman, dan mulai lagi.",
       },
     ],
   },
