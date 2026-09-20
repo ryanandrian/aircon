@@ -1,6 +1,6 @@
 # WhatsApp Tenant Pairing-Code Alternative Implementation Plan
 
-> Status: PLAN / AUDIT BASELINE. No implementation, migration, runtime mutation, or deployment has been performed.
+> Status: IMPLEMENTED IN SOURCE; Lumite Gateway deployed. Aircon production UI deployment remains BLOCKED pending verified access to the Aircon production host.
 
 **Goal:** Add a mobile-only WhatsApp tenant registration path using WhatsApp pairing code while preserving the existing QR path for laptop/PC users.
 
@@ -190,16 +190,32 @@ Completed:
 - Confirmed current gateway is QR-only.
 - Confirmed Aircon already has verified-number ownership and duplicate prevention.
 - Identified canonical-source/deployment contradiction.
-- Confirmed no code, migration, runtime, or deployment changes were made.
+- Reconciled canonical ownership: Lumite Gateway owns the shared engine; Aircon is an integration client.
+- Updated Lumite and Aircon architecture/deployment SSOTs and fail-closed legacy Aircon deploy guards.
+- Implemented gateway pairing endpoint/status/cancel and focused tests in Lumite.
+- Implemented Aircon relay, server actions, and mobile pairing UI while preserving QR.
+- Built/pushed Aircon source commit and built/pushed Lumite source commit.
+- Built checksum-verified exact-SHA Lumite artifact and deployed it with backup metadata, atomic switch, rollback release retained, service/session/health checks passing.
+- Confirmed Aircon source contains the pairing UI; this was not yet proven on Aircon production.
 
-Not completed:
+Not completed / blocked:
 
-- Source reconciliation.
-- Canonical engine ownership decision recorded in both SSOTs.
-- Pairing endpoint/state/callback implementation.
-- Aircon pairing UI and relay implementation.
-- Engine/Aircon/Control Plane tests for pairing.
-- Exact-SHA build, deploy, rollback, and live E2E.
+- Aircon production exact-SHA deployment and live UI verification.
+- Manual pairing-code E2E with a real tenant phone.
+- Aircon production host access is currently blocked by SSH public-key refusal; do not claim the UI is live until this is resolved.
+
+## Required final Aircon production phase
+
+The previous release execution stopped after deploying the shared Lumite Gateway. This phase is mandatory and must not be skipped:
+
+1. Verify Aircon production host, service, current release path, and deploy authority.
+2. Build the exact Aircon commit `34d60f6dbe951363b5dd82f927ee70d4bbc67a22` locally with the production runtime.
+3. Create checksum artifact and backup the existing Aircon runtime/config/rollback state.
+4. Deploy through the Aircon production release path; never infer that a pushed commit is live.
+5. Verify `/app/pengaturan` live contains both QR and `Gunakan kode tautan (HP saja)`.
+6. Perform manual pairing with an authorized tenant phone, then verify `ready`, actual phone, `waVerifiedPhone`, and duplicate guard.
+7. Verify QR flow remains available.
+8. Report Aircon separately as LIVE PASS only after these checks; otherwise report BLOCKED.
 
 Current repository conditions observed during audit:
 
