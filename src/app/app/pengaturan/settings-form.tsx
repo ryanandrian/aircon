@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import { TenantLogo } from "@/components/tenant-logo";
 import { actionUploadTenantAsset, actionSaveTenantProfile } from "./actions";
 
 type Profile = {
-  name: string; phone: string; address: string; tagline: string;
+  slug: string; name: string; phone: string; address: string; tagline: string;
   logoUrl: string; isPkp: boolean; npwp: string; taxPercent: number;
   bankName: string; bankAccountNo: string; bankAccountName: string; qrisImageUrl: string;
   teamIncentiveMode: "BAGI_RATA" | "PENUH"; incentiveBasis: "LUNAS" | "TERBIT";
@@ -207,6 +208,14 @@ export function SettingsForm({ profile }: { profile: Profile }) {
               dikosongkan, dipakai nilai bawaan yang rapi.
             </p>
           </div>
+          <Link
+            href={`/p/${f.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-[40px] w-fit items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-700 hover:bg-sky-100 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-300 dark:hover:bg-sky-950/50"
+          >
+            Lihat Halaman Usaha ↗
+          </Link>
 
           <div className="space-y-1.5">
             <Label htmlFor="pubdesc">Deskripsi Usaha</Label>

@@ -14,7 +14,7 @@ export async function getTenantProfile(tenantId: string) {
   const t = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: {
-      name: true, phone: true, address: true, tagline: true,
+      name: true, slug: true, phone: true, address: true, tagline: true,
       logoUrl: true, isPkp: true, npwp: true, taxPercent: true,
       bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
       teamIncentiveMode: true, incentiveBasis: true, incentiveEnabled: true,
@@ -25,7 +25,7 @@ export async function getTenantProfile(tenantId: string) {
   const pub = parsePublicProfile(t.publicProfile);
   const area = parseServiceArea(t.serviceArea);
   return {
-    name: t.name, phone: t.phone, address: t.address, tagline: t.tagline,
+    name: t.name, slug: t.slug, phone: t.phone, address: t.address, tagline: t.tagline,
     logoUrl: t.logoUrl, isPkp: t.isPkp, npwp: t.npwp, taxPercent: t.taxPercent,
     bankName: t.bankName, bankAccountNo: t.bankAccountNo, bankAccountName: t.bankAccountName,
     qrisImageUrl: t.qrisImageUrl,

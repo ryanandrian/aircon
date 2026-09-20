@@ -20,6 +20,7 @@ export default async function PengaturanPage({
   const p = await getTenantProfile(ctx.tenantId);
   const profile = {
     name: p.name,
+    slug: p.slug,
     phone: p.phone ?? "",
     address: p.address ?? "",
     tagline: p.tagline ?? "",
