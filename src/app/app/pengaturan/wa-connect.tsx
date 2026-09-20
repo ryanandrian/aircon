@@ -37,6 +37,7 @@ export function WaConnect() {
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pairingPhone, setPairingPhone] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
+  const [pairingCancelBusy, setPairingCancelBusy] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -100,11 +101,15 @@ export function WaConnect() {
     }, 3000);
   }, [pairingPhone, stopPoll]);
   const handlePairCancel = useCallback(async () => {
-    stopPoll();
-    const r = await actionWaPairCancel();
-    if (!r.ok) { setError(r.error ?? "Gagal membatalkan pairing"); return; }
-    setPhase("disconnected"); setPairing(false); setPairingCode(null);
-  }, [stopPoll]);
+    if (pairingCancelBusy) return;
+    setPairingCancelBusy(true); setError(""); stopPoll();
+    try {
+      const r = await actionWaPairCancel();
+      if (!r.ok) { setError(r.error ?? "Gagal membatalkan pairing"); return; }
+      setPhase("disconnected"); setPairing(false); setPairingCode(null);
+    } catch { setError("Gagal membatalkan pairing. Coba muat ulang halaman."); }
+    finally { setPairingCancelBusy(false); }
+  }, [pairingCancelBusy, stopPoll]);
 
   const handleLogout = useCallback(async () => {
     if (!confirm("Putuskan WhatsApp? Pesan otomatis berhenti sampai Anda menautkan ulang.")) return;
@@ -172,7 +177,7 @@ export function WaConnect() {
             <p className="text-sm font-medium">Kode tautan WhatsApp</p>
             {pairingCode ? <p className="rounded-md bg-background px-3 py-3 text-center font-mono text-2xl font-bold tracking-[0.3em]">{pairingCode}</p> : <p className="text-sm text-muted-foreground">Menyiapkan kode…</p>}
             <p className="text-xs text-muted-foreground">Masukkan kode ini di WhatsApp HP nomor usaha. Halaman akan berubah otomatis setelah tersambung.</p>
-            <Button variant="ghost" size="sm" onClick={handlePairCancel}>Batal</Button>
+            <Button variant="ghost" size="sm" disabled={pairingCancelBusy} onClick={handlePairCancel}>{pairingCancelBusy ? "Membatalkan…" : "Batal"}</Button>
           </div>
         )}
 
