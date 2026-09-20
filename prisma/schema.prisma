@@ -306,6 +306,7 @@ model Tenant {
   workItems             WorkItem[]
   invoices              Invoice[]
   platformNotifications PlatformNotification[]
+  tenantNotifications   TenantNotification[]
   teamIncentiveMode     TeamIncentiveMode      @default(BAGI_RATA)
   // Niat EKSPLISIT tenant menerapkan program insentif tim. Menggerbang SEMUA UI insentif
   // sisi teknisi (kartu, kolom, catatan). Default false = aman: aplikasi TIDAK memperkenalkan
@@ -1053,6 +1054,23 @@ model PlatformNotification {
 
   @@index([status, channel])
   @@index([tenantId, createdAt])
+}
+
+// ================= TENANT IN-APP NOTIFICATION =================
+model TenantNotification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  title     String
+  body      String
+  entityId  String?
+  dedupeKey String   @unique
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, readAt, createdAt])
 }
 
 // ================= CONFIG (DB-DRIVEN, EDITABLE ADMIN — NO HARDCODE) =================

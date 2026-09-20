@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MobileNav } from "./mobile-nav";
 import { HelpButton } from "@/components/help/help-button";
 import { getHelpTopic } from "@/lib/help/help-content";
+import { TenantNotificationBell } from "./tenant-notification-bell";
 
 /**
  * Header halaman aplikasi — konsisten di semua sub-halaman /app.
@@ -38,6 +39,7 @@ export function AppHeader({ title, back, backLabel = "Kembali", action, helpKey 
         </div>
         <div className="flex items-center gap-1.5">
           {action}
+          <TenantNotificationBell />
           <HelpButton topic={helpTopic} />
           <ThemeToggle />
         </div>

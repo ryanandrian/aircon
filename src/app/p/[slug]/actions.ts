@@ -15,6 +15,7 @@ import {
   HONEYPOT_FIELD,
 } from "@/lib/validation/booking";
 import { createLeadFromBooking } from "@/lib/services/lead-service";
+import { createTenantBookingNotification } from "@/lib/services/tenant-notification-service";
 
 export type BookingActionState =
   | { ok: true; message: string }
@@ -76,7 +77,8 @@ export async function submitBooking(
     }
 
     // 4) Buat Lead(source=WEBSITE, status=NEW) → masuk mesin uang.
-    await createLeadFromBooking(tenant.id, parsed.data);
+    const lead = await createLeadFromBooking(tenant.id, parsed.data);
+    await createTenantBookingNotification({ tenantId: tenant.id, leadId: lead.id, name: lead.name, service: parsed.data.serviceType });
 
     return { ok: true, message: "Terima kasih, kami akan hubungi Anda." };
   } catch (err) {
