@@ -19,6 +19,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
     heading: null,
     items: [
       { href: "/app", label: "Ringkasan", icon: Icon.Dashboard, exact: true },
+      { href: "/app/leads", label: "Booking Online", icon: Icon.Bell },
       { href: "/app/pelanggan", label: "Pelanggan", icon: Icon.Users },
       { href: "/app/pekerjaan", label: "Pekerjaan", icon: Icon.Job },
       { href: "/app/faktur", label: "Invoice & Proforma", icon: Icon.Billing },
