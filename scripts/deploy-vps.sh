@@ -6,10 +6,15 @@ cd "$(dirname "$0")/.."
 
 ref="${1:?exact Git tag required}"
 artifact="${2:?verified artifact required}"
-[[ -f "$artifact" ]] || { echo "FAIL: artifact not found" >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "FAIL: working tree dirty" >&2; exit 1; }
 
 commit=$(git rev-parse "$ref^{commit}")
+changed=$(git diff-tree --no-commit-id --name-only -r "$commit")
+if [[ -n "$changed" ]] && ! grep -vE '^(docs/|\.hermes/)' <<<"$changed" | grep -q .; then
+  echo "SKIP: docs-only release; production deploy is not required"
+  exit 0
+fi
+[[ -f "$artifact" ]] || { echo "FAIL: artifact not found" >&2; exit 1; }
 bash scripts/verify-release-scope.sh "$ref"
 bash scripts/verify-artifact.sh "$artifact"
 
