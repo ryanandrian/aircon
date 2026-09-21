@@ -33,8 +33,8 @@ cp -rL .next/static "$BUILD/.next/static"
 cp -rL public "$BUILD/public"
 # Next.js tracing can copy the local env file into standalone; remove it explicitly.
 rm -f "$BUILD/.env" "$BUILD"/.env.*
-find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -delete
-if find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -print -quit | grep -q .; then
+find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '*.pem' -o -name '*.key' \) -delete
+if find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '*.pem' -o -name '*.key' \) -print -quit | grep -q .; then
   echo "FAIL: secret-like file remains in artifact staging" >&2
   exit 1
 fi
@@ -45,7 +45,7 @@ fi
 tar -czf "$WORK/release.tar.gz" -C "$BUILD" .
 tar xzf "$WORK/release.tar.gz" -C "$EXTRACT"
 LISTING="$(tar tzf "$WORK/release.tar.gz")"
-if grep -Eiq '(^|/)(\.env|\.env\.|.*credential.*|.*secret.*)' <<<"$LISTING"; then
+if grep -Eiq '(^|/)(\.env|\.env\.|id_rsa|id_ed25519|.*\.pem|.*\.key)' <<<"$LISTING"; then
   echo "FAIL: secret-like file in artifact" >&2; exit 1
 fi
 (
