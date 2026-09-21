@@ -40,11 +40,12 @@ if find "$BUILD" \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -
 fi
 HELPER="$(find node_modules/.pnpm -type d -path '*@swc+helpers*/node_modules/@swc/helpers' | head -1)"
 if [[ -n "$HELPER" ]]; then
-  while IFS= read -r traced; do
+  mapfile -t TRACED_HELPERS < <(find "$BUILD/node_modules/.pnpm" -type d -path '*@swc+helpers*/node_modules/@swc/helpers')
+  for traced in "${TRACED_HELPERS[@]}"; do
     rm -rf "$traced"
-    mkdir -p "$(dirname "$traced")"
-    cp -aL "$HELPER/." "$traced/"
-  done < <(find "$BUILD/node_modules/.pnpm" -type d -path '*@swc+helpers*/node_modules/@swc/helpers')
+    mkdir -p "$traced"
+    cp -aL "$HELPER"/. "$traced"/
+  done
 fi
 [[ -f "$BUILD/server.js" && -d "$BUILD/.next/static" && -d "$BUILD/public" ]] || { echo "FAIL: incomplete standalone output" >&2; exit 1; }
 [[ -z "$(find "$BUILD" -type l -print -quit)" ]] || { echo "FAIL: symlink remains in artifact" >&2; exit 1; }
