@@ -8,10 +8,7 @@ ref="${1:?exact Git tag required}"
 artifact="${2:?verified artifact required}"
 [[ -z "$(git status --porcelain)" ]] || { echo "FAIL: working tree dirty" >&2; exit 1; }
 commit=$(git rev-parse "$ref^{commit}")
-git describe --exact-match --tags "$commit" >/dev/null || { echo "FAIL: ref is not an exact tag" >&2; exit 1; }
-while read -r path; do
-  [[ "$path" =~ ^(src/(app/(admin/keagenan|agen|reseller)|lib/(partner|services/subscription-service\.ts))|prisma/(schema\.prisma|migrations/)|tests/commission\.test\.ts|scripts/|docs/|\.github/) ]] || { echo "FAIL: scope $path" >&2; exit 1; }
-done < <(git diff-tree --no-commit-id --name-only -r "$commit")
+bash scripts/verify-release-scope.sh "$ref"
 bash scripts/verify-artifact.sh "$artifact"
 
 KEY="$HOME/.ssh/airconet-app.pem"

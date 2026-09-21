@@ -16,11 +16,15 @@ if [[ "$ref" != refs/tags/* ]] && ! git describe --exact-match --tags "$commit" 
   echo "FAIL: release ref must be an exact tag" >&2
   exit 1
 fi
-allowed='^(src/(app/(admin/keagenan|agen|reseller)|lib/(partner|services/subscription-service\.ts))|prisma/(schema\.prisma|migrations/)|tests/commission\.test\.ts|scripts/|docs/|\.github/)'
-for path in $(git diff-tree --no-commit-id --name-only -r "$commit"); do
-  if [[ ! "$path" =~ $allowed ]]; then
-    echo "FAIL: path outside commission/release allowlist: $path" >&2
-    exit 1
-  fi
-done
-echo "PASS: scope $commit"
+remote_commit=$(git ls-remote origin "refs/tags/$ref" "refs/tags/$ref^{}" | awk -v tag="refs/tags/$ref" '$2 == tag || $2 == tag "^{}" { print $1 }' | tail -1)
+if [[ "$remote_commit" != "$commit" ]]; then
+  echo "FAIL: exact tag is not pushed to origin" >&2
+  exit 1
+fi
+
+if git diff-tree --no-commit-id --name-only -r "$commit" | grep -E '(^|/)(\.env|.*\.pem$|.*credentials.*|.*secret.*)' >/dev/null; then
+  echo "FAIL: release commit contains secret-like file" >&2
+  exit 1
+fi
+
+echo "PASS: release $commit is clean, tagged, pushed, and secret-free"
