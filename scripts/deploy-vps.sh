@@ -18,12 +18,11 @@ H="${AIRCON_SSH_HOST:-truerad@103.127.135.132}"
 APP="/opt/aircon-app"
 ROOT="$APP/releases/$commit"
 checksum="${artifact}.sha256"
-sha256sum "$artifact" > "$checksum"
-
-# The VPS runtime is the source of truth for this layout:
-# /opt/aircon-app/current -> /opt/aircon-app/releases/<sha>/app/.next/standalone
-scp -i "$KEY" "$artifact" "$H:/tmp/aircon-release-$commit.tar.gz"
-scp -i "$KEY" "$checksum" "$H:/tmp/aircon-release-$commit.tar.gz.sha256"
+( cd "$(dirname "$artifact")" && sha256sum "$(basename "$artifact")" > "$(basename "$checksum")" )
+remote_artifact="/tmp/aircon-release-$commit.tar.gz"
+remote_checksum="/tmp/aircon-release-$commit.tar.gz.sha256"
+scp -i "$KEY" "$artifact" "$H:$remote_artifact"
+scp -i "$KEY" "$checksum" "$H:$remote_checksum"
 ssh -i "$KEY" "$H" "set -euo pipefail
   test -d '$APP/releases'
   test -f '$APP/.env'
