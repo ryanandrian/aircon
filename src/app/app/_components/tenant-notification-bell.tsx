@@ -55,7 +55,7 @@ export function TenantNotificationBell() {
       <Bell className="h-5 w-5" aria-hidden />
       {rows.length > 0 && <span className="absolute -right-0.5 -top-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{rows.length > 9 ? "9+" : rows.length}</span>}
     </Button>
-    {open && <div className="absolute right-0 top-11 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-xl border bg-card p-3 shadow-xl">
+    {open && <div className="fixed right-2 top-16 z-50 w-[calc(100vw-1rem)] max-w-sm rounded-xl border bg-card p-3 shadow-xl">
       <div className="mb-2 flex items-center justify-between"><b className="text-sm">Notifikasi</b><span className="text-xs text-muted-foreground">{rows.length} baru</span></div>
       <div className="mb-3 flex flex-wrap gap-2 border-b pb-3">{!soundEnabled && <Button type="button" size="sm" variant="outline" onClick={enableSound}>Aktifkan suara</Button>}{!browserEnabled && <Button type="button" size="sm" variant="outline" onClick={() => void enableBrowser()}>Aktifkan notifikasi browser</Button>}</div>
       {rows.length === 0 ? <p className="p-4 text-center text-sm text-muted-foreground">Tidak ada booking baru.</p> : <div className="max-h-80 space-y-2 overflow-auto">{rows.map((row) => <button key={row.id} type="button" disabled={pending} onClick={() => markRead(row.id)} className="block w-full rounded-lg border p-3 text-left hover:bg-muted"><p className="text-sm font-semibold">{row.title}</p><p className="mt-1 text-xs text-muted-foreground">{row.body}</p><p className="mt-1 text-[11px] text-muted-foreground">{new Date(row.createdAt).toLocaleString("id-ID")}</p></button>)}</div>}

@@ -38,7 +38,7 @@ export function ServicedTrendChart({ data, total }: { data: Point[]; total: numb
         </div>
 
         {hasData ? (
-          <ChartContainer config={chartConfig} className="h-44 w-full">
+          <ChartContainer config={chartConfig} className="h-44 w-full min-w-0 overflow-hidden">
             <AreaChart data={data} margin={{ left: -20, right: 8, top: 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="fillServiced" x1="0" y1="0" x2="0" y2="1">

@@ -33,7 +33,7 @@ export function WaConnectBanner() {
   return (
     <Link
       href="/app/pengaturan"
-      className="flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-950/50"
+      className="flex flex-col items-stretch gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 transition hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200 dark:hover:bg-amber-950/50 sm:flex-row sm:items-center"
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
         <Icon.Message className="h-5 w-5" aria-hidden />
@@ -44,7 +44,7 @@ export function WaConnectBanner() {
           Hubungkan WhatsApp usaha agar pengingat servis terkirim otomatis ke pelanggan.
         </span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-sm font-semibold">
+      <span className="flex w-full shrink-0 items-center justify-end gap-1 text-sm font-semibold sm:w-auto">
         Hubungkan
         <Icon.ChevronRight className="h-4 w-4" aria-hidden />
       </span>
