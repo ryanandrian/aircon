@@ -7,6 +7,7 @@ import { TenantLogo } from "@/components/tenant-logo";
 import { gatewaySessionStatus } from "@/lib/wa/gateway-relay";
 import { CustomerServiceFab } from "@/components/customer-service-fab";
 import { AppNav } from "./_components/app-nav";
+import { TenantIdentityProvider } from "./_components/tenant-identity-context";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await tryGetServerContext();
@@ -28,7 +29,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <TenantLogo name={name} logoUrl={tenant?.logoUrl} size={36} />
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-foreground">{name}</div>
-              <div className="text-xs text-muted-foreground">Panel usaha</div>
+              {ctx.email && <div className="truncate text-xs text-muted-foreground">{ctx.email}</div>}
             </div>
           </div>
           <AppNav />
@@ -37,7 +38,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <ThemeToggle />
           </div>
         </aside>
-        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        <TenantIdentityProvider name={name} logoUrl={tenant?.logoUrl} email={ctx.email}>
+          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+        </TenantIdentityProvider>
       </div>
       {csPhone && <CustomerServiceFab phone={csPhone} />}
     </div>

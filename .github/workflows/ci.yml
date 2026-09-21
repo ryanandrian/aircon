@@ -14,8 +14,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # Reads the single source of truth from package.json: packageManager.
+        # Do not add a version here; pnpm/action-setup rejects conflicting versions.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
