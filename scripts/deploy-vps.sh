@@ -43,7 +43,7 @@ if [[ -n "$HELPER" ]]; then
   while IFS= read -r traced; do
     rm -rf "$traced"
     mkdir -p "$(dirname "$traced")"
-    cp -aL "$HELPER" "$traced"
+    cp -aL "$HELPER/." "$traced/"
   done < <(find "$BUILD/node_modules/.pnpm" -type d -path '*@swc+helpers*/node_modules/@swc/helpers')
 fi
 [[ -f "$BUILD/server.js" && -d "$BUILD/.next/static" && -d "$BUILD/public" ]] || { echo "FAIL: incomplete standalone output" >&2; exit 1; }
