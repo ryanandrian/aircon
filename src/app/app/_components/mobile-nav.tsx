@@ -23,14 +23,16 @@ export function MobileNav() {
       </button>
       <SheetContent side="left">
         <SheetTitle className="sr-only">Navigasi {name}</SheetTitle>
-        <div className="mb-5 flex min-w-0 items-center gap-3 border-b pb-5">
+        <div className="mb-5 flex min-w-0 shrink-0 items-center gap-3 border-b pb-5">
           <TenantLogo name={name} logoUrl={logoUrl} size={40} />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">{name}</p>
             {email && <p className="truncate text-xs text-muted-foreground">{email}</p>}
           </div>
         </div>
-        <AppNav onNavigate={() => setOpen(false)} />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <AppNav onNavigate={() => setOpen(false)} />
+        </div>
       </SheetContent>
     </Sheet>
   );

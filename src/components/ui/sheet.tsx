@@ -50,7 +50,7 @@ function SheetContent({
       <DialogPrimitive.Popup
         data-slot="sheet-content"
         className={cn(
-          "fixed inset-y-0 z-50 flex h-full min-h-0 w-72 max-w-[85vw] flex-col overflow-y-auto overscroll-contain bg-card p-5 shadow-xl ring-1 ring-foreground/10 duration-200 outline-none",
+          "fixed inset-y-0 z-50 flex h-full min-h-0 w-72 max-w-[85vw] flex-col overflow-hidden bg-card p-5 shadow-xl ring-1 ring-foreground/10 duration-200 outline-none",
           side === "left"
             ? "left-0 data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left"
             : "right-0 data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right",
