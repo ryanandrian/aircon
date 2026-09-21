@@ -1,7 +1,7 @@
 # PETA KONDISI AIRCON — Status & Rencana Lanjutan (SUMBER KEBENARAN)
 
 > Dokumen tunggal untuk melanjutkan dengan aman kapan pun. Diperbarui tiap milestone.
-> Terakhir diperbarui: 18 September 2026 (rekonsiliasi dengan database Supabase dan source aktif).
+> Terakhir diperbarui: 21 September 2026 (source, CI, artifact, dan runtime VPS diverifikasi).
 > Jika sesi baru: BACA FILE INI DULU untuk tahu persis di mana kita berhenti.
 >
 > ⚠️ KOREKSI PENTING (18 Sep 2026): status payment lama sudah tidak berlaku. Payment aktif kini
@@ -12,8 +12,7 @@
 ## 1. RINGKAS SATU PARAGRAF
 Aircon (AC Service Growth OS) — SaaS PWA multi-tenant untuk usaha servis AC kecil Indonesia,
 Digital Asset #1 dari "12 SaaS/tahun". Aplikasi LIVE self-host di **VPS BiznetGio (app.airconet.id,
-103.127.135.132, systemd `aircon-app`, Node 22, TLS Let's Encrypt)**; domain lama Vercel
-(`aircon-peach.vercel.app`) tinggal cadangan/rollback (DB sama). Infrastruktur WhatsApp+MQTT
+103.127.135.132, systemd `aircon-app`, Node 22, TLS Let's Encrypt)**. Infrastruktur WhatsApp+MQTT
 LIVE di VPS terpisah (103.127.138.16), HTTPS via gw.lumite.biz.id. Payment **iPaymu-only**.
 Progress menuju go-komersial tinggi; sisa = validasi pilot end-to-end (bayar production + WA nyata),
 bukan coding.
@@ -22,7 +21,7 @@ bukan coding.
 - App produksi (PRIMARY): https://app.airconet.id — VPS BiznetGio 103.127.135.132 (truerad,
   key ~/.ssh/airconet-app.pem), systemd `aircon-app` (active), WorkingDirectory /opt/aircon-app,
   EnvironmentFile /opt/aircon-app/.env. TLS Let's Encrypt.
-- App CADANGAN (rollback): https://aircon-peach.vercel.app (DB Supabase sama). Bukan primary.
+
 - iPaymu: gateway aktif tunggal. Payment terbaru berstatus `PENDING` dengan redirect host
   `sandbox-payment.ipaymu.com`; empat transaksi sebelumnya berstatus `PAID` dengan redirect host yang sama.
 - DB: Supabase Tokyo (ref ksvdjtzfpictmwuksmuu)
@@ -36,7 +35,7 @@ bukan coding.
 - Money loop end-to-end: cron reminders -> MessageLog QUEUED -> flusher -> gateway -> WA. Terbukti
   (MessageLog SENT + gatewayMessageId nyata).
 - Tenant demo di-seed: /demo hidup (AC Jaya Demo, 2 pelanggan, money loop terisi).
-- Kualitas: 177 test lulus, tsc 0, build hijau. Review keamanan independen tiap batch.
+- Kualitas source terbaru: 369 test lulus, tsc 0, lint 0, build hijau; CI exact-tag PASS.
 
 ## 3. FITUR SELESAI (per domain)
 - Inti: multi-tenant, onboarding, 4 peran (owner Google SSO / admin / teknisi phone+PIN / customer booking publik)
@@ -64,7 +63,7 @@ bukan coding.
 6. Kwitansi PDF untuk job/servis (kini hanya langganan)
 7. Portal customer akhir (tracking servis mandiri)
 8. Dashboard metrik admin (activation/retensi)
-9. Migrasi app Vercel->VPS-APP (saat menagih massal / keluar batas Hobby)
+9. Observabilitas dan pilot tenant nyata setelah alur payment production disetujui.
 10. TLS MQTT (port 8883) untuk device IoT dari internet — kini Mosquitto 127.0.0.1:1883 lokal
 
 ### KEPUTUSAN DESAIN TERTUNDA — "Catatan medis mesin AC" lintas-tenant (26 Agu 2026)
@@ -238,11 +237,12 @@ Rencana docs/PLAN_UNIT_IDENTITY_QR.md TUNTAS 5 fase. tsc 0, 199 test, build hija
  login penuh (lihat biaya sendiri); cetak sticker fisik (operasional Lumite).
 
 ## 5. ARSITEKTUR & KEPUTUSAN KUNCI (jangan diubah tanpa alasan)
-- Portofolio 2-VPS: VPS-INFRA (WA+MQTT bersama semua app, sudah disewa) + VPS-APP (nanti saat go-komersial)
+- Portofolio 2-VPS: VPS-APP (Aircon) + VPS-INFRA (WA+MQTT bersama semua app).
 - Gerbang skala WA = migrasi ke WhatsApp Cloud API (bukan beli RAM besar). Gateway sudah abstraksi API
   supaya penukaran mesin WA = 1 perubahan untuk semua app.
 - systemd-native (bukan Docker) di VPS 4GB — lebih hemat ~200MB. Alternatif Docker ada di repo.
-- Migrasi app Vercel->VPS = murah (cuma Dockerfile+nginx, nol ubah kode) -> tunda sampai go-komersial.
+- Runtime app production memakai release standalone Node di `/opt/aircon-app/releases/<sha>/app/.next/standalone`;
+  `/opt/aircon-app/current` adalah symlink aktif.
 - Vercel Hobby: cron MAKS 1x/hari. Semua cron aircon harian.
 
 ## 6. LOKASI PENTING
@@ -250,7 +250,8 @@ Rencana docs/PLAN_UNIT_IDENTITY_QR.md TUNTAS 5 fase. tsc 0, 199 test, build hija
 - Dokumen infra: docs/infra/ (README + panduan WA/MQTT + kapasitas + deploy runbook)
 - Analisis arsitektur: docs/Hosting_Architecture_Decision.md, Capacity_Planning.md,
   Portfolio_Shared_Gateway_Architecture.md
-- Artefak deploy native: infra/vps-infra/native/ (provision, unit systemd, gw.conf nginx, redeploy)
+- Deploy app: `scripts/deploy-vps.sh` (artifact immutable, checksum, atomic switch, rollback).
+- Artefak gateway native: infra/vps-infra/native/ (khusus shared gateway, bukan deploy app Aircon).
 - GTM: docs/GoToMarket_Strategy_ROI.md
 
 ## 7. CARA MELANJUTKAN DI SESI BARU

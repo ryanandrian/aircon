@@ -5,7 +5,7 @@
 > Untuk fakta yang berubah (hosting, payment gateway, service, TLS), JANGAN percaya tulisan tangan —
 > jalankan **`bash scripts/ssot-status.sh`** (read-only) untuk fakta terverifikasi.
 
-> Terakhir dirapikan: 18 September 2026.
+> Terakhir dirapikan: 21 September 2026.
 
 ---
 
@@ -21,6 +21,7 @@ Perbarui SETIAP kali kode/infra berubah. Ini yang boleh dipakai untuk mengambil 
 | `BuildSpecPack_Part3_BusinessRules_and_Defaults.md` | Aturan bisnis & default. **Dirujuk kode** (`src/lib/domain/defaults.ts`). |
 | `Ipaymu_Integration_Spec.md` | Kontrak payment iPaymu aktif: redirect, callback, signature, status, dan reconcile. |
 | `Ipaymu_Production_Runbook.md` | Runbook konfigurasi, verifikasi, cutover, dan rollback iPaymu. |
+| `Payment_Dunning_SSOT.md` | SSOT operasional payment/dunning iPaymu aktif. |
 | `ALUR_APLIKASI.md` | Alur pengguna end-to-end. |
 | `PRD_WA_Campaign_Platform.md` | Spesifikasi modul WA Campaign (aktif dikembangkan). |
 | `WA_Gateway_Integration_Pointer.md` | Pointer ke SSOT gateway (diunduh dari gw.lumite.biz.id, bukan salinan). |
