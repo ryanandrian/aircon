@@ -46,6 +46,16 @@ if [[ -n "$HELPER" ]]; then
     mkdir -p "$traced"
     cp -aL "$HELPER"/. "$traced"/
   done
+  NEXT_HELPERS="$(find "$BUILD/node_modules/.pnpm" -type l -path '*/next@*/node_modules/@swc/helpers' -print -quit)"
+  if [[ -n "$NEXT_HELPERS" ]]; then
+    rm -f "$NEXT_HELPERS"
+    cp -aL "$HELPER" "$NEXT_HELPERS"
+  fi
+  PNPM_HELPERS="$(find "$BUILD/node_modules/.pnpm" -type l -path '*/node_modules/@swc/helpers' -print -quit)"
+  if [[ -n "$PNPM_HELPERS" ]]; then
+    rm -f "$PNPM_HELPERS"
+    cp -aL "$HELPER" "$PNPM_HELPERS"
+  fi
 fi
 [[ -f "$BUILD/server.js" && -d "$BUILD/.next/static" && -d "$BUILD/public" ]] || { echo "FAIL: incomplete standalone output" >&2; exit 1; }
 [[ -z "$(find "$BUILD" -type l -print -quit)" ]] || { echo "FAIL: symlink remains in artifact" >&2; exit 1; }
