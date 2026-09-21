@@ -156,20 +156,18 @@ export function CustomerManager({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">Kelola data pelanggan usaha Anda</p>
         {!showingForm && !showImport && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-2 sm:shrink-0">
             <Button
               size="sm"
               onClick={() => setShowImport(true)}
-              className="border border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900"
+              className="min-w-0 flex-1 border border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 dark:hover:bg-emerald-900"
             >
               <Icon.Upload className="h-4 w-4" aria-hidden /> Impor dari Excel
             </Button>
-            <Button size="sm" onClick={openAdd}>
-              <Icon.Users className="h-4 w-4" aria-hidden /> Tambah Pelanggan
-            </Button>
+            <Button size="sm" onClick={openAdd} className="min-w-0 flex-1 sm:flex-none"><Icon.Users className="h-4 w-4" aria-hidden /> Tambah Pelanggan</Button>
           </div>
         )}
       </div>

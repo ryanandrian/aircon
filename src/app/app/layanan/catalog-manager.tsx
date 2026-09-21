@@ -116,14 +116,14 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">Daftar layanan, harga standar & insentif</p>
         {!showForm && (
-          <div className="flex gap-2">
-            <a href="/app/layanan/export" className={buttonVariants({ variant: "outline", size: "sm" })} title="Unduh semua harga khusus (CSV)">
+          <div className="flex flex-wrap gap-2 sm:shrink-0">
+            <a href="/app/layanan/export" className={`${buttonVariants({ variant: "outline", size: "sm" })} min-w-0 flex-1 sm:flex-none`} title="Unduh semua harga khusus (CSV)">
               <Icon.Billing className="h-4 w-4" aria-hidden /> Export CSV
             </a>
-            <Button size="sm" onClick={openAdd}><Icon.Job className="h-4 w-4" aria-hidden /> Tambah Layanan</Button>
+            <Button size="sm" onClick={openAdd} className="min-w-0 flex-1 sm:flex-none"><Icon.Job className="h-4 w-4" aria-hidden /> Tambah Layanan</Button>
           </div>
         )}
       </div>

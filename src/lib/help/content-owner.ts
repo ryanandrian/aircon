@@ -69,6 +69,27 @@ export const OWNER_TOPICS: HelpTopic[] = [
   },
 
   {
+    key: "leads",
+    title: "Booking Online",
+    icon: "CalendarCheck",
+    group: "Mengelola Pekerjaan",
+    audience: "owner",
+    order: 0,
+    whatIsIt: "Kotak masuk permintaan servis dari formulir Booking Online di halaman usaha Anda.",
+    steps: [
+      "Buka lead untuk membaca nama, nomor WhatsApp, dan catatan pelanggan.",
+      "Hubungi pelanggan lewat nomor WhatsApp yang tampil di kartu booking.",
+      "Gunakan 'Tandai Dihubungi' atau 'Tandai Dikutip' untuk memperbarui status.",
+      "Ketuk 'Jadikan Pelanggan' setelah pelanggan siap dicatat sebagai pelanggan usaha.",
+    ],
+    tips: [
+      "Periksa catatan tambahan dan waktu masuk sebelum menghubungi pelanggan.",
+      "Lead yang sudah menjadi pelanggan dapat dibuka dari tautan 'Buka pelanggan'.",
+    ],
+    faqs: [{ q: "Dari mana booking ini berasal?", a: "Booking masuk dari formulir Booking Online pada Halaman Usaha publik Anda." }],
+  },
+
+  {
     key: "pelanggan",
     title: "Pelanggan",
     icon: "Users",

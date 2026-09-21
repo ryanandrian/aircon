@@ -3,7 +3,6 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
-import { LogoutButton } from "./logout-button";
 import { AppHeader } from "./_components/app-header";
 import { ServicedTrendChart } from "./_components/serviced-trend-chart";
 import { WaConnectBanner } from "./_components/wa-connect-banner";
@@ -72,9 +71,12 @@ export default async function AppDashboard() {
 
   return (
     <>
-      <AppHeader title="Ringkasan" action={<LogoutButton />} helpKey="beranda" />
+      <AppHeader title="Ringkasan" helpKey="beranda" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
-        <p className="text-sm text-muted-foreground">Ringkasan Kinerja Operasional Bisnis Anda</p>
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">{tenant?.name ?? "Usaha Anda"}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Ringkasan Kinerja Operasional Bisnis Anda</p>
+        </div>
 
         <WaConnectBanner />
 

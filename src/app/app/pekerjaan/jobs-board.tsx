@@ -99,7 +99,8 @@ export function JobsBoard({
   return (
     <div className="space-y-4">
       {/* Tab bar */}
-      <div className="flex gap-1 rounded-xl bg-muted p-1">
+      <div className="overflow-x-auto rounded-xl bg-muted p-1">
+        <div className="flex min-w-[22rem] gap-1">
         {TABS.map((t) => {
           const active = bucket === t.key;
           const n = counts[t.key];
@@ -117,6 +118,7 @@ export function JobsBoard({
             </button>
           );
         })}
+        </div>
       </div>
 
       {/* Pencarian */}
