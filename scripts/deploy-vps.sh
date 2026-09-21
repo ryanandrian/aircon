@@ -26,36 +26,17 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm prisma generate
 pnpm exec next build
 
-# Materialize the standalone tree: no pnpm symlinks are allowed in the artifact.
-cp -aL .next/standalone/. "$BUILD/"
+# Materialize the standalone tree: dependencies must not retain pnpm symlinks.
+cp -rL .next/standalone/. "$BUILD/"
 rm -rf "$BUILD/.next/static" "$BUILD/public"
-cp -aL .next/static "$BUILD/.next/static"
-cp -aL public "$BUILD/public"
+cp -rL .next/static "$BUILD/.next/static"
+cp -rL public "$BUILD/public"
 # Next.js tracing can copy the local env file into standalone; remove it explicitly.
 rm -f "$BUILD/.env" "$BUILD"/.env.*
-find "$BUILD" \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -exec rm -rf {} +
-if find "$BUILD" \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -print -quit | grep -q .; then
+find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -delete
+if find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -print -quit | grep -q .; then
   echo "FAIL: secret-like file remains in artifact staging" >&2
   exit 1
-fi
-HELPER="$(find node_modules/.pnpm -type d -path '*@swc+helpers*/node_modules/@swc/helpers' | head -1)"
-if [[ -n "$HELPER" ]]; then
-  mapfile -t TRACED_HELPERS < <(find "$BUILD/node_modules/.pnpm" -type d -path '*@swc+helpers*/node_modules/@swc/helpers')
-  for traced in "${TRACED_HELPERS[@]}"; do
-    rm -rf "$traced"
-    mkdir -p "$traced"
-    cp -aL "$HELPER"/. "$traced"/
-  done
-  NEXT_HELPERS="$(find "$BUILD/node_modules/.pnpm" -type l -path '*/next@*/node_modules/@swc/helpers' -print -quit)"
-  if [[ -n "$NEXT_HELPERS" ]]; then
-    rm -f "$NEXT_HELPERS"
-    cp -aL "$HELPER" "$NEXT_HELPERS"
-  fi
-  PNPM_HELPERS="$(find "$BUILD/node_modules/.pnpm" -type l -path '*/node_modules/@swc/helpers' -print -quit)"
-  if [[ -n "$PNPM_HELPERS" ]]; then
-    rm -f "$PNPM_HELPERS"
-    cp -aL "$HELPER" "$PNPM_HELPERS"
-  fi
 fi
 [[ -f "$BUILD/server.js" && -d "$BUILD/.next/static" && -d "$BUILD/public" ]] || { echo "FAIL: incomplete standalone output" >&2; exit 1; }
 [[ -z "$(find "$BUILD" -type l -print -quit)" ]] || { echo "FAIL: symlink remains in artifact" >&2; exit 1; }
