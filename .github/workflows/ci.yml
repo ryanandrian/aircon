@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
 
 jobs:
@@ -11,16 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: pnpm/action-setup@v4
-        # Reads the single source of truth from package.json: packageManager.
-        # Do not add a version here; pnpm/action-setup rejects conflicting versions.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm prisma generate
       - run: pnpm exec prisma validate
       - run: pnpm exec tsc --noEmit
       - run: pnpm run lint
