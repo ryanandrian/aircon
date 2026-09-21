@@ -21,7 +21,7 @@ checksum="${artifact}.sha256"
 remote_artifact="/tmp/aircon-release-$commit.tar.gz"
 remote_checksum="/tmp/aircon-release-$commit.tar.gz.sha256"
 artifact_hash=$(sha256sum "$artifact" | awk '{print $1}')
-printf '%s  %s\\n' "$artifact_hash" "$(basename "$remote_artifact")" > "$checksum"
+printf '%s  %s\n' "$artifact_hash" "$(basename "$remote_artifact")" > "$checksum"
 scp -i "$KEY" "$artifact" "$H:$remote_artifact"
 scp -i "$KEY" "$checksum" "$H:$remote_checksum"
 ssh -i "$KEY" "$H" "set -euo pipefail
