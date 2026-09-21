@@ -31,7 +31,13 @@ cp -aL .next/standalone/. "$BUILD/"
 rm -rf "$BUILD/.next/static" "$BUILD/public"
 cp -aL .next/static "$BUILD/.next/static"
 cp -aL public "$BUILD/public"
-find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -delete
+# Next.js tracing can copy the local env file into standalone; remove it explicitly.
+rm -f "$BUILD/.env" "$BUILD"/.env.*
+find "$BUILD" \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -exec rm -rf {} +
+if find "$BUILD" \( -name '.env' -o -name '.env.*' -o -iname '*credential*' -o -iname '*secret*' \) -print -quit | grep -q .; then
+  echo "FAIL: secret-like file remains in artifact staging" >&2
+  exit 1
+fi
 HELPER="$(find node_modules/.pnpm -type d -path '*@swc+helpers*/node_modules/@swc/helpers' | head -1)"
 if [[ -n "$HELPER" ]]; then
   while IFS= read -r traced; do
