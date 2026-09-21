@@ -29,9 +29,8 @@ ssh -i "$KEY" "$H" "set -euo pipefail
   test -f '$APP/.env'
   old=\$(readlink -f '$APP/current')
   test -n \"\$old\" -a -d \"\$old\"
-  test \"\$(systemctl is-active aircon-app)\" = active
+  test \"\$(sudo -n systemctl is-active aircon-app)\" = active
   mkdir -p '$ROOT/app/.next/standalone'
-  cd /tmp
   sha256sum -c 'aircon-release-$commit.tar.gz.sha256'
   cd - >/dev/null
   tar xzf /tmp/aircon-release-$commit.tar.gz -C '$ROOT/app/.next/standalone'
@@ -45,7 +44,7 @@ ssh -i "$KEY" "$H" "set -euo pipefail
     if [ \$rc -ne 0 ] && [ -n \"\${old:-}\" ] && [ -d \"\$old\" ]; then
       ln -sfn \"\$old\" '$APP/current.rollback'
       mv -Tf '$APP/current.rollback' '$APP/current'
-      systemctl restart aircon-app || true
+      sudo -n systemctl restart aircon-app || true
       echo \"FAIL: deployment rolled back to \$old\" >&2
     fi
     exit \$rc
@@ -54,9 +53,9 @@ ssh -i "$KEY" "$H" "set -euo pipefail
 
   ln -sfn '$ROOT/app/.next/standalone' '$APP/current.new'
   mv -Tf '$APP/current.new' '$APP/current'
-  systemctl restart aircon-app
+  sudo -n systemctl restart aircon-app
   sleep 5
-  test \"\$(systemctl is-active aircon-app)\" = active
+  test \"\$(sudo -n systemctl is-active aircon-app)\" = active
   curl -fsS http://127.0.0.1:3000/ >/dev/null
   curl -fsS http://127.0.0.1:3000/login >/dev/null
   trap - EXIT
