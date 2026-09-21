@@ -207,13 +207,13 @@ P3/P4:
 |---|---|---|
 | Public booking currently creates tenant-scoped Lead | PASS | `src/app/p/[slug]/actions.ts`, `lead-service.ts` |
 | Tenant Lead inbox/conversion | PASS | deployed Aircon commit `d15386f` |
-| Durable Notification model/event | NOT STARTED | no implementation yet |
-| Unread badge/read state | NOT STARTED | no implementation yet |
-| Toast/revalidation | NOT STARTED | no implementation yet |
-| Opt-in sound | NOT STARTED | no implementation yet |
-| Browser/PWA notification | NOT STARTED | no implementation yet |
+| Durable Notification model/event | PASS | TenantNotification + public booking write + unique dedupeKey |
+| Unread badge/read state | PASS | Header bell + tenant-scoped mark read |
+| Toast/revalidation | PASS | 15-second durable polling + inbox visual fallback |
+| Opt-in sound | PASS | Explicit user gesture + persisted preference |
+| Browser/PWA notification | PASS | Explicit permission flow + denied/unsupported fallback |
 | WhatsApp fallback | DIBATALKAN — tombol WhatsApp publik + inbox Lead sudah cukup |
-| Production deployment of this notification plan | NOT STARTED | no artifact/deploy yet |
+| Production deployment of this notification plan | PENDING | exact SHA artifact/deploy still required |
 
 ## 8. Definition of done
 
