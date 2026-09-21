@@ -31,7 +31,7 @@ export function MobileNav() {
             {email && <p className="truncate text-xs text-muted-foreground">{email}</p>}
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="h-0 min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain">
           <AppNav onNavigate={() => setOpen(false)} />
         </div>
         <div className="mt-5 shrink-0 border-t pt-4">
