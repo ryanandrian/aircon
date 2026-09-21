@@ -6,8 +6,9 @@
 
 1. GitHub tagged commit immutable.
 2. Artifact immutable dengan checksum dan source SHA.
-3. VPS `/opt/aircon-releases/<sha>`; symlink `current` menentukan release aktif.
-4. `_prisma_migrations` adalah otoritas migration yang sudah applied.
+3. VPS `/opt/aircon-app/releases/<sha>/app/.next/standalone`; symlink `/opt/aircon-app/current` menentukan release aktif.
+4. `/opt/aircon-app/.env` tetap berada di VPS dan tidak masuk artifact.
+5. `_prisma_migrations` adalah otoritas migration yang sudah applied.
 
 Dilarang deploy dari working tree dirty, menyalin `.next` lintas build, `scp` file acak ke direktori aktif, memasukkan `.env`/credential ke artifact, mengedit migration applied, atau menyatakan gate lulus tanpa bukti.
 

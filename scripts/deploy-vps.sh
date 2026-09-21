@@ -1,36 +1,64 @@
 #!/usr/bin/env bash
-# Deploy only an immutable, pre-built release artifact. Production .env stays on VPS.
+# Deploy an immutable standalone artifact to the existing Aircon VPS layout.
 # Usage: bash scripts/deploy-vps.sh <exact-tag> <verified-artifact.tar.gz>
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ref="${1:?exact Git tag required}"
 artifact="${2:?verified artifact required}"
+[[ -f "$artifact" ]] || { echo "FAIL: artifact not found" >&2; exit 1; }
 [[ -z "$(git status --porcelain)" ]] || { echo "FAIL: working tree dirty" >&2; exit 1; }
+
 commit=$(git rev-parse "$ref^{commit}")
 bash scripts/verify-release-scope.sh "$ref"
 bash scripts/verify-artifact.sh "$artifact"
 
-KEY="$HOME/.ssh/airconet-app.pem"
-H="truerad@103.127.135.132"
-ROOT="/opt/aircon-releases/$commit"
+KEY="${AIRCON_SSH_KEY:-$HOME/.ssh/airconet-app.pem}"
+H="${AIRCON_SSH_HOST:-truerad@103.127.135.132}"
 APP="/opt/aircon-app"
+ROOT="$APP/releases/$commit"
 checksum="${artifact}.sha256"
 sha256sum "$artifact" > "$checksum"
+
+# The VPS runtime is the source of truth for this layout:
+# /opt/aircon-app/current -> /opt/aircon-app/releases/<sha>/app/.next/standalone
 scp -i "$KEY" "$artifact" "$H:/tmp/aircon-release-$commit.tar.gz"
 scp -i "$KEY" "$checksum" "$H:/tmp/aircon-release-$commit.tar.gz.sha256"
 ssh -i "$KEY" "$H" "set -euo pipefail
-  mkdir -p '$ROOT'
+  test -d '$APP/releases'
+  test -f '$APP/.env'
+  old=\$(readlink -f '$APP/current')
+  test -n \"\$old\" -a -d \"\$old\"
+  test \"\$(systemctl is-active aircon-app)\" = active
+  mkdir -p '$ROOT/app/.next/standalone'
   sha256sum -c /tmp/aircon-release-$commit.tar.gz.sha256
-  tar xzf /tmp/aircon-release-$commit.tar.gz -C '$ROOT'
-  test -f '$ROOT/server.js'
-  test -d '$ROOT/.next/static'
-  test -d '$ROOT/public'
-  ln -sfn '$ROOT' '$APP/current.new'
+  tar xzf /tmp/aircon-release-$commit.tar.gz -C '$ROOT/app/.next/standalone'
+  test -f '$ROOT/app/.next/standalone/server.js'
+  test -d '$ROOT/app/.next/standalone/.next/static'
+  test -d '$ROOT/app/.next/standalone/public'
+  printf '%s\\n' '$commit' > '$ROOT/source-sha'
+
+  rollback() {
+    rc=\$?
+    if [ \$rc -ne 0 ] && [ -n \"\${old:-}\" ] && [ -d \"\$old\" ]; then
+      ln -sfn \"\$old\" '$APP/current.rollback'
+      mv -Tf '$APP/current.rollback' '$APP/current'
+      systemctl restart aircon-app || true
+      echo \"FAIL: deployment rolled back to \$old\" >&2
+    fi
+    exit \$rc
+  }
+  trap rollback EXIT
+
+  ln -sfn '$ROOT/app/.next/standalone' '$APP/current.new'
   mv -Tf '$APP/current.new' '$APP/current'
   systemctl restart aircon-app
   sleep 5
   test \"\$(systemctl is-active aircon-app)\" = active
   curl -fsS http://127.0.0.1:3000/ >/dev/null
-  echo RELEASE=$commit"
+  curl -fsS http://127.0.0.1:3000/login >/dev/null
+  trap - EXIT
+  rm -f /tmp/aircon-release-$commit.tar.gz /tmp/aircon-release-$commit.tar.gz.sha256
+  echo RELEASE=$commit
+"
 echo "PASS: deployed $commit"
