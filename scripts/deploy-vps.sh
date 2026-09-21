@@ -17,7 +17,8 @@ ROOT="/opt/aircon-releases/$commit"
 APP="/opt/aircon-app"
 checksum="${artifact}.sha256"
 sha256sum "$artifact" > "$checksum"
-scp -i "$KEY" "$artifact" "$checksum" "$H:/tmp/aircon-release-$commit.tar.gz" "$H:/tmp/aircon-release-$commit.tar.gz.sha256"
+scp -i "$KEY" "$artifact" "$H:/tmp/aircon-release-$commit.tar.gz"
+scp -i "$KEY" "$checksum" "$H:/tmp/aircon-release-$commit.tar.gz.sha256"
 ssh -i "$KEY" "$H" "set -euo pipefail
   mkdir -p '$ROOT'
   sha256sum -c /tmp/aircon-release-$commit.tar.gz.sha256
