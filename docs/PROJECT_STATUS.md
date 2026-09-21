@@ -1,8 +1,6 @@
-# PETA KONDISI AIRCON — Status & Rencana Lanjutan (SUMBER KEBENARAN)
+# PETA KONDISI AIRCON — Status & Rencana Lanjutan
 
-> Dokumen tunggal untuk melanjutkan dengan aman kapan pun. Diperbarui tiap milestone.
-> Terakhir diperbarui: 21 September 2026 (source, CI, artifact, dan runtime VPS diverifikasi).
-> Jika sesi baru: BACA FILE INI DULU untuk tahu persis di mana kita berhenti.
+> Catatan status dan rencana pada satu titik waktu.
 >
 > ⚠️ KOREKSI PENTING (18 Sep 2026): status payment lama sudah tidak berlaku. Payment aktif kini
 > **iPaymu-only**; verifikasi database menunjukkan transaksi terbaru dan seluruh histori Payment aktif
@@ -31,7 +29,7 @@ bukan coding.
 - WhatsApp TERBUKTI dua-arah: kirim (money loop) + terima balasan, nomor pilot 085880181816
   tertaut (sesi persisten, reconnect tanpa QR ulang). Nomor tujuan uji: 6281284848901.
 - S3 BiznetGio NEO AKTIF: bucket aircon, endpoint https://nos.jkt-1.neo.id, region idn,
-  path-style. Teruji upload/GET/delete. 7 env di Vercel.
+  path-style. Teruji upload/GET/delete.
 - Money loop end-to-end: cron reminders -> MessageLog QUEUED -> flusher -> gateway -> WA. Terbukti
   (MessageLog SENT + gatewayMessageId nyata).
 - Tenant demo di-seed: /demo hidup (AC Jaya Demo, 2 pelanggan, money loop terisi).
@@ -243,21 +241,13 @@ Rencana docs/PLAN_UNIT_IDENTITY_QR.md TUNTAS 5 fase. tsc 0, 199 test, build hija
 - systemd-native (bukan Docker) di VPS 4GB — lebih hemat ~200MB. Alternatif Docker ada di repo.
 - Runtime app production memakai release standalone Node di `/opt/aircon-app/releases/<sha>/app/.next/standalone`;
   `/opt/aircon-app/current` adalah symlink aktif.
-- Vercel Hobby: cron MAKS 1x/hari. Semua cron aircon harian.
+
 
 ## 6. LOKASI PENTING
 - Kredensial live: /home/rad/aircon/.secrets/vps-infra-credentials.txt (GITIGNORED, jangan commit)
 - Dokumen infra: docs/infra/ (README + panduan WA/MQTT + kapasitas + deploy runbook)
 - Analisis arsitektur: docs/Hosting_Architecture_Decision.md, Capacity_Planning.md,
   Portfolio_Shared_Gateway_Architecture.md
-- Deploy app: `scripts/deploy-vps.sh` (artifact immutable, checksum, atomic switch, rollback).
+- Deployment procedure: tidak ditetapkan dalam dokumen ini; status runtime dibaca dari VPS.
 - Artefak gateway native: infra/vps-infra/native/ (khusus shared gateway, bukan deploy app Aircon).
 - GTM: docs/GoToMarket_Strategy_ROI.md
-
-## 7. CARA MELANJUTKAN DI SESI BARU
-1. `cd /home/rad/aircon && git pull && git log --oneline -5`
-2. Baca file ini (docs/PROJECT_STATUS.md) + docs/infra/README.md
-3. Cek infra hidup: `ssh -i ~/.ssh/aircon-ssh.pem rad4ssh@103.127.138.16 'systemctl is-active mosquitto aircon-gateway aircon-bridge'`
-   + `curl https://gw.lumite.biz.id/health`
-4. Verifikasi app: `pnpm run test && pnpm run build`
-5. Lanjut dari bagian "BELUM SELESAI" sesuai prioritas.

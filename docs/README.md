@@ -1,16 +1,6 @@
-# Dokumentasi Aircon — Indeks & Aturan SSOT
+# Dokumentasi Aircon — Indeks Dokumentasi
 
-> **Prinsip (wajib):** SSOT sejati = **kode + kenyataan produksi**. Dokumen adalah CERMINAN, bukan sumber.
-> Bila dokumen ≠ kenyataan, **kenyataan menang** dan dokumen itu bug yang harus diperbaiki di commit yang sama.
-> Untuk fakta yang berubah (hosting, payment gateway, service, TLS), JANGAN percaya tulisan tangan —
-> jalankan **`bash scripts/ssot-status.sh`** (read-only) untuk fakta terverifikasi.
-
-> Terakhir dirapikan: 21 September 2026.
-
----
-
-## 🟢 DOKUMEN HIDUP (living — WAJIB sinkron dengan kenyataan)
-Perbarui SETIAP kali kode/infra berubah. Ini yang boleh dipakai untuk mengambil keputusan.
+Dokumentasi fitur, arsitektur, dan keputusan produk Aircon.
 
 | Dokumen | Fakta kanonik yang dipegang |
 |---|---|
@@ -28,13 +18,8 @@ Perbarui SETIAP kali kode/infra berubah. Ini yang boleh dipakai untuk mengambil 
 | `WhatsApp_Strategy_Gateway.md` | Strategi gateway WA. **Dirujuk kode** (`src/lib/wa/gateway.ts`). |
 | `Help_System.md` | Sistem bantuan in-app. |
 
-> ⚠️ Dokumen ber-tanda **"Dirujuk kode"** TIDAK BOLEH dipindah/ganti-nama tanpa memperbarui rujukan di `src/`.
-
----
-
-## 🟡 HISTORIS / ADR (arsip keputusan & rencana — JANGAN dibaca sebagai status kini)
-Ini artefak titik-waktu (rencana, keputusan arsitektur, laporan uji, spec awal). Nilainya = jejak "kenapa".
-**Tugasnya sudah selesai.** Boleh dibaca untuk konteks historis, TAPI untuk status terkini lihat dokumen HIDUP di atas.
+## Referensi historis dan keputusan
+Dokumen berikut berisi rencana, keputusan, dan catatan titik-waktu.
 
 | Dokumen | Sifat |
 |---|---|
@@ -57,14 +42,4 @@ Ini artefak titik-waktu (rencana, keputusan arsitektur, laporan uji, spec awal).
 | `BATON_INVOICING_AR.md` | Baton/handoff invoicing (titik-waktu). |
 | `Dokumen_Keuangan_Faktur_Kwitansi.md` | Referensi format keuangan. |
 | `LAPORAN_BUG_TESTING_FINAL.md` | Laporan uji tanggal 28 Agu 2026 (titik-waktu). |
-| `CHECKLIST_TES_DEVICE.md` | Checklist uji perangkat (titik-waktu). |
-
----
-
-## Aturan menjaga SSOT (agar tak jadi sampah lagi)
-1. **Ubah dokumen di commit yang sama** dengan perubahan kode/infra yang membuatnya berubah.
-2. **Satu fakta, satu tempat.** Jangan menyalin fakta (mis. domain/URL, mode payment) ke banyak file.
-3. **Fakta volatil → verifikasi, jangan tulis tangan.** Pakai `scripts/ssot-status.sh`.
-4. **Historis itu beku.** Jangan memperbarui dokumen HISTORIS; kalau ada keputusan baru, buat catatan baru atau perbarui dokumen HIDUP.
-5. **Dokumen "Dirujuk kode" tak boleh dipindah/rename** tanpa update rujukan di `src/`.
-6. Riwayat ada di **git**, bukan di file `_v2`/`_final`.
+|| `CHECKLIST_TES_DEVICE.md` | Checklist uji perangkat (titik-waktu). |
