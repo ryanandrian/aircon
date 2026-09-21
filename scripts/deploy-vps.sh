@@ -10,7 +10,7 @@ artifact="${2:?verified artifact required}"
 
 commit=$(git rev-parse "$ref^{commit}")
 changed=$(git diff-tree --no-commit-id --name-only -r "$commit")
-if [[ -n "$changed" ]] && ! grep -vE '^(docs/|\.hermes/)' <<<"$changed" | grep -q .; then
+if [[ -n "$changed" ]] && ! grep -vE '^(docs/|\.hermes/|scripts/|\.github/)' <<<"$changed" | grep -q .; then
   echo "SKIP: docs-only release; production deploy is not required"
   exit 0
 fi
