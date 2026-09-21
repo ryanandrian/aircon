@@ -1,8 +1,6 @@
 # Infrastruktur Portofolio (VPS-INFRA) — Indeks Dokumen
 
-> 🏛️ **MULAI DARI SSOT:** [`00_SSOT_Gateway_Architecture.md`](00_SSOT_Gateway_Architecture.md) —
-> sumber kebenaran tunggal arsitektur + kontrak + precedence config + failure modes. Bila dokumen
-> lain bertentangan dengan SSOT, SSOT yang benar.
+> Dokumentasi integrasi gateway bersama Lumite.
 
 Dokumentasi shared infrastructure untuk portofolio "12 SaaS": WhatsApp Gateway + MQTT/IoT
 bersama, dipakai banyak aplikasi. **Developer app lain: mulai dari SSOT lalu guide kanal yang dibutuhkan.**
@@ -10,17 +8,15 @@ bersama, dipakai banyak aplikasi. **Developer app lain: mulai dari SSOT lalu gui
 ## Baca sesuai kebutuhan
 | # | Dokumen | Untuk siapa |
 |---|---|---|
-| **00-SSOT** | [Arsitektur SSOT Gateway](00_SSOT_Gateway_Architecture.md) | **SEMUA — baca dulu** |
-| 00 | [Keputusan & Spek Infra](00_Infra_Decision_and_Specs.md) | Owner/arsitek — kenapa 2 VPS, spek, biaya |
+|| 00 | Arsitektur gateway bersama | Referensi integrasi |
 | 10 | [Integrasi WhatsApp Gateway](10_WhatsApp_Gateway_Integration_Guide.md) | **Developer app yang butuh kirim/terima WA** |
 | 20 | [Integrasi MQTT / IoT](20_MQTT_Integration_Guide.md) | **Developer app yang butuh device IoT** |
 | 30 | [Kapasitas & Spek](30_Capacity_and_Specs.md) | Sizing RAM/storage, kapan upgrade |
-| 40 | [Deploy & Rollout](40_Deploy_and_Rollout.md) | Admin infra (⚠️ deploy NYATA = native/systemd, lihat SSOT §6) |
+
 
 ## Arsitektur singkat
 ```
   Aplikasi (aircon, app#2, ...)                VPS-INFRA (shared)
-  ├─ di Vercel / VPS-APP        ── REST API ──▶ messaging-gateway (WhatsApp)
   └─ panggil gateway via HTTPS  ◀─ webhook ───  Mosquitto (MQTT) + iot-bridge
        (X-Api-Key per app)                      tiap service ber-limit RAM, Docker
 ```
@@ -31,7 +27,7 @@ bersama, dipakai banyak aplikasi. **Developer app lain: mulai dari SSOT lalu gui
 2. **Namespace per app** (WA session `{appId}:{externalId}`, topik MQTT `{appId}/...`) →
    isolasi antar-produk.
 3. **Data besar bukan di VPS** — DB di Supabase, foto di S3. VPS stateless & ringan.
-4. **Docker Compose + limit RAM + auto-restart.** Chromium (WA) ter-isolasi dari layanan lain.
+4. Gateway dan broker berjalan sebagai service terpisah dengan batas resource.
 
 ## Kode terkait di repo
 - Shared WA Gateway source is owned by `/home/rad/lumite-gateway/gateway-engine/`; this Aircon repository contains only the integration client. Legacy `apps/messaging-gateway/` is not a production deployment source.

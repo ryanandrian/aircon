@@ -1,7 +1,7 @@
 # AC WA Worker (whatsapp-web.js)
 
 Service **long-running** yang mengirim & menerima WhatsApp untuk semua tenant.
-BUKAN bagian dari app Next.js (Vercel serverless tak bisa memegang koneksi WA persisten).
+BUKAN bagian dari app Next.js; koneksi WA persisten dikelola oleh gateway bersama Lumite.
 
 ## Cara kerja
 - Satu sesi WhatsApp **per tenant** (`LocalAuth`, clientId = tenantId). Nomor WA = nomor tenant sendiri.

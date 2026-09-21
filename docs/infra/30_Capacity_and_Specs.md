@@ -20,7 +20,7 @@ MQTT & app hampir tak berkontribusi.
 | aircon + beberapa app | 4C/8GB (MM 8.4) | ~Rp269rb |
 
 ## Rencana pembelian
-- **Sekarang:** 1× VPS-INFRA **MM 8.4 (8GB) Rp269rb/bln**. aircon-app tetap Vercel (gratis).
+- **Sekarang:** 1× VPS-INFRA **MM 8.4 (8GB) Rp269rb/bln**. Aircon app berjalan pada runtime VPS Aircon.
 - **Go-komersial:** + 1× VPS-APP (mulai 4GB, naik ke 8GB saat multi-app). Total ~Rp420–540rb/bln
   untuk SELURUH portofolio.
 - **Gerbang skala:** sebelum Σ sesi WA > ~25–30, tukar mesin gateway ke **WhatsApp Cloud API**

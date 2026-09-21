@@ -1,5 +1,5 @@
 # DEPRECATED NON-AUTHORITATIVE — shared gateway deployment is owned by
-# /home/rad/lumite-gateway and its exact-SHA release pipeline. This legacy
+# /home/rad/lumite-gateway. This legacy
 # compose file must not be used for production or pairing-code releases.
 #
 # Historical VPS-INFRA — shared WhatsApp Gateway + Mosquitto MQTT + iot-bridge.

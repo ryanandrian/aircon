@@ -9,7 +9,7 @@
 > **Canonical shared gateway:** Lumite Gateway owns the shared WhatsApp/MQTT/IoT gateway for all Lumite applications. Aircon is an integration client and does not supply gateway source to production.
 >
 > Canonical engine source: `/home/rad/lumite-gateway/gateway-engine/`.
-> Canonical deployment: Lumite exact-SHA release pipeline.
+> Canonical deployment is managed in the Lumite Gateway repository.
 > Live runtime: `/home/rad4ssh/infra/messaging-gateway/` (generated; never edit manually).
 
 ## Verified boundary

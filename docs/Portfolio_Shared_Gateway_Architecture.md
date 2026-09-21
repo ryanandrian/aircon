@@ -54,7 +54,7 @@ dilakukan SEKALI untuk semua app (keuntungan besar — lihat §4).
 2. **Satu tempat operasional untuk hal tersulit.** waweb.js (bagian paling rewel:
    QR, sesi, crash, ban) dikelola di SATU kodebase/box, bukan diduplikasi 12×.
 3. **App tetap ringan & seragam.** VPS-APP cuma Next.js stateless → mudah, bisa
-   auto-restart, bahkan sebagian tetap di Vercel bila mau.
+   auto-restart, dan aplikasi Aircon menggunakan gateway bersama melalui HTTPS.
 4. **Isolasi failure domain benar.** Chromium fleet crash → app pelanggan TAK ikut
    tumbang (beda VPS). Ini persis pemisahan yang §Hosting tekankan, tapi di level portofolio.
 5. **Gerbang migrasi Cloud API terpusat.** Ganti mesin WA cukup di 1 gateway → seluruh

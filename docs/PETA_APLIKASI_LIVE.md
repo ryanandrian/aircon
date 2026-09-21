@@ -1,6 +1,5 @@
 # Peta Aplikasi Aircon — LIVE (Domain Baru airconet.id)
 
-> Revisi per migrasi VPS. Domain lama Vercel (`aircon-peach.vercel.app`) MASIH jalan paralel
 > (DB Supabase sama) sebagai cadangan/rollback — tapi domain resmi mulai sekarang di bawah.
 
 ## Base URL
@@ -85,7 +84,6 @@ Etalase booking pelanggan:
 |---|---|
 | Aplikasi (VPS BiznetGio) | https://app.airconet.id — 103.127.135.132, Node 22, systemd `aircon-app`, TLS Let's Encrypt |
 | Gateway WhatsApp+MQTT (HTTPS) | https://gw.lumite.biz.id/health — VPS 103.127.138.16 (`wa-mqtt-gateway`) |
-| Database | Supabase Postgres (bersama Vercel & VPS) |
 | Media / foto | S3 BiznetGio (`nos.jkt-1.neo.id/aircon`) |
 | Email platform | SMTP admin@lumite.biz.id (notifikasi Lumite→tenant) |
 
@@ -95,8 +93,6 @@ Etalase booking pelanggan:
 - **Owner & Platform Admin:** login Google (beda tabel: owner→tenant, admin→PlatformAdmin).
 - **Teknisi:** phone + PIN (bukan Google) — `/masuk-teknisi`.
 - **Agen / Reseller:** login portal sendiri (cookie partner, bukan Supabase).
-- Cookie login terikat per-domain: sesi lama di `aircon-peach.vercel.app` TIDAK terbawa ke
   `app.airconet.id`. Tiap domain login sendiri, keduanya valid (DB sama).
 
-_Domain lama `aircon-peach.vercel.app` tetap aktif sementara sebagai rollback. Setelah masa
 pemantauan stabil, bisa dinonaktifkan._

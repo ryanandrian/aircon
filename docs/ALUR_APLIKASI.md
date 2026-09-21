@@ -291,7 +291,6 @@ flowchart TD
 | `/api/wa/callback` `/api/wa/policy` | Gateway WA | Status/kebijakan WA | secret header |
 | `/api/customers`, `/api/assets` (+`/[id]`) | App | CRUD (REST) | `requireApiContext` (sesi) |
 
-> Cron di Vercel Hobby = **harian** (sub-harian merusak semua auto-deploy).
 
 ---
 

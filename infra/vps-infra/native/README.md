@@ -1,6 +1,6 @@
 # VPS-INFRA — Deploy NATIVE (systemd, TANPA Docker)
 
-> **DEPRECATED for shared gateway deployment.** This Aircon tree is not the production source or deployment authority for the shared Lumite Gateway. Canonical source: `/home/rad/lumite-gateway/gateway-engine/`. Use the Lumite exact-SHA release pipeline. `redeploy.sh` intentionally fails closed.
+> Shared gateway production is maintained in `/home/rad/lumite-gateway`. This Aircon tree is only a historical integration reference.
 
 > Dipakai untuk aircon (VPS BiznetGio 103.127.138.16, Ubuntu 22.04, 4GB). Dipilih karena
 > lebih hemat RAM daripada Docker (~200MB overhead dihindari) & lebih sederhana untuk
@@ -16,8 +16,7 @@ RAM idle: ~275MB / 3.8GB. Swap 2GB aktif.
 ## Isi folder
 - `provision-native.sh` — provisioning idempoten dari VPS bersih (swap, Node, Mosquitto,
   Chromium deps, firewall, npm install, transpile bridge, pasang service). `PROFILE=4gb|8gb`.
-- `aircon-gateway.service`, `aircon-bridge.service` — template unit systemd (sumber kebenaran).
-- `redeploy.sh` — deprecated guard; tidak lagi mengirim source gateway ke VPS.
+- `aircon-gateway.service`, `aircon-bridge.service` — historical service templates.
 
 ## Deploy dari nol (VPS baru)
 ```bash

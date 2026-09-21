@@ -14,8 +14,8 @@ node --experimental-strip-types index.ts   # atau pakai systemd/pm2
 ## ENV
 - `MQTT_URL` — mis. `mqtt://127.0.0.1:1883`
 - `MQTT_USERNAME` / `MQTT_PASSWORD` — kredensial Mosquitto
-- `AIRCON_INGEST_URL` — `https://aircon-peach.vercel.app/api/iot/ingest`
-- `IOT_BRIDGE_TOKEN` — samakan dengan env `IOT_BRIDGE_TOKEN` di aircon (Vercel)
+- `AIRCON_INGEST_URL` — URL endpoint ingest Aircon yang sedang digunakan.
+- `IOT_BRIDGE_TOKEN` — samakan dengan konfigurasi server Aircon.
 - `BATCH_MS` — interval kirim batch (default 2000)
 
 ## Format telemetry (device publish)

@@ -219,7 +219,6 @@ UI HALAMAN (akomodir rumahan s/d korporat 40+ unit):
  - Responsif: card di HP, tabel di desktop (PIC kantor sering pakai laptop).
 
 ### ✅ IMPLEMENTASI SELESAI & LIVE (27 Agu 2026) — commit 6fb5df9
-Rencana docs/PLAN_UNIT_IDENTITY_QR.md TUNTAS 5 fase. tsc 0, 199 test, build hijau, deploy READY.
  - FASE 1: Asset.quantity + suggestLocations (combobox) + findPossibleDuplicates (dedup lunak).
  - FASE 2: /app/unit (daftar+cari) + form tambah (combobox lokasi+saran, dedup-warning) +
    createAssetsBulk (buat-massal N unit kembar, label #1..#N). NavCard "Unit AC".

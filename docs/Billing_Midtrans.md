@@ -68,7 +68,7 @@ Semua parameter CONFIGURABLE via `BillingPolicy` (admin), NO hardcode.
 Bayar kapan pun sebelum purge → kembali ACTIVE (reversible). `activateSubscription` set `nextDueDate` = akhir
 periode yang DIBELI (1/3/12 bln). `isTenantUsable`: TRIAL/ACTIVE/PAST_DUE boleh pakai; SUSPENDED/CANCELLED tidak.
 
-### Jadwal otomatis (systemd timer VPS, bukan vercel.json)
+### Jadwal otomatis (systemd timer VPS)
 - `aircon-dunning.timer` @01:00 → runDunningCycle + purgeMarkedTenants + inactivity sweep + flush WA + platform notify.
 - `aircon-reminders.timer` @02:00 → reminder servis ke pelanggan tenant (money-loop tenant).
 - `aircon-reconcile.timer` @03:00 → PULL status Midtrans (penjamin webhook + pemulih transaksi hantu).
