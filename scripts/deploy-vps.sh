@@ -31,6 +31,7 @@ ssh -i "$KEY" "$H" "set -euo pipefail
   test -n \"\$old\" -a -d \"\$old\"
   test \"\$(sudo -n systemctl is-active aircon-app)\" = active
   mkdir -p '$ROOT/app/.next/standalone'
+  cd /tmp
   sha256sum -c 'aircon-release-$commit.tar.gz.sha256'
   cd - >/dev/null
   tar xzf /tmp/aircon-release-$commit.tar.gz -C '$ROOT/app/.next/standalone'
