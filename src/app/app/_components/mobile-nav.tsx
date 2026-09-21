@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import { AppNav } from "./app-nav";
 import { TenantLogo } from "@/components/tenant-logo";
 import { useTenantIdentity } from "./tenant-identity-context";
+import { LogoutButton } from "../logout-button";
 
 /** Hamburger + drawer navigasi untuk mobile (md:hidden). Seragam: shadcn Sheet + AppNav. */
 export function MobileNav() {
@@ -32,6 +33,9 @@ export function MobileNav() {
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <AppNav onNavigate={() => setOpen(false)} />
+        </div>
+        <div className="mt-5 shrink-0 border-t pt-4">
+          <LogoutButton className="w-full" />
         </div>
       </SheetContent>
     </Sheet>

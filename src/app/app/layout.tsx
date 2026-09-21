@@ -8,6 +8,7 @@ import { gatewaySessionStatus } from "@/lib/wa/gateway-relay";
 import { CustomerServiceFab } from "@/components/customer-service-fab";
 import { AppNav } from "./_components/app-nav";
 import { TenantIdentityProvider } from "./_components/tenant-identity-context";
+import { LogoutButton } from "./logout-button";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await tryGetServerContext();
@@ -33,9 +34,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <AppNav />
-          <div className="mt-auto flex items-center justify-between border-t pt-4">
-            <span className="text-xs text-muted-foreground">Tampilan</span>
-            <ThemeToggle />
+          <div className="mt-auto space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Tampilan</span>
+              <ThemeToggle />
+            </div>
+            <LogoutButton className="w-full" />
           </div>
         </aside>
         <TenantIdentityProvider name={name} logoUrl={tenant?.logoUrl} email={ctx.email}>

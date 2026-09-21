@@ -5,7 +5,7 @@ import { logoutOwner } from "./logout-actions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function LogoutButton() {
+export function LogoutButton({ className = "" }: { className?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +27,7 @@ export function LogoutButton() {
     <button
       onClick={logout}
       disabled={loading}
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+      className={`rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60 ${className}`}
     >
       {loading ? "Keluar…" : "Keluar"}
     </button>
