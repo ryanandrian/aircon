@@ -72,7 +72,7 @@ export default async function AppDashboard() {
   return (
     <>
       <AppHeader title="Ringkasan" helpKey="beranda" />
-      <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
+      <div className="mx-auto min-w-0 w-full max-w-4xl space-y-6 px-5 py-6">
         <div>
           <h2 className="text-xl font-semibold tracking-tight text-foreground">{tenant?.name ?? "Usaha Anda"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">Ringkasan Kinerja Operasional Bisnis Anda</p>
@@ -106,7 +106,7 @@ export default async function AppDashboard() {
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white"><Icon.Repeat className="h-5 w-5" aria-hidden /></div>
-              <div>
+              <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-foreground">Pelanggan Datang Lagi</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Setiap pekerjaan selesai otomatis membuat pengingat servis berikutnya. Saat waktunya tiba, pelanggan dikabari lewat WhatsApp — servis berulang tanpa Anda harus mengingat-ingat.

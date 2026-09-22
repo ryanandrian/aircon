@@ -26,7 +26,7 @@ export function ServicedTrendChart({ data, total }: { data: Point[]; total: numb
   return (
     <Card>
       <CardContent className="p-5">
-        <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="mb-3 flex min-w-0 flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-foreground">Unit AC dilayani</p>
             <p className="text-xs text-muted-foreground">30 hari terakhir</p>
