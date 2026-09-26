@@ -38,13 +38,33 @@ export async function POST(req: NextRequest) {
           toPhone: String(body.fromPhone ?? ""), body: String(body.body ?? ""),
         },
       }).catch(() => { /* MessageLog opsional; jangan gagalkan callback */ });
-    } else if (type === "sent" || type === "failed") {
+    } else if (type === "sent" || type === "failed" || type === "delivery_status") {
       // Update status pesan keluar bila messageId dikenal (best-effort).
       const messageId = body.messageId ? String(body.messageId) : null;
       if (messageId) {
+        const target = type === "sent" ? "SENT" : type === "failed" ? "FAILED" : String(body.status ?? "").toUpperCase();
+        // Kombinasi literal sesuai enum MessageStatus; cast sekali di sini (tanpa namespace Prisma,
+        // karena Prisma 7 + driver adapter tidak mengekspor namespace tersebut).
+        const status = target as "QUEUED" | "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "LOGGED";
+        // Guard MONOTONIC: QUEUED < SENDING < SENT < DELIVERED < READ.
+        // Callback bisa datang telat/duplikat — status TIDAK BOLEH turun.
+        const rank: Record<string, number> = { QUEUED: 0, SENDING: 0, SENT: 1, DELIVERED: 2, READ: 3 };
+        if (type === "delivery_status") {
+          if (rank[target] === undefined) {
+            return NextResponse.json({ ok: true, ignored: "status tidak dikenal" });
+          }
+          const cur = await prisma.messageLog.findFirst({
+            where: { tenantId, gatewayMessageId: messageId },
+            select: { status: true },
+          });
+          const curRank = rank[cur?.status as string] ?? 0;
+          if (rank[target] <= curRank) {
+            return NextResponse.json({ ok: true, ignored: "status tidak naik" });
+          }
+        }
         await prisma.messageLog.updateMany({
           where: { tenantId, gatewayMessageId: messageId },
-          data: { status: type === "sent" ? "SENT" : "FAILED" },
+          data: { status },
         }).catch(() => {});
       }
     } else if (type === "disconnected") {
