@@ -373,7 +373,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 1,
     whatIsIt:
-      "Atur identitas usaha (nama, logo, alamat, nomor WhatsApp), rekening bank, program insentif tim, dan koneksi WhatsApp — semua di satu tempat.",
+      "Atur identitas usaha dan koneksi WhatsApp. Pengiriman yang bisa dipastikan adalah Diterima perangkat (DELIVERED); status Dibaca terkonfirmasi (READ_CONFIRMED) hanya muncul bila WhatsApp mengirim sinyal baca.",
     steps: [
       "Isi 'Identitas Usaha': Nama Usaha, Telepon/WhatsApp, moto, dan alamat.",
       "Unggah logo di bagian 'Branding Usaha' (tampil di faktur & halaman usaha).",
@@ -383,6 +383,8 @@ export const OWNER_TOPICS: HelpTopic[] = [
       "Di bagian WhatsApp, gunakan 'Hubungkan WhatsApp' untuk mengaktifkan pengingat otomatis.",
     ],
     tips: [
+      "Bila pesan sudah Diterima perangkat tetapi tidak muncul Dibaca terkonfirmasi, itu bukan berarti pengiriman gagal atau penerima belum membaca. WhatsApp tidak selalu mengirim ACK_READ.",
+      "Balasan pelanggan adalah tanda interaksi terpisah dan tidak mengubah status menjadi Dibaca terkonfirmasi secara otomatis.",
       "Bila usaha TIDAK menerapkan insentif, biarkan saklar mati — teknisi tak akan melihat kolom insentif sama sekali.",
       "Logo & nama usaha yang rapi membuat faktur Anda terlihat profesional.",
     ],

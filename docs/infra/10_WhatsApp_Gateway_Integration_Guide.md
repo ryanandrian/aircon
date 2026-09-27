@@ -3,8 +3,11 @@
 > Audience: developer yang membangun aplikasi lain di portofolio dan butuh kirim/terima
 > WhatsApp. Anda TIDAK perlu memasang whatsapp-web.js di app Anda — cukup panggil gateway.
 
+**Keputusan terbaru (ACK-less):** `DELIVERED` adalah acceptance transport utama. `READ_CONFIRMED` hanya bukti opsional bila WhatsApp mengirim ACK_READ=3. Tanpa ACK_READ dalam jendela observasi, gunakan `READ_UNOBSERVED`; jangan menyebut `UNREAD` dan jangan menganggap pengiriman gagal. Balasan pelanggan dicatat sebagai interaksi terpisah.
+
 ## 1. Konsep 60 detik
-- **Gateway** = 1 service bersama di VPS-INFRA yang memegang mesin WhatsApp.
+
+**Status delivery:** `DELIVERED` adalah acceptance transport utama. `READ_CONFIRMED` hanya bukti opsional ACK_READ=3. Tanpa ACK_READ dalam observation window, gunakan `READ_UNOBSERVED`; bukan `UNREAD` dan bukan kegagalan.
 - **App Anda** memanggil REST API gateway (`X-Api-Key`) untuk kirim pesan & kelola sesi.
 - **Gateway memanggil balik** (webhook) app Anda untuk: QR, ready, pesan masuk, status kirim.
 - **Session** = 1 nomor WhatsApp. `externalId` = ID milik app Anda untuk nomor itu
@@ -53,6 +56,7 @@ DELETE /v1/wa/sessions/{externalId}
 ```
 
 ## 5. Webhook yang HARUS app Anda sediakan
+
 Gateway POST JSON ke `webhook` Anda. Bentuk payload (`type` membedakan):
 ```jsonc
 { "type":"qr",          "externalId":"...", "qr":"data:image/png;base64,..." }
@@ -61,9 +65,10 @@ Gateway POST JSON ke `webhook` Anda. Bentuk payload (`type` membedakan):
 { "type":"inbound",     "externalId":"...", "fromPhone":"62...", "body":"pesan masuk" }
 { "type":"sent",        "externalId":"...", "messageId":"...", "toPhone":"62..." }
 { "type":"failed",      "externalId":"...", "messageId":"...", "error":"..." }
+{ "type":"delivery_status", "externalId":"...", "deliveryId":"...", "idempotencyKey":"...", "gatewayMessageId":"...", "waMessageId":null, "toPhone":"62...", "status":"SENT|DELIVERED|READ_CONFIRMED|READ_UNOBSERVED|FAILED|RETRY_WAIT", "ack":1 }
 ```
-Rekomendasi: verifikasi sumber (mis. shared secret / IP allowlist) & proses idempoten
-(pakai `messageId`).
+`DELIVERED` adalah acceptance device yang reliable. `READ_CONFIRMED` adalah bukti opsional. `READ_UNOBSERVED` berarti tidak ada ACK_READ dalam observation window; bukan failure dan bukan `UNREAD`. Balasan masuk adalah interaksi terpisah.
+Verifikasi signature HMAC sesuai SSOT gateway, proses idempoten berdasarkan `gatewayMessageId + status`, dan balas HTTP 200 maksimal 5 detik.
 
 ## 6. Contoh (Node/TypeScript, dari app mana pun)
 ```ts
@@ -82,12 +87,12 @@ async function sendWa(externalId: string, toPhone: string, message: string) {
 
 ## 7. Cara aircon memakainya (referensi implementasi)
 aircon TIDAK memuat whatsapp-web.js. Alur aircon:
-1. App menulis `MessageLog(status=QUEUED)` (money-loop reminder, dunning, dsb).
-2. Sebuah adapter (`src/lib/wa/gateway.ts` + relay) memanggil `POST /v1/wa/send` gateway,
-   `externalId = tenantId`.
-3. Callback gateway (`/api/wa/callback`) meng-update status & menyimpan pesan masuk.
-> Catatan: selama pilot, aircon bisa tetap pakai worker lama (poll DB). Untuk portofolio,
-> pola gateway inilah yang dipakai semua app baru. Lihat 40_Migration_and_Rollout.md.
+1. App menulis `MessageLog(status=QUEUED)`.
+2. Adapter Aircon memanggil `POST /v1/wa/send` melalui shared gateway.
+3. Callback dapat menaikkan status menjadi `SENT` atau `DELIVERED`.
+4. `READ_CONFIRMED` hanya ditulis jika gateway menerima ACK_READ=3.
+5. Jika observation window berakhir tanpa ACK_READ, status operasional adalah `READ_UNOBSERVED` — bukan FAILED dan bukan klaim `UNREAD`.
+6. Balasan pelanggan dicatat terpisah sebagai `INTERACTED`.
 
 ## 8. Masa depan (penting untuk keputusan desain Anda)
 Mesin di balik gateway akan **ditukar dari whatsapp-web.js ke WhatsApp Cloud API** saat
