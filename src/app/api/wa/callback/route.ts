@@ -40,15 +40,14 @@ export async function POST(req: NextRequest) {
       }).catch(() => { /* MessageLog opsional; jangan gagalkan callback */ });
     } else if (type === "sent" || type === "failed" || type === "delivery_status") {
       // Update status pesan keluar bila messageId dikenal (best-effort).
-      const messageId = body.messageId ? String(body.messageId) : null;
+      const messageId = body.gatewayMessageId ? String(body.gatewayMessageId) : body.messageId ? String(body.messageId) : null;
       if (messageId) {
         const target = type === "sent" ? "SENT" : type === "failed" ? "FAILED" : String(body.status ?? "").toUpperCase();
         // Kombinasi literal sesuai enum MessageStatus; cast sekali di sini (tanpa namespace Prisma,
         // karena Prisma 7 + driver adapter tidak mengekspor namespace tersebut).
-        const status = target as "QUEUED" | "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "LOGGED";
-        // Guard MONOTONIC: QUEUED < SENDING < SENT < DELIVERED < READ.
-        // Callback bisa datang telat/duplikat — status TIDAK BOLEH turun.
-        const rank: Record<string, number> = { QUEUED: 0, SENDING: 0, SENT: 1, DELIVERED: 2, READ: 3 };
+        const status = target as "QUEUED" | "SENDING" | "SENT" | "DELIVERED" | "READ_CONFIRMED" | "READ_UNOBSERVED" | "FAILED" | "LOGGED";
+        // Guard monotonic: QUEUED < SENT < DELIVERED < READ_CONFIRMED/READ_UNOBSERVED.
+        const rank: Record<string, number> = { QUEUED: 0, SENDING: 0, SENT: 1, DELIVERED: 2, READ_CONFIRMED: 3, READ_UNOBSERVED: 3, FAILED: 1, LOGGED: 0 };
         if (type === "delivery_status") {
           if (rank[target] === undefined) {
             return NextResponse.json({ ok: true, ignored: "status tidak dikenal" });

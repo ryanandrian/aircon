@@ -46,7 +46,7 @@ beforeEach(() => {
   store.rows = [
     { id: "m1", tenantId: "t1", direction: "OUTBOUND", status: "SENT", gatewayMessageId: "gw-1", toPhone: "628", body: "hi" },
     { id: "m2", tenantId: "t1", direction: "OUTBOUND", status: "DELIVERED", gatewayMessageId: "gw-2", toPhone: "628", body: "yo" },
-    { id: "m3", tenantId: "t1", direction: "OUTBOUND", status: "READ", gatewayMessageId: "gw-3", toPhone: "628", body: "ok" },
+    { id: "m3", tenantId: "t1", direction: "OUTBOUND", status: "READ_CONFIRMED", gatewayMessageId: "gw-3", toPhone: "628", body: "ok" },
   ];
   vi.clearAllMocks();
 });
@@ -66,16 +66,16 @@ describe("Aircon callback — delivery_status dari gateway", () => {
     expect(store.rows[0].status).toBe("DELIVERED");
   });
 
-  it("READ menaikkan DELIVERED → READ", async () => {
-    const res = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "READ", ack: 3 }));
+  it("READ_CONFIRMED menaikkan DELIVERED → READ_CONFIRMED", async () => {
+    const res = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "READ_CONFIRMED", ack: 3 }));
     expect(res.status).toBe(200);
-    expect(store.rows[1].status).toBe("READ");
+    expect(store.rows[1].status).toBe("READ_CONFIRMED");
   });
 
   it("out-of-order TIDAK menurunkan status (DELIVERED datang setelah READ)", async () => {
     const res = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-3", status: "DELIVERED", ack: 2 }));
     expect(res.status).toBe(200);
-    expect(store.rows[2].status, "status tidak boleh turun").toBe("READ");
+    expect(store.rows[2].status, "status tidak boleh turun").toBe("READ_CONFIRMED");
   });
 
   it("duplikat idempotent", async () => {
@@ -86,13 +86,13 @@ describe("Aircon callback — delivery_status dari gateway", () => {
     const r2 = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "DELIVERED", ack: 2 }));
     expect(r2.status).toBe(200);
     expect(store.rows[1].status).toBe("DELIVERED");
-    // duplikat READ dua kali juga harus naik tepat sekali lalu diam
-    const r3 = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "READ", ack: 3 }));
+    // duplikat READ_CONFIRMED dua kali juga harus naik tepat sekali lalu diam
+    const r3 = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "READ_CONFIRMED", ack: 3 }));
     expect(r3.status).toBe(200);
-    expect(store.rows[1].status).toBe("READ");
-    const r4 = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "READ", ack: 3 }));
+    expect(store.rows[1].status).toBe("READ_CONFIRMED");
+    const r4 = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-2", status: "READ_CONFIRMED", ack: 3 }));
     expect(r4.status).toBe(200);
-    expect(store.rows[1].status).toBe("READ"); // tetap READ, tidak rusak
+    expect(store.rows[1].status).toBe("READ_CONFIRMED"); // tetap, tidak rusak
   });
 
   it("lifecycle event tidak ditolak (200)", async () => {
