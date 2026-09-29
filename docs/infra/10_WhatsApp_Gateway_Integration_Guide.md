@@ -3,11 +3,9 @@
 > Audience: developer yang membangun aplikasi lain di portofolio dan butuh kirim/terima
 > WhatsApp. Anda TIDAK perlu memasang whatsapp-web.js di app Anda — cukup panggil gateway.
 
-**Keputusan terbaru (ACK-less):** `DELIVERED` adalah acceptance transport utama. `READ_CONFIRMED` hanya bukti opsional bila WhatsApp mengirim ACK_READ=3. Tanpa ACK_READ dalam jendela observasi, gunakan `READ_UNOBSERVED`; jangan menyebut `UNREAD` dan jangan menganggap pengiriman gagal. Balasan pelanggan dicatat sebagai interaksi terpisah.
-
 ## 1. Konsep 60 detik
 
-**Status delivery:** `DELIVERED` adalah acceptance transport utama. `READ_CONFIRMED` hanya bukti opsional ACK_READ=3. Tanpa ACK_READ dalam observation window, gunakan `READ_UNOBSERVED`; bukan `UNREAD` dan bukan kegagalan.
+**Status delivery (keputusan ACK-less — canonical contract di `lumite-gateway/docs/06_SSOT_Delivery_Callback_Contract_v2.md`):** `DELIVERED` adalah acceptance transport utama. `READ_CONFIRMED` hanya bila WhatsApp mengirim ACK_READ=3. Tanpa ACK_READ dalam observation window, gunakan `READ_UNOBSERVED` — bukan `UNREAD` dan bukan kegagalan. Balasan pelanggan adalah event `INTERACTED` terpisah.
 - **App Anda** memanggil REST API gateway (`X-Api-Key`) untuk kirim pesan & kelola sesi.
 - **Gateway memanggil balik** (webhook) app Anda untuk: QR, ready, pesan masuk, status kirim.
 - **Session** = 1 nomor WhatsApp. `externalId` = ID milik app Anda untuk nomor itu

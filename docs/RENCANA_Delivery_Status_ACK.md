@@ -1,9 +1,14 @@
 # RENCANA — Aircon Delivery Status (Terkirim / Sampai / Dibaca)
 
-**Status:** UPDATED DECISION — `DELIVERED` is the reliable transport acceptance; READ is optional evidence.
-**Trigger eksekusi:** gateway and campaign consumers must follow the ACK-less contract.
+**Status:** HISTORICAL PLAN — design decisions stay valid; the "prasyarat belum terpenuhi" and gate claims below are outdated. Verify current state from `lumite-gateway/docs/00_SSOT_Gateway_ControlPlane.md` and `src/app/api/wa/callback/route.ts` before acting.
 **SSOT contract:** `lumite-gateway/docs/06_SSOT_Delivery_Callback_Contract_v2.md`
-**Rencana umum:** `lumite-gateway/docs/05_PLAN_Delivery_Status_ACK.md` → bagian F3.
+**Rencana umum:** `lumite-gateway/docs/05_PLAN_Delivery_Status_ACK.md` → bagian F3 (historical).
+
+**Verified current facts (2026-09-29, read-only):**
+- Aircon `MessageStatus` enum already contains `READ_CONFIRMED` and `READ_UNOBSERVED` (legacy `READ` retained for data compatibility).
+- Callback route already handles `delivery_status` with monotonic rank including both new statuses.
+- No `READ_CONFIRMED`/`READ_UNOBSERVED` rows exist yet in `MessageLog`; the default status set is `QUEUED/SENDING/SENT/DELIVERED/FAILED/LOGGED`.
+- No outbound `READ_UNOBSERVED` writer has been located yet; any SSOT claim that this reconciler is implemented remains **NOT VERIFIED**.
 
 Rencana ini KHUSUS domain Aircon. Gateway sudah menyiapkan event generic;
 Aircon hanya mengonsumsinya — **tidak ada logika ACK di gateway yang bersifat khusus Aircon.**
@@ -101,23 +106,27 @@ inactivity-sweeper     → reminder inaktivitas
 platform-notification  → notifikasi platform
 message-dispatch       → flusher antrean
 tenant UI + cron routes
-test suite             → 369 test harus tetap lulus
+test suite             → seluruh suite harus tetap lulus (jumlah aktual dicek dengan menjalankan suite, bukan angka di dokumen ini)
 ```
 
 ---
 
-## 4. Prasyarat (belum terpenuhi saat ini)
+## 4. Prasyarat — RIWAYAT (dari sebelum akses deploy tersedia)
+
+> **Status 2026-09-29:** daftar ini SUDAH TERPENUHI. Akses deploy Aircon production tersedia,
+> migration sudah di-apply, dan regression suite berjalan. Baris di bawah dipertahankan hanya
+> sebagai catatan kerja masa lalu; jangan menganggapnya blocker aktif.
 
 ```text
 [ ] Akses deploy/Aircon prod 103.127.135.132
-    (port 22 TERTUTUP dari environment ini saat ini)
+    (RIWAYAT: pada waktu rencana dibuat port 22 tertutup; saat ini akses tersedia)
 [ ] Jalur backup DB Aircon + checksum + restore dry-run
 [ ] Staging/preview instance Aircon
 [ ] Konfirmasi gateway F1 lulus (log callback tidak lagi hilang)
 [ ] Konfirmasi campaign F2 lulus (DELIVERED/READ terbukti live)
 ```
 
-Selama prasyarat ini belum ada, **fase Aircon tetap TIDAK DIMULAI.**
+Blok ini hanya riwayat. Prasyarat sudah terpenuhi sejak 2026-09-29; fase Aircon tidak lagi diblokir oleh kondisi di atas.
 
 ---
 
@@ -125,7 +134,7 @@ Selama prasyarat ini belum ada, **fase Aircon tetap TIDAK DIMULAI.**
 
 ```text
 [ ] Migration apply + rollback teruji
-[ ] Seluruh regression money-loop lulus (369 test)
+[ ] Seluruh regression money-loop lulus (jumlah aktual: jalankan suite)
 [ ] Callback signature valid (0x 401 pada observasi window)
 [ ] BUKTI LIVE: notifikasi naik QUEUED → SENT → DELIVERED
 [ ] Jika ACK_READ tersedia: READ_CONFIRMED tercatat
@@ -151,5 +160,5 @@ Gateway F1 lulus
 
 Aircon TIDAK dikerjakan lebih awal, karena:
 1. owner meminta gateway & campaign tuntas dulu;
-2. host Aircon terpisah dan akses deploynya belum ada;
+2. host Aircon terpisah dan akses deploynya belum ada pada saat itu (sekarang tersedia);
 3. menjaga satu contract disalin oleh tiga app tanpa bergeser di tengah jalan.
