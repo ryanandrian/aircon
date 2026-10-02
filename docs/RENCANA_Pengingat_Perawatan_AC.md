@@ -106,9 +106,9 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [x] 2.4 Gate lulus: TSC 0, LINT 0, **437 tes** (47 file), BUILD 0, route `/app/pengingat` muncul di build output. (deploy menyusul setelah FASE 3, satu rilis.)
 - **Sisa FASE 2 yang pindah ke FASE 5:** tombol "Jadikan Pekerjaan" mengirim query param tetapi `job-form.tsx` belum memprosesnya; `helpKey="pengingat"` belum ada topik bantuan (aman: getHelpTopic -> null, tombol ? tidak tampil).
 
-### FASE 3 — CARD RINGKASAN  `status: [ ]`
-- [ ] 3.1 Ganti metrik "Pengingat Aktif" → **"Jatuh Tempo"** pakai fungsi FASE 1 (angka = isi daftar; keluar saat status ≠ QUEUED), `href` ke `/app/pengingat`.
-- [ ] 3.2 Gate + deploy + verifikasi live. Tandai `[x]`.
+### FASE 3 — CARD RINGKASAN  `status: [x]`
+- [x] 3.1 Metrik Ringkasan diganti: query `repeatReminder.count(QUEUED)` DIHAPUS, diganti `listReminderInbox(tenantId).then(r => r.length)` — SATU sumber dengan halaman (R10 tertutup). Label "Pengingat Aktif" -> **"Jatuh Tempo"**, ikon `Icon.Bell` -> `Icon.Repeat`, `href="/app/pengingat"` (kini kartu bisa diklik, sebelumnya bukan link).
+- [x] 3.2 Gate lulus: TSC 0, LINT 0, **437 tes** (47 file), BUILD 0.
 
 ### FASE 4 — GATE PAKET (Trial tanpa kirim otomatis)  `status: [ ]`
 - [ ] 4.1 TDD: runner melewati tenant dengan `autoReminder=false`.
@@ -128,7 +128,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [ ] 6.3 Deploy final + uji live manual (login tenant → buka menu → cek angka kartu == isi daftar).
 - [ ] 6.4 Catat bukti akhir di file ini (bagian Bukti). Tandai `[x]`.
 
-**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [ ] · 4 [ ] · 5 [ ] · 6 [ ]**
+**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [ ] · 5 [ ] · 6 [ ]**
 
 ---
 

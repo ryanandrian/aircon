@@ -4,6 +4,7 @@ import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { prisma } from "@/lib/prisma";
 import { isTenantUsable } from "@/lib/billing/gating";
 import { AppHeader } from "./_components/app-header";
+import { listReminderInbox } from "@/lib/services/reminder-service";
 import { ServicedTrendChart } from "./_components/serviced-trend-chart";
 import { WaConnectBanner } from "./_components/wa-connect-banner";
 import { Icon } from "@/components/icons";
@@ -28,7 +29,7 @@ export default async function AppDashboard() {
   const since30 = new Date(todayStart.getTime() - 29 * 24 * 60 * 60 * 1000); // termasuk hari ini = 30 hari
 
   // SECURITY: semua query tenant-scoped dari ctx.tenantId (session), bukan input.
-  const [tenant, metrics, dueReminders, openAlerts, todayJobs, servicedJobs] = await Promise.all([
+  const [tenant, metrics, dueUnits, openAlerts, todayJobs, servicedJobs] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: ctx.tenantId } }),
     (async () => {
       const [customers, activeJobs, completed] = await Promise.all([
@@ -38,7 +39,8 @@ export default async function AppDashboard() {
       ]);
       return { customers, activeJobs, completed };
     })(),
-    prisma.repeatReminder.count({ where: { tenantId: ctx.tenantId, status: "QUEUED" } }),
+    // Satu sumber angka dengan halaman /app/pengingat (risiko R10 — jangan query terpisah).
+    listReminderInbox(ctx.tenantId).then((rows) => rows.length),
     prisma.alert.count({ where: { tenantId: ctx.tenantId, status: { in: ["OPEN", "ACK"] } } }),
     prisma.jobOrder.count({ where: { tenantId: ctx.tenantId, scheduledDate: { gte: todayStart, lte: todayEnd }, status: { notIn: ["CANCELLED", "COMPLETED"] } } }),
     // Unit dilayani 30 hari terakhir: pekerjaan selesai (tenant-scoped).
@@ -86,7 +88,7 @@ export default async function AppDashboard() {
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Metric icon={Icon.Job} label="Pekerjaan Hari Ini" value={todayJobs} tone="sky" href="/app/pekerjaan" />
           <Metric icon={Icon.Wrench} label="Sedang Berjalan" value={metrics.activeJobs} tone="sky" href="/app/pekerjaan" />
-          <Metric icon={Icon.Bell} label="Pengingat Aktif" value={dueReminders} tone="sky" />
+          <Metric icon={Icon.Repeat} label="Jatuh Tempo" value={dueUnits} tone="sky" href="/app/pengingat" />
           <Metric icon={Icon.Zap} label="Peluang IoT" value={openAlerts} tone={openAlerts > 0 ? "amber" : "sky"} href="/app/perangkat" />
         </section>
 
