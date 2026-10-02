@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { renderTemplate, normalizePhone } from "@/lib/wa/gateway";
 import { getOrCreateCardToken } from "@/lib/services/customer-card-service";
 import { customerCardUrl } from "@/lib/unit-code/urls";
+import { ServiceError } from "@/lib/services/customer-service";
 
 /** Reminder yang sudah waktunya ditindak (lead time terlewati, status QUEUED). */
 export async function listDueReminders(tenantId: string) {
@@ -201,4 +202,162 @@ export async function runDueRemindersAllTenants(): Promise<{ tenants: number; se
     }
   }
   return { tenants: tenants.length, sent, failed };
+}
+
+
+/**
+ * INBOX PENGINGAT (FASE 1 modul Pengingat Perawatan AC).
+ * SATU-SATUNYA sumber data untuk metrik Ringkasan dan halaman /app/pengingat
+ * (risiko R10: dua query terpisah = angka beda).
+ *
+ * Aturan jatuh tempo (dikunci tes tests/reminder-inbox.test.ts):
+ *   unit masuk daftar jika nextServiceDate - Tenant.reminderLeadDays <= sekarang
+ * (perintah user: sesuai konfigurasi tenant, misalnya 3 hari sebelum hari H).
+ *
+ * Status kirim dikorelasi RepeatReminder -> MessageLog (keputusan FASE 0.2):
+ * MessageLog dibuat dan RepeatReminder=SENT dalam SATU transaksi
+ * (lihat sendCustomerReminderWa) jadi join tenantId+customerId+templateKey
+ * dengan rentang waktu sentAt +-5 detik adalah relasi yang DIJAMIN KODE.
+ * gagal mencocokkan = TIDAK_DIKETAHUI (jangan menebak).
+ */
+export type ReminderInboxSendStatus =
+  | "BELUM_DIKIRIM" // unit due tapi belum punya RepeatReminder
+  | "MENUNGGU_KRIM" // RepeatReminder QUEUED (antre menunggu cron)
+  | "Terkirim" // gateway mengonfirmasi terkirim
+  | "DITERIMA" // gateway mengonfirmasi delivered
+  | "DIBACA" // status dibaca / tidak dapat dipastikan platform
+  | "GAGAL"
+  | "TIDAK_DIKETAHUI"; // reminder SENT tak bisa dikorelasikan ke MessageLog
+
+export type ReminderInboxRow = {
+  assetId: string;
+  brand: string | null;
+  model: string | null;
+  capacityPk: number | null;
+  roomLocation: string | null;
+  nextServiceDate: Date | null;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  reminderId: string | null;
+  reminderStatus: string | null;
+  sendStatus: "BELUM_DIKIRIM" | "MENUNGGU_KRIM" | "Terkirim" | "DITERIMA" | "DIBACA" | "GAGAL" | "TIDAK_DIKETAHUI";
+  messageLogId: string | null;
+  sentAt: Date | null;
+  overdueDays: number;
+  waLink: string;
+};
+
+/** Wa-link manual (pola yang sudah dipakai di 8 tempat lain). */
+function waLinkTo(phone: string, text?: string): string {
+  const n = normalizePhone(phone);
+  const q = text ? `?text=${encodeURIComponent(text)}` : "";
+  return `https://wa.me/${n}${q}`;
+}
+
+/** Map MessageStatus -> label inbox (guard naik-monoton di callback sudah ada). */
+function mapMessageStatus(s: string): ReminderInboxRow["sendStatus"] {
+  if (s === "READ_CONFIRMED" || s === "READ_UNOBSERVED") return "DIBACA";
+  if (s === "DELIVERED") return "DITERIMA";
+  if (s === "SENT") return "Terkirim";
+  if (s === "FAILED") return "GAGAL";
+  return "MENUNGGU_KRIM"; // QUEUED / SENDING / LOGGED
+}
+
+export async function listReminderInbox(tenantId: string): Promise<ReminderInboxRow[]> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { reminderLeadDays: true },
+  });
+  if (!tenant) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
+  const lead = tenant.reminderLeadDays;
+  const now = new Date();
+
+  const units = await prisma.asset.findMany({
+    where: { tenantId, deletedAt: null, nextServiceDate: { not: null } },
+    include: { customer: true },
+  });
+
+  const unitsDue = units.filter((u) => {
+    if (!u.nextServiceDate) return false;
+    const trigger = new Date(u.nextServiceDate);
+    trigger.setDate(trigger.getDate() - lead);
+    return trigger.getTime() <= now.getTime();
+  });
+  if (unitsDue.length === 0) return [];
+
+  const assetIds = unitsDue.map((u) => u.id);
+  const reminders = await prisma.repeatReminder.findMany({
+    where: { tenantId, assetId: { in: assetIds } },
+    orderBy: { dueDate: "desc" },
+  });
+  const latestByAsset = new Map<string, (typeof reminders)[number]>();
+  for (const r of reminders) if (!latestByAsset.has(r.assetId)) latestByAsset.set(r.assetId, r);
+
+  const sentList = [...latestByAsset.values()].filter((r) => r.status === "SENT" && r.sentAt);
+  let messages: Awaited<ReturnType<typeof prisma.messageLog.findMany>> = [];
+  if (sentList.length > 0) {
+    const min = new Date(Math.min(...sentList.map((r) => r.sentAt!.getTime())) - 5000);
+    const max = new Date(Math.max(...sentList.map((r) => r.sentAt!.getTime())) + 5000);
+    messages = await prisma.messageLog.findMany({
+      where: {
+        tenantId,
+        direction: "OUTBOUND",
+        templateKey: { in: ["reminder", "reminder_multi"] },
+        at: { gte: min, lte: max },
+      },
+    });
+  }
+
+  return unitsDue.map((u) => {
+    const rem = latestByAsset.get(u.id) ?? null;
+    let sendStatus: ReminderInboxRow["sendStatus"] = "BELUM_DIKIRIM";
+    let messageLogId: string | null = null;
+    let sentAt: Date | null = null;
+
+    if (rem) {
+      sentAt = rem.sentAt;
+      if (rem.status === "QUEUED") {
+        sendStatus = "MENUNGGU_KRIM";
+      } else if (rem.status === "SENT") {
+        if (!rem.sentAt) {
+          sendStatus = "TIDAK_DIKETAHUI";
+        } else {
+          const match = messages.find(
+            (m) =>
+              m.customerId === u.customerId &&
+              Math.abs(m.at.getTime() - rem.sentAt!.getTime()) <= 5000,
+          );
+          if (match) {
+            messageLogId = match.id;
+            sendStatus = mapMessageStatus(match.status);
+          } else {
+            sendStatus = "TIDAK_DIKETAHUI";
+          }
+        }
+      } else {
+        sendStatus = "TIDAK_DIKETAHUI"; // CONVERTED / DISMISSED / EXPIRED
+      }
+    }
+
+    const overdueDays = Math.max(0, Math.floor((now.getTime() - u.nextServiceDate!.getTime()) / 86400000));
+    return {
+      assetId: u.id,
+      brand: u.brand,
+      model: u.model,
+      capacityPk: u.capacityPk,
+      roomLocation: u.roomLocation,
+      nextServiceDate: u.nextServiceDate,
+      customerId: u.customerId,
+      customerName: u.customer.name,
+      customerPhone: u.customer.phone,
+      reminderId: rem?.id ?? null,
+      reminderStatus: rem?.status ?? null,
+      sendStatus,
+      messageLogId,
+      sentAt,
+      overdueDays,
+      waLink: waLinkTo(u.customer.phone),
+    };
+  });
 }

@@ -38,7 +38,9 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - `QUEUED (tenant ada)=4`, **sudah masuk rentang kirim = 0**
 - `SENT (tenant ada)=55`, **17 di antaranya `sentAt=null`** (tidak bisa dikorelasi lewat waktu)
 - Pesan pengingat: 39 (34 SENT, 5 FAILED). Pesan `FAILED` tetap membuat reminder `SENT` → **status pengingat tidak menggambarkan kegagalan**.
-- `REPEAT_ALL=65`, **6 yatim** (tenant sudah dihapus — sisa sesi purge).
+- `REPEAT_ALL=65`, **6 yatim** (tenant sudah dihapus - sisa sesi purge) -> **SUDAH DIBERSIHKAN 2026-10-03** (+6 `ReviewRequest`); `lumite-platform` 3 baris MessageLog DIPERTAHANKAN (pseudo-tenant sah di kode). Backup `backup-orphan-reminders.json`.
+- **DATA DUMMY JANGAN JADI DASAR (perintah user 2026-10-03):** seluruh `55 SENT` dan `21 job tanpa pengingat` berasal dari **Jaya Mandiri (dummy)**. Tenant riil (Jassa/ADI/Buana) = 0 pengingat. Validasi angka di modul ini WAJIB pakai data uji buatan.
+- **CATATAN FASE 0 (perbaikan terpisah, butuh izin):** 18 dari 37 kolom `tenantId` **TANPA FK** di DB -> hapus Tenant meninggalkan yatim otomatis; `purgeTenantData` menghapus 22 tabel tapi **tidak `ReviewRequest`**. Sudah dibuktikan lewat query `information_schema` 2026-10-03.
 
 ### 1.3 Sudah ada (jangan dibuat ulang)
 | Hal | Bukti |
@@ -87,15 +89,14 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 
 > Penanda: `[ ]` belum · `[x]` sudah. **Perbarui baris ini setiap selesai satu sub-item.**
 
-### FASE 0 — PERSIAPAN & BERSIHKAN SISA DATA  `status: [ ]`
-- [ ] 0.1 Backup `RepeatReminder` yatim → hapus **6 baris** yatim (tenant sudah tak ada). Verifikasi: `REPEAT_YATIM=0`.
-- [ ] 0.2 Tentukan desain korelasi status pengiriman (KEPUTUSAN KRITIS — lihat risiko R2).
-- [ ] 0.3 Gate lengkap lulus + commit + deploy. Tandai `[x]`.
+### FASE 0 — PERSIAPAN & BERSIHKAN SISA DATA  `status: [x]`
+- [x] 0.1 Backup -> hapus 12 baris yatim ASLI (RepeatReminder 6 + ReviewRequest 6). `lumite-platform` 3 baris MessageLog DIPERTAHANKAN (pseudo-tenant sah di kode). Verifikasi: yatim keduanya = 0. Backup `backup-orphan-reminders.json` sha256 `f4410548...`.
+- [x] 0.2 KEPUTUSAN KRITIS (R2): **korelasi tanpa kolom baru**. Dasar kode: `MessageLog` dibuat & `RepeatReminder->SENT` dalam SATU `$transaction` (reminder-service.ts:105-117) -> join `tenantId + customerId + templateKey in {reminder,reminder_multi}` + `at ~= sentAt (+-5s)` = relasi DIJAMIN KODE. Bila `sentAt` null/tak ketemu -> status **"Tidak diketahui"** (jangan menebak). Menangkap `FAILED` yang selama ini menyesatkan.
+- [ ] 0.3 Gate lengkap lulus + commit + deploy. Tandai `[x]`. (belum ada perubahan kode - hanya data + dokumen ini)
 
-### FASE 1 — SUMBER DATA: VIEW PENGINGAT PER UNIT  `status: [ ]`
-> Tujuan: satu fungsi baca yang jadi **satu-satunya sumber** untuk metrik & halaman (hindari 2 query beda = angka beda).
-- [ ] 1.1 TDD: `listReminderInbox(tenantId, filter)` — unit due (aturan jatuh tempo dikunci di tes) + pelanggan + status kirim dari `MessageLog` (korelasi sesuai hasil 0.2) + tanggal + `dueDate` + link `wa.me`.
-- [ ] 1.2 GREEN + gate lulus. Tandai `[x]`.
+### FASE 1 — SUMBER DATA: VIEW PENGINGAT PER UNIT  `status: [x]`
+- [x] 1.1 TDD `listReminderInbox(tenantId)` di `reminder-service.ts` — RED 15 gagal -> GREEN 15/15. Aturan due dikunci: `nextServiceDate - Tenant.reminderLeadDays <= sekarang`. Isi: unit + pelanggan + `waLink` + korelasi status via MessageLog (sentAt +-5s, sesuai 0.2) + `overdueDays`.
+- [x] 1.2 Gate lulus: TSC 0, LINT 0, **425 tes** (46 file), BUILD 0. Audit dampak: 0 baris fungsi lama dihapus; pemakai cron utuh; nol circular import; kedua query terindeks (`Asset[tenantId,nextServiceDate]`, `MessageLog[tenantId,customerId,at]`).
 
 ### FASE 2 — HALAMAN BARU `/app/pengingat`  `status: [ ]`
 > Pola `leads/` (page server + inbox client + actions), role OWNER/ADMIN, tenant-scoped.
@@ -126,7 +127,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [ ] 6.3 Deploy final + uji live manual (login tenant → buka menu → cek angka kartu == isi daftar).
 - [ ] 6.4 Catat bukti akhir di file ini (bagian Bukti). Tandai `[x]`.
 
-**Progres ringkas: FASE 0 [ ] · 1 [ ] · 2 [ ] · 3 [ ] · 4 [ ] · 5 [ ] · 6 [ ]**
+**Progres ringkas: FASE 0 [x] · 1 [ ] · 2 [ ] · 3 [ ] · 4 [ ] · 5 [ ] · 6 [ ]**
 
 ---
 
