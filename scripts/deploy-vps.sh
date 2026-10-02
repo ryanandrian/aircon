@@ -52,34 +52,47 @@ NEXT_REQUIRED="$(node -e 'for(const k of Object.keys(require("./node_modules/nex
 NEXT_OPTIONAL="$(node -e 'for(const k of Object.keys(require("./node_modules/next/package.json").optionalDependencies||{})) console.log(k)')"
 # pnpm hardened: deps next hanya punya symlink internal, bukan top-level.
 # Cari fisik paket langsung di store .pnpm (glob shell, tanpa resolve module).
+# Standalone trace stores deps inside .pnpm but omits top-level node_modules entries,
+# so require() from real top-level dirs (next, .prisma/client, hashed @prisma/client)
+# cannot reach them. Materialize the FULL transitive closure of required deps in ONE
+# pass. Sources come from the repo pnpm store, preferring next's and prisma's own
+# store dirs so versions match what those packages actually use.
 find_pkg_json() {
   local name="$1" m=""
-  # 1) prioritas: store dir milik next sendiri -> versi persis yang dipakai next
-  for m in node_modules/.pnpm/next@*/node_modules/"$name"/package.json; do
-    [ -f "$m" ] && { printf '%s' "$m"; return 0; }
-  done
-  # 2) fallback: salah satu kandidat di store
-  for m in node_modules/.pnpm/*/node_modules/"$name"/package.json; do
+  for m in node_modules/.pnpm/next@*/node_modules/"$name"/package.json \
+           node_modules/.pnpm/@prisma+client@*/node_modules/"$name"/package.json \
+           node_modules/.pnpm/*/node_modules/"$name"/package.json; do
     [ -f "$m" ] && { printf '%s' "$m"; return 0; }
   done
   return 1
 }
 copy_pkg() {
-  local name="$1" required="$2" src dest="$BUILD/node_modules/$1"
+  local src="$1" dest="$BUILD/node_modules/$2"
   [ -e "$dest" ] && return 0
-  src="$(find_pkg_json "$name" || true)"
-  if [ -z "$src" ]; then
-    [ "$required" = 1 ] && { echo "FAIL: required pkg not found: $name" >&2; exit 1; }
-    return 0
-  fi
   mkdir -p "$(dirname "$dest")"
   cp -rL "$(dirname "$src")" "$dest"
 }
-while IFS= read -r dep; do [ -n "$dep" ] && copy_pkg "$dep" 1; done <<< "$NEXT_REQUIRED"
-while IFS= read -r dep; do [ -n "$dep" ] && copy_pkg "$dep" 0; done <<< "$NEXT_OPTIONAL"
-while IFS= read -r dep; do
-  [ -e "$BUILD/node_modules/$dep" ] || { echo "FAIL: $dep missing after materialize" >&2; exit 1; }
-done <<< "$NEXT_REQUIRED"
+: > "$WORK/closure-seen.txt"
+PRISMA_CLIENT_JSON="$(find node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/package.json -print -quit)"
+[ -n "$PRISMA_CLIENT_JSON" ] || { echo "FAIL: @prisma/client package not found" >&2; exit 1; }
+PRISMA_REQUIRED="$(node -e 'const p=require(process.argv[1]); for(const k of Object.keys(p.dependencies||{})) console.log(k)' "$PRISMA_CLIENT_JSON")"
+queue="$NEXT_REQUIRED $PRISMA_REQUIRED"
+guard=0
+while [ -n "$queue" ]; do
+  nextq=""
+  for name in $queue; do
+    grep -qxF "$name" "$WORK/closure-seen.txt" && continue
+    echo "$name" >> "$WORK/closure-seen.txt"
+    src="$(find_pkg_json "$name" || true)"
+    [ -n "$src" ] || { echo "FAIL: dependency not found in store: $name" >&2; exit 1; }
+    copy_pkg "$src" "$name"
+    deps="$(node -p "Object.keys(require('./$src').dependencies||{}).join(' ')" 2>/dev/null || true)"
+    nextq="$nextq $deps"
+  done
+  queue="$(echo "$nextq" | xargs echo 2>/dev/null || true)"
+  guard=$((guard+1))
+  [ "$guard" -lt 40 ] || { echo "FAIL: closure did not converge" >&2; exit 1; }
+done
 echo "    materialized: $(tr '\n' ' ' <<< "$NEXT_REQUIRED")"
 # Prisma 7 generated client lives inside the pnpm store, but the bundled hashed
 # @prisma/client wrapper resolves '.prisma/client' from top-level node_modules.
