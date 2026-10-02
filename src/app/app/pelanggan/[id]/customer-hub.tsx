@@ -286,13 +286,18 @@ function UnitRow({ asset }: { asset: Asset }) {
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold text-foreground">{unitTitle(asset)}</span>
             {meta && <span className="block truncate text-xs text-muted-foreground">{meta}</span>}
+            {asset.nextServiceDate && (
+              <span className="mt-1 block text-xs text-muted-foreground sm:hidden">
+                Jadwal servis berikutnya: <span className="font-medium text-foreground">{fmtDate(asset.nextServiceDate)}</span>
+              </span>
+            )}
           </span>
           <Badge variant="secondary" className="shrink-0 gap-1">
             <Icon.Job className="h-3 w-3" aria-hidden /> {asset.jobCount}
           </Badge>
           {asset.nextServiceDate && (
             <span className="hidden shrink-0 text-right text-xs text-muted-foreground sm:block">
-              Servis berikut<br /><span className="font-medium text-foreground">{fmtDate(asset.nextServiceDate)}</span>
+              Jadwal Servis Berikutnya<br /><span className="font-medium text-foreground">{fmtDate(asset.nextServiceDate)}</span>
             </span>
           )}
           <Icon.ChevronRight className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
