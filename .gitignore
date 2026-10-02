@@ -50,3 +50,8 @@ apps/wa-worker/node_modules/
 .secrets/
 dogfood-output/
 .backups/
+
+# audit bahan & backup data lokal (tidak boleh pernah masuk git/deploy)
+.analysis/
+backup-purge-tenants.json
+*.tmp.cjs
