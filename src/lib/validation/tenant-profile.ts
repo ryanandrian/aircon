@@ -33,3 +33,14 @@ export const tenantProfileSchema = z.object({
 });
 
 export type TenantProfileInput = z.infer<typeof tenantProfileSchema>;
+
+/**
+ * Interval servis default per tenant (dipakai saat unit tak punya aturan sendiri).
+ * Batas 1–730 hari (≈2 tahun) — cegah input yang membuat jadwal tak masuk akal.
+ */
+export const tenantMaintenanceSchema = z.object({
+  maintenanceIntervalDays: z
+    .number()
+    .int("Interval servis harus bilangan bulat")
+    .positive("Interval servis harus lebih dari 0"),
+});

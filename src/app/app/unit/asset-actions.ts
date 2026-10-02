@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { tryGetServerContext } from "@/lib/auth/context";
-import { createAssetSchema } from "@/lib/validation/asset";
+import { createAssetSchema, updateAssetSchema } from "@/lib/validation/asset";
 import {
   createAsset, createAssetsBulk, suggestLocations, findPossibleDuplicates,
   suggestBrands, suggestModels,
@@ -65,6 +65,8 @@ export async function actionCreateAsset(raw: {
   roomLocation?: string;
   serial?: string;
   count?: number;
+  // null = hapus aturan khusus unit; undefined = tidak diubah.
+  maintenanceIntervalDays?: number | null;
 }): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
@@ -77,6 +79,7 @@ export async function actionCreateAsset(raw: {
     capacityPk: raw.capacityPk,
     roomLocation: raw.roomLocation || undefined,
     serial: raw.serial || undefined,
+    maintenanceIntervalDays: raw.maintenanceIntervalDays,
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
@@ -100,18 +103,19 @@ export async function actionCreateAsset(raw: {
 /** Ubah unit AC (tenant-scoped). */
 export async function actionUpdateAsset(id: string, raw: {
   type?: string; brand?: string; model?: string; capacityPk?: number; roomLocation?: string; serial?: string;
-}): Promise<Result> {
+ // null = hapus aturan khusus unit; undefined = tidak diubah.
+ maintenanceIntervalDays?: number | null;
+ }): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  // Validasi sama dengan jalur create & route REST (updateAssetSchema) — server action
+  // menerima payload klien, jadi input mentah tidak boleh sampai ke service.
+  const parsed = updateAssetSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
+  }
   try {
-    await updateAsset(ctx.tenantId, id, {
-      type: raw.type as never,
-      brand: raw.brand ?? undefined,
-      model: raw.model ?? undefined,
-      capacityPk: raw.capacityPk,
-      roomLocation: raw.roomLocation ?? undefined,
-      serial: raw.serial ?? undefined,
-    });
+    await updateAsset(ctx.tenantId, id, parsed.data);
     revalidatePath("/app/unit");
     return { ok: true };
   } catch (e) {

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { Icon } from "@/components/icons";
+import { parseMaintenanceIntervalInput } from "@/lib/validation/asset";
 import {
   actionCreateAsset, actionSuggestLocations, actionCheckDuplicates, actionListCustomersForAsset,
   actionSuggestBrands, actionSuggestModels,
@@ -51,6 +52,7 @@ export function AssetForm({
   const [pk, setPk] = useState("");
   const [loc, setLoc] = useState("");
   const [serial, setSerial] = useState("");
+  const [maintenanceInterval, setMaintenanceInterval] = useState("");
   const [count, setCount] = useState(1);
   const dupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,16 +103,19 @@ export function AssetForm({
 
   function submit() {
     if (!customerId) { toast.error("Pilih pelanggan dulu"); return; }
+    const interval = parseMaintenanceIntervalInput(maintenanceInterval);
+    if (!interval.ok) { toast.error(interval.error); return; }
     start(async () => {
       const res = await actionCreateAsset({
         customerId, type, brand, model,
         capacityPk: pk ? Number(pk) : undefined,
         roomLocation: loc, serial,
+        maintenanceIntervalDays: interval.days ?? undefined,
         count,
       });
       if (!res.ok) { toast.error(res.error ?? "Gagal menyimpan"); return; }
       toast.success(res.createdCount && res.createdCount > 1 ? `${res.createdCount} unit ditambahkan` : "Unit ditambahkan");
-      setBrand(""); setModel(""); setPk(""); setLoc(""); setSerial(""); setCount(1); setDups([]);
+      setBrand(""); setModel(""); setPk(""); setLoc(""); setSerial(""); setMaintenanceInterval(""); setCount(1); setDups([]);
       router.refresh();
       onDone?.();
     });
@@ -202,6 +207,27 @@ export function AssetForm({
             </div>
           </div>
         )}
+
+        <div className="space-y-1.5">
+          <Label htmlFor="af-maintenance-interval">Interval servis khusus unit (opsional)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="af-maintenance-interval"
+              type="number"
+              inputMode="numeric"
+              min="1"
+              step="1"
+              value={maintenanceInterval}
+              onChange={(e) => setMaintenanceInterval(e.target.value)}
+              placeholder="Ikuti pengaturan usaha"
+              aria-describedby="af-maintenance-hint"
+            />
+            <span className="shrink-0 text-sm text-muted-foreground">hari</span>
+          </div>
+          <p id="af-maintenance-hint" className="text-xs text-muted-foreground">
+            Kosongkan agar unit ini mengikuti interval servis default usaha.
+          </p>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">

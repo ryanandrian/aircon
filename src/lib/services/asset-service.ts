@@ -192,6 +192,7 @@ export interface CustomerAssetRow {
   capacityPk: number | null;
   roomLocation: string | null;
   nextServiceDate: string | null;
+  maintenanceIntervalDays: number | null;
   lastServiceDate: string | null;
   jobCount: number;
 }
@@ -226,6 +227,7 @@ export async function listAssetsByCustomerWithHistory(
       capacityPk: a.capacityPk,
       roomLocation: a.roomLocation,
       nextServiceDate: a.nextServiceDate ? a.nextServiceDate.toISOString() : null,
+      maintenanceIntervalDays: a.maintenanceIntervalDays,
       lastServiceDate: a.jobs[0]?.completedAt ? a.jobs[0].completedAt.toISOString() : null,
       jobCount: a._count.jobs,
     }));

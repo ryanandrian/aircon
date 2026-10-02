@@ -12,10 +12,12 @@ import { Icon } from "@/components/icons";
 import { actionUnitHistory, type UnitHistoryItem } from "../actions";
 import { AssetForm } from "@/app/app/unit/asset-form";
 import { actionUpdateAsset, actionDeleteAsset } from "@/app/app/unit/asset-actions";
+import { parseMaintenanceIntervalInput } from "@/lib/validation/asset";
 
 type Asset = {
   id: string; brand: string | null; model: string | null; type: string;
   capacityPk: number | null; roomLocation: string | null; nextServiceDate: string | null;
+  maintenanceIntervalDays: number | null;
   lastServiceDate: string | null;
   jobCount: number;
 };
@@ -225,6 +227,9 @@ function UnitRow({ asset }: { asset: Asset }) {
   const [model, setModel] = useState(asset.model ?? "");
   const [pk, setPk] = useState(asset.capacityPk != null ? String(asset.capacityPk) : "");
   const [loc, setLoc] = useState(asset.roomLocation ?? "");
+  const [intervalDays, setIntervalDays] = useState(
+    asset.maintenanceIntervalDays != null ? String(asset.maintenanceIntervalDays) : "",
+  );
 
   async function toggle() {
     const next = !open;
@@ -239,12 +244,16 @@ function UnitRow({ asset }: { asset: Asset }) {
   }
 
   async function saveEdit() {
+    const parsedInterval = parseMaintenanceIntervalInput(intervalDays);
+    if (!parsedInterval.ok) { toast.error(parsedInterval.error); return; }
     setSaving(true);
     const res = await actionUpdateAsset(asset.id, {
       brand: brand || undefined,
       model: model || undefined,
       capacityPk: pk ? Number(pk) : undefined,
       roomLocation: loc || undefined,
+      // null = kembali ikut pengaturan usaha; undefined = tidak diubah.
+      maintenanceIntervalDays: intervalDays.trim() === "" ? null : parsedInterval.days,
     });
     setSaving(false);
     if (!res.ok) { toast.error(res.error ?? "Gagal mengubah unit"); return; }
@@ -307,6 +316,17 @@ function UnitRow({ asset }: { asset: Asset }) {
                 </div>
                 <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model" />
                 <Input value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="Lokasi" />
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" inputMode="numeric" min="1" step="1"
+                    value={intervalDays}
+                    onChange={(e) => setIntervalDays(e.target.value)}
+                    placeholder="Ikuti pengaturan usaha"
+                    aria-label="Interval servis khusus unit (hari)"
+                    className="flex-1"
+                  />
+                  <span className="shrink-0 text-xs text-muted-foreground">hari</span>
+                </div>
                 <div className="flex gap-2">
                   <Button type="button" size="sm" onClick={saveEdit} disabled={saving}>{saving ? "Menyimpan…" : "Simpan"}</Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>Batal</Button>

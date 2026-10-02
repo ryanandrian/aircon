@@ -8,6 +8,51 @@ import { ServiceError } from "@/lib/services/customer-service";
 import { normalizePhone } from "@/lib/wa/gateway";
 import type { TenantProfileInput } from "@/lib/validation/tenant-profile";
 import { parsePublicProfile, parseServiceArea } from "@/lib/domain/public-profile";
+import { tenantMaintenanceSchema } from "@/lib/validation/tenant-profile";
+
+/** Baca interval servis default milik satu tenant. */
+export async function getMaintenanceInterval(tenantId: string): Promise<number> {
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { maintenanceIntervalDays: true },
+  });
+  if (!t) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
+  return t.maintenanceIntervalDays;
+}
+
+/**
+ * Ubah interval servis default milik satu tenant (whitelist 1 kolom).
+ * SECURITY: tenant-scoped (id dari session, bukan input) + validasi Zod.
+ */
+export async function updateMaintenanceInterval(
+  tenantId: string,
+  maintenanceIntervalDays: number,
+): Promise<void> {
+  const parsed = tenantMaintenanceSchema.safeParse({ maintenanceIntervalDays });
+  if (!parsed.success) {
+    throw new ServiceError(
+      "CONFLICT",
+      parsed.error.issues[0]?.message ?? "Interval servis tidak valid",
+    );
+  }
+  const existing = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true },
+  });
+  if (!existing) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
+  try {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { maintenanceIntervalDays: parsed.data.maintenanceIntervalDays },
+    });
+  } catch (err) {
+    throw new ServiceError(
+      "UNEXPECTED",
+      "Gagal menyimpan interval servis",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
 
 /** Ambil profil usaha (field yang relevan untuk pengaturan). */
 export async function getTenantProfile(tenantId: string) {

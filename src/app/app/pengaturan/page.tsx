@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { getTenantProfile } from "@/lib/services/tenant-profile-service";
+import { getMaintenanceInterval } from "@/lib/services/tenant-profile-service";
 import { AppHeader } from "../_components/app-header";
 import { SettingsForm } from "./settings-form";
+import { MaintenanceIntervalCard } from "./maintenance-interval";
 import { WaConnect } from "./wa-connect";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +19,10 @@ export default async function PengaturanPage({
   const { baru } = await searchParams;
   const isNew = baru === "1";
 
-  const p = await getTenantProfile(ctx.tenantId);
+  const [p, maintenanceIntervalDays] = await Promise.all([
+    getTenantProfile(ctx.tenantId),
+    getMaintenanceInterval(ctx.tenantId),
+  ]);
   const profile = {
     name: p.name,
     slug: p.slug,
@@ -60,6 +65,8 @@ export default async function PengaturanPage({
         )}
         <WaConnect />
         <SettingsForm profile={profile} />
+        {/* Jadwal servis: di luar form profil (punya tombol simpan & validasi sendiri). */}
+        <MaintenanceIntervalCard initialDays={maintenanceIntervalDays} />
       </div>
     </main>
   );
