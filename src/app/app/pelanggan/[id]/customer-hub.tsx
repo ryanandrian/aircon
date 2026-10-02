@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
 import { actionUnitHistory, type UnitHistoryItem } from "../actions";
@@ -309,23 +310,42 @@ function UnitRow({ asset }: { asset: Asset }) {
             </div>
 
             {editing && (
-              <div className="mb-3 space-y-2 rounded-lg border bg-card p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Merek" />
-                  <Input type="number" step="0.25" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="PK" />
+              <div className="mb-3 space-y-3 rounded-lg border bg-card p-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ue-brand-${asset.id}`}>Merek</Label>
+                    <Input id={`ue-brand-${asset.id}`} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="mis. Panasonic" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`ue-pk-${asset.id}`}>Kapasitas (PK)</Label>
+                    <Input id={`ue-pk-${asset.id}`} type="number" step="0.25" min="0" value={pk} onChange={(e) => setPk(e.target.value)} placeholder="mis. 2.5" />
+                  </div>
                 </div>
-                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Model" />
-                <Input value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="Lokasi" />
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number" inputMode="numeric" min="1" step="1"
-                    value={intervalDays}
-                    onChange={(e) => setIntervalDays(e.target.value)}
-                    placeholder="Ikuti pengaturan usaha"
-                    aria-label="Interval servis khusus unit (hari)"
-                    className="flex-1"
-                  />
-                  <span className="shrink-0 text-xs text-muted-foreground">hari</span>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`ue-model-${asset.id}`}>Tipe/Model</Label>
+                  <Input id={`ue-model-${asset.id}`} value={model} onChange={(e) => setModel(e.target.value)} placeholder="mis. FTKQ" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`ue-loc-${asset.id}`}>Lokasi / Ruangan</Label>
+                  <Input id={`ue-loc-${asset.id}`} value={loc} onChange={(e) => setLoc(e.target.value)} placeholder="mis. R. Keluarga" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`ue-interval-${asset.id}`}>Interval servis khusus unit</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id={`ue-interval-${asset.id}`}
+                      type="number" inputMode="numeric" min="1" step="1"
+                      value={intervalDays}
+                      onChange={(e) => setIntervalDays(e.target.value)}
+                      placeholder="Ikuti pengaturan usaha"
+                      aria-describedby={`ue-interval-hint-${asset.id}`}
+                      className="flex-1"
+                    />
+                    <span className="shrink-0 text-sm text-muted-foreground">hari</span>
+                  </div>
+                  <p id={`ue-interval-hint-${asset.id}`} className="text-xs text-muted-foreground">
+                    Kosongkan bila unit ini mengikuti interval servis default usaha.
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" size="sm" onClick={saveEdit} disabled={saving}>{saving ? "Menyimpan…" : "Simpan"}</Button>
