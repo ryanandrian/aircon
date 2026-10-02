@@ -38,75 +38,28 @@ scp -q -i "$KEY" "$HOST:$APP/.env" "$PRODENV"
 set -a; . "$PRODENV"; set +a
 pnpm exec next build
 
-echo "==> 3/6 Staging artefak (materialize symlink pnpm, buang secret)"
-BUILD="$WORK/build"; EXTRACT="$WORK/extract"; mkdir -p "$BUILD/.next" "$EXTRACT"
-cp -rL .next/standalone/. "$BUILD/"
+echo "==> 3/6 Staging artefak (PERTAHANKAN symlink tree pnpm — skill aircon-live-deploy langkah 2)"
+BUILD="$WORK/build"; EXTRACT="$WORK/extract"; mkdir -p "$BUILD" "$EXTRACT"
+# -a (bukan -L): jangan meratakan symlink. Live VPS punya struktur symlink ini.
+cp -a .next/standalone/. "$BUILD/"
 rm -rf "$BUILD/.next/static" "$BUILD/public"
-cp -rL .next/static "$BUILD/.next/static"
-cp -rL public "$BUILD/public"
-# Standalone trace keeps next's deps inside .pnpm but omits top-level node_modules
-# entries, so require() from next cannot reach them. Materialize every required dep
-# from the FULL root node_modules (887 pkgs); optional/platform pkgs are copied when
-# present but never required (binaries may legitimately be absent).
-NEXT_REQUIRED="$(node -e 'for(const k of Object.keys(require("./node_modules/next/package.json").dependencies||{})) console.log(k)')"
-NEXT_OPTIONAL="$(node -e 'for(const k of Object.keys(require("./node_modules/next/package.json").optionalDependencies||{})) console.log(k)')"
-# pnpm hardened: deps next hanya punya symlink internal, bukan top-level.
-# Cari fisik paket langsung di store .pnpm (glob shell, tanpa resolve module).
-# Standalone trace stores deps inside .pnpm but omits top-level node_modules entries,
-# so require() from real top-level dirs (next, .prisma/client, hashed @prisma/client)
-# cannot reach them. Materialize the FULL transitive closure of required deps in ONE
-# pass. Sources come from the repo pnpm store, preferring next's and prisma's own
-# store dirs so versions match what those packages actually use.
-find_pkg_json() {
-  local name="$1" m=""
-  for m in node_modules/.pnpm/next@*/node_modules/"$name"/package.json \
-           node_modules/.pnpm/@prisma+client@*/node_modules/"$name"/package.json \
-           node_modules/.pnpm/*/node_modules/"$name"/package.json; do
-    [ -f "$m" ] && { printf '%s' "$m"; return 0; }
-  done
-  return 1
-}
-copy_pkg() {
-  local src="$1" dest="$BUILD/node_modules/$2"
-  [ -e "$dest" ] && return 0
-  mkdir -p "$(dirname "$dest")"
-  cp -rL "$(dirname "$src")" "$dest"
-}
-: > "$WORK/closure-seen.txt"
-PRISMA_CLIENT_JSON="$(find node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/package.json -print -quit)"
-[ -n "$PRISMA_CLIENT_JSON" ] || { echo "FAIL: @prisma/client package not found" >&2; exit 1; }
-PRISMA_REQUIRED="$(node -e 'const p=require("./" + process.argv[1]); for(const k of Object.keys(p.dependencies||{})) console.log(k)' "$PRISMA_CLIENT_JSON")"
-queue="$NEXT_REQUIRED $PRISMA_REQUIRED"
-guard=0
-while [ -n "$queue" ]; do
-  nextq=""
-  for name in $queue; do
-    grep -qxF "$name" "$WORK/closure-seen.txt" && continue
-    echo "$name" >> "$WORK/closure-seen.txt"
-    src="$(find_pkg_json "$name" || true)"
-    [ -n "$src" ] || { echo "FAIL: dependency not found in store: $name" >&2; exit 1; }
-    copy_pkg "$src" "$name"
-    deps="$(node -e 'const p=require("./"+process.argv[1]); for(const k of Object.keys(p.dependencies||{})) console.log(k)' "$src" 2>/dev/null || true)"
-    nextq="$nextq $deps"
-  done
-  queue="$(echo "$nextq" | xargs echo 2>/dev/null || true)"
-  guard=$((guard+1))
-  [ "$guard" -lt 40 ] || { echo "FAIL: closure did not converge" >&2; exit 1; }
+cp -a .next/static "$BUILD/.next/static"
+cp -a public "$BUILD/public"
+# Skill langkah 4: salin @swc/helpers/esm dari package source ke paket yang ter-trace.
+# Next 16 runtime butuh BOTH /_ (CJS) dan /esm (ESM); standalone tidak selalu menyalinnya.
+HELPER_SRC="$(find node_modules/.pnpm -type d -path '*@swc+helpers*/node_modules/@swc/helpers' -print -quit)"
+[ -n "$HELPER_SRC" ] || { echo "FAIL: @swc/helpers source not found" >&2; exit 1; }
+for traced in $(find "$BUILD/node_modules/.pnpm" -type d -path '*@swc+helpers*/node_modules/@swc/helpers' 2>/dev/null); do
+  [ -d "$traced/esm" ] || cp -a "$HELPER_SRC/esm" "$traced/esm"
+  [ -d "$traced/_" ] || cp -a "$HELPER_SRC/_" "$traced/_"
 done
-echo "    materialized: $(tr '\n' ' ' <<< "$NEXT_REQUIRED")"
-# Prisma 7 generated client lives inside the pnpm store, but the bundled hashed
-# @prisma/client wrapper resolves '.prisma/client' from top-level node_modules.
-# Mirror it so runtime require() succeeds.
-PRISMA_GEN="$(find "$BUILD/node_modules/.pnpm" -type d -path '*/node_modules/.prisma/client' -print -quit 2>/dev/null)"
-if [ -n "$PRISMA_GEN" ]; then
-  mkdir -p "$BUILD/node_modules/.prisma"
-  cp -rL "$PRISMA_GEN" "$BUILD/node_modules/.prisma/client"
-  [ -f "$BUILD/node_modules/.prisma/client/default.js" ] || { echo "FAIL: .prisma/client/default.js missing" >&2; exit 1; }
-  echo "    materialized: .prisma/client (generated)"
-fi
+[ -f "$(find "$BUILD/node_modules/.pnpm" -path '*@swc+helpers*/node_modules/@swc/helpers/esm/_interop_require_default.js' -print -quit)" ] \
+  || { echo "FAIL: _interop_require_default.js missing" >&2; exit 1; }
+# Skill langkah 5: buang semua secret.
 find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '*.pem' -o -name '*.key' \) -delete
-[ -z "$(find "$BUILD" -type l -print -quit)" ] || { echo "FAIL: symlink tersisa di artefak" >&2; exit 1; }
-[ -f "$BUILD/server.js" ] && [ -d "$BUILD/.next/static" ] && [ -d "$BUILD/public" ] || { echo "FAIL: standalone tidak lengkap" >&2; exit 1; }
+[ -f "$BUILD/server.js" ] && [ -d "$BUILD/.next/static" ] && [ -d "$BUILD/public" ] || { echo "FAIL: incomplete standalone output" >&2; exit 1; }
+# Wajib ada symlink pnpm (jika hilang berarti tree rusak/ter-flatten).
+[ -n "$(find "$BUILD/node_modules" -type l -print -quit)" ] || { echo "FAIL: pnpm symlink tree lost" >&2; exit 1; }
 
 echo "==> 4/6 Pack + boot-test lokal (byte persis yang akan di-upload)"
 tar -czf "$WORK/release.tar.gz" -C "$BUILD" .
