@@ -3,10 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { getServerContext } from "@/lib/auth/context";
 import { assertRole, AuthError } from "@/lib/auth/guard";
-import { getMaintenanceInterval, updateMaintenanceInterval } from "@/lib/services/tenant-profile-service";
+import { getMaintenanceInterval, updateMaintenanceInterval, updateReminderLeadDays } from "@/lib/services/tenant-profile-service";
 import { ServiceError } from "@/lib/services/customer-service";
 
 export type MaintenanceIntervalResult =
+  | { ok: true; days: number }
+  | { ok: false; error: string };
+
+export type ReminderLeadResult =
   | { ok: true; days: number }
   | { ok: false; error: string };
 
@@ -41,5 +45,19 @@ export async function actionSaveMaintenanceInterval(days: number): Promise<Maint
     return { ok: true, days };
   } catch (e) {
     return { ok: false, error: toMessage(e, "Gagal menyimpan jadwal servis.") };
+  }
+}
+
+/** Simpan jarak kirim pengingat. tenantId diambil dari sesi terverifikasi, bukan input. */
+export async function actionSaveReminderLeadDays(days: number): Promise<ReminderLeadResult> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    await updateReminderLeadDays(ctx.tenantId, days);
+    revalidatePath("/app/pengaturan");
+    revalidatePath("/app");
+    return { ok: true, days };
+  } catch (e) {
+    return { ok: false, error: toMessage(e, "Gagal menyimpan jarak kirim pengingat.") };
   }
 }

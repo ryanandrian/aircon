@@ -6,7 +6,7 @@
 
 export const REPEAT_DEFAULTS = {
   maintenanceIntervalDays: 90,
-  reminderLeadDays: 7,
+  reminderLeadDays: 3,
   reminderExpireDays: 14, // lewat due + N hari tanpa aksi -> EXPIRED
 };
 

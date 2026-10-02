@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
-import { getTenantProfile } from "@/lib/services/tenant-profile-service";
-import { getMaintenanceInterval } from "@/lib/services/tenant-profile-service";
+import { getTenantProfile, getMaintenanceInterval, getReminderLeadDays } from "@/lib/services/tenant-profile-service";
 import { AppHeader } from "../_components/app-header";
 import { SettingsForm } from "./settings-form";
 import { MaintenanceIntervalCard } from "./maintenance-interval";
@@ -19,9 +18,10 @@ export default async function PengaturanPage({
   const { baru } = await searchParams;
   const isNew = baru === "1";
 
-  const [p, maintenanceIntervalDays] = await Promise.all([
+  const [p, maintenanceIntervalDays, reminderLeadDays] = await Promise.all([
     getTenantProfile(ctx.tenantId),
     getMaintenanceInterval(ctx.tenantId),
+    getReminderLeadDays(ctx.tenantId),
   ]);
   const profile = {
     name: p.name,
@@ -66,7 +66,7 @@ export default async function PengaturanPage({
         <WaConnect />
         <SettingsForm profile={profile} />
         {/* Jadwal servis: di luar form profil (punya tombol simpan & validasi sendiri). */}
-        <MaintenanceIntervalCard initialDays={maintenanceIntervalDays} />
+        <MaintenanceIntervalCard initialDays={maintenanceIntervalDays} initialLeadDays={reminderLeadDays} />
       </div>
     </main>
   );

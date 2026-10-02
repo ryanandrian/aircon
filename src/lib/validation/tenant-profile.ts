@@ -44,3 +44,16 @@ export const tenantMaintenanceSchema = z.object({
     .int("Interval servis harus bilangan bulat")
     .positive("Interval servis harus lebih dari 0"),
 });
+
+/**
+ * Jarak kirim pengingat (reminderLeadDays) per tenant — berapa hari SEBELUM
+ * jadwal servis pesan disiapkan/dikirim.
+ * 0 = kirim tepat hari H; batas 90 hari (sudah lebih dari cukup untuk servis AC).
+ */
+export const tenantReminderLeadSchema = z.object({
+  reminderLeadDays: z
+    .number()
+    .int("Jarak kirim pengingat harus bilangan bulat")
+    .min(0, "Jarak kirim pengingat tidak boleh negatif")
+    .max(90, "Jarak kirim pengingat maksimal 90 hari"),
+});

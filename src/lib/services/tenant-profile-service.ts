@@ -8,7 +8,51 @@ import { ServiceError } from "@/lib/services/customer-service";
 import { normalizePhone } from "@/lib/wa/gateway";
 import type { TenantProfileInput } from "@/lib/validation/tenant-profile";
 import { parsePublicProfile, parseServiceArea } from "@/lib/domain/public-profile";
-import { tenantMaintenanceSchema } from "@/lib/validation/tenant-profile";
+import { tenantMaintenanceSchema, tenantReminderLeadSchema } from "@/lib/validation/tenant-profile";
+
+/** Baca jarak kirim pengingat (hari sebelum H) milik satu tenant. */
+export async function getReminderLeadDays(tenantId: string): Promise<number> {
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { reminderLeadDays: true },
+  });
+  if (!t) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
+  return t.reminderLeadDays;
+}
+
+/**
+ * Ubah jarak kirim pengingat milik satu tenant (whitelist 1 kolom).
+ * SECURITY: tenant-scoped (id dari session, bukan input) + validasi Zod.
+ */
+export async function updateReminderLeadDays(
+  tenantId: string,
+  reminderLeadDays: number,
+): Promise<void> {
+  const parsed = tenantReminderLeadSchema.safeParse({ reminderLeadDays });
+  if (!parsed.success) {
+    throw new ServiceError(
+      "CONFLICT",
+      parsed.error.issues[0]?.message ?? "Jarak kirim pengingat tidak valid",
+    );
+  }
+  const existing = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { id: true },
+  });
+  if (!existing) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
+  try {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { reminderLeadDays: parsed.data.reminderLeadDays },
+    });
+  } catch (err) {
+    throw new ServiceError(
+      "UNEXPECTED",
+      "Gagal menyimpan jarak kirim pengingat",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
 
 /** Baca interval servis default milik satu tenant. */
 export async function getMaintenanceInterval(tenantId: string): Promise<number> {

@@ -259,7 +259,7 @@ model Tenant {
   serviceArea             Json
   bufferMinutes           Int          @default(15)
   maintenanceIntervalDays Int          @default(90)
-  reminderLeadDays        Int          @default(7)
+  reminderLeadDays        Int          @default(3)
   plan                    TenantPlan   @default(TRIAL)
   status                  TenantStatus @default(TRIAL)
   trialEndsAt             DateTime?
