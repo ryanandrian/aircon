@@ -101,8 +101,12 @@ cleanup() { rm -rf "$STAGE" "$REMOTE" "$BOOT_LOG"; }
 trap cleanup EXIT
 tar xzf "$REMOTE" -C "$STAGE"
 test -f "$STAGE/server.js" && test -d "$STAGE/.next/static" && test -d "$STAGE/public"
+# Use the production environment already installed on this VPS for the candidate boot.
 (
   cd "$STAGE"
+  set -a
+  . "$APP/.env"
+  set +a
   PORT="$BOOT_PORT" HOSTNAME=127.0.0.1 NODE_ENV=production node server.js >"$BOOT_LOG" 2>&1 &
   PID=$!
   trap 'kill "$PID" 2>/dev/null || true' EXIT
