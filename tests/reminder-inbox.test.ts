@@ -47,9 +47,12 @@ vi.mock("@/lib/prisma", () => ({
       ),
     },
     repeatReminder: {
-      findMany: vi.fn(async ({ where }: any) =>
-        state.reminders.filter((r) => r.tenantId === where.tenantId && where.assetId.in.includes(r.assetId)),
-      ),
+      findMany: vi.fn(async ({ where, orderBy }: any) => {
+        const rows = state.reminders.filter((r) => r.tenantId === where.tenantId && where.assetId.in.includes(r.assetId));
+        if (orderBy?.dueDate === "desc") rows.sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime());
+        else if (orderBy?.dueDate === "asc") rows.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+        return rows;
+      }),
     },
     messageLog: {
       findMany: vi.fn(async ({ where }: any) =>
@@ -186,6 +189,42 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
     state.messages = [{ id: "m-asing", tenantId: "t-asing", customerId: "c1", templateKey: "reminder", at: sentAt, status: "DELIVERED" }];
     const [r] = await listReminderInbox("t1");
     expect(r.sendStatus).toBe("TIDAK_DIKETAHUI");
+  });
+});
+
+describe("listReminderInbox — reminder yang sudah DITUTUP keluar dari daftar (prinsip 6)", () => {
+  const closed = ["DISMISSED", "CONVERTED", "EXPIRED"] as const;
+
+  for (const st of closed) {
+    it(`reminder ${st} -> unit TIDAK tampil di daftar default (tidak menumpuk selamanya)`, async () => {
+      state.units = [unit("a1", -5)];
+      state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: st, sentAt: null }];
+      expect(await listReminderInbox("t1")).toHaveLength(0);
+    });
+  }
+
+  it("filter includeClosed=true MENAMPILKAN yang sudah ditutup (riwayat, R5)", async () => {
+    state.units = [unit("a1", -5)];
+    state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "DISMISSED", sentAt: null }];
+    const rows = await listReminderInbox("t1", { includeClosed: true });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].reminderStatus).toBe("DISMISSED");
+  });
+
+  it("unit due TANPA reminder tetap tampil (BELUM_DIKIRIM) saat includeClosed=true", async () => {
+    state.units = [unit("a1", -5)];
+    const rows = await listReminderInbox("t1", { includeClosed: true });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].sendStatus).toBe("BELUM_DIKIRIM");
+  });
+
+  it("reminder TERAKHIR ditutup tapi lama masih SENT -> tetap ditutup (pakai yang terbaru)", async () => {
+    state.units = [unit("a1", -5)];
+    state.reminders = [
+      { id: "r-lama", tenantId: "t1", assetId: "a1", dueDate: iso(-40 * day), leadTimeDays: 3, status: "SENT", sentAt: iso(-40 * day) },
+      { id: "r-baru", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "DISMISSED", sentAt: null },
+    ];
+    expect(await listReminderInbox("t1")).toHaveLength(0);
   });
 });
 

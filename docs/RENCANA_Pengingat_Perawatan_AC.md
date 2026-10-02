@@ -92,18 +92,19 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 ### FASE 0 — PERSIAPAN & BERSIHKAN SISA DATA  `status: [x]`
 - [x] 0.1 Backup -> hapus 12 baris yatim ASLI (RepeatReminder 6 + ReviewRequest 6). `lumite-platform` 3 baris MessageLog DIPERTAHANKAN (pseudo-tenant sah di kode). Verifikasi: yatim keduanya = 0. Backup `backup-orphan-reminders.json` sha256 `f4410548...`.
 - [x] 0.2 KEPUTUSAN KRITIS (R2): **korelasi tanpa kolom baru**. Dasar kode: `MessageLog` dibuat & `RepeatReminder->SENT` dalam SATU `$transaction` (reminder-service.ts:105-117) -> join `tenantId + customerId + templateKey in {reminder,reminder_multi}` + `at ~= sentAt (+-5s)` = relasi DIJAMIN KODE. Bila `sentAt` null/tak ketemu -> status **"Tidak diketahui"** (jangan menebak). Menangkap `FAILED` yang selama ini menyesatkan.
-- [ ] 0.3 Gate lengkap lulus + commit + deploy. Tandai `[x]`. (belum ada perubahan kode - hanya data + dokumen ini)
+- [x] 0.3 Tidak ada perubahan kode (hanya data + dokumen) — gate penuh kemudian lulus pada FASE 1 (TSC/LINT/test/build 0).
 
 ### FASE 1 — SUMBER DATA: VIEW PENGINGAT PER UNIT  `status: [x]`
 - [x] 1.1 TDD `listReminderInbox(tenantId)` di `reminder-service.ts` — RED 15 gagal -> GREEN 15/15. Aturan due dikunci: `nextServiceDate - Tenant.reminderLeadDays <= sekarang`. Isi: unit + pelanggan + `waLink` + korelasi status via MessageLog (sentAt +-5s, sesuai 0.2) + `overdueDays`.
 - [x] 1.2 Gate lulus: TSC 0, LINT 0, **425 tes** (46 file), BUILD 0. Audit dampak: 0 baris fungsi lama dihapus; pemakai cron utuh; nol circular import; kedua query terindeks (`Asset[tenantId,nextServiceDate]`, `MessageLog[tenantId,customerId,at]`).
 
-### FASE 2 — HALAMAN BARU `/app/pengingat`  `status: [ ]`
-> Pola `leads/` (page server + inbox client + actions), role OWNER/ADMIN, tenant-scoped.
-- [ ] 2.1 TDD action: filter status, konversi→`CONVERTED`, tutup→`DISMISSED` (guard tenant id, tamper-proof).
-- [ ] 2.2 `page.tsx` (guard + ambil data) → `inbox.tsx` (kartu: info unit+pelanggan, riwayat unit, badge status kirim, 4 tombol aksi, filter chip, empty state, mobile-first, aksesibilitas).
-- [ ] 2.3 Menu baru di `app-nav.tsx` **di antara Pelanggan & Pekerjaan**.
-- [ ] 2.4 Gate + deploy. Tandai `[x]`.
+### FASE 2 — HALAMAN BARU `/app/pengingat`  `status: [x]`
+- [x] 2.1 TDD `actionCloseReminder` — RED gagal kemudian GREEN 6/6 tes (role OWNER/ADMIN, tenant-scoped, tolak CONVERTED/tenant asing/bukan string).
+- [x] 2.1b **Konversi ke `CONVERTED` DITUNDA ke FASE 5** (5.1) — butuh form pekerjaan prefill + tautan reminder->job; diresmikan di sini akan membuat alur konversi setengah jadi.
+- [x] 2.2 `page.tsx` + `inbox.tsx` + `actions.ts` jadi. **Kepatuhan FE (perintah user: jangan buat komponen baru):** 0 file di `src/components/ui`; import identik pola `leads` (Button/Badge/Card/Icon/sonner/Link); badge status diseragamkan ke kelas `bg-muted` milik leads; empty state div border-dashed persis leads; `<details>` sudah dipakai repo (`src/app/page.tsx:538`), bukan penemuan baru.
+- [x] 2.3 Menu `Icon.Repeat` di `app-nav.tsx` di antara Pelanggan & Pekerjaan (Booking Online tetap `Icon.Bell` — tanpa bentrok ikon).
+- [x] 2.4 Gate lulus: TSC 0, LINT 0, **437 tes** (47 file), BUILD 0, route `/app/pengingat` muncul di build output. (deploy menyusul setelah FASE 3, satu rilis.)
+- **Sisa FASE 2 yang pindah ke FASE 5:** tombol "Jadikan Pekerjaan" mengirim query param tetapi `job-form.tsx` belum memprosesnya; `helpKey="pengingat"` belum ada topik bantuan (aman: getHelpTopic -> null, tombol ? tidak tampil).
 
 ### FASE 3 — CARD RINGKASAN  `status: [ ]`
 - [ ] 3.1 Ganti metrik "Pengingat Aktif" → **"Jatuh Tempo"** pakai fungsi FASE 1 (angka = isi daftar; keluar saat status ≠ QUEUED), `href` ke `/app/pengingat`.
@@ -127,7 +128,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [ ] 6.3 Deploy final + uji live manual (login tenant → buka menu → cek angka kartu == isi daftar).
 - [ ] 6.4 Catat bukti akhir di file ini (bagian Bukti). Tandai `[x]`.
 
-**Progres ringkas: FASE 0 [x] · 1 [ ] · 2 [ ] · 3 [ ] · 4 [ ] · 5 [ ] · 6 [ ]**
+**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [ ] · 4 [ ] · 5 [ ] · 6 [ ]**
 
 ---
 

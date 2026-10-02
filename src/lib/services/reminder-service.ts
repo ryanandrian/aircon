@@ -227,7 +227,8 @@ export type ReminderInboxSendStatus =
   | "DITERIMA" // gateway mengonfirmasi delivered
   | "DIBACA" // status dibaca / tidak dapat dipastikan platform
   | "GAGAL"
-  | "TIDAK_DIKETAHUI"; // reminder SENT tak bisa dikorelasikan ke MessageLog
+  | "TIDAK_DIKETAHUI" // reminder SENT tak bisa dikorelasikan ke MessageLog
+  | "DITUTUP"; // DISMISSED / CONVERTED / EXPIRED
 
 export type ReminderInboxRow = {
   assetId: string;
@@ -241,7 +242,7 @@ export type ReminderInboxRow = {
   customerPhone: string;
   reminderId: string | null;
   reminderStatus: string | null;
-  sendStatus: "BELUM_DIKIRIM" | "MENUNGGU_KRIM" | "Terkirim" | "DITERIMA" | "DIBACA" | "GAGAL" | "TIDAK_DIKETAHUI";
+  sendStatus: "BELUM_DIKIRIM" | "MENUNGGU_KRIM" | "Terkirim" | "DITERIMA" | "DIBACA" | "GAGAL" | "TIDAK_DIKETAHUI" | "DITUTUP";
   messageLogId: string | null;
   sentAt: Date | null;
   overdueDays: number;
@@ -264,7 +265,16 @@ function mapMessageStatus(s: string): ReminderInboxRow["sendStatus"] {
   return "MENUNGGU_KRIM"; // QUEUED / SENDING / LOGGED
 }
 
-export async function listReminderInbox(tenantId: string): Promise<ReminderInboxRow[]> {
+export const CLOSED_REMINDER_STATUSES = ["DISMISSED", "CONVERTED", "EXPIRED"] as const;
+
+/**
+ * includeClosed=true -> tampilkan juga pengingat yang sudah DITUTUP (riwayat/filter).
+ * Default false -> keluar dari daftar (prinsip user 2026-10-03: "tidak selamanya ada di list").
+ */
+export async function listReminderInbox(
+  tenantId: string,
+  opts: { includeClosed?: boolean } = {},
+): Promise<ReminderInboxRow[]> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { reminderLeadDays: true },
@@ -309,8 +319,13 @@ export async function listReminderInbox(tenantId: string): Promise<ReminderInbox
     });
   }
 
-  return unitsDue.map((u) => {
+  const rows: ReminderInboxRow[] = [];
+  for (const u of unitsDue) {
     const rem = latestByAsset.get(u.id) ?? null;
+    // Pengingat terakhir sudah ditutup (DISMISSED/CONVERTED/EXPIRED) -> keluar dari daftar default.
+    if (rem && (CLOSED_REMINDER_STATUSES as readonly string[]).includes(rem.status)) {
+      if (!opts.includeClosed) continue;
+    }
     let sendStatus: ReminderInboxRow["sendStatus"] = "BELUM_DIKIRIM";
     let messageLogId: string | null = null;
     let sentAt: Date | null = null;
@@ -335,13 +350,15 @@ export async function listReminderInbox(tenantId: string): Promise<ReminderInbox
             sendStatus = "TIDAK_DIKETAHUI";
           }
         }
+      } else if ((CLOSED_REMINDER_STATUSES as readonly string[]).includes(rem.status)) {
+        sendStatus = "DITUTUP"; // DISMISSED / CONVERTED / EXPIRED (lihat includeClosed)
       } else {
-        sendStatus = "TIDAK_DIKETAHUI"; // CONVERTED / DISMISSED / EXPIRED
+        sendStatus = "TIDAK_DIKETAHUI";
       }
     }
 
     const overdueDays = Math.max(0, Math.floor((now.getTime() - u.nextServiceDate!.getTime()) / 86400000));
-    return {
+    rows.push({
       assetId: u.id,
       brand: u.brand,
       model: u.model,
@@ -358,6 +375,7 @@ export async function listReminderInbox(tenantId: string): Promise<ReminderInbox
       sentAt,
       overdueDays,
       waLink: waLinkTo(u.customer.phone),
-    };
-  });
+    });
+  }
+  return rows;
 }
