@@ -54,4 +54,5 @@ dogfood-output/
 # audit bahan & backup data lokal (tidak boleh pernah masuk git/deploy)
 .analysis/
 backup-purge-tenants.json
+backup-*.json
 *.tmp.cjs
