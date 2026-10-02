@@ -170,12 +170,53 @@ export const OWNER_TOPICS: HelpTopic[] = [
   },
 
   {
+    key: "pengingat",
+    title: "Pengingat Perawatan AC",
+    icon: "Repeat",
+    group: "Mengelola Pekerjaan",
+    audience: "owner",
+    order: 4,
+    whatIsIt:
+      "Daftar unit AC Anda yang sudah memasuki jadwal servis berikutnya — lengkap dengan pelanggan, riwayat servis unit, dan status pengiriman notifikasi WhatsApp. Dari sini Anda mengirim pengingat, menindaklanjuti balasan pelanggan, mengubahnya jadi pekerjaan, atau menutupnya agar daftar selalu bersih.",
+    steps: [
+      "Buka menu 'Pengingat' (di antara Pelanggan dan Pekerjaan), atau ketuk kartu 'Jatuh Tempo' di halaman Ringkasan.",
+      "Pada tiap kartu unit: lihat info unit & pelanggannya, tanggal 'Jadwal servis', dan lencana status pengiriman (Belum dikirim / Menunggu antrean / Terkirim / Diterima WhatsApp / Dibaca / Gagal / Status tidak diketahui).",
+      "Butuh kirim sekarang? Ketuk 'Kirim Pengingat' — WhatsApp terbuka dengan pesan siap (dari Template Pesan Anda), tinggal tekan kirim.",
+      "Ingin menindaklanjuti? Ketuk 'Buka WhatsApp' untuk mengobrol langsung, atau 'Pelanggan' untuk membuka data lengkapnya.",
+      "Pelanggan setuju diservis? Ketuk 'Jadikan Pekerjaan' — form Pekerjaan Baru terisi otomatis dengan unit & pelanggannya; isi jadwal lalu simpan. Pengingatnya otomatis berstatus konversi.",
+      "Tidak jadi atau tak ada respon? Ketuk 'Tutup Pengingat' agar ia keluar dari daftar.",
+      "Saring dengan chip status di atas daftar. Riwayat yang sudah ditutup ada di tautan 'Lihat riwayat pengingat yang ditutup'.",
+      "Ketuk 'Riwayat Servis Unit' pada kartu untuk melihat pekerjaan yang pernah dilakukan pada unit itu.",
+    ],
+    tips: [
+      "Unit muncul otomatis sesuai 'Jadwal Servis Berikutnya' dan jarak pengingat di Pengaturan Usaha (mis. 3 hari sebelum hari-H).",
+      "Status pengiriman dibaca langsung dari gateway WhatsApp — bila tertulis 'Gagal', kirim ulang lewat tombol 'Kirim Pengingat'.",
+      "Paket tanpa pengingat otomatis (mis. Trial): unit tetap muncul dengan status 'Belum dikirim' dan Anda mengirim manual lewat tombol tersebut.",
+      "Pengingat yang dikonversi jadi pekerjaan atau ditutup otomatis keluar dari daftar — tidak akan menumpuk selamanya.",
+    ],
+    faqs: [
+      {
+        q: "Kenapa angka 'Jatuh Tempo' di Ringkasan berbeda dari yang saya harapkan?",
+        a: "Angkanya persis sama dengan jumlah unit di halaman ini karena dihitung dari satu sumber yang sama. Perhatikan juga jarak pengingat di Pengaturan Usaha — unit baru muncul menjelang jadwalnya, bukan dari jauh hari.",
+      },
+      {
+        q: "Apa bedanya 'Menunggu antrean' dan 'Terkirim'?",
+        a: "'Menunggu antrean' berarti pesan sudah disiapkan sistem dan tinggal dikirim oleh antrean WhatsApp. 'Terkirim' berarti gateway sudah menerimanya; statusnya naik lagi menjadi 'Diterima WhatsApp' dan 'Dibaca' begitu dikonfirmasi.",
+      },
+      {
+        q: "Kenapa ada unit yang statusnya 'Status tidak diketahui'?",
+        a: "Catatan pengiriman lama tidak bisa dipasangkan dengan konfirmasi gateway (mis. riwayat dari sebelum fitur ini ada). Gunakan tombol 'Kirim Pengingat' bila Anda ingin memastikan pelanggan menerimanya.",
+      },
+    ],
+  },
+
+  {
     key: "pekerjaan",
     title: "Pekerjaan",
     icon: "Wrench",
     group: "Mengelola Pekerjaan",
     audience: "owner",
-    order: 4,
+    order: 5,
     whatIsIt:
       "Daftar semua pekerjaan servis (job) usaha Anda beserta statusnya, dari draft hingga selesai. Pusat untuk mengatur dan memantau pekerjaan lapangan.",
     steps: [
@@ -194,7 +235,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     icon: "Plus",
     group: "Mengelola Pekerjaan",
     audience: "owner",
-    order: 5,
+    order: 6,
     whatIsIt:
       "Formulir membuat pekerjaan servis baru: pilih pelanggan, unit AC, jenis layanan, jadwal, dan teknisi yang ditugaskan.",
     steps: [
@@ -217,7 +258,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     icon: "ClipboardList",
     group: "Mengelola Pekerjaan",
     audience: "owner",
-    order: 6,
+    order: 7,
     whatIsIt:
       "Halaman satu pekerjaan: melihat status, menugaskan tim teknisi, memantau progres & foto lapangan, hingga membuat faktur setelah selesai.",
     steps: [
