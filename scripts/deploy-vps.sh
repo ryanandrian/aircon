@@ -75,7 +75,7 @@ copy_pkg() {
 : > "$WORK/closure-seen.txt"
 PRISMA_CLIENT_JSON="$(find node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/package.json -print -quit)"
 [ -n "$PRISMA_CLIENT_JSON" ] || { echo "FAIL: @prisma/client package not found" >&2; exit 1; }
-PRISMA_REQUIRED="$(node -e 'const p=require(process.argv[1]); for(const k of Object.keys(p.dependencies||{})) console.log(k)' "$PRISMA_CLIENT_JSON")"
+PRISMA_REQUIRED="$(node -e 'const p=require("./" + process.argv[1]); for(const k of Object.keys(p.dependencies||{})) console.log(k)' "$PRISMA_CLIENT_JSON")"
 queue="$NEXT_REQUIRED $PRISMA_REQUIRED"
 guard=0
 while [ -n "$queue" ]; do
@@ -86,7 +86,7 @@ while [ -n "$queue" ]; do
     src="$(find_pkg_json "$name" || true)"
     [ -n "$src" ] || { echo "FAIL: dependency not found in store: $name" >&2; exit 1; }
     copy_pkg "$src" "$name"
-    deps="$(node -p "Object.keys(require('./$src').dependencies||{}).join(' ')" 2>/dev/null || true)"
+    deps="$(node -e 'const p=require("./"+process.argv[1]); for(const k of Object.keys(p.dependencies||{})) console.log(k)' "$src" 2>/dev/null || true)"
     nextq="$nextq $deps"
   done
   queue="$(echo "$nextq" | xargs echo 2>/dev/null || true)"
