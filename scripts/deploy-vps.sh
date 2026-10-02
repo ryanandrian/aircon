@@ -28,15 +28,14 @@ COMMIT="$(git rev-parse "$REF^{commit}")"
 [ "$(git rev-parse HEAD)" = "$COMMIT" ] || { echo "FAIL: ref harus sama dengan HEAD" >&2; exit 1; }
 [ -f "$KEY" ] || { echo "FAIL: SSH key tidak ada: $KEY" >&2; exit 1; }
 
-echo "==> 1/6 Ambil .env PRODUKSI dari VPS (untuk NEXT_PUBLIC_* yang dibakar saat build)"
-PRODENV="$WORK/prod.env"
-scp -q -i "$KEY" "$HOST:$APP/.env" "$PRODENV"
-grep -q "^NODE_ENV=" "$PRODENV" || true   # sanity ringan; isi tidak pernah dicetak
-
-echo "==> 2/6 Build (env produksi)"
-set -a; . "$PRODENV"; set +a
+echo "==> 1/6 Install + generate (SEBELUM env produksi — NODE_ENV=production di .env VPS akan membuat pnpm membuang devDependencies/prisma)"
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm prisma generate
+
+echo "==> 2/6 Build dengan .env PRODUKSI (NEXT_PUBLIC_* dibakar saat build; pola fix 4cfc7dd)"
+PRODENV="$WORK/prod.env"
+scp -q -i "$KEY" "$HOST:$APP/.env" "$PRODENV"
+set -a; . "$PRODENV"; set +a
 pnpm exec next build
 
 echo "==> 3/6 Staging artefak (materialize symlink pnpm, buang secret)"
