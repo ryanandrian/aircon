@@ -140,7 +140,7 @@ sleep 5
 test "$(sudo -n systemctl is-active aircon-app)" = active
 curl -fsS http://127.0.0.1:3000/ >/dev/null
 curl -fsS http://127.0.0.1:3000/login >/dev/null
-test "$(cat "$APP/current/source-sha")" = "$COMMIT"
+test "$(cat "$APP/releases/$COMMIT/source-sha")" = "$COMMIT"
 trap - EXIT
 cleanup
 echo "RELEASE=$COMMIT"
