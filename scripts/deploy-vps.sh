@@ -44,15 +44,43 @@ cp -rL .next/standalone/. "$BUILD/"
 rm -rf "$BUILD/.next/static" "$BUILD/public"
 cp -rL .next/static "$BUILD/.next/static"
 cp -rL public "$BUILD/public"
-# Next 16 runtime requires BOTH @swc/helpers/_ (CJS) and /esm (ESM).
-# Standalone trace omits this devDependency; materialize the exact installed package.
-SWC_HELPERS="$(node -p 'require.resolve("@swc/helpers/package.json")' 2>/dev/null || true)"
-if [ -z "$SWC_HELPERS" ]; then
-  SWC_HELPERS="$(find node_modules/.pnpm -path '*/node_modules/@swc/helpers/package.json' -print -quit)"
-fi
-[ -n "$SWC_HELPERS" ] && [ -f "$SWC_HELPERS" ] || { echo "FAIL: @swc/helpers package not found" >&2; exit 1; }
-mkdir -p "$BUILD/node_modules/@swc/helpers"
-cp -rL "$(dirname "$SWC_HELPERS")/." "$BUILD/node_modules/@swc/helpers/"
+# Standalone trace keeps next's deps inside .pnpm but omits top-level node_modules
+# entries, so require() from next cannot reach them. Materialize every required dep
+# from the FULL root node_modules (887 pkgs); optional/platform pkgs are copied when
+# present but never required (binaries may legitimately be absent).
+NEXT_REQUIRED="$(node -e 'for(const k of Object.keys(require("./node_modules/next/package.json").dependencies||{})) console.log(k)')"
+NEXT_OPTIONAL="$(node -e 'for(const k of Object.keys(require("./node_modules/next/package.json").optionalDependencies||{})) console.log(k)')"
+# pnpm hardened: deps next hanya punya symlink internal, bukan top-level.
+# Cari fisik paket langsung di store .pnpm (glob shell, tanpa resolve module).
+find_pkg_json() {
+  local name="$1" m=""
+  # 1) prioritas: store dir milik next sendiri -> versi persis yang dipakai next
+  for m in node_modules/.pnpm/next@*/node_modules/"$name"/package.json; do
+    [ -f "$m" ] && { printf '%s' "$m"; return 0; }
+  done
+  # 2) fallback: salah satu kandidat di store
+  for m in node_modules/.pnpm/*/node_modules/"$name"/package.json; do
+    [ -f "$m" ] && { printf '%s' "$m"; return 0; }
+  done
+  return 1
+}
+copy_pkg() {
+  local name="$1" required="$2" src dest="$BUILD/node_modules/$1"
+  [ -e "$dest" ] && return 0
+  src="$(find_pkg_json "$name" || true)"
+  if [ -z "$src" ]; then
+    [ "$required" = 1 ] && { echo "FAIL: required pkg not found: $name" >&2; exit 1; }
+    return 0
+  fi
+  mkdir -p "$(dirname "$dest")"
+  cp -rL "$(dirname "$src")" "$dest"
+}
+while IFS= read -r dep; do [ -n "$dep" ] && copy_pkg "$dep" 1; done <<< "$NEXT_REQUIRED"
+while IFS= read -r dep; do [ -n "$dep" ] && copy_pkg "$dep" 0; done <<< "$NEXT_OPTIONAL"
+while IFS= read -r dep; do
+  [ -e "$BUILD/node_modules/$dep" ] || { echo "FAIL: $dep missing after materialize" >&2; exit 1; }
+done <<< "$NEXT_REQUIRED"
+echo "    materialized: $(tr '\n' ' ' <<< "$NEXT_REQUIRED")"
 find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '*.pem' -o -name '*.key' \) -delete
 [ -z "$(find "$BUILD" -type l -print -quit)" ] || { echo "FAIL: symlink tersisa di artefak" >&2; exit 1; }
 [ -f "$BUILD/server.js" ] && [ -d "$BUILD/.next/static" ] && [ -d "$BUILD/public" ] || { echo "FAIL: standalone tidak lengkap" >&2; exit 1; }
