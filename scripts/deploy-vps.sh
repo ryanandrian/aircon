@@ -28,6 +28,16 @@ COMMIT="$(git rev-parse "$REF^{commit}")"
 [ "$(git rev-parse HEAD)" = "$COMMIT" ] || { echo "FAIL: ref harus sama dengan HEAD" >&2; exit 1; }
 [ -f "$KEY" ] || { echo "FAIL: SSH key tidak ada: $KEY" >&2; exit 1; }
 
+# Idempoten: commit sudah live & sehat -> tidak ada yang perlu dilakukan.
+# (Tanpa ini, deploy ulang commit sama selalu gagal di "release sudah ada".)
+if ssh -i "$KEY" "$HOST" "test -f '$APP/releases/$COMMIT/source-sha' && test \"\$(cat '$APP/releases/$COMMIT/source-sha')\" = '$COMMIT' && test \"\$(readlink -f '$APP/current')\" = '$APP/releases/$COMMIT/app' && test \"\$(systemctl is-active aircon-app)\" = active" >/dev/null 2>&1; then
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 25 https://app.airconet.id/login || true)"
+  if [ "$code" = 200 ]; then
+    echo "ALREADY DEPLOYED: $COMMIT (live, service active, https 200) — tidak ada yang diubah."
+    exit 0
+  fi
+fi
+
 echo "==> 1/6 Install + generate (SEBELUM env produksi — NODE_ENV=production di .env VPS akan membuat pnpm membuang devDependencies/prisma)"
 pnpm install --frozen-lockfile --ignore-scripts
 pnpm prisma generate
@@ -143,6 +153,20 @@ curl -fsS http://127.0.0.1:3000/login >/dev/null
 test "$(cat "$APP/releases/$COMMIT/source-sha")" = "$COMMIT"
 trap - EXIT
 cleanup
+# Skill langkah 10: retensi maksimal 3 release (current + 2 pendahulu terbaru), hanya setelah PASS.
+cur="$(readlink -f "$APP/current")"
+echo "releases sebelum cleanup:"; ls -1 "$APP/releases"
+n=1
+while read -r d; do
+  rp="$(readlink -f "$d")"
+  [ "$rp" = "$cur" ] && continue
+  n=$((n+1))
+  [ "$n" -le 3 ] && continue
+  rm -rf "${d%/}"
+done < <(find "$APP/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -rn | cut -d' ' -f2-)
+echo "releases sesudah cleanup:"; ls -1 "$APP/releases"
+test "$(ls -1 "$APP/releases" | wc -l)" -le 3 || { echo "FAIL: retensi > 3" >&2; exit 1; }
+test -d "$cur" || { echo "FAIL: current release hilang saat cleanup" >&2; exit 1; }
 echo "RELEASE=$COMMIT"
 REMOTE_SCRIPT
 
