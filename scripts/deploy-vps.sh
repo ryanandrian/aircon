@@ -44,6 +44,15 @@ cp -rL .next/standalone/. "$BUILD/"
 rm -rf "$BUILD/.next/static" "$BUILD/public"
 cp -rL .next/static "$BUILD/.next/static"
 cp -rL public "$BUILD/public"
+# Next 16 runtime requires BOTH @swc/helpers/_ (CJS) and /esm (ESM).
+# Standalone trace omits this devDependency; materialize the exact installed package.
+SWC_HELPERS="$(node -p 'require.resolve("@swc/helpers/package.json")' 2>/dev/null || true)"
+if [ -z "$SWC_HELPERS" ]; then
+  SWC_HELPERS="$(find node_modules/.pnpm -path '*/node_modules/@swc/helpers/package.json' -print -quit)"
+fi
+[ -n "$SWC_HELPERS" ] && [ -f "$SWC_HELPERS" ] || { echo "FAIL: @swc/helpers package not found" >&2; exit 1; }
+mkdir -p "$BUILD/node_modules/@swc/helpers"
+cp -rL "$(dirname "$SWC_HELPERS")/." "$BUILD/node_modules/@swc/helpers/"
 find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '*.pem' -o -name '*.key' \) -delete
 [ -z "$(find "$BUILD" -type l -print -quit)" ] || { echo "FAIL: symlink tersisa di artefak" >&2; exit 1; }
 [ -f "$BUILD/server.js" ] && [ -d "$BUILD/.next/static" ] && [ -d "$BUILD/public" ] || { echo "FAIL: standalone tidak lengkap" >&2; exit 1; }
