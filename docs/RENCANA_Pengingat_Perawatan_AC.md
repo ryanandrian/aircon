@@ -116,11 +116,11 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [x] 4.3 Data live: TRIAL=false, PROFESSIONAL=true, BUSINESS=true, DB default=true. Backup `backup-plan-auto-reminder.json` sha256 `41cbfc2e...`. Karena Tenant TRIAL disaring runner, tenant Trial otomatis TIDAK dikirim -> status inbox tetap `BELUM_DIKIRIM` (bukan SENT) — konsisten R2.
 - [x] 4.4 Gate: TSC 0, LINT 0 (bersih), **442 tes** (48 file), BUILD 0. Migrasi sudah di-apply (tidak menumpuk di deploy).
 
-### FASE 5 — KONVERSI & PENUTUPAN  `status: [ ]`
-- [ ] 5.1 Tombol konversi → bawa ke form pekerjaan (tanggal + teknisi + kernet) → `createRepeatJob` (fungsi sudah ada, belum pernah terpanggil → uji end-to-end).
-- [ ] 5.2 Tambah **field kernet** di `job-form.tsx` (pakai `JobAssignment.roleOnJob=KERNET` yang sudah ada; jangan buat mekanisme baru).
-- [ ] 5.3 Aktifkan auto-`EXPIRED` setelah 14 hari (`reminderExpireDays` sudah ada) — hati-hati: risiko R5.
-- [ ] 5.4 Gate + deploy. Tandai `[x]`.
+### FASE 5 — KONVERSI & PENUTUPAN  `status: [x]`
+- [x] 5.1 Konversi via `actionCreateJob(reminderId)` — RED 1 gagal -> GREEN 7/7. Guard tenant-scoped: reminderId asing/unit beda/status CLOSED TIDAK diubah tapi job tetap dibuat (operasi utama tak diblokir). Prefill `?assetId&customerId&reminderId` di page form DIPERIKSA ULANG terhadap opsi tenant-scoped (ID asing tidak pernah dirender). Alasan pakai `actionCreateJob` (bukan `createRepeatJob`): tombol harus membawa user ke form yang bisa isi jadwal+teknisi; `createRepeatJob` tetap DRAFT tanpa jadwal. Catatan: `createRepeatJob` TETAP tak terpanggil (tak dihapus — ada, tak dipakai, dokumentasikan).
+- [x] 5.2 **BATAL — alasan terverifikasi survei:** kernet SUDAH punya UI lengkap di detail pekerjaan (`owner-actions.tsx` + `actionAssignTeam` multi-peran, tersedia dari `page.tsx` utk status ASSIGNABLE). Menambah selector kernet di form baru = duplikasi UI (melanggar "jangan buat komponen baru"). Penugasan kernet tetap lewat jalur yang ada setelah job jadi.
+- [x] 5.3 Auto-`EXPIRED` — RED 4 gagal -> GREEN 5/5 (`expireDueReminders`, dipanggil sekali di awal worker harian, spec `BuildSpecPack_Part3` baris 37 = lewat due+14). **Semantik dikunci dgn justifikasi:** hanya `SENT` yang di-expire; `QUEUED` TIDAK (kalau di-expire, pengingat belum terkirim hilang permanen — anti-duplikat unique(tenant,asset,dueDate) memblokir pembuatan ulang). Batas hari dari `REPEAT_DEFAULTS.reminderExpireDays` (bukan angka lekat). "Tanpa aksi" = tidak di-COMPLETE/DISMISSED lewat inbox dalam 14 hari.
+- [x] 5.4 Gate: TSC 0, LINT 0, **454 tes** (50 file), BUILD 0.
 
 ### FASE 6 — PENUTUP: DOKUMEN PENGGUNA + VERIFIKASI LIVE  `status: [ ]`
 - [ ] 6.1 Update `help/content-owner.ts` + `panduan` (penjelasan modul untuk tenant).
@@ -128,7 +128,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [ ] 6.3 Deploy final + uji live manual (login tenant → buka menu → cek angka kartu == isi daftar).
 - [ ] 6.4 Catat bukti akhir di file ini (bagian Bukti). Tandai `[x]`.
 
-**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [ ] · 6 [ ]**
+**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [x] · 6 [ ]**
 
 ---
 

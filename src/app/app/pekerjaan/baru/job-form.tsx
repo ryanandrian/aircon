@@ -47,17 +47,27 @@ export function JobForm({
   customers,
   assets,
   technicians,
+  initialCustomerId,
+  initialAssetId,
+  reminderId,
 }: {
   customers: CustomerOption[];
   assets: AssetOption[];
   technicians: TechOption[];
+  initialCustomerId?: string;
+  initialAssetId?: string;
+  reminderId?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
-  const [assetId, setAssetId] = useState("");
+  const [customerId, setCustomerId] = useState(
+    customers.some((c) => c.id === initialCustomerId) ? initialCustomerId! : customers[0]?.id ?? "",
+  );
+  const [assetId, setAssetId] = useState(
+    assets.some((a) => a.id === initialAssetId && a.customerId === initialCustomerId) ? initialAssetId! : "",
+  );
   const [serviceType, setServiceType] = useState<(typeof SERVICE_TYPES)[number]>("CLEANING");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -115,6 +125,7 @@ export function JobForm({
         technicianId: technicianId || undefined,
         price: price || undefined,
         notes: notes || undefined,
+        reminderId: reminderId || undefined,
       });
       if (!res.ok) {
         setError(res.error);

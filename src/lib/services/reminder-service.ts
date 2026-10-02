@@ -7,6 +7,7 @@ import { renderTemplate, normalizePhone } from "@/lib/wa/gateway";
 import { getOrCreateCardToken } from "@/lib/services/customer-card-service";
 import { customerCardUrl } from "@/lib/unit-code/urls";
 import { ServiceError } from "@/lib/services/customer-service";
+import { REPEAT_DEFAULTS } from "@/lib/domain/money-loop";
 
 /** Reminder yang sudah waktunya ditindak (lead time terlewati, status QUEUED). */
 export async function listDueReminders(tenantId: string) {
@@ -172,6 +173,9 @@ export async function createRepeatJob(tenantId: string, reminderId: string, crea
  * Idempoten: hanya proses QUEUED. Aman-gagal per grup.
  */
 export async function runDueRemindersAllTenants(): Promise<{ tenants: number; sent: number; failed: number }> {
+  // Jaga daftar tetap bersih: reminder SENT > 14 hari lewat due -> EXPIRED (spec P3:37).
+  await expireDueReminders();
+
   const tenants = await prisma.tenant.findMany({
     where: { status: { in: ["TRIAL", "ACTIVE", "PAST_DUE"] } },
     select: { id: true, plan: true },
@@ -272,6 +276,31 @@ function mapMessageStatus(s: string): ReminderInboxRow["sendStatus"] {
   if (s === "SENT") return "Terkirim";
   if (s === "FAILED") return "GAGAL";
   return "MENUNGGU_KRIM"; // QUEUED / SENDING / LOGGED
+}
+
+/**
+ * Auto-EXPIRED (BuildSpecPack_Part3 baris 37): "bila lewat due + 14 hari tanpa aksi ->
+ * status EXPIRED | jaga daftar tetap bersih".
+ *
+ * SEMANTIK DIKUNCI (bukan asumsi):
+ * - HANYA status SENT. "Aksi" tenant diukur lewat inbox: konversi (CONVERTED) atau
+ *   tutup (DISMISSED) mengeluarkan reminder sebelum 14 hari.
+ * - QUEUED sengaja TIDAK di-expire: pengingat yang belum pernah terkirim (cron sempat
+ *   mati / gateway tak siap) harus tetap sampai ke pelanggan. Anti-duplikat
+ *   unique(tenantId,assetId,dueDate) mencegah pembuatan ulang, jadi expire pada QUEUED
+ *   = pengingat hilang PERMANEN tanpa pernah terkirim.
+ * - Idempoten & atomik: satu updateMany; row yang sudah EXPIRED tak cocok filter.
+ *
+ * Dipanggil sekali di awal runDueRemindersAllTenants (worker harian, spec baris 35).
+ */
+export async function expireDueReminders(): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - REPEAT_DEFAULTS.reminderExpireDays);
+  const res = await prisma.repeatReminder.updateMany({
+    where: { status: "SENT", dueDate: { lt: cutoff } },
+    data: { status: "EXPIRED" },
+  });
+  return res.count;
 }
 
 export const CLOSED_REMINDER_STATUSES = ["DISMISSED", "CONVERTED", "EXPIRED"] as const;

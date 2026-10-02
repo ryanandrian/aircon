@@ -31,6 +31,8 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(async ({ where }: any) =>
         state.reminders.filter((r) => r.tenantId === where.tenantId && r.status === where.status),
       ),
+      // dipakai expireDueReminders() (worker harian): tidak ada baris due di fixture ini
+      updateMany: vi.fn(async () => ({ count: 0 })),
     },
     asset: { findMany: vi.fn(async () => []) },
     messageTemplate: { findUnique: vi.fn(async () => null) },

@@ -53,6 +53,8 @@ export interface CreateJobFormInput {
   technicianId?: string;
   price?: string;
   notes?: string;
+  /** FASE 5: pengingat yang dikonversi jadi pekerjaan ini (tombol "Jadikan Pekerjaan"). */
+  reminderId?: string;
 }
 
 /** Buat pekerjaan baru. SECURITY: OWNER/ADMIN, tenant dari sesi. */
@@ -98,6 +100,26 @@ export async function actionCreateJob(
     };
 
     const job = await createJob(ctx.tenantId, ctx.userId, payload);
+
+    // FASE 5 — konversi pengingat (opsional). Best-effort & tenant-scoped:
+    // pengingat yang tidak cocok unit/status justru TIDAK diubah, job tetap jadi
+    // (operasi utama membuat pekerjaan tidak diblokir oleh pengingat yang salah sasaran).
+    if (input.reminderId) {
+      try {
+        await prisma.repeatReminder.updateMany({
+          where: {
+            id: input.reminderId,
+            tenantId: ctx.tenantId,
+            assetId: input.assetId,
+            status: { in: ["QUEUED", "SENT"] },
+          },
+          data: { status: "CONVERTED", jobId: job.id },
+        });
+      } catch (err) {
+        console.warn("[actionCreateJob] konversi pengingat dilewati:", err);
+      }
+      revalidatePath("/app/pengingat");
+    }
 
     revalidatePath("/app/pekerjaan");
     return { ok: true, data: { id: job.id } };

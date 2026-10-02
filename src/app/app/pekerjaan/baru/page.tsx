@@ -9,7 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 
-export default async function PekerjaanBaruPage() {
+export default async function PekerjaanBaruPage({ searchParams }: {
+  searchParams: Promise<{ assetId?: string; customerId?: string; reminderId?: string }>;
+}) {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/pekerjaan/baru");
   if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") redirect("/app");
@@ -43,6 +45,13 @@ export default async function PekerjaanBaruPage() {
   }));
   const technicians = technicianRows.map((t) => ({ id: t.id, name: t.user.name }));
 
+  const params = await searchParams;
+  // Prefill dikunci ulang terhadap opsi tenant-scoped; ID asing tidak pernah dipantulkan ke form.
+  const initialAsset = assetOptions.find((a) => a.id === params.assetId);
+  const initialCustomerId = initialAsset?.customerId === params.customerId ? params.customerId : undefined;
+  const initialAssetId = initialCustomerId ? initialAsset?.id : undefined;
+  const reminderId = params.reminderId && params.reminderId.length <= 64 ? params.reminderId : undefined;
+
   return (
     <main className="min-h-screen pb-16">
       <header className="border-b bg-background/80 backdrop-blur">
@@ -65,7 +74,14 @@ export default async function PekerjaanBaruPage() {
             </CardContent>
           </Card>
         ) : (
-          <JobForm customers={customers} assets={assetOptions} technicians={technicians} />
+          <JobForm
+            customers={customers}
+            assets={assetOptions}
+            technicians={technicians}
+            initialCustomerId={initialCustomerId}
+            initialAssetId={initialAssetId}
+            reminderId={reminderId}
+          />
         )}
       </div>
     </main>
