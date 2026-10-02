@@ -19,6 +19,7 @@ interface Initial {
   maxTechnicians: number | null;
   maxCustomers: number | null;
   maxAcUnits: number | null;
+  autoReminder: boolean;
 }
 
 export function PlanEditor({ plan, initial }: { plan: TenantPlan; initial: Initial }) {
@@ -66,6 +67,10 @@ export function PlanEditor({ plan, initial }: { plan: TenantPlan; initial: Initi
             </div>
             <label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" name="taxable" defaultChecked={initial.taxable} className="accent-sky-500" /> Kena pajak
+            </label>
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input type="checkbox" name="autoReminder" defaultChecked={initial.autoReminder} className="accent-sky-500" />{" "}
+              Pengingat servis otomatis
             </label>
 
             <p className="pt-2 text-xs font-semibold text-muted-foreground">Kuota (kosong = tanpa batas)</p>

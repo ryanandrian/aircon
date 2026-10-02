@@ -1095,6 +1095,8 @@ model PlanConfig {
   maxTechnicians Int? // TERMASUK akun admin (sesuai aturan bisnis)
   maxCustomers   Int?
   maxAcUnits     Int?
+  // FASE 4: kirim pengingat servis otomatis untuk tenant ber-paket ini (cron).
+  autoReminder   Boolean    @default(true)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }

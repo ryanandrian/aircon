@@ -33,6 +33,7 @@ export async function updatePlanConfig(plan: TenantPlan, data: PlanConfigInput):
       maxTechnicians: data.maxTechnicians,
       maxCustomers: data.maxCustomers,
       maxAcUnits: data.maxAcUnits,
+      autoReminder: data.autoReminder,
     },
   });
 }

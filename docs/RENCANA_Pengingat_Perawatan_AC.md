@@ -110,11 +110,11 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [x] 3.1 Metrik Ringkasan diganti: query `repeatReminder.count(QUEUED)` DIHAPUS, diganti `listReminderInbox(tenantId).then(r => r.length)` — SATU sumber dengan halaman (R10 tertutup). Label "Pengingat Aktif" -> **"Jatuh Tempo"**, ikon `Icon.Bell` -> `Icon.Repeat`, `href="/app/pengingat"` (kini kartu bisa diklik, sebelumnya bukan link).
 - [x] 3.2 Gate lulus: TSC 0, LINT 0, **437 tes** (47 file), BUILD 0.
 
-### FASE 4 — GATE PAKET (Trial tanpa kirim otomatis)  `status: [ ]`
-- [ ] 4.1 TDD: runner melewati tenant dengan `autoReminder=false`.
-- [ ] 4.2 Migrasi DB `PlanConfig.autoReminder` (default `true`) + flag UI di editor paket admin (sudah ada) + set Trial `false`.
-- [ ] 4.3 Sesuai risiko R2: status awal benar (`Belum dikirim` ≠ `SENT`).
-- [ ] 4.4 Gate + deploy + migrasi `prisma migrate deploy` (jalur aman, lihat R3). Tandai `[x]`.
+### FASE 4 — GATE PAKET (Trial tanpa kirim otomatis)  `status: [x]`
+- [x] 4.1 TDD runner: RED lalu GREEN 3/3 (`tests/reminder-plan-gate.test.ts`) — tenant paket `autoReminder=false` DILEWATI; config hilang = auto ON (default aman); semua ON = semua terproses.
+- [x] 4.2 Kolom `PlanConfig.autoReminder Boolean @default(true)` + migrasi `20261003011000` dijalankan `prisma migrate deploy` (hanya migrasi ini, tanpa reset). Checkbox "Pengingat servis otomatis" di `/admin/paket` (satu form/action/service yang sudah ada — 0 file baru).
+- [x] 4.3 Data live: TRIAL=false, PROFESSIONAL=true, BUSINESS=true, DB default=true. Backup `backup-plan-auto-reminder.json` sha256 `41cbfc2e...`. Karena Tenant TRIAL disaring runner, tenant Trial otomatis TIDAK dikirim -> status inbox tetap `BELUM_DIKIRIM` (bukan SENT) — konsisten R2.
+- [x] 4.4 Gate: TSC 0, LINT 0 (bersih), **442 tes** (48 file), BUILD 0. Migrasi sudah di-apply (tidak menumpuk di deploy).
 
 ### FASE 5 — KONVERSI & PENUTUPAN  `status: [ ]`
 - [ ] 5.1 Tombol konversi → bawa ke form pekerjaan (tanggal + teknisi + kernet) → `createRepeatJob` (fungsi sudah ada, belum pernah terpanggil → uji end-to-end).
@@ -128,7 +128,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [ ] 6.3 Deploy final + uji live manual (login tenant → buka menu → cek angka kartu == isi daftar).
 - [ ] 6.4 Catat bukti akhir di file ini (bagian Bukti). Tandai `[x]`.
 
-**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [ ] · 5 [ ] · 6 [ ]**
+**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [ ] · 6 [ ]**
 
 ---
 

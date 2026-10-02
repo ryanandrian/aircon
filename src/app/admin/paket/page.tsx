@@ -30,6 +30,7 @@ export default async function AdminPaketPage() {
               maxTechnicians: p.maxTechnicians,
               maxCustomers: p.maxCustomers,
               maxAcUnits: p.maxAcUnits,
+              autoReminder: p.autoReminder,
             }}
           />
         ))}

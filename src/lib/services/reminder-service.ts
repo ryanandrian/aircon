@@ -174,12 +174,21 @@ export async function createRepeatJob(tenantId: string, reminderId: string, crea
 export async function runDueRemindersAllTenants(): Promise<{ tenants: number; sent: number; failed: number }> {
   const tenants = await prisma.tenant.findMany({
     where: { status: { in: ["TRIAL", "ACTIVE", "PAST_DUE"] } },
-    select: { id: true },
+    select: { id: true, plan: true },
   });
+  // PlanConfig mengatur eligibility paket. Default true untuk config yang hilang
+  // agar rollout additive tidak mematikan pengiriman tenant paket lama.
+  const planConfigs = await prisma.planConfig.findMany({
+    select: { plan: true, autoReminder: true },
+  });
+  const automaticPlans = new Set(
+    planConfigs.filter((p) => p.autoReminder).map((p) => p.plan),
+  );
+  const eligibleTenants = tenants.filter((t) => !planConfigs.some((p) => p.plan === t.plan) || automaticPlans.has(t.plan));
 
   let sent = 0;
   let failed = 0;
-  for (const t of tenants) {
+  for (const t of eligibleTenants) {
     const due = await listDueReminders(t.id);
     // Kelompokkan per pelanggan.
     const byCustomer = new Map<string, string[]>();
@@ -201,7 +210,7 @@ export async function runDueRemindersAllTenants(): Promise<{ tenants: number; se
       }
     }
   }
-  return { tenants: tenants.length, sent, failed };
+  return { tenants: eligibleTenants.length, sent, failed };
 }
 
 

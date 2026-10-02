@@ -46,6 +46,7 @@ export async function actionUpdatePlan(plan: TenantPlan, fd: FormData): Promise<
       maxTechnicians: nullableNum(fd, "maxTechnicians"),
       maxCustomers: nullableNum(fd, "maxCustomers"),
       maxAcUnits: nullableNum(fd, "maxAcUnits"),
+      autoReminder: boolean(fd, "autoReminder"),
     });
     if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Data tidak valid" };
     await updatePlanConfig(plan, parsed.data);

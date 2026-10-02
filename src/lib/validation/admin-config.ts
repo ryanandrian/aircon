@@ -18,6 +18,8 @@ export const planConfigSchema = z.object({
   maxTechnicians: quota,
   maxCustomers: quota,
   maxAcUnits: quota,
+  // FASE 4: pengingat servis otomatis per paket (Trial default false setelah setup admin).
+  autoReminder: z.boolean().optional().default(true),
 });
 export type PlanConfigInput = z.infer<typeof planConfigSchema>;
 

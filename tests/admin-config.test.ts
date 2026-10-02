@@ -25,6 +25,17 @@ describe("planConfigSchema", () => {
   it("tolak harga negatif", () => {
     expect(planConfigSchema.safeParse({ ...validPlan, priceMonthly: -5 }).success).toBe(false);
   });
+
+  // FASE 4 — gate paket pengingat otomatis.
+  it("terima autoReminder=false (paket tanpa kirim otomatis, mis. Trial)", () => {
+    const r = planConfigSchema.safeParse({ ...validPlan, autoReminder: false });
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.autoReminder).toBe(false);
+  });
+  it("autoReminder kosong -> default true (rollout additive tak mematikan paket lama)", () => {
+    const r = planConfigSchema.safeParse(validPlan);
+    expect(r.success && r.data.autoReminder).toBe(true);
+  });
 });
 
 const validPolicy = {
