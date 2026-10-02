@@ -81,6 +81,16 @@ while IFS= read -r dep; do
   [ -e "$BUILD/node_modules/$dep" ] || { echo "FAIL: $dep missing after materialize" >&2; exit 1; }
 done <<< "$NEXT_REQUIRED"
 echo "    materialized: $(tr '\n' ' ' <<< "$NEXT_REQUIRED")"
+# Prisma 7 generated client lives inside the pnpm store, but the bundled hashed
+# @prisma/client wrapper resolves '.prisma/client' from top-level node_modules.
+# Mirror it so runtime require() succeeds.
+PRISMA_GEN="$(find "$BUILD/node_modules/.pnpm" -type d -path '*/node_modules/.prisma/client' -print -quit 2>/dev/null)"
+if [ -n "$PRISMA_GEN" ]; then
+  mkdir -p "$BUILD/node_modules/.prisma"
+  cp -rL "$PRISMA_GEN" "$BUILD/node_modules/.prisma/client"
+  [ -f "$BUILD/node_modules/.prisma/client/default.js" ] || { echo "FAIL: .prisma/client/default.js missing" >&2; exit 1; }
+  echo "    materialized: .prisma/client (generated)"
+fi
 find "$BUILD" -type f \( -name '.env' -o -name '.env.*' -o -name 'id_rsa' -o -name 'id_ed25519' -o -name '*.pem' -o -name '*.key' \) -delete
 [ -z "$(find "$BUILD" -type l -print -quit)" ] || { echo "FAIL: symlink tersisa di artefak" >&2; exit 1; }
 [ -f "$BUILD/server.js" ] && [ -d "$BUILD/.next/static" ] && [ -d "$BUILD/public" ] || { echo "FAIL: standalone tidak lengkap" >&2; exit 1; }
