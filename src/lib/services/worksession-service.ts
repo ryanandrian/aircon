@@ -12,6 +12,7 @@ import {
   computeInvoiceTotals, computeDueDate, nextInvoiceNumber,
   type InvoiceLineInput, type TopType,
 } from "@/lib/services/invoice-service";
+import { collectChecklistGaps, type ChecklistItemDef } from "@/lib/domain/checklist-validation";
 
 /** Buka (atau ambil) sesi kerja OPEN untuk pelanggan. Idempoten: 1 sesi OPEN per pelanggan. */
 export async function openWorkSession(
@@ -113,25 +114,35 @@ export async function assertWorkSessionChecklist(tenantId: string, workSessionId
   const serviceIds = [...new Set(items.map((w) => w.serviceId as string))];
   const templates = await prisma.checklistTemplate.findMany({
     where: { tenantId, serviceId: { in: serviceIds } },
+    select: { serviceId: true, items: true },
   });
   if (templates.length === 0) return;
   const tplByService = new Map(
-    templates.map((t) => [t.serviceId as string, (t.items as { key: string; label: string; required: boolean; type: string }[]) ?? []]),
+    templates.map((t) => [t.serviceId as string, (t.items as unknown as ChecklistItemDef[]) ?? []]),
   );
+
+  // Ambil hasil SEMUA item sekali (bukan N+1) lalu serahkan ke validator SATU-satunya (domain).
+  const allResults = await prisma.checklistResult.findMany({
+    where: { tenantId, workItemId: { in: items.map((w) => w.id) } },
+    select: { workItemId: true, itemKey: true, checked: true, value: true },
+  });
+  const resultsByWorkItem = new Map<string, Record<string, { checked: boolean; value: string | null }>>();
+  for (const r of allResults) {
+    const m = resultsByWorkItem.get(r.workItemId as string) ?? {};
+    m[r.itemKey] = { checked: r.checked, value: r.value };
+    resultsByWorkItem.set(r.workItemId as string, m);
+  }
 
   const missing: string[] = [];
   for (const wi of items) {
     const tpl = tplByService.get(wi.serviceId as string);
     if (!tpl || tpl.length === 0) continue;
-    const requiredItems = tpl.filter((i) => i.required);
-    if (requiredItems.length === 0) continue;
-    const results = await prisma.checklistResult.findMany({ where: { tenantId, workItemId: wi.id } });
-    const map = new Map(results.map((r) => [r.itemKey, r]));
-    for (const item of requiredItems) {
-      const r = map.get(item.key);
-      const ok = item.type === "bool" ? !!r?.checked : !!r?.value;
-      if (!ok) missing.push(`${wi.descSnapshot}: ${item.label}`);
-    }
+    const gaps = collectChecklistGaps({
+      label: wi.descSnapshot,
+      items: tpl,
+      results: resultsByWorkItem.get(wi.id) ?? {},
+    });
+    for (const g of gaps) missing.push(`${wi.descSnapshot}: ${g.label}`);
   }
   if (missing.length > 0) {
     throw new ServiceError(

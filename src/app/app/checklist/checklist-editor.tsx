@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { actionSaveChecklist, actionRemoveChecklist, actionSaveServiceChecklist, actionRemoveServiceChecklist } from "./actions";
+import { actionSaveServiceChecklist, actionRemoveServiceChecklist } from "./actions";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,18 +20,15 @@ type Item = { key: string; label: string; type: "bool" | "number" | "text" | "ph
 const TYPE_LABEL: Record<Item["type"], string> = { bool: "Centang", number: "Angka", text: "Teks", photo: "Foto" };
 
 export function ChecklistEditor({
-  serviceType, serviceId, label, initialItems, applied: initialApplied, example = [],
+  serviceId, label, initialItems, applied: initialApplied,
 }: {
-  serviceType?: string; serviceId?: string; label: string; initialItems: Item[]; applied: boolean; example?: Item[];
+  serviceId: string; label: string; initialItems: Item[]; applied: boolean;
 }) {
   const [items, setItems] = useState<Item[]>(initialItems);
   const [applied, setApplied] = useState(initialApplied);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  // Mode: per-LAYANAN (serviceId) atau per-jenis-servis legacy (serviceType).
-  const byService = Boolean(serviceId);
 
   function update(i: number, patch: Partial<Item>) {
     setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
@@ -42,16 +39,10 @@ export function ChecklistEditor({
   function remove(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
-  function loadExample() {
-    setItems(example.map((e) => ({ ...e })));
-    setMsg({ ok: true, text: "Contoh dimuat — sesuaikan lalu Simpan untuk menerapkan." });
-  }
   function save() {
     if (items.length === 0) { setMsg({ ok: false, text: "Tambah minimal 1 langkah, atau nonaktifkan checklist." }); return; }
     start(async () => {
-      const res = byService
-        ? await actionSaveServiceChecklist(serviceId!, items)
-        : await actionSaveChecklist(serviceType!, items);
+      const res = await actionSaveServiceChecklist(serviceId, items);
       if (res.ok) { setApplied(true); setMsg({ ok: true, text: "Tersimpan & diterapkan" }); }
       else setMsg({ ok: false, text: res.error });
     });
@@ -59,9 +50,7 @@ export function ChecklistEditor({
   function deactivate() {
     if (!confirm(`Nonaktifkan checklist "${label}"? Teknisi tak akan diminta checklist untuk ini.`)) return;
     start(async () => {
-      const res = byService
-        ? await actionRemoveServiceChecklist(serviceId!)
-        : await actionRemoveChecklist(serviceType!);
+      const res = await actionRemoveServiceChecklist(serviceId);
       if (res.ok) { setItems([]); setApplied(false); setMsg({ ok: true, text: "Dinonaktifkan" }); }
       else setMsg({ ok: false, text: res.error });
     });
@@ -90,15 +79,10 @@ export function ChecklistEditor({
               <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-center">
                 <p className="text-sm text-muted-foreground">
                   Belum ada checklist untuk <span className="font-medium text-foreground">{label}</span>.
-                  Teknisi tidak diminta checklist untuk jenis servis ini.
+                  Teknisi tidak diminta checklist untuk layanan ini.
                 </p>
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={add} className="min-h-[38px]">+ Buat dari kosong</Button>
-                  {example.length > 0 && (
-                    <Button type="button" variant="secondary" size="sm" onClick={loadExample} className="min-h-[38px]">
-                      Muat contoh ({example.length} langkah)
-                    </Button>
-                  )}
                 </div>
               </div>
             ) : (

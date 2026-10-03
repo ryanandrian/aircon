@@ -105,9 +105,32 @@ describe("closeWorkSession", () => {
   it("GATE checklist: item WAJIB terisi → nota tetap terbit", async () => {
     store.workItems = [{ id: "wi1", serviceId: "svc1", descSnapshot: "Cuci AC" }];
     store.checklistTemplates = [{ serviceId: "svc1", items: [{ key: "w", label: "Cuci filter", type: "bool", required: true }] }];
-    store.checklistResults = [{ itemKey: "w", checked: true, value: null }];
+    store.checklistResults = [{ workItemId: "wi1", itemKey: "w", checked: true, value: null }];
     const r = await closeWorkSession("t1", "ws1", "u1");
     expect(r.docType).toBe("INVOICE");
+  });
+
+  it("GATE checklist: item WAJIB tipe number berisi spasi/kosong -> tolak (validator tipe, bukan cek truthy)", async () => {
+    // Nilai "   " itu truthy di JS; gate LAMA (cuma !!value) akan salah meloloskan.
+    store.workItems = [{ id: "wi1", serviceId: "svc1", descSnapshot: "Cuci AC" }];
+    store.checklistTemplates = [{ serviceId: "svc1", items: [{ key: "suhu", label: "Suhu keluar", type: "number", required: true }] }];
+    store.checklistResults = [{ workItemId: "wi1", itemKey: "suhu", checked: false, value: "   " }];
+    await expect(closeWorkSession("t1", "ws1", "u1")).rejects.toThrow(/checklist wajib belum lengkap/i);
+  });
+
+  it("GATE checklist: item WAJIB tipe number berisi angka valid -> lolos", async () => {
+    store.workItems = [{ id: "wi1", serviceId: "svc1", descSnapshot: "Cuci AC" }];
+    store.checklistTemplates = [{ serviceId: "svc1", items: [{ key: "suhu", label: "Suhu keluar", type: "number", required: true }] }];
+    store.checklistResults = [{ workItemId: "wi1", itemKey: "suhu", checked: false, value: "21" }];
+    const r = await closeWorkSession("t1", "ws1", "u1");
+    expect(r.docType).toBe("INVOICE");
+  });
+
+  it("GATE checklist: item WAJIB tipe number berisi teks bukan angka -> tolak", async () => {
+    store.workItems = [{ id: "wi1", serviceId: "svc1", descSnapshot: "Cuci AC" }];
+    store.checklistTemplates = [{ serviceId: "svc1", items: [{ key: "suhu", label: "Suhu keluar", type: "number", required: true }] }];
+    store.checklistResults = [{ workItemId: "wi1", itemKey: "suhu", checked: false, value: "dingin" }];
+    await expect(closeWorkSession("t1", "ws1", "u1")).rejects.toThrow(/checklist wajib belum lengkap/i);
   });
 
   it("B3: race penutupan ganda → klaim atomik gagal (count 0) → tolak, cegah dobel invoice", async () => {

@@ -5,7 +5,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
-import { DEFAULT_CHECKLISTS, DEFAULT_WA_TEMPLATES } from "../src/lib/domain/defaults";
+import { DEFAULT_WA_TEMPLATES } from "../src/lib/domain/defaults";
 
 const adapter = new PrismaPg({ connectionString: process.env.DIRECT_URL });
 const prisma = new PrismaClient({ adapter });
@@ -30,16 +30,11 @@ async function main() {
   });
   console.log("Tenant dibuat:", tenant.id);
 
-  // defaults
-  for (const [serviceType, items] of Object.entries(DEFAULT_CHECKLISTS)) {
-    await prisma.checklistTemplate.create({
-      data: { tenantId: tenant.id, serviceType: serviceType as never, items: items as never },
-    });
-  }
+  // defaults: HANYA template WA. Checklist TIDAK di-seed (opt-in per layanan; default kosong).
   for (const [key, body] of Object.entries(DEFAULT_WA_TEMPLATES)) {
     await prisma.messageTemplate.create({ data: { tenantId: tenant.id, key, body } });
   }
-  console.log("Defaults: checklist", Object.keys(DEFAULT_CHECKLISTS).length, "+ WA", Object.keys(DEFAULT_WA_TEMPLATES).length);
+  console.log("Defaults: WA", Object.keys(DEFAULT_WA_TEMPLATES).length, "(checklist default: kosong)");
 
   // Owner
   const owner = await prisma.user.create({

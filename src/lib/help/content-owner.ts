@@ -502,7 +502,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     ],
     tips: [
       "Checklist muncul di aplikasi teknisi saat mengerjakan servis — memastikan tak ada langkah terlewat.",
-      "Ada checklist 'Bawaan' sebagai contoh awal yang bisa Anda sesuaikan.",
+      "Checklist bersifat opsional dan diatur per layanan; tiap langkah bisa ditandai wajib. Checklist muncul saat teknisi mengerjakan layanan itu dan harus lengkap sebelum pekerjaan selesai.",
     ],
   },
 

@@ -10,56 +10,9 @@ export type ChecklistItem = {
   type: "bool" | "number" | "text" | "photo";
   required: boolean;
 };
-
-export const DEFAULT_CHECKLISTS: Record<string, ChecklistItem[]> = {
-  CLEANING: [
-    { key: "unit_off", label: "Matikan unit sebelum bekerja", type: "bool", required: true },
-    { key: "filter_clean", label: "Cuci filter", type: "bool", required: true },
-    { key: "coil_clean", label: "Cuci evaporator/kondensor", type: "bool", required: true },
-    { key: "drain_check", label: "Cek & bersihkan saluran air", type: "bool", required: true },
-    { key: "photo_before", label: "Foto sebelum", type: "photo", required: true },
-    { key: "photo_after", label: "Foto sesudah", type: "photo", required: true },
-    { key: "temp_after", label: "Suhu keluar setelah servis (°C)", type: "number", required: false },
-  ],
-  REFILL_FREON: [
-    { key: "pressure_before", label: "Tekanan awal (psi)", type: "number", required: true },
-    { key: "leak_check", label: "Cek kebocoran", type: "bool", required: true },
-    { key: "freon_type", label: "Jenis freon (R32/R410/R22)", type: "text", required: true },
-    { key: "pressure_after", label: "Tekanan akhir (psi)", type: "number", required: true },
-    { key: "photo_after", label: "Foto sesudah", type: "photo", required: true },
-  ],
-  REPAIR: [
-    { key: "problem_found", label: "Kerusakan ditemukan", type: "text", required: true },
-    { key: "action_taken", label: "Tindakan", type: "text", required: true },
-    { key: "part_replaced", label: "Sparepart diganti", type: "text", required: false },
-    { key: "photo_before", label: "Foto sebelum", type: "photo", required: true },
-    { key: "photo_after", label: "Foto sesudah", type: "photo", required: true },
-  ],
-  INSTALL: [
-    { key: "location_ok", label: "Lokasi pemasangan sesuai", type: "bool", required: true },
-    { key: "bracket_mounted", label: "Bracket terpasang kuat", type: "bool", required: true },
-    { key: "pipe_length_m", label: "Panjang pipa (m)", type: "number", required: true },
-    { key: "vacuum_done", label: "Vakum dilakukan", type: "bool", required: true },
-    { key: "test_run", label: "Uji nyala OK", type: "bool", required: true },
-    { key: "photo_after", label: "Foto sesudah", type: "photo", required: true },
-  ],
-  INSPECTION: [
-    { key: "visual_ok", label: "Kondisi visual baik", type: "bool", required: true },
-    { key: "temp_measured", label: "Suhu terukur (°C)", type: "number", required: true },
-    { key: "current_measured", label: "Arus (A)", type: "number", required: false },
-    { key: "recommendation", label: "Rekomendasi", type: "text", required: false },
-  ],
-  DISMANTLE: [
-    { key: "photo_before", label: "Foto sebelum", type: "photo", required: true },
-    { key: "photo_after", label: "Foto sesudah", type: "photo", required: true },
-    { key: "notes", label: "Catatan", type: "text", required: false },
-  ],
-  OTHER: [
-    { key: "photo_before", label: "Foto sebelum", type: "photo", required: false },
-    { key: "photo_after", label: "Foto sesudah", type: "photo", required: false },
-    { key: "notes", label: "Catatan", type: "text", required: false },
-  ],
-};
+// Catatan: constant bawaan DEFAULT_CHECKLISTS (contoh per jenis servis) DIHAPUS —
+// checklist kini per layanan, opt-in, default kosong (keputusan user 2026-10-03).
+// Konsumen terakhirnya (legacy editor serviceType) sudah ikut dihapus di FASE 2.
 
 /** Template WA default (Bahasa Indonesia). Placeholder: {{customer}} {{tanggal}} {{jam}} {{teknisi}} {{unit}} {{alamat}} {{usaha}} {{harga}} */
 export const DEFAULT_WA_TEMPLATES: Record<string, string> = {
