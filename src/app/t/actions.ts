@@ -3,7 +3,7 @@
 import { getServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { transitionJob, TransitionError } from "@/lib/services/job-service";
-import { setChecklistItem, addJobPhoto } from "@/lib/services/job-work-service";
+import { addJobPhoto, assertCanOperateOnJob } from "@/lib/services/job-work-service";
 import { JobError } from "@/lib/services/job-management-service";
 import { listTechnicianJobHistory } from "@/lib/services/technician-service";
 import { putPhoto, isStorageConfigured } from "@/lib/storage/s3";
@@ -43,11 +43,7 @@ export async function techTransition(
     const { tenantId, userId, technicianId } = await requireTechnician();
 
     // Pastikan job ditugaskan ke teknisi ini.
-    const job = await prisma.jobOrder.findFirst({
-      where: { id: jobId, tenantId, technicianId },
-      select: { id: true },
-    });
-    if (!job) return { ok: false, error: "Pekerjaan tidak ditemukan / bukan tugas Anda" };
+    await assertCanOperateOnJob(tenantId, technicianId, jobId);
 
     await transitionJob({
       tenantId,
@@ -75,27 +71,6 @@ export async function techTransition(
   }
 }
 
-/** Simpan hasil checklist oleh teknisi. */
-export async function techSetChecklist(
-  jobId: string,
-  itemKey: string,
-  data: { checked?: boolean; value?: string | null },
-): Promise<TechActionResult> {
-  try {
-    const { tenantId, technicianId } = await requireTechnician();
-    const job = await prisma.jobOrder.findFirst({
-      where: { id: jobId, tenantId, technicianId }, select: { id: true },
-    });
-    if (!job) return { ok: false, error: "Bukan tugas Anda" };
-    await setChecklistItem(tenantId, jobId, itemKey, data);
-    revalidatePath(`/t/pekerjaan/${jobId}`);
-    return { ok: true };
-  } catch (err) {
-    console.error("[techSetChecklist] gagal:", err);
-    return { ok: false, error: "Gagal menyimpan checklist." };
-  }
-}
-
 /**
  * Upload foto bukti LEWAT SERVER (hindari CORS browser→S3) + catat ke DB dalam satu langkah.
  * SECURITY: tenant+job diverifikasi milik teknisi; byte diunggah server-side via putPhoto.
@@ -108,10 +83,8 @@ export async function techUploadPhoto(
   try {
     if (!isStorageConfigured()) return { ok: false, error: "Penyimpanan foto belum dikonfigurasi. Hubungi admin." };
     const { tenantId, technicianId } = await requireTechnician();
-    const job = await prisma.jobOrder.findFirst({
-      where: { id: jobId, tenantId, technicianId }, select: { id: true },
-    });
-    if (!job) return { ok: false, error: "Bukan tugas Anda" };
+    // SECURITY: job harus milik tenant DAN saya anggotanya (lead via technicianId atau kernet via JobAssignment).
+    await assertCanOperateOnJob(tenantId, technicianId, jobId);
     const file = fd.get("file");
     if (!(file instanceof File)) return { ok: false, error: "File tidak ditemukan" };
     const ct = file.type || "image/jpeg";

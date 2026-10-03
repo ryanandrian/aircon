@@ -31,6 +31,7 @@ export interface ChecklistGap {
 function isSatisfied(
   type: string,
   result: { checked: boolean; value: string | null } | undefined | null,
+  photoOwned?: (url: string) => boolean,
 ): boolean {
   if (!result) return false;
   if (type === "bool") return Boolean(result.checked);
@@ -39,7 +40,10 @@ function isSatisfied(
   const s = String(raw).trim();
   if (s === "") return false;
   if (type === "number") return Number.isFinite(Number(s));
-  // "text" | "photo" | tipe tak dikenal (data lama) -> cukup non-kosong
+  // Foto wajib: URL (hasil upload), dan bila penyedia service memberi predikat kepemilikan,
+  // URL harus benar-benar milik tenant+pekerjaan ini (isOwnedPhotoUrl dari storage/s3).
+  if (type === "photo") return /^https?:\/\//i.test(s) && (photoOwned ? photoOwned(s) : true);
+  // "text" | tipe tak dikenal (data lama) -> cukup non-kosong
   return true;
 }
 
@@ -48,16 +52,19 @@ function isSatisfied(
  * @param input.label  nama layanan (utk pesan error)
  * @param input.items  definisi item dari template
  * @param input.results hasil terakhir per itemKey (bisa kosong/tak lengkap)
+ * @param input.photoOwned opsional predikat kepemilikan URL foto (service menyuntikkan
+ *        `isOwnedPhotoUrl(tenantId, jobId, url)`); domain tetap pure tanpa import storage.
  */
 export function collectChecklistGaps(input: {
   label: string;
   items: ChecklistItemDef[];
   results: Record<string, { checked: boolean; value: string | null } | null | undefined>;
+  photoOwned?: (url: string) => boolean;
 }): ChecklistGap[] {
   const gaps: ChecklistGap[] = [];
   for (const item of input.items) {
     if (!item.required) continue; // opsional tidak pernah mengunci
-    if (!isSatisfied(item.type, input.results[item.key])) {
+    if (!isSatisfied(item.type, input.results[item.key], input.photoOwned)) {
       gaps.push({ itemKey: item.key, label: item.label });
     }
   }

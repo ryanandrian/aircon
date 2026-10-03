@@ -1,11 +1,12 @@
 /**
- * Job Service — orkestrasi transisi + efek money loop.
- * Menutup loop: COMPLETED -> next_service_date -> RepeatReminder.
+ * Job Service — orkestrasi transisi status NON-FINAL + efek money loop.
+ * Keputusan FASE 5 (2026-10-03): PELENGSAIAN DIAKUJI HANYA oleh closeWorkSession.
+ * transitionJob MENOLAK toStatus COMPLETED — tidak ada jalan pintas status final yang
+ * menghasilkan job selesai tanpa dokumen/reminder/review (bukti live: 1 job COMPLETED
+ * tanpa invoice berasal dari jalur paralel lama).
  */
 import { prisma } from "@/lib/prisma";
 import { canTransition } from "@/lib/domain/job-state-machine";
-import { computeNextServiceDate } from "@/lib/domain/money-loop";
-import { REPEAT_DEFAULTS } from "@/lib/domain/money-loop";
 import type { JobStatus, Role } from "@prisma/client";
 
 export class TransitionError extends Error {
@@ -29,11 +30,20 @@ interface TransitionInput {
 }
 
 /**
- * Transisi job dengan validasi state machine + guard + efek samping.
+ * Transisi job NON-FINAL dengan validasi state machine.
  * Idempoten via clientEventId.
+ * @throws TransitionError NOT_FOUND | ILLEGAL_TRANSITION | FORBIDDEN | GUARD_FAILED (alasan WAITING)
  */
 export async function transitionJob(input: TransitionInput) {
   const { tenantId, jobId, toStatus, actorId, role, clientEventId, meta } = input;
+
+  // FASE 5: penyelesaian = closeWorkSession (atomik dgn sesi+dokumen+efek).
+  if (toStatus === "COMPLETED") {
+    throw new TransitionError(
+      "ILLEGAL_TRANSITION",
+      "Penyelesaian hanya melalui Catat Pekerjaan (tutup sesi & terbitkan tagihan).",
+    );
+  }
 
   // Idempotency: kalau event sudah pernah diproses, kembalikan job apa adanya
   if (clientEventId) {
@@ -56,83 +66,15 @@ export async function transitionJob(input: TransitionInput) {
     throw new TransitionError(code, check.reason ?? "Transisi tidak valid");
   }
 
-  // Guard khusus COMPLETED: checklist required + foto after
-  if (toStatus === "COMPLETED") {
-    await assertCompletionGuards(tenantId, job.id, job.serviceType);
-  }
-
-  // Guard reason untuk WAITING/CANCELLED/RESCHEDULED
-  if ((toStatus === "WAITING" || toStatus === "CANCELLED" || toStatus === "RESCHEDULED") && !meta?.reason && toStatus === "WAITING") {
+  // Guard reason untuk WAITING
+  if (toStatus === "WAITING" && !meta?.reason) {
     throw new TransitionError("GUARD_FAILED", "Alasan wajib diisi", { missing: ["reason"] });
   }
 
-  // Eksekusi transisi + efek dalam satu transaksi
+  // Eksekusi transisi dalam satu transaksi (tanpa blok COMPLETED — lihat catatan di atas)
   const result = await prisma.$transaction(async (tx) => {
     const fromStatus = job.status;
     const data: Record<string, unknown> = { status: toStatus };
-    let nextServiceDate: Date | null = null;
-
-    if (toStatus === "COMPLETED") {
-      const completedAt = new Date();
-      data.completedAt = completedAt;
-
-      // Ambil interval dari asset (fallback tenant)
-      const asset = job.assetId
-        ? await tx.asset.findUnique({ where: { id: job.assetId } })
-        : null;
-      const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
-      nextServiceDate = computeNextServiceDate(
-        completedAt,
-        asset?.maintenanceIntervalDays,
-        tenant?.maintenanceIntervalDays,
-      );
-      data.nextServiceDate = nextServiceDate;
-
-      // Update asset next_service_date + buat reminder (INTI money loop)
-      if (asset) {
-        await tx.asset.update({
-          where: { id: asset.id },
-          data: { nextServiceDate },
-        });
-        const leadDays = tenant?.reminderLeadDays ?? REPEAT_DEFAULTS.reminderLeadDays;
-        await tx.repeatReminder.upsert({
-          where: { tenantId_assetId_dueDate: { tenantId, assetId: asset.id, dueDate: nextServiceDate } },
-          create: { tenantId, assetId: asset.id, dueDate: nextServiceDate, leadTimeDays: leadDays, status: "QUEUED" },
-          update: {},
-        });
-      }
-
-      // B5 fix: unit TAMBAHAN yang dikerjakan on-site (WorkItem di WorkSession job ini)
-      // juga dapat next_service_date + reminder — bukan hanya job.assetId.
-      const leadDays = tenant?.reminderLeadDays ?? REPEAT_DEFAULTS.reminderLeadDays;
-      const sessions = await tx.workSession.findMany({
-        where: { tenantId, jobId: job.id },
-        select: { items: { select: { assetId: true } } },
-      });
-      const servicedAssetIds = new Set<string>();
-      for (const s of sessions) for (const it of s.items) if (it.assetId) servicedAssetIds.add(it.assetId);
-      if (job.assetId) servicedAssetIds.delete(job.assetId); // sudah ditangani di atas
-      if (servicedAssetIds.size > 0) {
-        const extraAssets = await tx.asset.findMany({
-          where: { id: { in: [...servicedAssetIds] }, tenantId },
-          select: { id: true, maintenanceIntervalDays: true },
-        });
-        for (const a of extraAssets) {
-          const due = computeNextServiceDate(completedAt, a.maintenanceIntervalDays, tenant?.maintenanceIntervalDays);
-          await tx.asset.update({ where: { id: a.id }, data: { nextServiceDate: due } });
-          await tx.repeatReminder.upsert({
-            where: { tenantId_assetId_dueDate: { tenantId, assetId: a.id, dueDate: due } },
-            create: { tenantId, assetId: a.id, dueDate: due, leadTimeDays: leadDays, status: "QUEUED" },
-            update: {},
-          });
-        }
-      }
-
-      // Review request otomatis
-      await tx.reviewRequest.create({
-        data: { tenantId, jobId: job.id, channel: "WA", status: "REQUESTED" },
-      });
-    }
 
     const updated = await tx.jobOrder.update({ where: { id: job.id }, data });
 
@@ -143,49 +85,8 @@ export async function transitionJob(input: TransitionInput) {
       },
     });
 
-    return { updated, nextServiceDate };
+    return { updated };
   });
 
-  return { job: result.updated, nextServiceDate: result.nextServiceDate, idempotentReplay: false };
-}
-
-/**
- * Guard COMPLETED (checklist per-layanan×unit DITEGAKKAN di titik lain: penutupan Catat Pekerjaan /
- * closeWorkSession — lihat assertWorkSessionChecklist). Di sini HANYA sisa jalur LEGACY per-serviceType
- * untuk job/tenant lama yang belum bermigrasi. Tanpa template legacy = tidak mengunci (opt-in).
- */
-async function assertCompletionGuards(tenantId: string, jobId: string, serviceType: string) {
-  const missing: string[] = [];
-
-  const template = await prisma.checklistTemplate.findFirst({
-    where: { tenantId, serviceType: serviceType as never },
-  });
-  if (!template) return; // tidak ada template legacy = tidak ada guard
-
-  const items = (template.items as { key: string; required: boolean; type: string }[]) ?? [];
-  const requiredKeys = items.filter((i) => i.required).map((i) => i.key);
-  if (requiredKeys.length === 0) return;
-
-  const results = await prisma.checklistResult.findMany({ where: { tenantId, jobId } });
-  const resultMap = new Map(results.map((r) => [r.itemKey, r]));
-
-  for (const item of items.filter((i) => i.required)) {
-    const r = resultMap.get(item.key);
-    if (!r) { missing.push(item.key); continue; }
-    if (item.type === "bool" && !r.checked) missing.push(item.key);
-    if ((item.type === "number" || item.type === "text") && !r.value) missing.push(item.key);
-    if (item.type === "photo" && !r.value) missing.push(item.key);
-  }
-
-  // foto after: cek JobPhoto bila template minta photo_after
-  if (items.some((i) => i.key === "photo_after" && i.required)) {
-    const hasAfter = await prisma.jobPhoto.count({ where: { tenantId, jobId, kind: "after" } });
-    if (hasAfter === 0 && !resultMap.get("photo_after")?.value) {
-      if (!missing.includes("photo_after")) missing.push("photo_after");
-    }
-  }
-
-  if (missing.length > 0) {
-    throw new TransitionError("GUARD_FAILED", "Checklist wajib belum lengkap", { missing });
-  }
+  return { job: result.updated, nextServiceDate: null, idempotentReplay: false };
 }

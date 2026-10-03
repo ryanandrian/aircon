@@ -26,7 +26,8 @@ export const TRANSITIONS: Transition[] = [
   { from: "ARRIVED", to: "IN_PROGRESS", roles: ["TECHNICIAN"], effects: ["start_work", "replan_next"] },
   { from: "IN_PROGRESS", to: "WAITING", roles: ["TECHNICIAN"], guards: ["reason"], effects: ["pause", "replan_next"] },
   { from: "WAITING", to: "IN_PROGRESS", roles: ["TECHNICIAN"], effects: ["resume"] },
-  { from: "IN_PROGRESS", to: "COMPLETED", roles: ["TECHNICIAN"], guards: ["checklist_required_done", "photo_after_if_required"], effects: ["set_completed_at", "compute_next_service_date", "create_repeat_reminder", "trigger_review_request"] },
+  // COMPLETED sengaja TIDAK didaftarkan di state-machine umum; satu-satunya finalisasi
+  // adalah closeWorkSession (gate checklist + invoice/proforma + money-loop atomik).
   // Reschedule dari state kerja
   { from: "ACCEPTED", to: "RESCHEDULED", roles: ["OWNER", "ADMIN"], guards: ["new_window"], effects: ["replan", "notify_customer_after_approval"] },
   { from: "EN_ROUTE", to: "RESCHEDULED", roles: ["OWNER", "ADMIN"], guards: ["new_window"], effects: ["replan", "notify_customer_after_approval"] },

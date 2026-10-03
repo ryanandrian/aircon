@@ -1,8 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { existsSync } from "node:fs";
 import path from "node:path";
 // Memuat .env seperti prisma.config.ts (dotenv sudah jadi dependensi repo).
 import "dotenv/config";
+
+// `s3.ts` memakai `server-only` (alias Next) yang tak ter-resolve Vitest — mock boundary-nya.
+// Verifikasi integrasi s3.ts yang sesungguhnya dibuktikan oleh `pnpm run build` (gate).
+vi.mock("@/lib/storage/s3", () => ({
+  isOwnedPhotoUrl: () => false,
+}));
 
 /**
  * FASE 1 — smoke test READ-ONLY checklist terhadap SKEMA DB ASLI.
@@ -42,7 +48,7 @@ describe.skipIf(!hasDb)("smoke DB asli (read-only) — checklist per layanan", (
 
     // Bentuk kueri PERSIS seperti di assertWorkSessionChecklist.
     const templates = await prisma.checklistTemplate.findMany({
-      where: { tenantId: { not: "" }, serviceId: { not: null } },
+      where: { tenantId: { not: "" } },
       select: { serviceId: true, items: true },
       take: 10,
     });
@@ -67,10 +73,13 @@ describe.skipIf(!hasDb)("smoke DB asli (read-only) — checklist per layanan", (
     const { prisma } = await import("../src/lib/prisma");
     const { collectChecklistGaps } = await import("../src/lib/domain/checklist-validation");
 
-    const templates = await prisma.checklistTemplate.findMany({
-      where: { serviceId: { not: null } },
-      select: { items: true },
+    const all = await prisma.checklistTemplate.findMany({
+      where: { tenantId: { not: "" } },
+      select: { serviceId: true, items: true },
     });
+    // Skema baru mewajibkan serviceId, tetapi DB live masih menyimpan baris legacy
+    // (kolom di-drop setelah migrasi berjalan) — saring per-layanan agar niat tes terjaga.
+    const templates = all.filter((t) => t.serviceId);
     for (const t of templates) {
       const items = (t.items ?? []) as unknown as Parameters<typeof collectChecklistGaps>[0]["items"];
       // Tanpa hasil sama sekali: item required harus terdeteksi, opsional tidak.

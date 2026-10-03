@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Icon } from "@/components/icons";
 import { actionAddWorkItem, actionRemoveWorkItem, actionCloseWorkSession, actionGetItemChecklist, actionSetItemChecklist, actionTechCreateAsset, actionTechSuggestBrands, actionTechSuggestModels } from "../actions";
+import { techUploadPhoto } from "../../actions";
 
 type Catalog = { id: string; name: string; unit: string; standardPrice: number; category: string };
 type Asset = { id: string; label: string };
@@ -78,11 +79,12 @@ function NewUnitForm({ customerId, onCreated }: { customerId: string; onCreated:
 type CItem = { key: string; label: string; type: "bool" | "number" | "text" | "photo"; required: boolean; checked: boolean; value: string | null };
 
 /** Checklist per baris pekerjaan (layanan × unit). Lazy-load; sembunyi bila layanan tak punya checklist. */
-function ItemChecklist({ workItemId }: { workItemId: string }) {
+function ItemChecklist({ workItemId, jobId }: { workItemId: string; jobId: string | null }) {
   const [items, setItems] = useState<CItem[] | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pending, start] = useTransition();
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null);
 
   function load() {
     if (items !== null) { setOpen((o) => !o); return; }
@@ -103,6 +105,27 @@ function ItemChecklist({ workItemId }: { workItemId: string }) {
   }
   function saveVal(key: string, value: string) {
     start(async () => { const r = await actionSetItemChecklist(workItemId, key, { value }); if (!r.ok) toast.error(r.error); });
+  }
+  async function uploadPhoto(key: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!jobId) { toast.error("Sesi ini belum terkait pekerjaan — foto wajib tidak bisa diunggah."); e.target.value = ""; return; }
+    setPhotoBusy(key);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await techUploadPhoto(jobId, "after", fd);
+      if (!res.ok) { toast.error(res.error); return; }
+      const r = await actionSetItemChecklist(workItemId, key, { value: res.publicUrl });
+      if (!r.ok) { toast.error(r.error); return; }
+      setItems((prev) => prev?.map((i) => (i.key === key ? { ...i, value: res.publicUrl } : i)) ?? prev);
+      toast.success("Foto tersimpan");
+    } catch {
+      toast.error("Gagal mengunggah foto. Coba lagi.");
+    } finally {
+      setPhotoBusy(null);
+      e.target.value = "";
+    }
   }
 
   // Sembunyikan sepenuhnya bila sudah dimuat & ternyata kosong (layanan tanpa checklist).
@@ -130,6 +153,29 @@ function ItemChecklist({ workItemId }: { workItemId: string }) {
                   <input type="checkbox" checked={it.checked} disabled={pending} onChange={(e) => setBool(it.key, e.target.checked)} className="h-5 w-5 rounded border-border" />
                   <span className="text-sm text-foreground">{it.label}{it.required && <span className="text-red-500"> *</span>}</span>
                 </label>
+              ) : it.type === "photo" ? (
+                <div>
+                  <label className="block text-xs text-muted-foreground">{it.label}{it.required && <span className="text-red-500"> *</span>}</label>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    {/* Kamera dulu (HP lapangan) + pemilihan berkas galeri. input file standar = UI existing. */}
+                    <label className="flex min-h-[44px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-border text-sm text-foreground active:bg-muted">
+                      <Icon.Upload className="h-4 w-4" aria-hidden />
+                      {photoBusy === it.key ? "Mengunggah…" : it.value ? "Ganti foto" : "Ambil / pilih foto"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        disabled={photoBusy !== null}
+                        onChange={(e) => uploadPhoto(it.key, e)}
+                        className="sr-only"
+                      />
+                    </label>
+                    {photoBusy === it.key && <span className="text-xs text-muted-foreground">…</span>}
+                    {it.value && photoBusy !== it.key && (
+                      <a href={it.value} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-sky-600 hover:underline">Lihat foto</a>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div>
                   <label className="block text-xs text-muted-foreground">{it.label}{it.required && <span className="text-red-500"> *</span>}</label>
@@ -151,10 +197,12 @@ function ItemChecklist({ workItemId }: { workItemId: string }) {
 }
 
 export function WorkSessionScreen({
-  wsId, customerId, customerName, isTempo, catalog, assets, initialItems, assignment,
+  wsId, customerId, customerName, isTempo, catalog, assets, initialItems, assignment, jobId,
 }: {
   wsId: string; customerId: string; customerName: string; isTempo: boolean;
   catalog: Catalog[]; assets: Asset[]; initialItems: Item[]; assignment?: Assignment;
+  /** pekerjaan terkait sesi ini (WorkSession.jobId) — tanpa ini item foto wajib tak bisa diunggah. */
+  jobId: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -304,7 +352,7 @@ export function WorkSessionScreen({
                         <Icon.Close className="h-4 w-4" aria-hidden />
                       </button>
                     </div>
-                    <ItemChecklist workItemId={it.id} />
+                    <ItemChecklist workItemId={it.id} jobId={jobId} />
                   </div>
                 ))}
               </div>

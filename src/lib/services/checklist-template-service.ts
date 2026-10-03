@@ -26,7 +26,7 @@ export async function listServiceChecklists(tenantId: string): Promise<ServiceCh
       orderBy: [{ active: "desc" }, { category: "asc" }, { name: "asc" }],
       select: { id: true, code: true, name: true, category: true, active: true },
     }),
-    prisma.checklistTemplate.findMany({ where: { tenantId, serviceId: { not: null } } }),
+    prisma.checklistTemplate.findMany({ where: { tenantId } }),
   ]);
   const byService = new Map(templates.map((t) => [t.serviceId as string, t.items as unknown as ChecklistItem[]]));
   return services.map((s) => {

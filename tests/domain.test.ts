@@ -10,17 +10,17 @@ describe("job state machine", () => {
   it("menolak transisi ilegal DRAFT->COMPLETED", () => {
     expect(canTransition("DRAFT", "COMPLETED", "OWNER").ok).toBe(false);
   });
-  it("COMPLETED hanya dari IN_PROGRESS", () => {
-    expect(findTransition("IN_PROGRESS", "COMPLETED")).toBeTruthy();
+  it("COMPLETED tidak tersedia sebagai transisi umum; finalisasi hanya closeWorkSession", () => {
+    expect(findTransition("IN_PROGRESS", "COMPLETED")).toBeUndefined();
     expect(findTransition("ARRIVED", "COMPLETED")).toBeUndefined();
   });
   it("teknisi tidak boleh assign job", () => {
     expect(canTransition("DRAFT", "ASSIGNED", "TECHNICIAN").ok).toBe(false);
   });
-  it("completion memicu efek next_service_date + reminder", () => {
-    const t = findTransition("IN_PROGRESS", "COMPLETED");
-    expect(t?.effects).toContain("compute_next_service_date");
-    expect(t?.effects).toContain("create_repeat_reminder");
+  it("completion effects dipicu oleh finalizer closeWorkSession (diuji pada service test)", () => {
+    // State-machine umum tidak lagi mendeskripsikan efek COMPLETED; owner finalizer tunggal
+    // dibuktikan pada tests/worksession.test.ts — tidak boleh ada duplikasi metadata lama.
+    expect(findTransition("IN_PROGRESS", "COMPLETED")).toBeUndefined();
   });
 });
 

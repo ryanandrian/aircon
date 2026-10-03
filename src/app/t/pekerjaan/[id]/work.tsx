@@ -2,23 +2,14 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { techTransition, techSetChecklist, techUploadPhoto } from "../../actions";
+import { techTransition, techUploadPhoto } from "../../actions";
 import { nextTechAction } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import type { JobStatus } from "@prisma/client";
 
-interface ChecklistItem {
-  key: string;
-  label: string;
-  type: "bool" | "number" | "text" | "photo";
-  required: boolean;
-  checked: boolean;
-  value: string | null;
-}
 interface Photo { id: string; kind: string; url: string }
 
 function genEventId(): string {
@@ -26,14 +17,13 @@ function genEventId(): string {
 }
 
 export function TechJobWork({
-  jobId, status, checklist, photos, storageReady,
+  jobId, customerId, status, photos, storageReady,
 }: {
-  jobId: string; status: JobStatus; checklist: ChecklistItem[]; photos: Photo[]; storageReady: boolean;
+  jobId: string; customerId: string; status: JobStatus; photos: Photo[]; storageReady: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
-  const [items, setItems] = useState(checklist);
   const [pics, setPics] = useState(photos);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -41,23 +31,9 @@ export function TechJobWork({
   const action = nextTechAction(status);
   const working = status === "IN_PROGRESS" || status === "WAITING";
   const showWork = ["ARRIVED", "IN_PROGRESS", "WAITING"].includes(status);
+  // Tombol non-final tetap memakai state-machine action. COMPLETED dikerjakan via WorkSession.
+  const finalizationAction = action?.to === "COMPLETED" ? null : action;
 
-  function toggleBool(key: string, checked: boolean) {
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, checked } : i)));
-    start(async () => {
-      const res = await techSetChecklist(jobId, key, { checked });
-      if (!res.ok) setMsg(res.error);
-    });
-  }
-  function setValue(key: string, value: string) {
-    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, value } : i)));
-  }
-  function saveValue(key: string, value: string) {
-    start(async () => {
-      const res = await techSetChecklist(jobId, key, { value });
-      if (!res.ok) setMsg(res.error);
-    });
-  }
 
   async function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -91,45 +67,6 @@ export function TechJobWork({
 
   return (
     <>
-      {showWork && items.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-sm font-semibold text-muted-foreground">Checklist Pekerjaan</h2>
-            <ul className="mt-2 space-y-3">
-                {items.map((it) => (
-                  <li key={it.key}>
-                    {it.type === "bool" ? (
-                      <label className="flex min-h-[44px] items-center gap-3">
-                        <input
-                          type="checkbox" checked={it.checked}
-                          onChange={(e) => toggleBool(it.key, e.target.checked)}
-                          className="h-6 w-6 rounded border-border"
-                        />
-                        <span className="text-sm text-foreground">
-                          {it.label}{it.required && <span className="text-red-500"> *</span>}
-                        </span>
-                      </label>
-                    ) : (
-                      <div>
-                        <label className="block text-sm text-foreground">
-                          {it.label}{it.required && <span className="text-red-500"> *</span>}
-                        </label>
-                        <Input
-                          type={it.type === "number" ? "number" : "text"}
-                          defaultValue={it.value ?? ""}
-                          onChange={(e) => setValue(it.key, e.target.value)}
-                          onBlur={(e) => saveValue(it.key, e.target.value)}
-                          className="mt-1 min-h-[44px]"
-                        />
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-          </CardContent>
-        </Card>
-      )}
-
       {showWork && (
         <Card>
           <CardContent className="p-4">
@@ -168,8 +105,10 @@ export function TechJobWork({
         <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">{msg}</p>
       )}
 
-      {/* Aksi utama — sticky bawah, jempol mudah menjangkau */}
-      {action && (
+      {/* Aksi utama — sticky bawah, jempol mudah menjangkau.
+          Saat IN_PROGRESS, tombol "Selesaikan" diganti rujukan ke Catat Pekerjaan (jalur finalisasi);
+          tombol "Tunda" tetap tampil agar pekerjaan bisa ditunda. */}
+      {(finalizationAction || working) && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background p-4">
           <div className="mx-auto flex max-w-md gap-2">
             {working && (
@@ -189,15 +128,24 @@ export function TechJobWork({
                 Tunda
               </Button>
             )}
-            <Button
-              type="button"
-              onClick={() => doTransition(action.to)}
-              disabled={pending || uploading}
-              className="min-h-[52px] flex-1 rounded-2xl bg-sky-500 text-white hover:bg-sky-600"
-            >
-              {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              {pending ? "Memproses…" : action.label}
-            </Button>
+            {finalizationAction ? (
+              <Button
+                type="button"
+                onClick={() => doTransition(finalizationAction.to)}
+                disabled={pending || uploading}
+                className="min-h-[52px] flex-1 rounded-2xl bg-sky-500 text-white hover:bg-sky-600"
+              >
+                {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                {pending ? "Memproses…" : finalizationAction.label}
+              </Button>
+            ) : status === "IN_PROGRESS" && showWork ? (
+              <a
+                href={`/t/kerja/${customerId}?job=${jobId}`}
+                className="min-h-[52px] flex-1 rounded-2xl bg-emerald-600 px-4 text-center font-semibold text-white hover:bg-emerald-700 flex items-center justify-center gap-2"
+              >
+                <Icon.Check className="h-5 w-5" aria-hidden /> Selesaikan &amp; Tagihan
+              </a>
+            ) : null}
           </div>
         </div>
       )}

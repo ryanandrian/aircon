@@ -1,3 +1,23 @@
+## PENETAPAN TERBARU (2026-10-03 — menggantikan rencana transisi/dual-read di bawah)
+
+- Jalur legacy checklist per `serviceType`/`jobId` adalah fosil dan harus dibersihkan; data Jaya Mandiri
+  yang dirujuk sebelumnya adalah demo/dummy (klasifikasi user), bukan pelanggan asli dan bukan alasan
+  mempertahankan source.
+- Satu sumber checklist: `ChecklistTemplate.serviceId` + `ChecklistResult.workItemId`, per layanan×unit,
+  opsional dan default kosong.
+- Teknisi/kernet mengisi progresif selama pekerjaan berjalan. Tipe `photo` = upload file ATAU capture
+  kamera HP ke S3, bukan kolom teks.
+- Hanya satu finalisasi: Catat Pekerjaan / `closeWorkSession` mengunci checklist, menutup sesi,
+  menyelesaikan JobOrder, menerbitkan Invoice/Proforma dan efek reminder/review tepat satu kali.
+- Implementasi/status live jangan ditebak: lihat file rencana aktif `.hermes/plans/2026-10-03_checklist-service-alignment.md`
+  dan hasil gate/commit/deploy yang dicatat di sana.
+- File ini setelah baris ini adalah arsip historis 2026-09-08; checklist `[ ]` dan pernyataan dual-read
+  di bawah tidak menggambarkan target atau status kode saat ini.
+
+---
+
+## ARSIP HISTORIS — rencana 2026-09-08 (bukan status saat ini)
+
 # Rencana Perbaikan Checklist Servis — Per Layanan × Unit (Aircon, GO-LIVE)
 
 Status: TERLAKSANA (FASE 1a + FASE 2) 2026-09-08. Disusun dari deep-dive kode.

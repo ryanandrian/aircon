@@ -3,7 +3,6 @@ import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { getJob } from "@/lib/services/job-management-service";
-import { getJobChecklist } from "@/lib/services/job-work-service";
 import { isStorageConfigured } from "@/lib/storage/s3";
 import { normalizePhone } from "@/lib/wa/gateway";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
@@ -28,8 +27,6 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
 
   const job = await getJob(ctx.tenantId, id);
   if (!job || job.technicianId !== tech.id) notFound();
-
-  const checklist = await getJobChecklist(ctx.tenantId, id);
 
   return (
     <main className="min-h-screen bg-muted/40 pb-28">
@@ -100,8 +97,8 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
         {/* Bagian kerja interaktif (checklist, foto, tombol status) */}
         <TechJobWork
           jobId={job.id}
+          customerId={job.customerId}
           status={job.status}
-          checklist={checklist}
           photos={job.photos.map((p) => ({ id: p.id, kind: p.kind, url: p.url }))}
           storageReady={isStorageConfigured()}
         />

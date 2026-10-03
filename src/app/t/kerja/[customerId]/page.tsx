@@ -75,6 +75,7 @@ export default async function KerjaPage({ params, searchParams }: {
         assets={assets}
         initialItems={items}
         assignment={assignment}
+        jobId={ws.jobId ?? null}
       />
     </main>
   );

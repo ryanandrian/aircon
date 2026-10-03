@@ -80,7 +80,14 @@ describe("collectChecklistGaps — FASE 1 validator", () => {
     expect(collectChecklistGaps({ label: "X", items, results: { c: { checked: false, value: null } } })).toHaveLength(1);
   });
 
-  it("photo required: cukup ada nilai terisi (tampilan photo = input teks pada jalur baru)", () => {
+  it("photo required: menolak nilai arbitrary yang bukan URL foto (mis. nama file/teks)", () => {
+    const items = tpl([{ key: "p", label: "Foto sesudah", type: "photo", required: true }]);
+    const gaps = collectChecklistGaps({ label: "X", items, results: { p: { checked: false, value: "hasil-servis" } } });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].itemKey).toBe("p");
+  });
+
+  it("photo required: URL nyata terisi -> lulus (upload/photo control akan menulis nilai ini)", () => {
     const items = tpl([{ key: "p", label: "Foto sesudah", type: "photo", required: true }]);
     expect(collectChecklistGaps({ label: "X", items, results: { p: { checked: false, value: "https://x/f.jpg" } } })).toEqual([]);
     expect(collectChecklistGaps({ label: "X", items, results: { p: { checked: false, value: "" } } })).toHaveLength(1);

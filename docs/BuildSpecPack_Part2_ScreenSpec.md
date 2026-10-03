@@ -39,17 +39,20 @@ Aturan: teknisi tidak pernah melihat menu owner. Role menentukan nav yang di-ren
 - **Tombol aksi status besar** (berubah sesuai state machine), 1-tap:
   - ACCEPTED → [Terima]
   - [Berangkat] (EN_ROUTE) → [Sampai] (ARRIVED) → [Mulai Kerja] (IN_PROGRESS)
-  - saat IN_PROGRESS: [Jeda] (WAITING, minta alasan) · [Selesai] (→S-T3)
+  - saat IN_PROGRESS: [Jeda] (WAITING, minta alasan) · [Selesaikan & Tagihan] (buka Catat Pekerjaan → S-T3)
 - Setiap tap: optimistik update + masuk antrian sync bila offline.
 
-## S-T3 · Selesaikan Job (gate COMPLETED)
-> ⚠️ UPDATE 2026-09-08: penegakan checklist WAJIB PINDAH ke penutupan **Catat Pekerjaan** (WorkSession →
-> `closeWorkSession`/`assertWorkSessionChecklist`), per **layanan×unit**, opt-in. Guard COMPLETED tak lagi
-> mengecek per-unit (sisa hanya legacy per-jenis-service utk job lama). SSOT hidup: `docs/PLAN_Checklist_PerLayananUnit.md`. Teks di bawah = konteks historis.
-- **Checklist** (dari template jenis service): item wajib ditandai jelas; tak bisa selesai bila wajib belum lengkap.
-- **Foto**: [Ambil Before]/[Ambil After] (kamera langsung, auto-kompres). Foto after wajib bila template minta.
-- {Catatan hasil}, {Harga} (opsional, bila teknisi diizinkan).
-- [Selesaikan] → validasi guard → COMPLETED → toast "Job selesai. Pengingat servis berikutnya otomatis dibuat." → kembali S-T1.
+## S-T3 · Selesaikan Job (penyelesaian = Catat Pekerjaan / closeWorkSession)
+> ✅ UPDATE 2026-10-03: penyelesaian DISEMUAKAN ke satu jalur — **Catat Pekerjaan**
+> (`closeWorkSession`): gate checklist per layanan×unit → tutup sesi → JobOrder COMPLETED →
+> Invoice/Proforma + jadwal servis berikutnya + RepeatReminder + ReviewRequest, semuanya dalam satu
+> transaksi atomik. Tombol status COMPLETED lama (guard legacy per jenis servis) DIHAPUS; state-machine
+> umum tak lagi mendaftarkan transisi `IN_PROGRESS→COMPLETED`. SSOT hidup:
+> `.hermes/plans/2026-10-03_checklist-service-alignment.md`. Teks di bawah = konteks historis.
+- **Checklist** (per layanan, di baris WorkItem unit terkait): item wajib harus lengkap — teknisi
+  mengisi progresif selama pengerjaan; photo = upload/kamera HP. Tidak bisa tutup sesi bila belum lengkap.
+- {Catatan hasil}, {Harga} opsional (bila teknisi diizinkan).
+- [Tutup sesi & buat tagihan] → gate lolos → sesi CLOSED + job COMPLETED + Invoice/Proforma (tepat 1×).
 
 ## S-T4 · Profil teknisi
 - Nama, kontak, skill (read), ringkasan performa (job selesai minggu ini, on-time%). [Keluar].

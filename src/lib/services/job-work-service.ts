@@ -12,44 +12,31 @@ interface ChecklistItemDef {
   required: boolean;
 }
 
-/** Ambil template checklist + hasil saat ini untuk sebuah job. */
-export async function getJobChecklist(tenantId: string, jobId: string) {
-  const job = await prisma.jobOrder.findFirst({ where: { id: jobId, tenantId }, select: { serviceType: true } });
-  if (!job) throw new JobError("NOT_FOUND", "Pekerjaan tidak ditemukan");
-
-  const template = await prisma.checklistTemplate.findUnique({
-    where: { tenantId_serviceType: { tenantId, serviceType: job.serviceType } },
+/**
+ * Apakah `personId` (Technician.id — mencakup TEKNISI & KERNET) boleh bekerja pada sebuah job?
+ *
+ * Bukti DB live (read-only 2026-10-03): JobAssignment berisi 70 TECHNICIAN + 23 KERNET, dan pada
+ * 3 sampel penugasan kernet `job.technicianId` menunjuk teknisi LAIN (MATCH=false). Pemeriksaan lama
+ * yang hanya `job.technicianId === saya` akan menolak kernet yang sah ditugaskan.
+ * Tenant-scoped: job di query dengan `tenantId`.
+ */
+export async function assertCanOperateOnJob(tenantId: string, personId: string, jobId: string): Promise<void> {
+  const job = await prisma.jobOrder.findFirst({
+    where: { id: jobId, tenantId },
+    select: { id: true, technicianId: true },
   });
-  const items = ((template?.items as unknown as ChecklistItemDef[]) ?? []);
-  const results = await prisma.checklistResult.findMany({ where: { tenantId, jobId } });
-  const resultMap = new Map(results.map((r) => [r.itemKey, r]));
+  if (!job) throw new JobError("FORBIDDEN", "Bukan tugas Anda");
+  if (job.technicianId === personId) return;
 
-  return items.map((it) => ({
-    ...it,
-    checked: resultMap.get(it.key)?.checked ?? false,
-    value: resultMap.get(it.key)?.value ?? null,
-  }));
+  const assignment = await prisma.jobAssignment.findFirst({
+    where: { jobId: job.id, tenantId, personId },
+    select: { id: true },
+  });
+  if (!assignment) throw new JobError("FORBIDDEN", "Bukan tugas Anda");
 }
 
-/** Simpan/hapus satu hasil checklist (upsert). SECURITY: verifikasi job milik tenant. */
-export async function setChecklistItem(
-  tenantId: string,
-  jobId: string,
-  itemKey: string,
-  data: { checked?: boolean; value?: string | null },
-) {
-  const job = await prisma.jobOrder.findFirst({ where: { id: jobId, tenantId }, select: { id: true } });
-  if (!job) throw new JobError("NOT_FOUND", "Pekerjaan tidak ditemukan");
-
-  return prisma.checklistResult.upsert({
-    where: { tenantId_jobId_itemKey: { tenantId, jobId, itemKey } },
-    create: { tenantId, jobId, itemKey, checked: data.checked ?? false, value: data.value ?? null },
-    update: {
-      ...(data.checked !== undefined ? { checked: data.checked } : {}),
-      ...(data.value !== undefined ? { value: data.value } : {}),
-    },
-  });
-}
+// Jalur checklist legacy berbasis `JobOrder.serviceType` + `ChecklistResult.jobId` telah DIHAPUS.
+// Satu-satunya checklist kini per layanan × unit melalui fungsi WorkItem di bawah.
 
 /** Catat foto bukti pekerjaan (before/after/general). SECURITY: verifikasi job milik tenant. */
 export async function addJobPhoto(

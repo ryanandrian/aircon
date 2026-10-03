@@ -13,6 +13,8 @@ import {
   type InvoiceLineInput, type TopType,
 } from "@/lib/services/invoice-service";
 import { collectChecklistGaps, type ChecklistItemDef } from "@/lib/domain/checklist-validation";
+import { computeNextServiceDate, REPEAT_DEFAULTS } from "@/lib/domain/money-loop";
+import { isOwnedPhotoUrl } from "@/lib/storage/s3";
 
 /** Buka (atau ambil) sesi kerja OPEN untuk pelanggan. Idempoten: 1 sesi OPEN per pelanggan. */
 export async function openWorkSession(
@@ -20,6 +22,19 @@ export async function openWorkSession(
 ): Promise<string> {
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId }, select: { id: true } });
   if (!customer) throw new ServiceError("NOT_FOUND", "Pelanggan tidak ditemukan");
+
+  // Keamanan FASE 6: jobId dari klien wajib diverifikasi — harus milik tenant ini DAN
+  // untuk customer yang sama. Tanpa ini, sesi pelanggan A bisa tertaut ke pekerjaan pelanggan B.
+  if (jobId) {
+    const job = await prisma.jobOrder.findFirst({
+      where: { id: jobId, tenantId },
+      select: { id: true, customerId: true },
+    });
+    if (!job || job.customerId !== customerId) {
+      throw new ServiceError("NOT_FOUND", "Pekerjaan tidak ditemukan atau bukan milik pelanggan ini");
+    }
+  }
+
   const existing = await prisma.workSession.findFirst({
     where: { tenantId, customerId, status: "OPEN" }, select: { id: true, jobId: true },
   });
@@ -105,6 +120,13 @@ export async function getWorkSession(tenantId: string, workSessionId: string) {
  * @throws ServiceError('GUARD_FAILED') dgn daftar unit+item yang belum lengkap.
  */
 export async function assertWorkSessionChecklist(tenantId: string, workSessionId: string): Promise<void> {
+  // Konteks kepemilikan foto: item `photo` harus URL milik tenant+pekerjaan sesi ini.
+  const wsCtx = await prisma.workSession.findFirst({
+    where: { id: workSessionId, tenantId },
+    select: { jobId: true },
+  });
+  const ownerJobId = wsCtx?.jobId ?? null;
+
   const items = await prisma.workItem.findMany({
     where: { tenantId, workSessionId, serviceId: { not: null } },
     select: { id: true, serviceId: true, descSnapshot: true },
@@ -141,6 +163,11 @@ export async function assertWorkSessionChecklist(tenantId: string, workSessionId
       label: wi.descSnapshot,
       items: tpl,
       results: resultsByWorkItem.get(wi.id) ?? {},
+      // Foto hanya sah bila URL milik tenant+pekerjaan sesi ini. Tanpa jobId → selalu gagal
+      // (satu-satunya jalur upload menuntut pekerjaan), jadi tak ada "lolos palsu".
+      photoOwned: ownerJobId
+        ? (url: string) => isOwnedPhotoUrl(tenantId, ownerJobId, url)
+        : () => false,
     });
     for (const g of gaps) missing.push(`${wi.descSnapshot}: ${g.label}`);
   }
@@ -207,6 +234,77 @@ export async function closeWorkSession(
     if (claimed.count !== 1) {
       throw new ServiceError("CONFLICT", "Sesi sudah ditutup. Muat ulang halaman.");
     }
+
+    if (ws.jobId) {
+      const job = await tx.jobOrder.findUnique({ where: { id: ws.jobId } });
+      if (!job || job.tenantId !== tenantId || job.customerId !== ws.customer.id) {
+        throw new ServiceError("CONFLICT", "Pekerjaan pada sesi tidak cocok dengan pelanggan.");
+      }
+      if (job.status !== "IN_PROGRESS" && job.status !== "WAITING" && job.status !== "ARRIVED") {
+        throw new ServiceError("CONFLICT", `Pekerjaan tidak dapat diselesaikan dari status ${job.status}.`);
+      }
+      // FASE 4: satukan COMPLETED + next-service + reminder/review/event dengan invoice dan close sesi.
+      // Efek & batas interval mengikuti `transitionJob(COMPLETED)` yang sebelumnya hidup terpisah.
+      const completedAt = new Date();
+      const primaryAsset = job.assetId
+        ? await tx.asset.findUnique({ where: { id: job.assetId } })
+        : null;
+      const tenantSchedule = await tx.tenant.findUnique({ where: { id: tenantId } });
+      const nextServiceDate = computeNextServiceDate(
+        completedAt,
+        primaryAsset?.maintenanceIntervalDays,
+        tenantSchedule?.maintenanceIntervalDays,
+      );
+      await tx.jobOrder.update({
+        where: { id: job.id },
+        data: { status: "COMPLETED", completedAt, nextServiceDate },
+      });
+
+      const leadDays = tenantSchedule?.reminderLeadDays ?? REPEAT_DEFAULTS.reminderLeadDays;
+      const servicedAssetIds = new Set<string>();
+      if (job.assetId) servicedAssetIds.add(job.assetId);
+      const sessions = await tx.workSession.findMany({
+        where: { tenantId, jobId: job.id },
+        select: { items: { select: { assetId: true } } },
+      });
+      for (const session of sessions) {
+        for (const item of session.items) if (item.assetId) servicedAssetIds.add(item.assetId);
+      }
+      const extraAssetIds = [...servicedAssetIds].filter((id) => id !== job.assetId);
+      const extraAssets = extraAssetIds.length
+        ? await tx.asset.findMany({
+            where: { id: { in: extraAssetIds }, tenantId },
+            select: { id: true, maintenanceIntervalDays: true },
+          })
+        : [];
+      if (primaryAsset) {
+        await tx.asset.update({ where: { id: primaryAsset.id }, data: { nextServiceDate } });
+        await tx.repeatReminder.upsert({
+          where: { tenantId_assetId_dueDate: { tenantId, assetId: primaryAsset.id, dueDate: nextServiceDate } },
+          create: { tenantId, assetId: primaryAsset.id, dueDate: nextServiceDate, leadTimeDays: leadDays, status: "QUEUED" },
+          update: {},
+        });
+      }
+      for (const asset of extraAssets) {
+        const due = computeNextServiceDate(completedAt, asset.maintenanceIntervalDays, tenantSchedule?.maintenanceIntervalDays);
+        await tx.asset.update({ where: { id: asset.id }, data: { nextServiceDate: due } });
+        await tx.repeatReminder.upsert({
+          where: { tenantId_assetId_dueDate: { tenantId, assetId: asset.id, dueDate: due } },
+          create: { tenantId, assetId: asset.id, dueDate: due, leadTimeDays: leadDays, status: "QUEUED" },
+          update: {},
+        });
+      }
+      await tx.reviewRequest.create({
+        data: { tenantId, jobId: job.id, channel: "WA", status: "REQUESTED" },
+      });
+      await tx.jobProgressEvent.create({
+        data: {
+          tenantId, jobId: job.id, fromStatus: job.status, toStatus: "COMPLETED",
+          actorId: createdById, clientEventId: null, meta: { source: "WORK_SESSION_CLOSE" },
+        },
+      });
+    }
+
     const inv = await tx.invoice.create({
       data: {
         tenantId, docType, number, customerId: ws.customer.id,
