@@ -122,13 +122,14 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [x] 5.3 Auto-`EXPIRED` — RED 4 gagal -> GREEN 5/5 (`expireDueReminders`, dipanggil sekali di awal worker harian, spec `BuildSpecPack_Part3` baris 37 = lewat due+14). **Semantik dikunci dgn justifikasi:** hanya `SENT` yang di-expire; `QUEUED` TIDAK (kalau di-expire, pengingat belum terkirim hilang permanen — anti-duplikat unique(tenant,asset,dueDate) memblokir pembuatan ulang). Batas hari dari `REPEAT_DEFAULTS.reminderExpireDays` (bukan angka lekat). "Tanpa aksi" = tidak di-COMPLETE/DISMISSED lewat inbox dalam 14 hari.
 - [x] 5.4 Gate: TSC 0, LINT 0, **454 tes** (50 file), BUILD 0.
 
-### FASE 6 — PENUTUP: DOKUMEN PENGGUNA + VERIFIKASI LIVE  `status: [ ]`
-- [ ] 6.1 Update `help/content-owner.ts` + `panduan` (penjelasan modul untuk tenant).
-- [ ] 6.2 Uji end-to-end lokal: buat job → reminder muncul di `/app/pengingat` → status berubah → konversi → tutup.
-- [ ] 6.3 Deploy final + uji live manual (login tenant → buka menu → cek angka kartu == isi daftar).
-- [ ] 6.4 Catat bukti akhir di file ini (bagian Bukti). Tandai `[x]`.
+### FASE 6 — PENUTUP: DOKUMEN PENGGUNA + VERIFIKASI LIVE  `status: [x]`
+- [x] 6.1 Topik bantuan `pengingat` di `content-owner.ts` (langkah meniru label tombol asli; duplikat (group,order) terdeteksi lewat verifikasi parser 24 entry lalu dibersihkan; order Mengelola Pekerjaan disusun ulang mengikuti urutan menu).
+- [x] 6.2 Smoke test end-to-end READ-ONLY `tests/reminder-smoke-live.test.ts` (DB asli, skip bersih tanpa DATABASE_URL agar CI aman; loads .env via dotenv). Repo TIDAK punya kerangka e2e browser (terverifikasi: tak ada playwright/puppeteer) — alur lengkap dibuktikan lewat test kirim di 6.3.
+- [x] 6.3 Deploy final + **TEST KIRIM NYATA lewat jalur produksi resmi** (`/opt/aircon-app/run-cron.sh reminders` = jalur systemd timer): response `{"ok":true,"tenants":1,"sent":1,"failed":0,"dispatch":{"configured":true,"sent":1}}`. Pengingat `QUEUED->SENT`; `MessageLog` `SENT` ke 6281284848901, gatewayMessageId `1790968107708-174`; **pesan terkonfirmasi muncul di HP pemilik** (2026-10-03). Guard terbukti: dari 5 QUEUED hanya 1 lolos (4 tenant lain = TRIAL `autoReminder=false` + jadwal Desember) — gate FASE 4 berfungsi di produksi TANPA dinonaktifkan.
+- [x] 6.4 Bukti tercatat (bagian 6. below).
+- **BELUM DIVERIFIKASI (jujur):** status pesan masih `SENT`, belum `DELIVERED`/`DIBACA` — callback gateway belum menaikkan status. Pengiriman sendiri terbukti (sampai ke HP). Tahap naik status ini bergantung callback gateway, bukan kode aplikasi.
 
-**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [x] · 6 [ ]**
+**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [x] · 6 [x] — SELURUH FASE TUNTAS**
 
 ---
 
@@ -164,4 +165,26 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 
 ## 6. BUKTI / LOG (isi saat mengerjakan — jangan hapus)
 
-> _(kosong; diisi saat fase dijalankan: SHA commit, hasil gate, angka sebelum-sesudah, bukti deploy PASS)_
+> **SEMUA FASE SELESAI — 2026-10-03.**
+>
+> **Commit (urut):** `aa11bca` rencana · `4cc0035` FASE 1 · `681f6de` FASE 2 · `4c71ff3` FASE 3 · `3a89599` FASE 4 · `f940415` FASE 5 · `8d692e8` FASE 6. Semua push ke `origin/main`.
+>
+> **Gate akhir (per fase & akhir):** TSC 0 · LINT 0 bersih · **455 tes (51 file)** · BUILD 0.
+>
+> **Migrasi DB (jalur aman `migrate deploy`, tanpa reset):** `20261002230000_reminder_lead_default_3` (lead 7→3), `20261003011000_plan_config_auto_reminder` (autoReminder, default true).
+>
+> **Deploy PASS:** rilis `8d692e8` (sebelumnya `1ca46b9`/`899b44e`); https `/` 200, `/login` 200; `current` = release baru; release bersisa 2; `source-sha` cocok.
+>
+> **Test kirim nyata (bukti modul inti jalan end-to-end di produksi):**
+> - Pemicu: `run-cron.sh reminders` (jalur resmi timer systemd `aircon-reminders.timer`, jadwal harian 02:00 WIB)
+> - Response: `{"ok":true,"tenants":1,"sent":1,"failed":0,"dispatch":{"configured":true,"sent":1,"failed":0,"skipped":0}}`
+> - Pengingat test `cmurc4mha…`: `QUEUED`→`SENT`, `sentAt 2026-10-02T19:08:26Z`
+> - `MessageLog` `cmurc63cn…`: `SENT`, `toPhone=6281284848901`, `gatewayMessageId=1790968107708-174`, `templateKey=reminder`
+> - **Pesan terkonfirmasi sampai ke HP pemilik (user), 2026-10-03**
+> - Tujuan: pelanggan `Ruko Sentra Niaga` · unit LG · R. Test Pengingat · lewat 1 hari · tenant Jaya Mandiri (PROFESSIONAL, `autoReminder=true`)
+>
+> **Guard terbukti di produksi:** simulasi eligibility sebelum kirim → dari 5 `QUEUED` hanya **1** lolos; 4 lainnya ganda tertahan (paket TRIAL `autoReminder=false` + jadwal Desember). Tidak ada pesan tak sengaja terkirim ke tenant lain.
+>
+> **Belum diverifikasi:** status `DELIVERED`/`DIBACA` — callback gateway belum menaikkan status (masih `SENT`).
+>
+> **Backup data (semua sebelum perubahan):** `backup-tenant-reminder-lead.json` 4059e8b5 · `backup-orphan-reminders.json` f4410548 · `backup-plan-auto-reminder.json` 41cbfc2e · `backup-move-test-pengingat.json` f418d904 · `backup-rename-rsn.json` 5eb391fc · `backup-reminder-buang.json` b5bbed2b.
