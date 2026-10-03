@@ -96,13 +96,18 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
   }
 
   async function markSentManual(item: ReminderInboxItem) {
-    if (!item.reminderId) {
-      toast.error("Pengingat belum tercatat; tidak ada yang bisa ditandai.");
+    // Dua kasus: baris pengingat sudah ada (reminderId), atau belum (BELUM_DIKIRIM =
+    // unit due tanpa RepeatReminder) -> action membuat barisnya via assetId+dueDate.
+    if (!item.reminderId && !item.nextServiceDate) {
+      toast.error("Jadwal servis tidak tersedia untuk ditandai.");
       return;
     }
     setBusyId(item.assetId);
     try {
-      const result = await actionMarkReminderSentManual(item.reminderId);
+      const result = await actionMarkReminderSentManual(item.reminderId, {
+        assetId: item.assetId,
+        dueDate: item.nextServiceDate,
+      });
       if (!result.ok) { toast.error(result.error); return; }
       toast.success("Ditandai terkirim manual");
       setItems((current) =>
@@ -175,7 +180,7 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
                     <Link href={`/app/pekerjaan/baru?assetId=${encodeURIComponent(item.assetId)}&customerId=${encodeURIComponent(item.customerId)}&reminderId=${encodeURIComponent(item.reminderId ?? "")}`}>
                       <Button type="button" size="sm" variant="outline"><Icon.Job className="mr-1.5 h-4 w-4" aria-hidden />Jadikan Pekerjaan</Button>
                     </Link>
-                    {!showClosed && item.reminderId && ["BELUM_DIKIRIM", "MENUNGGU_KRIM", "TIDAK_DIKETAHUI"].includes(item.sendStatus) && (
+                    {!showClosed && (item.reminderId || item.nextServiceDate) && ["BELUM_DIKIRIM", "MENUNGGU_KRIM", "TIDAK_DIKETAHUI"].includes(item.sendStatus) && (
                       <Button type="button" size="sm" variant="outline" disabled={busyId === item.assetId} onClick={() => void markSentManual(item)}>
                         <Icon.Check className="mr-1.5 h-4 w-4" aria-hidden />Tandai Terkirim
                       </Button>
