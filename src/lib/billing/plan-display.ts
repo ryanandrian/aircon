@@ -29,5 +29,6 @@ export function planQuotaLines(p: PlanQuotaInput): string[] {
     p.autoReminder
       ? "Pengingat Jatuh Tempo Perawatan AC otomatis terkirim via Whatsapp kepada Pelanggan Anda"
       : "Pengingat Jatuh Tempo Perawatan AC manual dikirim via Whatsapp kepada Pelanggan Anda",
+    "Seluruh Fitur Aircon",
   ];
 }

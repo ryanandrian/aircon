@@ -74,9 +74,6 @@ export function PlanCards({
                       <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> {q}
                     </li>
                   ))}
-                  <li className="flex gap-2">
-                    <Icon.Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden /> Semua fitur
-                  </li>
                 </ul>
                 <Button
                   type="button"

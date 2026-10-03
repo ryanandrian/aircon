@@ -3,6 +3,8 @@ import { planQuotaLines } from "../src/lib/billing/plan-display";
 
 const quotas = { maxTechnicians: 2, maxAdmins: 0, maxCustomers: 5, maxAcUnits: 10 };
 
+const allFeatures = "Seluruh Fitur Aircon";
+
 const manualReminder =
   "Pengingat Jatuh Tempo Perawatan AC manual dikirim via Whatsapp kepada Pelanggan Anda";
 const automaticReminder =
@@ -18,12 +20,13 @@ describe("planQuotaLines — format kuota & fitur paket seragam (1 sumber)", () 
       "10 unit AC",
       "Booking Online",
       manualReminder,
+      allFeatures,
     ]);
   });
 
   it("paket gateway (autoReminder): reminder ditampilkan sebagai otomatis", () => {
     const lines = planQuotaLines({ ...quotas, autoReminder: true });
-    expect(lines.slice(-2)).toEqual(["Booking Online", automaticReminder]);
+    expect(lines.slice(-3)).toEqual(["Booking Online", automaticReminder, allFeatures]);
   });
 
   it("Pro: kuota admin dan pelanggan benar", () => {
@@ -42,6 +45,13 @@ describe("planQuotaLines — format kuota & fitur paket seragam (1 sumber)", () 
     expect(lines.slice(0, 4)).toEqual([
       "Teknisi tanpa batas", "Admin tanpa batas", "Pelanggan tanpa batas", "Unit AC tanpa batas",
     ]);
-    expect(lines.slice(-2)).toEqual(["Booking Online", automaticReminder]);
+    expect(lines.slice(-3)).toEqual(["Booking Online", automaticReminder, allFeatures]);
+  });
+
+  it("baris terakhir SELALU 'Seluruh Fitur Aircon' utk semua paket (identik landing & in-app)", () => {
+    for (const autoReminder of [true, false]) {
+      const lines = planQuotaLines({ ...quotas, autoReminder });
+      expect(lines[lines.length - 1]).toBe(allFeatures);
+    }
   });
 });
