@@ -38,7 +38,7 @@ describe.skipIf(!hasDb)("smoke DB asli (read-only) — listReminderInbox + expir
         expect(typeof r.customerName).toBe("string");
         expect(r.customerName.length).toBeGreaterThan(0);
         expect([
-          "BELUM_DIKIRIM", "MENUNGGU_KRIM", "Terkirim", "DITERIMA",
+          "BELUM_DIKIRIM", "MENUNGGU_KRIM", "TERKIRIM_OTOMATIS", "TERKIRIM_MANUAL", "DITERIMA",
           "DIBACA", "GAGAL", "TIDAK_DIKETAHUI", "DITUTUP",
         ]).toContain(r.sendStatus);
       }

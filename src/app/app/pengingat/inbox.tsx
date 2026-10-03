@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/icons";
-import { actionCloseReminder } from "./actions";
+import { actionCloseReminder, actionMarkReminderSentManual } from "./actions";
 
 export type ReminderInboxItem = {
   assetId: string;
@@ -25,7 +25,7 @@ export type ReminderInboxItem = {
   customerPhone: string;
   reminderId: string | null;
   reminderStatus: string | null;
-  sendStatus: "BELUM_DIKIRIM" | "MENUNGGU_KRIM" | "Terkirim" | "DITERIMA" | "DIBACA" | "GAGAL" | "TIDAK_DIKETAHUI" | "DITUTUP";
+  sendStatus: "BELUM_DIKIRIM" | "MENUNGGU_KRIM" | "TERKIRIM_OTOMATIS" | "TERKIRIM_MANUAL" | "DITERIMA" | "DIBACA" | "GAGAL" | "TIDAK_DIKETAHUI" | "DITUTUP";
   messageLogId: string | null;
   sentAt: string | null;
   overdueDays: number;
@@ -49,7 +49,8 @@ const FILTERS: { id: Filter; label: string }[] = [
 const STATUS: Record<ReminderInboxItem["sendStatus"], string> = {
   BELUM_DIKIRIM: "Belum dikirim",
   MENUNGGU_KRIM: "Menunggu antrean",
-  Terkirim: "Terkirim",
+  TERKIRIM_OTOMATIS: "Terkirim otomatis",
+  TERKIRIM_MANUAL: "Terkirim manual",
   DITERIMA: "Diterima WhatsApp",
   DIBACA: "Dibaca",
   GAGAL: "Gagal dikirim",
@@ -71,7 +72,7 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
     if (filter === "SEMUA") return true;
     if (filter === "BELUM") return item.sendStatus === "BELUM_DIKIRIM";
     if (filter === "MENUNGGU") return item.sendStatus === "MENUNGGU_KRIM";
-    if (filter === "SENT") return ["Terkirim", "DITERIMA", "DIBACA"].includes(item.sendStatus);
+    if (filter === "SENT") return ["TERKIRIM_OTOMATIS", "TERKIRIM_MANUAL", "DITERIMA", "DIBACA"].includes(item.sendStatus);
     if (filter === "GAGAL") return item.sendStatus === "GAGAL";
     if (filter === "TIDAK_DIKETAHUI") return item.sendStatus === "TIDAK_DIKETAHUI";
     return item.sendStatus === "DITUTUP";
@@ -89,6 +90,28 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
       toast.success("Pengingat ditutup");
       if (!showClosed) setItems((current) => current.filter((row) => row.assetId !== item.assetId));
       else setItems((current) => current.map((row) => row.assetId === item.assetId ? { ...row, reminderStatus: "DISMISSED", sendStatus: "DITUTUP" } : row));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function markSentManual(item: ReminderInboxItem) {
+    if (!item.reminderId) {
+      toast.error("Pengingat belum tercatat; tidak ada yang bisa ditandai.");
+      return;
+    }
+    setBusyId(item.assetId);
+    try {
+      const result = await actionMarkReminderSentManual(item.reminderId);
+      if (!result.ok) { toast.error(result.error); return; }
+      toast.success("Ditandai terkirim manual");
+      setItems((current) =>
+        current.map((row) =>
+          row.assetId === item.assetId
+            ? { ...row, reminderStatus: "SENT", sendStatus: "TERKIRIM_MANUAL" }
+            : row,
+        ),
+      );
     } finally {
       setBusyId(null);
     }
@@ -152,6 +175,11 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
                     <Link href={`/app/pekerjaan/baru?assetId=${encodeURIComponent(item.assetId)}&customerId=${encodeURIComponent(item.customerId)}&reminderId=${encodeURIComponent(item.reminderId ?? "")}`}>
                       <Button type="button" size="sm" variant="outline"><Icon.Job className="mr-1.5 h-4 w-4" aria-hidden />Jadikan Pekerjaan</Button>
                     </Link>
+                    {!showClosed && item.reminderId && ["BELUM_DIKIRIM", "MENUNGGU_KRIM", "TIDAK_DIKETAHUI"].includes(item.sendStatus) && (
+                      <Button type="button" size="sm" variant="outline" disabled={busyId === item.assetId} onClick={() => void markSentManual(item)}>
+                        <Icon.Check className="mr-1.5 h-4 w-4" aria-hidden />Tandai Terkirim
+                      </Button>
+                    )}
                     {!showClosed && item.reminderId && item.reminderStatus !== "CONVERTED" && (
                       <Button type="button" size="sm" variant="ghost" disabled={busyId === item.assetId} onClick={() => void closeReminder(item)}>
                         <Icon.Close className="mr-1.5 h-4 w-4" aria-hidden />Tutup Pengingat

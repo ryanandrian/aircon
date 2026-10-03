@@ -584,6 +584,11 @@ model RepeatReminder {
   status       ReminderStatus @default(QUEUED)
   jobId        String?
   sentAt       DateTime?
+  // Rencana A: penanda pengiriman MANUAL (tenant konfirmasi setelah kirim via WhatsApp sendiri).
+  // NULL = bukan manual. Beda dengan sentAt (diisi cron utk jalur otomatis).
+  // Syarat terisi: status harus SENT (lihat actionMarkReminderSentManual) — agar auto-EXPIRED
+  // tetap menyapu pengingat manual (jangan sampai daftar kotor karena status tak pernah SENT).
+  manualSentAt DateTime?
 
   @@unique([tenantId, assetId, dueDate])
   @@index([tenantId, status, dueDate])

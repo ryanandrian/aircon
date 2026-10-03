@@ -236,7 +236,8 @@ export async function runDueRemindersAllTenants(): Promise<{ tenants: number; se
 export type ReminderInboxSendStatus =
   | "BELUM_DIKIRIM" // unit due tapi belum punya RepeatReminder
   | "MENUNGGU_KRIM" // RepeatReminder QUEUED (antre menunggu cron)
-  | "Terkirim" // gateway mengonfirmasi terkirim
+  | "TERKIRIM_OTOMATIS" // dicatat sistem: MessageLog + konfirmasi gateway
+  | "TERKIRIM_MANUAL" // tenant konfirmasi manual (kirim via WhatsApp sendiri; tanpa bukti gateway)
   | "DITERIMA" // gateway mengonfirmasi delivered
   | "DIBACA" // status dibaca / tidak dapat dipastikan platform
   | "GAGAL"
@@ -255,7 +256,7 @@ export type ReminderInboxRow = {
   customerPhone: string;
   reminderId: string | null;
   reminderStatus: string | null;
-  sendStatus: "BELUM_DIKIRIM" | "MENUNGGU_KRIM" | "Terkirim" | "DITERIMA" | "DIBACA" | "GAGAL" | "TIDAK_DIKETAHUI" | "DITUTUP";
+  sendStatus: ReminderInboxSendStatus;
   messageLogId: string | null;
   sentAt: Date | null;
   overdueDays: number;
@@ -270,10 +271,10 @@ function waLinkTo(phone: string, text?: string): string {
 }
 
 /** Map MessageStatus -> label inbox (guard naik-monoton di callback sudah ada). */
-function mapMessageStatus(s: string): ReminderInboxRow["sendStatus"] {
+function mapMessageStatus(s: string): ReminderInboxSendStatus {
   if (s === "READ_CONFIRMED" || s === "READ_UNOBSERVED") return "DIBACA";
   if (s === "DELIVERED") return "DITERIMA";
-  if (s === "SENT") return "Terkirim";
+  if (s === "SENT") return "TERKIRIM_OTOMATIS";
   if (s === "FAILED") return "GAGAL";
   return "MENUNGGU_KRIM"; // QUEUED / SENDING / LOGGED
 }
@@ -373,20 +374,24 @@ export async function listReminderInbox(
       if (rem.status === "QUEUED") {
         sendStatus = "MENUNGGU_KRIM";
       } else if (rem.status === "SENT") {
-        if (!rem.sentAt) {
-          sendStatus = "TIDAK_DIKETAHUI";
-        } else {
-          const match = messages.find(
+        // KORELASI BUKTI: cari MessageLog utk status otomatis (sumber kebenaran).
+        // Pengiriman manual tidak pernah punya MessageLog -> hanya fallback bila
+        // tenant menandai manual (rem.manualSentAt). Tanpa keduanya = jangan menebak.
+        let match: (typeof messages)[number] | undefined;
+        if (rem.sentAt) {
+          match = messages.find(
             (m) =>
               m.customerId === u.customerId &&
               Math.abs(m.at.getTime() - rem.sentAt!.getTime()) <= 5000,
           );
-          if (match) {
-            messageLogId = match.id;
-            sendStatus = mapMessageStatus(match.status);
-          } else {
-            sendStatus = "TIDAK_DIKETAHUI";
-          }
+        }
+        if (match) {
+          messageLogId = match.id;
+          sendStatus = mapMessageStatus(match.status);
+        } else if (rem.manualSentAt) {
+          sendStatus = "TERKIRIM_MANUAL";
+        } else {
+          sendStatus = "TIDAK_DIKETAHUI";
         }
       } else if ((CLOSED_REMINDER_STATUSES as readonly string[]).includes(rem.status)) {
         sendStatus = "DITUTUP"; // DISMISSED / CONVERTED / EXPIRED (lihat includeClosed)
@@ -415,5 +420,18 @@ export async function listReminderInbox(
       waLink: waLinkTo(u.customer.phone),
     });
   }
+
+  // URUTAN BAKU KARTU (Rencana B): paling mendesak di atas.
+  // overdueDays menaik (makin telat -> makin atas); tie-break nextServiceDate menaik
+  // (yang lebih cepat jatuh tempo dulu); terakhir customerName menaik (stabil antar-refresh).
+  // Sengaja TIDAK memakai sendStatus: status berubah saat pengiriman berjalan, dan kartu
+  // tidak boleh bergeser di tengah pemakaian.
+  rows.sort((a, b) => {
+    if (a.overdueDays !== b.overdueDays) return b.overdueDays - a.overdueDays;
+    const da = a.nextServiceDate?.getTime() ?? 0;
+    const db = b.nextServiceDate?.getTime() ?? 0;
+    if (da !== db) return da - db;
+    return a.customerName.localeCompare(b.customerName, "id");
+  });
   return rows;
 }

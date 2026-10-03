@@ -242,3 +242,83 @@ describe("listReminderInbox — keamanan & error", () => {
     expect(rows.map((r) => r.assetId)).toEqual(["a1"]);
   });
 });
+
+describe("listReminderInbox — urutan default kartu (Rencana B)", () => {
+  it("overdueDays menurun: paling telat di atas", async () => {
+    state.units = [unit("a-overdue-2", -2), unit("a-overdue-40", -40), unit("a-overdue-7", -7)];
+    const rows = await listReminderInbox("t1");
+    expect(rows.map((r) => r.overdueDays)).toEqual([40, 7, 2]);
+  });
+
+  it("tie-break: overdue sama -> nextServiceDate menaik", async () => {
+    // unit() memakai base "sekarang"; buat 2 unit dengan selisih due identik
+    const base = Date.now() - 5 * 86400000;
+    state.units = [
+      { ...unit("a-akhir", -5), nextServiceDate: new Date(base + 1000) },
+      { ...unit("a-awal", -5), nextServiceDate: new Date(base) },
+    ];
+    const rows = await listReminderInbox("t1");
+    expect(rows.map((r) => r.assetId)).toEqual(["a-awal", "a-akhir"]);
+  });
+
+  it("tie-break terakhir: tanggal sama -> customerName menaik", async () => {
+    state.customers = {
+      ...state.customers,
+      cZ: { id: "cZ", name: "Zelda", phone: "62811110009" },
+      cA: { id: "cA", name: "Agus", phone: "62811110008" },
+    };
+    const now = Date.now();
+    state.units = [
+      { ...unit("a1", -3), customerId: "cZ", nextServiceDate: new Date(now - 3 * 86400000) },
+      { ...unit("a2", -3), customerId: "cA", nextServiceDate: new Date(now - 3 * 86400000) },
+    ];
+    const rows = await listReminderInbox("t1");
+    expect(rows.map((r) => r.customerName)).toEqual(["Agus", "Zelda"]);
+  });
+
+  it("kasus tunggal & kosong tetap aman", async () => {
+    state.units = [unit("a1", -1)];
+    const rows = await listReminderInbox("t1");
+    expect(rows).toHaveLength(1);
+    state.units = [];
+    expect(await listReminderInbox("t1")).toHaveLength(0);
+  });
+});
+
+describe("listReminderInbox — Terkirim Otomatis vs Terkirim Manual (Rencana A)", () => {
+  it("ada MessageLog cocok -> TERKIRIM_OTOMATIS (bukti gateway, bukan label generik)", async () => {
+    const sentAt = iso(-2 * day);
+    state.units = [unit("a1", -5)];
+    state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt, manualSentAt: null } as any];
+    state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 300), status: "SENT" }];
+    const [r] = await listReminderInbox("t1");
+    expect(r.sendStatus).toBe("TERKIRIM_OTOMATIS");
+  });
+
+  it("ditandai manual, tanpa MessageLog -> TERKIRIM_MANUAL", async () => {
+    const manualAt = iso(-2 * day);
+    state.units = [unit("a1", -5)];
+    state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt: manualAt, manualSentAt: manualAt } as any];
+    state.messages = [];
+    const [r] = await listReminderInbox("t1");
+    expect(r.sendStatus).toBe("TERKIRIM_MANUAL");
+    expect(r.messageLogId).toBeNull();
+  });
+
+  it("ada MessageLog GAGAL + pernah ditandai manual -> menampilkan GAGAL (bukti gateway menang)", async () => {
+    const sentAt = iso(-2 * day);
+    state.units = [unit("a1", -5)];
+    state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt, manualSentAt: iso(-1 * day) } as any];
+    state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 300), status: "FAILED" }];
+    const [r] = await listReminderInbox("t1");
+    expect(r.sendStatus).toBe("GAGAL");
+  });
+
+  it("SENT tanpa sentAt & tanpa manual -> tetap TIDAK_DIKETAHUI (jangan menebak)", async () => {
+    state.units = [unit("a1", -5)];
+    state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt: null, manualSentAt: null } as any];
+    state.messages = [];
+    const [r] = await listReminderInbox("t1");
+    expect(r.sendStatus).toBe("TIDAK_DIKETAHUI");
+  });
+});

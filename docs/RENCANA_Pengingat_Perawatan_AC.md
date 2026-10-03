@@ -129,7 +129,35 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [x] 6.4 Bukti tercatat (bagian 6. below).
 - **BELUM DIVERIFIKASI (jujur):** status pesan masih `SENT`, belum `DELIVERED`/`DIBACA` — callback gateway belum menaikkan status. Pengiriman sendiri terbukti (sampai ke HP). Tahap naik status ini bergantung callback gateway, bukan kode aplikasi.
 
-**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [x] · 6 [x] — SELURUH FASE TUNTAS**
+### FASE 7 — FOLLOW-UP: STATUS TERKIRIM GANDA + URUTAN KARTU  `status: [x]`
+Permintaan user 2026-10-03 (dibahas & disepakati berdua sebelum dikerjakan):
+- [x] 7.1 **Urutan default kartu** — sebelumnya TIDAK ADA `orderBy` (urutan tak terjamin,
+      terverifikasi: tak ada sort di service maupun FE). Kini sort di `listReminderInbox`
+      (SATU sumber utk daftar + kartu Ringkasan): `overdueDays` menurun -> `nextServiceDate`
+      menaik -> `customerName` menaik (`localeCompare 'id'`). Sengaja TIDAK memakai
+      `sendStatus` (kartu tak boleh bergeser saat status berubah mengikuti pengiriman).
+- [x] 7.2 **Terkirim terpecah jadi dua**: `TERKIRIM_OTOMATIS` (bukti `MessageLog` + callback
+      gateway) vs `TERKIRIM_MANUAL` (konfirmasi tenant setelah kirim via WhatsApp sendiri).
+      *Penanda data:* kolom baru `RepeatReminder.manualSentAt` (nullable, additive,
+      migrasi `20261003040000_reminder_manual_sent` — di-apply via `migrate deploy`).
+      *Bukti menang:* cari `MessageLog` cocok -> status gateway apa adanya (GAGAL pun
+      ditampilkan); tanpa pasangan korelasi + `manualSentAt` -> `TERKIRIM_MANUAL`;
+      keduanya kosong -> `TIDAK_DIKETAHUI` (jangan menebak).
+      *Aksi FE:* tombol "Tandai Terkirim" (baru) -> `actionMarkReminderSentManual`
+      (tenant-scoped, hanya QUEUED/SENT, role OWNER/ADMIN) — MENYIMPAN KONFIRMASI TENANT,
+      tidak pernah mengklaim gateway mengirim. Tombol tampil saat status
+      BELUM_DIKIRIM / MENUNGGU_KRIM / TIDAK_DIKETAHUI & punya `reminderId`.
+- [x] 7.3 **Filter tab "Terkirim"** (belum diverifikasi saat diskusi, kini sudah dikerjakan):
+      predikat diperluas jadi `["TERKIRIM_OTOMATIS","TERKIRIM_MANUAL","DITERIMA","DIBACA"]`
+      — tanpa ini kedua status baru hanya muncul di chip "Semua" (bukti: simulasi predikat
+      sebelumnya memperlihatkan status baru jatuh ke SEMUA saja).
+- [x] 7.4 Bantuan user (`content-owner.ts`) disesuaikan: daftar status + langkah
+      "Tandai Terkirim" — supaya label bantuan = label layar.
+- [x] 7.5 Gate: TSC 0, LINT 0, **466 tes (51 file)**, BUILD 0. Migrasi `manualSentAt`
+      tercatat & ter-apply (49 migrasi). Smoke DB asli ikut menangkap kolom belum ada
+      sebelum migrasi — persis fungsinya.
+
+**Progres ringkas: FASE 0 [x] · 1 [x] · 2 [x] · 3 [x] · 4 [x] · 5 [x] · 6 [x] · 7 [x]**
 
 ---
 

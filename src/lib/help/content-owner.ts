@@ -180,7 +180,8 @@ export const OWNER_TOPICS: HelpTopic[] = [
       "Daftar unit AC Anda yang sudah memasuki jadwal servis berikutnya — lengkap dengan pelanggan, riwayat servis unit, dan status pengiriman notifikasi WhatsApp. Dari sini Anda mengirim pengingat, menindaklanjuti balasan pelanggan, mengubahnya jadi pekerjaan, atau menutupnya agar daftar selalu bersih.",
     steps: [
       "Buka menu 'Pengingat' (di antara Pelanggan dan Pekerjaan), atau ketuk kartu 'Jatuh Tempo' di halaman Ringkasan.",
-      "Pada tiap kartu unit: lihat info unit & pelanggannya, tanggal 'Jadwal servis', dan lencana status pengiriman (Belum dikirim / Menunggu antrean / Terkirim / Diterima WhatsApp / Dibaca / Gagal / Status tidak diketahui).",
+      "Pada tiap kartu unit: lihat info unit & pelanggannya, tanggal 'Jadwal servis', dan lencana status pengiriman (Belum dikirim / Menunggu antrean / Terkirim otomatis / Terkirim manual / Diterima WhatsApp / Dibaca / Gagal / Status tidak diketahui).",
+      "Jika Anda mengirim lewat WhatsApp sendiri, kembali ke kartu lalu ketuk 'Tandai Terkirim' agar aplikasi mencatat konfirmasi manual Anda (bukan konfirmasi gateway).",
       "Butuh kirim sekarang? Ketuk 'Kirim Pengingat' — WhatsApp terbuka dengan pesan siap (dari Template Pesan Anda), tinggal tekan kirim.",
       "Ingin menindaklanjuti? Ketuk 'Buka WhatsApp' untuk mengobrol langsung, atau 'Pelanggan' untuk membuka data lengkapnya.",
       "Pelanggan setuju diservis? Ketuk 'Jadikan Pekerjaan' — form Pekerjaan Baru terisi otomatis dengan unit & pelanggannya; isi jadwal lalu simpan. Pengingatnya otomatis berstatus konversi.",
