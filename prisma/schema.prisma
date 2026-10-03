@@ -499,30 +499,26 @@ model JobProgressEvent {
 }
 
 model ChecklistTemplate {
-  id          String       @id @default(cuid())
-  tenantId    String
-  serviceType ServiceType? // LEGACY (opt-in per jenis servis) — dipertahankan utk kompatibilitas & dual-read
-  serviceId   String? // BARU: checklist per LAYANAN katalog (ServiceCatalog)
-  items       Json
+  id        String @id @default(cuid())
+  tenantId  String
+  serviceId String // wajib: checklist hanya per LAYANAN katalog (FASE 6 — legacy serviceType dihapus)
+  items     Json
 
-  service ServiceCatalog? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service ServiceCatalog @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, serviceType])
   @@unique([tenantId, serviceId])
 }
 
 model ChecklistResult {
   id         String  @id @default(cuid())
   tenantId   String
-  jobId      String? // LEGACY (hasil per job) — dipertahankan utk dual-read
-  workItemId String? // BARU: hasil per WorkItem (layanan × unit)
+  workItemId String // wajib: hasil per WorkItem (layanan × unit); legacy jobId dihapus
   itemKey    String
   checked    Boolean @default(false)
   value      String?
 
-  workItem WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, jobId, itemKey])
   @@unique([tenantId, workItemId, itemKey])
 }
 
