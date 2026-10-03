@@ -569,6 +569,10 @@ model ReviewRequest {
   channel  MessageChannel @default(WA)
   status   ReviewStatus   @default(REQUESTED)
   at       DateTime       @default(now())
+
+  // TEPAT 1 review request per pekerjaan (efek finalisasi atomik di closeWorkSession).
+  // Live terverifikasi: 10 baris / 10 kombinasi unik (nol duplikat) sebelum index dipasang.
+  @@unique([tenantId, jobId])
 }
 
 model RepeatReminder {
