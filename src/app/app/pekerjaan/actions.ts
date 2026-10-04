@@ -7,10 +7,7 @@ import {
   createJob,
   assignJob,
   JobError,
-  listJobsByBucket,
-  countJobsByBucket,
   type CreateJobInput,
-  type JobBucket,
 } from "@/lib/services/job-management-service";
 import { transitionJob, TransitionError } from "@/lib/services/job-service";
 import {
@@ -20,6 +17,14 @@ import {
 } from "@/lib/services/assignment-service";
 import { prisma } from "@/lib/prisma";
 import type { ServiceType } from "@prisma/client";
+import {
+  listAgendaJobs,
+  countAgendaJobs,
+  listAgendaPeople,
+  type AgendaJobItem,
+  type AgendaCounts,
+} from "@/lib/services/agenda-service";
+import { agendaRange, parseAgendaParams, type AgendaParams } from "@/lib/domain/agenda";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -267,49 +272,43 @@ export async function actionAssignTeam(
   }
 }
 
-export type JobListItem = {
-  id: string; customerName: string; address: string | null;
-  serviceType: string; status: string; scheduledDate: string | null;
-  unit: string | null; technician: string | null;
+// ─────────── Agenda (pengganti tab today/upcoming/done) ───────────
+
+export type { AgendaJobItem, AgendaCounts };
+
+/** Data isi agenda untuk satu set searchParams (dipakai render awal & revisi klien). */
+export type AgendaPayload = {
+  params: AgendaParams;
+  items: AgendaJobItem[];
+  nextCursor: string | null;
+  counts: AgendaCounts | null;
 };
 
-/** Load pekerjaan per tab (today/upcoming/done) + pencarian + cursor. Untuk UI bertab + infinite scroll. */
-export async function actionLoadJobs(
-  bucket: JobBucket,
-  opts: { search?: string; cursor?: string } = {},
-): Promise<{ ok: true; items: JobListItem[]; nextCursor: string | null } | { ok: false; error: string }> {
-  try {
-    const ctx = await getServerContext();
-    assertRole(ctx.role, ["OWNER", "ADMIN"]);
-    const { jobs, nextCursor } = await listJobsByBucket(ctx.tenantId, bucket, {
-      search: opts.search, cursor: opts.cursor,
-    });
-    const items: JobListItem[] = jobs.map((j) => ({
-      id: j.id,
-      customerName: j.customer.name,
-      address: j.customer.address,
-      serviceType: j.serviceType as string,
-      status: j.status as string,
-      scheduledDate: j.scheduledDate ? j.scheduledDate.toISOString() : null,
-      unit: j.asset ? ([j.asset.brand, j.asset.model].filter(Boolean).join(" ").trim() || j.asset.roomLocation || "Unit AC") : null,
-      technician: j.technician?.user.name ?? null,
-    }));
-    return { ok: true, items, nextCursor };
-  } catch (err) {
-    return { ok: false, error: toMessage(err, "Gagal memuat pekerjaan.") };
-  }
-}
+/** Pilihan filter tim (personel aktif tenant) — dikirim sekali dari page. */
+export type AgendaPeople = Awaited<ReturnType<typeof listAgendaPeople>>;
 
-/** Hitungan pekerjaan per tab (untuk badge tab, ikut pencarian). */
-export async function actionCountJobs(
-  search?: string,
-): Promise<{ ok: true; counts: { today: number; upcoming: number; done: number } } | { ok: false; error: string }> {
+/**
+ * Muat isi agenda dari searchParams (server: validasi param + query tenant-scoped).
+ * Dipakai AgendaBoard saat ganti tampilan/periode/filter/pencarian.
+ * `cursor` = lanjutan halaman riwayat (hitungan kartu TIDAK dihitung ulang).
+ */
+export async function actionLoadAgenda(
+  sp: { [key: string]: string | string[] | undefined },
+  opts: { cursor?: string } = {},
+): Promise<{ ok: true; data: AgendaPayload } | { ok: false; error: string }> {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
-    const counts = await countJobsByBucket(ctx.tenantId, search);
-    return { ok: true, counts };
+    const params = parseAgendaParams(sp);
+    const range = agendaRange(params);
+    const [{ jobs, nextCursor }, counts] = await Promise.all([
+      listAgendaJobs(ctx.tenantId, params, range, { cursor: opts.cursor }),
+      opts.cursor
+        ? Promise.resolve<AgendaCounts | null>(null)
+        : countAgendaJobs(ctx.tenantId, params, range),
+    ]);
+    return { ok: true, data: { params, items: jobs, nextCursor, counts } };
   } catch (err) {
-    return { ok: false, error: toMessage(err, "Gagal menghitung pekerjaan.") };
+    return { ok: false, error: toMessage(err, "Gagal memuat agenda pekerjaan.") };
   }
 }

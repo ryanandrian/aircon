@@ -219,13 +219,15 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 5,
     whatIsIt:
-      "Daftar semua pekerjaan servis (job) usaha Anda beserta statusnya, dari draft hingga selesai. Pusat untuk mengatur dan memantau pekerjaan lapangan.",
+      "Agenda pekerjaan usaha Anda dalam tampilan Minggu, Bulan, atau Riwayat — lengkap dengan tanggal, jam, pelanggan, unit AC, tim teknisi/kernet, dan status.",
     steps: [
+      "Pilih tampilan Minggu, Bulan, atau Riwayat lalu geser periode dengan tombol ‹ › atau 'Hari ini'.",
+      "Cari pekerjaan lewat kotak pencarian, dan saring dengan filter tim serta status.",
       "Ketuk '+ Pekerjaan' untuk membuat pekerjaan baru.",
-      "Lihat status tiap pekerjaan pada label warnanya (mis. Ditugaskan, Dikerjakan, Selesai).",
-      "Ketuk sebuah pekerjaan untuk membuka detail, menugaskan teknisi, atau membuat faktur.",
+      "Ketuk satu baris pekerjaan untuk membuka detail: menugaskan tim, memantau progres, atau membuat faktur.",
     ],
     tips: [
+      "Pekerjaan yang belum punya tim atau jadwal muncul di pemberitahuan kuning di atas daftar — jangan sampai terlewat.",
       "Pekerjaan yang selesai otomatis memicu pengingat servis berikutnya untuk pelanggan.",
     ],
   },
