@@ -5,6 +5,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
+import { JobError } from "@/lib/services/job-management-service";
 
 export type AssignmentRole = "TECHNICIAN" | "KERNET";
 
@@ -77,9 +78,28 @@ export async function detectConflict(
 // ---------- PENUGASAN ----------
 
 /**
+ * Status yang boleh di-assign/ubahan jadwal/tim lewat jalur ini.
+ * Kontrak yang SAMA dengan UI detail (`ASSIGNABLE` di pekerjaan/[id]/page.tsx):
+ * DRAFT dan ASSIGNED. Ditegakkan di sini (bukan hanya tombol di FE) agar
+ * panggilan server action langsung tidak bisa mengubah job yang sudah berjalan
+ * atau status terminal (COMPLETED/CANCELLED).
+ */
+const ASSIGNABLE_STATUSES = new Set(["DRAFT", "ASSIGNED"]);
+
+/**
  * Tetapkan N personel ke sebuah job dengan peran cair (K3). Mengganti seluruh assignment job (replace-set).
  * Backward-compat: JobOrder.technicianId disetel ke lead (atau personel pertama) agar UI lama tetap jalan.
- * @param window opsional; bila diberikan, dipakai memperbarui jendela waktu job.
+ *
+ * Konsistensi jadwal: `window` juga menulis `scheduledDate` dalam transaksi yang sama.
+ * Nilai yang ditulis adalah objek Date YANG SAMA dengan `window.start` (bukan diderive
+ * ulang via toISOString/UTC) — meniru poli `actionCreateJob` yang menulis scheduledDate
+ * dan windowStart dari satu nilai identik. Karena keduanya berasal dari tanggal+jam yang
+ * diketik form (`toDate(dateStr, timeStr)`), hari kalender tidak mungkin berbeda antara
+ * scheduledDate dan windowStart pada zona render (WIB/WITA/WIT) mana pun.
+ * Tanpa ini job tetap "Belum terjadwal" di agenda/dashboard walaupun jam sudah tersimpan.
+ *
+ * @param window opsional; bila diberikan, dipakai memperbarui tanggal + jendela waktu job.
+ * @throws JobError("VALIDATION") bila job bukan DRAFT/ASSIGNED.
  */
 export async function assignJob(
   tenantId: string,
@@ -87,9 +107,13 @@ export async function assignJob(
   people: AssignmentInput[],
   window?: TimeWindow,
 ): Promise<void> {
-  const job = await prisma.jobOrder.findFirst({ where: { id: jobId, tenantId }, select: { id: true } });
+  const job = await prisma.jobOrder.findFirst({ where: { id: jobId, tenantId }, select: { id: true, status: true } });
   if (!job) throw new ServiceError("NOT_FOUND", "Pekerjaan tidak ditemukan");
   if (people.length === 0) throw new ServiceError("CONFLICT", "Minimal 1 personel ditugaskan");
+  // Guard status di service (Poin 2): selaras dengan guard UI ASSIGNABLE.
+  if (!ASSIGNABLE_STATUSES.has(job.status)) {
+    throw new JobError("VALIDATION", "Pekerjaan sudah berjalan atau selesai — jadwal/tim tidak bisa diubah di sini.");
+  }
 
   // Validasi semua personel milik tenant.
   const persons = await prisma.technician.findMany({
@@ -117,7 +141,13 @@ export async function assignJob(
       where: { id: jobId },
       data: {
         technicianId: lead.personId, // backward-compat
-        ...(window ? { windowStart: window.start, windowEnd: window.end } : {}),
+        ...(window
+          ? {
+              scheduledDate: window.start, // identik dgn window.start — lihat catatan di atas
+              windowStart: window.start,
+              windowEnd: window.end,
+            }
+          : {}),
       },
     });
   });

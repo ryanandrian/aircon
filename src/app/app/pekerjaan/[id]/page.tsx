@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { JOB_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "../status-badge";
 import { OwnerActions } from "./owner-actions";
+import { NotesEditor } from "./notes-editor";
 import { Card, CardContent } from "@/components/ui/card";
 import { HelpButton } from "@/components/help/help-button";
 import { getHelpTopic } from "@/lib/help/help-content";
@@ -153,10 +154,32 @@ export default async function PekerjaanDetailPage({
           <CardContent className="p-5">
             <h2 className="text-base font-bold text-foreground">Jadwal &amp; Teknisi</h2>
             <dl className="mt-3 space-y-2 text-sm">
-              <Row
-                label="Jadwal"
-                value={`${fmtTanggal(job.scheduledDate)}${jam ? ` · ${jam}` : ""}`}
-              />
+              <div className="flex justify-between gap-4">
+                <dt className="shrink-0 text-muted-foreground">Jadwal</dt>
+                <dd className="text-right font-medium text-foreground">
+                  {job.scheduledDate ? (
+                    `${fmtTanggal(job.scheduledDate)}${jam ? ` · ${jam}` : ""}`
+                  ) : (
+                    <span className="flex flex-col items-end gap-1">
+                      {/* Poin 4: nyatakan keadaan (Belum terjadwal) + tunjukkan tempat
+                          menetapkannya; "hari ini" di panel hanyalah saran sampai disimpan. */}
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                        Belum terjadwal
+                      </span>
+                      {/* CTA hanya bila panel Aksi Pemilik ikut dirender (kondisi yang sama
+                          dengan canAssign/canCancel di bawah) — status terminal: tanpa anchor. */}
+                      {(ASSIGNABLE.includes(job.status) || CANCELLABLE.includes(job.status)) && (
+                        <a
+                          href="#jadwal-tim"
+                          className="text-xs font-medium text-sky-600 hover:underline dark:text-sky-400"
+                        >
+                          Atur jadwal &amp; tim →
+                        </a>
+                      )}
+                    </span>
+                  )}
+                </dd>
+              </div>
               <div className="flex justify-between gap-4 py-0.5">
                 <dt className="shrink-0 text-muted-foreground">Tim</dt>
                 <dd className="text-right font-medium text-foreground">
@@ -176,12 +199,12 @@ export default async function PekerjaanDetailPage({
               </div>
               <Row label="Harga" value={job.price != null ? fmtRupiah(job.price) : "—"} />
             </dl>
-            {job.notes && (
-              <div className="mt-3 rounded-xl bg-muted/40 p-3 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Catatan: </span>
-                {job.notes}
-              </div>
-            )}
+        {/* Catatan — Poin 3: inline edit sebelum closing (guard status di server) */}
+        <NotesEditor
+          jobId={job.id}
+          notes={job.notes}
+          editable={job.status !== "COMPLETED" && job.status !== "CANCELLED"}
+        />
           </CardContent>
         </Card>
 

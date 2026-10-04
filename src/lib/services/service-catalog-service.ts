@@ -252,6 +252,38 @@ export async function resolvePrice(tenantId: string, customerId: string, service
   return Number(override?.price ?? svc.standardPrice);
 }
 
+/**
+ * Poin 5 — peta HARGA EFEKTIF utk preview layar teknisi: { serviceId → rupiah }.
+ *
+ * Sumber aturan yang SAMA dengan resolvePrice (override khusus pelanggan dulu,
+ * selain itu standardPrice), tapi diambil sekali jalan (1 query findMany, bukan N+1
+ * utk tiap item katalog). Dipakai HANYA sebagai preview sebelum item disimpan; nilai
+ * otoritatif saat addWorkItem tetap dihitung server oleh resolvePrice lalu disnapshot.
+ * Katalog kosong → {} tanpa query (guard kecil utk menghindari kerja sia-sia).
+ */
+export async function effectivePriceMap(
+  tenantId: string,
+  customerId: string,
+  catalog: { id: string; standardPrice: number }[],
+): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  if (catalog.length === 0) return out;
+
+  const base: Record<string, number> = {};
+  for (const c of catalog) base[c.id] = Number(c.standardPrice);
+
+  const overrides = await prisma.customerPricing.findMany({
+    where: { tenantId, customerId },
+    select: { serviceId: true, price: true },
+  });
+  const overrideMap = new Map(overrides.map((o) => [o.serviceId, Number(o.price)]));
+
+  for (const c of catalog) {
+    out[c.id] = overrideMap.get(c.id) ?? base[c.id];
+  }
+  return out;
+}
+
 /** Escape 1 sel CSV (RFC4180): bungkus dgn kutip bila ada koma/kutip/newline. */
 function csvCell(v: string | number): string {
   const s = String(v);

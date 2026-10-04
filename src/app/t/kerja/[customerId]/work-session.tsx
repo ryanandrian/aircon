@@ -197,12 +197,15 @@ function ItemChecklist({ workItemId, jobId }: { workItemId: string; jobId: strin
 }
 
 export function WorkSessionScreen({
-  wsId, customerId, customerName, isTempo, catalog, assets, initialItems, assignment, jobId,
+  wsId, customerId, customerName, isTempo, catalog, assets, initialItems, assignment, jobId, priceMap,
 }: {
   wsId: string; customerId: string; customerName: string; isTempo: boolean;
   catalog: Catalog[]; assets: Asset[]; initialItems: Item[]; assignment?: Assignment;
   /** pekerjaan terkait sesi ini (WorkSession.jobId) — tanpa ini item foto wajib tak bisa diunggah. */
   jobId: string | null;
+  /** Poin 5: peta HARGA EFEKTIF utk customer ini (override khusus → selain itu standar).
+   *  HANYA preview sebelum item disimpan — nilai tersimpan tetap dihitung server. */
+  priceMap?: Record<string, number>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -217,6 +220,9 @@ export function WorkSessionScreen({
 
   const runningTotal = items.reduce((s, i) => s + i.lineTotal, 0);
   const svc = catalog.find((c) => c.id === serviceId);
+  // Poin 5: harga efektif per pelanggan (preview). Std dipakai sbg fallback defensif bila
+  // priceMap tidak terkirim — TIDAK pernah dipakai utk menulis (server tetap resolvePrice).
+  const effectiveUnit = svc ? (priceMap?.[svc.id] ?? svc.standardPrice) : 0;
 
   function add() {
     if (!serviceId) { toast.error("Pilih layanan dulu"); return; }
@@ -314,7 +320,11 @@ export function WorkSessionScreen({
               <select value={serviceId} onChange={(e) => setServiceId(e.target.value)}
                 className="min-h-[44px] w-full rounded-xl border bg-background px-3 text-sm">
                 <option value="">— Pilih layanan —</option>
-                {catalog.map((c) => <option key={c.id} value={c.id}>{c.name} ({rp(c.standardPrice)}/{c.unit})</option>)}
+                {catalog.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({rp(priceMap?.[c.id] ?? c.standardPrice)}/{c.unit})
+                  </option>
+                ))}
               </select>
             </div>
             <div className="flex items-end gap-2">
@@ -323,7 +333,15 @@ export function WorkSessionScreen({
                 <Input id="qty" type="number" min="1" value={qty} onChange={(e) => setQty(Number(e.target.value) || 1)} className="min-h-[44px]" />
               </div>
               <div className="flex-1 text-sm text-muted-foreground">
-                {svc && <>Harga: <span className="font-semibold text-foreground">{rp(svc.standardPrice * qty)}</span><br /><span className="text-xs">Harga khusus pelanggan otomatis dipakai bila ada.</span></>}
+                {svc && (
+                  <>
+                    Harga: <span className="font-semibold text-foreground">{rp(effectiveUnit * qty)}</span>
+                    <br />
+                    <span className="text-xs">
+                      Harga khusus pelanggan sudah dipakai bila ada; nilai resmi dikunci server saat disimpan.
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             <Button type="button" onClick={add} disabled={pending || !serviceId} className="w-full min-h-[44px]">

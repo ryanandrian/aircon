@@ -133,3 +133,23 @@ describe("actionCreateJob — konversi pengingat (reminderId)", () => {
     expect(store.reminders[0].status).toBe("QUEUED");
   });
 });
+
+// Poin 1 — kontrak "Harga" di form Pekerjaan Baru.
+// Kolom Harga form TIDAK MENENTUKAN biaya apa pun (biaya resmi = ServiceCatalog.standardPrice
+// / CustomerPricing → resolvePrice saat sesi kerja → snapshot ke WorkItem/Invoice).
+// Field itu dihapus dari UI dan payload; nilai `price` dari klien TIDAK pernah tersimpan.
+describe("actionCreateJob — kontrak harga form (Poin 1)", () => {
+  it("price dari klien TIDAK pernah dipakai (kirim 50000 → tetap kosong)", async () => {
+    const res = await actionCreateJob({ ...base, price: "50000" } as any);
+    expect(res.ok).toBe(true);
+    // harga resmi TIDAK datang dari form: ServiceCatalog/CustomerPricing → resolvePrice
+    expect(Number(store.jobs[0].price ?? 0)).toBe(0);
+  });
+  it("tanpa price → job dibuat normal (DRAFT) & price job kosong", async () => {
+    const res = await actionCreateJob(base);
+    expect(res.ok).toBe(true);
+    expect(store.jobs).toHaveLength(1);
+    expect(store.jobs[0].status).toBe("DRAFT");
+    expect(Number(store.jobs[0].price ?? 0)).toBe(0);
+  });
+});

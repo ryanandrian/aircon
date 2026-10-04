@@ -74,7 +74,6 @@ export function JobForm({
   const [time, setTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [technicianId, setTechnicianId] = useState("");
-  const [price, setPrice] = useState("");
   const [notes, setNotes] = useState("");
 
   const customerAssets = useMemo(
@@ -124,7 +123,6 @@ export function JobForm({
         scheduledTime: time || undefined,
         windowEndTime: endTime || undefined,
         technicianId: technicianId || undefined,
-        price: price || undefined,
         notes: notes || undefined,
         reminderId: reminderId || undefined,
       });
@@ -278,28 +276,6 @@ export function JobForm({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="price">
-          Harga <span className="text-muted-foreground">(opsional)</span>
-        </Label>
-        <div className="flex items-center rounded-2xl border border-input px-4 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
-          <span className="text-muted-foreground">Rp</span>
-          <input
-            id="price"
-            inputMode="numeric"
-            value={price}
-            onChange={(e) => setPrice(e.target.value.replace(/[^\d]/g, ""))}
-            placeholder="0"
-            className="min-h-[48px] w-full bg-transparent px-2 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground"
-          />
-        </div>
-        {price && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Rp{Number(price).toLocaleString("id-ID")}
-          </p>
-        )}
       </div>
 
       <div className="space-y-1.5">

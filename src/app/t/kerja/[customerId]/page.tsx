@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { openWorkSession, getWorkSession } from "@/lib/services/worksession-service";
-import { listCatalog } from "@/lib/services/service-catalog-service";
+import { listCatalog, effectivePriceMap } from "@/lib/services/service-catalog-service";
 import { WorkSessionScreen } from "./work-session";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +45,11 @@ export default async function KerjaPage({ params, searchParams }: {
   ]);
 
   const catalog = catalogRows.map((c) => ({ id: c.id, name: c.name, unit: c.unit, standardPrice: Number(c.standardPrice), category: c.category }));
+  // Poin 5: harga EFEKTIF utk pelanggan ini (override
+  // khusus dulu, selain itu standar) — dipakai UI sebagai PREVIEW sebelum item disimpan.
+  // Aturan yang SAMA dgn resolvePrice; nilai otoritatif tetap dihitung server saat
+  // addWorkItem lalu disnapshot ke WorkItem/Invoice (payload client tetap tanpa harga).
+  const priceMap = await effectivePriceMap(ctx.tenantId, customerId, catalogRows.map((c) => ({ id: c.id, standardPrice: Number(c.standardPrice) })));
   const assets = assetRows.map((a) => ({ id: a.id, label: [a.brand, a.capacityPk ? `${a.capacityPk}PK` : null, a.roomLocation].filter(Boolean).join(" · ") || "Unit AC" }));
   const SERVICE_TYPE_LABEL: Record<string, string> = {
     CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
@@ -76,6 +81,7 @@ export default async function KerjaPage({ params, searchParams }: {
         initialItems={items}
         assignment={assignment}
         jobId={ws.jobId ?? null}
+        priceMap={priceMap}
       />
     </main>
   );

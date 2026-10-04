@@ -86,9 +86,13 @@ export function OwnerActions({
   const nameOf = (id: string) => technicians.find((t) => t.id === id)?.name ?? "—";
 
   return (
-    <Card>
+    <Card id="jadwal-tim">
       <CardContent className="p-5">
         <h2 className="text-base font-bold text-foreground">Aksi Pemilik</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Panel ini menetapkan <span className="font-medium text-foreground">jadwal (tanggal &amp; jam)</span> sekaligus
+          <span className="font-medium text-foreground"> tim</span> pekerjaan — keduanya tersimpan bersamaan saat Anda menekan Simpan Penugasan.
+        </p>
 
         {msg && (
           <p role={msg.kind === "err" ? "alert" : "status"}

@@ -197,3 +197,41 @@ export async function listTechnicianJobsToday(tenantId: string, technicianId: st
     orderBy: [{ windowStart: "asc" }, { scheduledDate: "asc" }],
   });
 }
+
+/**
+ * Poin 3 — Edit CATATAN pekerjaan (`JobOrder.notes`) sebelum finalisasi.
+ *
+ * Jalur edit umum ini memang belum pernah ada (audit: `actionUpdateJob`/`actionEditJob`
+ * 0 kemunculan) dan hanya menangani SATU field whitelist: `notes`.
+ *
+ * Guard:
+ * - tenant-scoped (job asing / terhapus → NOT_FOUND, tanpa bocor info keberadaan);
+ * - ditolak untuk status terminal COMPLETED & CANCELLED — closing hanya lewat
+ *   `closeWorkSession` (satuan-satunya penulis COMPLETED, atomik dgn invoice/proforma);
+ * - status aktif (DRAFT..WAITING) boleh dikoreksi, sesuai keputusan user "sebelum selesai".
+ *
+ * TIDAK menyentuh customer/asset/service/roster/jadwal/status/WorkItem/Invoice.
+ * Kontrak kosong: string kosong → `null` (konsisten poli existing `?? null` customer/asset).
+ */
+export async function updateJobNotes(
+  tenantId: string,
+  jobId: string,
+  notes: string,
+): Promise<void> {
+  const job = await prisma.jobOrder.findFirst({
+    where: { id: jobId, tenantId, deletedAt: null },
+    select: { id: true, status: true },
+  });
+  if (!job) throw new JobError("NOT_FOUND", "Pekerjaan tidak ditemukan");
+  if (job.status === "COMPLETED" || job.status === "CANCELLED") {
+    throw new JobError(
+      "VALIDATION",
+      "Pekerjaan sudah selesai/dibatalkan — catatan tidak bisa diubah lagi.",
+    );
+  }
+  const value = notes.trim() || null;
+  await prisma.jobOrder.update({
+    where: { id: job.id },
+    data: { notes: value }, // whitelist ketat: SATU field
+  });
+}

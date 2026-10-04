@@ -5,6 +5,7 @@ import { getServerContext } from "@/lib/auth/context";
 import { assertRole, AuthError } from "@/lib/auth/guard";
 import {
   createJob,
+  updateJobNotes,
   JobError,
   type CreateJobInput,
 } from "@/lib/services/job-management-service";
@@ -55,7 +56,6 @@ export interface CreateJobFormInput {
   scheduledTime?: string;
   windowEndTime?: string;
   technicianId?: string;
-  price?: string;
   notes?: string;
   /** FASE 5: pengingat yang dikonversi jadi pekerjaan ini (tombol "Jadikan Pekerjaan"). */
   reminderId?: string;
@@ -82,15 +82,10 @@ export async function actionCreateJob(
         ? toDate(input.scheduledDate, input.windowEndTime)
         : null;
 
-    let price: number | undefined;
-    if (input.price && input.price.trim() !== "") {
-      const parsed = Number(input.price.replace(/[^\d]/g, ""));
-      if (Number.isNaN(parsed) || parsed < 0) {
-        return { ok: false, error: "Harga tidak valid." };
-      }
-      price = parsed;
-    }
-
+    // Poin 1: kolom Harga di form Pekerjaan Baru DIHAPUS — nilai `price` klien TIDAK
+    // pernah dipakai. Biaya resmi ditetapkan admin lewat Daftar Layanan
+    // (ServiceCatalog.standardPrice) + harga khusus (CustomerPricing), diterapkan
+    // server-side oleh resolvePrice saat sesi kerja lalu di-snapshot ke WorkItem/Invoice.
     const payload: CreateJobInput = {
       customerId: input.customerId,
       assetId: input.assetId || undefined,
@@ -99,7 +94,6 @@ export async function actionCreateJob(
       windowStart: scheduledDate ?? undefined,
       windowEnd: windowEnd ?? undefined,
       technicianId: input.technicianId || undefined,
-      price,
       notes: input.notes?.trim() || undefined,
     };
 
@@ -129,6 +123,24 @@ export async function actionCreateJob(
     return { ok: true, data: { id: job.id } };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal membuat pekerjaan. Coba lagi.") };
+  }
+}
+
+/** Update catatan pekerjaan. SECURITY: OWNER/ADMIN + service tenant/status guard. */
+export async function actionUpdateJobNotes(jobId: string, notes: string): Promise<ActionResult> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    if (!jobId) return { ok: false, error: "Pekerjaan tidak dikenal." };
+    if (typeof notes !== "string") return { ok: false, error: "Catatan tidak valid." };
+    if (notes.length > 4000) return { ok: false, error: "Catatan maksimal 4.000 karakter." };
+
+    await updateJobNotes(ctx.tenantId, jobId, notes);
+    revalidatePath("/app/pekerjaan");
+    revalidatePath(`/app/pekerjaan/${jobId}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal menyimpan catatan.") };
   }
 }
 

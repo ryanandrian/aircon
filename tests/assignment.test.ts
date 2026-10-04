@@ -34,6 +34,7 @@ describe("windowsOverlap (murni)", () => {
 // ---------- detectConflict + assignJob (mocked prisma) ----------
 const store: { assignments: any[]; jobs: any[]; techs: any[] } = { assignments: [], jobs: [], techs: [] };
 let txCreateMany: any[] = [];
+let txJobUpdates: any[] = [];
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -60,7 +61,7 @@ vi.mock("@/lib/prisma", () => ({
         }).map((j) => ({ id: j.id, windowStart: j.windowStart, windowEnd: j.windowEnd, customer: { name: j.customerName ?? "C" } }));
       }),
       findFirst: vi.fn(async ({ where }: any) => store.jobs.find((j) => j.id === where.id && j.tenantId === where.tenantId) ?? null),
-      update: vi.fn(async () => ({})),
+      update: vi.fn(async ({ where, data }: any) => { txJobUpdates.push(data); return { ...store.jobs.find((j) => j.id === where.id), ...data }; }),
     },
     technician: {
       findMany: vi.fn(async ({ where }: any) => store.techs.filter((t) => t.tenantId === where.tenantId && where.id.in.includes(t.id))),
@@ -70,7 +71,7 @@ vi.mock("@/lib/prisma", () => ({
         deleteMany: vi.fn(async () => ({ count: 0 })),
         createMany: vi.fn(async ({ data }: any) => { txCreateMany = data; return { count: data.length }; }),
       },
-      jobOrder: { update: vi.fn(async () => ({})) },
+      jobOrder: { update: vi.fn(async ({ data }: any) => { txJobUpdates.push(data); return { ...data }; }) },
     })),
   },
 }));
@@ -79,9 +80,10 @@ import { detectConflict, assignJob } from "../src/lib/services/assignment-servic
 
 beforeEach(() => {
   txCreateMany = [];
+  txJobUpdates = [];
   store.techs = [{ id: "p1", tenantId: "t1" }, { id: "p2", tenantId: "t1" }];
   store.jobs = [
-    { id: "j1", tenantId: "t1", status: "SCHEDULED", deletedAt: null, technicianId: "p1",
+    { id: "j1", tenantId: "t1", status: "ASSIGNED", deletedAt: null, technicianId: "p1",
       windowStart: d("2026-08-28T09:00"), windowEnd: d("2026-08-28T11:00"), customerName: "PT A" },
   ];
   store.assignments = [{ tenantId: "t1", jobId: "j1", personId: "p1", roleOnJob: "TECHNICIAN", isLead: true }];
@@ -131,5 +133,59 @@ describe("assignJob", () => {
   });
   it("tolak daftar kosong", async () => {
     await expect(assignJob("t1", "j1", [])).rejects.toThrow();
+  });
+
+  // ---- Poin 2: jadwal konsisten (scheduledDate ikut tersimpan) ----
+  it("menulis scheduledDate identik window.start bersama window saat diberikan", async () => {
+    await assignJob("t1", "j1",
+      [{ personId: "p1", roleOnJob: "TECHNICIAN" }],
+      { start: d("2026-08-28T09:00"), end: d("2026-08-28T11:00") },
+    );
+    expect(txJobUpdates).toHaveLength(1);
+    expect(txJobUpdates[0]).toMatchObject({
+      technicianId: "p1",
+      scheduledDate: d("2026-08-28T09:00"),
+      windowStart: d("2026-08-28T09:00"),
+      windowEnd: d("2026-08-28T11:00"),
+    });
+    // JANGAN pernah derive ulang lewat toISOString — harus instan yang sama.
+    expect(txJobUpdates[0].scheduledDate.getTime()).toBe(txJobUpdates[0].windowStart.getTime());
+  });
+  it("tanpa window: jadwal existing TIDAK disentuh (hanya roster/lead)", async () => {
+    await assignJob("t1", "j1", [{ personId: "p1", roleOnJob: "TECHNICIAN" }]);
+    expect(txJobUpdates).toHaveLength(1);
+    expect(txJobUpdates[0]).not.toHaveProperty("scheduledDate");
+    expect(txJobUpdates[0]).not.toHaveProperty("windowStart");
+    expect(txJobUpdates[0]).not.toHaveProperty("windowEnd");
+    expect(txJobUpdates[0]).toMatchObject({ technicianId: "p1" });
+  });
+
+  // ---- Poin 2: guard status di lapisan service (bukan hanya tombol FE) ----
+  it("tolak reassign bila status job sudah berjalan", async () => {
+    store.jobs[0] = { ...store.jobs[0], status: "IN_PROGRESS" };
+    await expect(
+      assignJob("t1", "j1", [{ personId: "p1", roleOnJob: "TECHNICIAN" }],
+        { start: d("2026-08-28T09:00"), end: d("2026-08-28T11:00") }),
+    ).rejects.toThrow();
+    expect(txCreateMany).toHaveLength(0); // roster tidak dihapus/retulis
+    expect(txJobUpdates).toHaveLength(0); // job tidak diupdate
+  });
+  it("tolak bila status COMPLETED / CANCELLED (terminal)", async () => {
+    for (const status of ["COMPLETED", "CANCELLED"]) {
+      txCreateMany = []; txJobUpdates = [];
+      store.jobs[0] = { ...store.jobs[0], status };
+      await expect(assignJob("t1", "j1", [{ personId: "p1", roleOnJob: "TECHNICIAN" }])).rejects.toThrow();
+      expect(txJobUpdates).toHaveLength(0);
+    }
+  });
+  it("DRAFT dan ASSIGNED tetap boleh (kontrak UI ASSIGNABLE)", async () => {
+    for (const status of ["DRAFT", "ASSIGNED"]) {
+      txCreateMany = []; txJobUpdates = [];
+      store.jobs[0] = { ...store.jobs[0], status };
+      await assignJob("t1", "j1", [{ personId: "p1", roleOnJob: "TECHNICIAN" }],
+        { start: d("2026-08-28T09:00"), end: d("2026-08-28T10:00") });
+      expect(txJobUpdates).toHaveLength(1);
+      expect(txJobUpdates[0].scheduledDate).toEqual(d("2026-08-28T09:00"));
+    }
   });
 });

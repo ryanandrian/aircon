@@ -87,22 +87,31 @@ vi.mock("@/lib/prisma", () => ({
         const k = where.customerId_serviceId;
         return store.pricing.find((p) => p.customerId === k.customerId && p.serviceId === k.serviceId) ?? null;
       }),
-      findMany: vi.fn(async () =>
-        store.pricing.map((p) => ({
-          price: p.price,
-          service: { code: p.code ?? "S1", name: p.name ?? "Cuci AC", standardPrice: p.std ?? 75000 },
-          customer: { name: p.custName ?? "PT Sejuk" },
-        })),
+      findMany: vi.fn(async ({ where }: any) =>
+        store.pricing
+          // selaras 3 caller asli: {tenantId}, {tenantId,customerId}, {tenantId,serviceId}
+          .filter(
+            (p) =>
+              p.tenantId === where.tenantId &&
+              (!where.customerId || p.customerId === where.customerId) &&
+              (!where.serviceId || p.serviceId === where.serviceId),
+          )
+          .map((p) => ({
+            serviceId: p.serviceId,
+            price: p.price,
+            service: { code: p.code ?? "S1", name: p.name ?? "Cuci AC", standardPrice: p.std ?? 75000 },
+            customer: { name: p.custName ?? "PT Sejuk" },
+          })),
       ),
     },
   },
 }));
 
-import { resolvePrice, exportCustomerPricingCsv } from "../src/lib/services/service-catalog-service";
+import { resolvePrice, exportCustomerPricingCsv, effectivePriceMap } from "../src/lib/services/service-catalog-service";
 
 beforeEach(() => {
-  store.svc = [{ id: "s1", tenantId: "t1", standardPrice: 75000 }];
-  store.pricing = [{ customerId: "c1", serviceId: "s1", price: 60000 }];
+  store.svc = [{ id: "s1", tenantId: "t1", standardPrice: 75000 }, { id: "s2", tenantId: "t1", standardPrice: 100000 }];
+  store.pricing = [{ tenantId: "t1", customerId: "c1", serviceId: "s1", price: 60000 }];
 });
 
 describe("resolvePrice (K21)", () => {
@@ -117,9 +126,56 @@ describe("resolvePrice (K21)", () => {
   });
 });
 
+describe("effectivePriceMap — preview harga efektif teknisi (Poin 5)", () => {
+  it("override khusus menang; layanan tanpa override memakai standardPrice", async () => {
+    const prices = await effectivePriceMap("t1", "c1", [
+      { id: "s1", standardPrice: 75000 },
+      { id: "s2", standardPrice: 100000 },
+    ]);
+    expect(prices).toEqual({ s1: 60000, s2: 100000 });
+  });
+
+  it("hanya memilih override tenant+customer yang diminta", async () => {
+    store.pricing.push(
+      { tenantId: "t1", customerId: "c2", serviceId: "s1", price: 1000 },
+      { tenantId: "t2", customerId: "c1", serviceId: "s2", price: 2000 },
+    );
+    const prices = await effectivePriceMap("t1", "c1", [
+      { id: "s1", standardPrice: 75000 },
+      { id: "s2", standardPrice: 100000 },
+    ]);
+    expect(prices).toEqual({ s1: 60000, s2: 100000 });
+  });
+
+  it("katalog kosong → map kosong dan tanpa query override", async () => {
+    const { prisma } = await import("@/lib/prisma");
+    const spy = vi.mocked(prisma.customerPricing.findMany);
+    spy.mockClear();
+    expect(await effectivePriceMap("t1", "c1", [])).toEqual({});
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("SINKRON dgn resolvePrice (preview = nilai yang nanti di-snapshot)", async () => {
+    for (const [tenantId, customerId] of [
+      ["t1", "c1"], // punya override (s1)
+      ["t1", "c2"], // tanpa override sama sekali
+    ] as const) {
+      const catalog = [
+        { id: "s1", standardPrice: 75000 },
+        { id: "s2", standardPrice: 100000 },
+      ];
+      const [map, resolved] = await Promise.all([
+        effectivePriceMap(tenantId, customerId, catalog),
+        Promise.all(catalog.map((c) => resolvePrice(tenantId, customerId, c.id))),
+      ]);
+      expect(map).toEqual({ s1: resolved[0], s2: resolved[1] });
+    }
+  });
+});
+
 describe("exportCustomerPricingCsv (K22)", () => {
   it("header + baris override + selisih; escape koma", async () => {
-    store.pricing = [{ customerId: "c1", serviceId: "s1", price: 60000, code: "CUCI-1", name: "Cuci, AC Split", std: 75000, custName: "PT Sejuk" }];
+    store.pricing = [{ tenantId: "t1", customerId: "c1", serviceId: "s1", price: 60000, code: "CUCI-1", name: "Cuci, AC Split", std: 75000, custName: "PT Sejuk" }];
     const csv = await exportCustomerPricingCsv("t1");
     const lines = csv.split("\r\n");
     expect(lines[0]).toBe("Kode,Nama Layanan,Harga Standar,Pelanggan,Harga Khusus,Selisih");

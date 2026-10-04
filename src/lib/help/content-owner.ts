@@ -263,11 +263,13 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 7,
     whatIsIt:
-      "Halaman satu pekerjaan: melihat status, menugaskan tim teknisi, memantau progres & foto lapangan, hingga membuat faktur setelah selesai.",
+      "Halaman satu pekerjaan: melihat status, menetapkan jadwal & tim, memantau progres/foto lapangan, dan membuka alur tagihan saat pekerjaan selesai.",
     steps: [
-      "Gunakan 'Tugaskan Tim' untuk menambahkan teknisi ke pekerjaan ini.",
-      "Pantau perubahan status dan progres yang dilaporkan teknisi dari lapangan.",
-      "Setelah pekerjaan selesai, buat faktur untuk menagih pelanggan.",
+      "Jika jadwal belum ditetapkan, pilih 'Atur jadwal & tim' pada baris Jadwal.",
+      "Di panel Jadwal & Teknisi, pilih tanggal, jam, personel, dan peran untuk pekerjaan ini.",
+      "Tanggal yang tampil sebagai saran belum tersimpan sampai Anda menekan 'Simpan Penugasan'.",
+      "Pantau status dan progres yang dilaporkan teknisi dari aplikasi lapangan.",
+      "Tagihan dibuat teknisi melalui Catat Pekerjaan setelah layanan/unit dicatat.",
     ],
     tips: [
       "Status pekerjaan berubah otomatis saat teknisi memperbaruinya dari aplikasi teknisi.",
