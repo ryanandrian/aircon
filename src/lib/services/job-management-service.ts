@@ -66,73 +66,55 @@ export async function createJob(
 
   const addressSnapshot = customer.address ?? null;
 
-  const job = await prisma.jobOrder.create({
-    data: {
-      tenantId,
-      customerId: input.customerId,
-      assetId: input.assetId ?? null,
-      technicianId: input.technicianId ?? null,
-      serviceType: input.serviceType,
-      status,
-      source: input.source ?? "MANUAL",
-      scheduledDate: input.scheduledDate ?? null,
-      windowStart: input.windowStart ?? null,
-      windowEnd: input.windowEnd ?? null,
-      estDurationMin: input.estDurationMin ?? 60,
-      price: input.price != null ? new Prisma.Decimal(input.price) : null,
-      notes: input.notes ?? null,
-      addressSnapshot,
-      geoLat: customer.geoLat ?? null,
-      geoLng: customer.geoLng ?? null,
-      createdById,
-    },
-  });
-
-  // Catat event awal (audit).
-  await prisma.jobProgressEvent.create({
-    data: { tenantId, jobId: job.id, fromStatus: null, toStatus: status, actorId: createdById, meta: {} as never },
-  });
-
-  return job;
-}
-
-/**
- * Assign/ubah teknisi + jadwal untuk job DRAFT → ASSIGNED.
- * SECURITY: tenant-scoped.
- */
-export async function assignJob(
-  tenantId: string,
-  jobId: string,
-  actorId: string,
-  params: { technicianId: string; scheduledDate: Date; windowStart?: Date; windowEnd?: Date },
-) {
-  const job = await prisma.jobOrder.findFirst({ where: { id: jobId, tenantId } });
-  if (!job) throw new JobError("NOT_FOUND", "Pekerjaan tidak ditemukan");
-  if (job.status !== "DRAFT" && job.status !== "ASSIGNED") {
-    throw new JobError("VALIDATION", "Pekerjaan sudah berjalan, tidak bisa di-assign ulang di sini");
-  }
-  const tech = await prisma.technician.findFirst({ where: { id: params.technicianId, tenantId } });
-  if (!tech) throw new JobError("VALIDATION", "Teknisi tidak ditemukan");
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const j = await tx.jobOrder.update({
-      where: { id: jobId },
+  // SATU transaksi: job + event + roster penugasan.
+  // A (audit 2026-10-04): form "Tambah Pekerjaan" dulu hanya menulis JobOrder.technicianId
+  // tanpa JobAssignment → halaman detail (listAssignments) menampilkan "Belum ditugaskan"
+  // padahal sudah ada teknisi (terbukti pada 5 job live). Roster dibuat di sini agar semua
+  // pembaca JobAssignment (detail, agenda, insentif kernet) ikut benar.
+  return prisma.$transaction(async (tx) => {
+    const job = await tx.jobOrder.create({
       data: {
-        technicianId: params.technicianId,
-        scheduledDate: params.scheduledDate,
-        windowStart: params.windowStart ?? null,
-        windowEnd: params.windowEnd ?? null,
-        status: "ASSIGNED",
+        tenantId,
+        customerId: input.customerId,
+        assetId: input.assetId ?? null,
+        technicianId: input.technicianId ?? null,
+        serviceType: input.serviceType,
+        status,
+        source: input.source ?? "MANUAL",
+        scheduledDate: input.scheduledDate ?? null,
+        windowStart: input.windowStart ?? null,
+        windowEnd: input.windowEnd ?? null,
+        estDurationMin: input.estDurationMin ?? 60,
+        price: input.price != null ? new Prisma.Decimal(input.price) : null,
+        notes: input.notes ?? null,
+        addressSnapshot,
+        geoLat: customer.geoLat ?? null,
+        geoLng: customer.geoLng ?? null,
+        createdById,
       },
     });
-    if (job.status === "DRAFT") {
-      await tx.jobProgressEvent.create({
-        data: { tenantId, jobId, fromStatus: "DRAFT", toStatus: "ASSIGNED", actorId, meta: {} as never },
+
+    // Catat event awal (audit).
+    await tx.jobProgressEvent.create({
+      data: { tenantId, jobId: job.id, fromStatus: null, toStatus: status, actorId: createdById, meta: {} as never },
+    });
+
+    // Teknisi dari form = satu-satunya personel → sekaligus penanggung jawab (lead),
+    // sejajar backward-compat JobOrder.technicianId = lead pada assignment-service.
+    if (input.technicianId) {
+      await tx.jobAssignment.create({
+        data: {
+          tenantId,
+          jobId: job.id,
+          personId: input.technicianId,
+          roleOnJob: "TECHNICIAN",
+          isLead: true,
+        },
       });
     }
-    return j;
+
+    return job;
   });
-  return updated;
 }
 
 export interface JobListFilter {

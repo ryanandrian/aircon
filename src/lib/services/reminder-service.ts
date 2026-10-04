@@ -131,41 +131,6 @@ export async function sendReminderWa(tenantId: string, reminderId: string) {
   return sendCustomerReminderWa(tenantId, asset.customerId, [reminderId]);
 }
 
-/** Buat repeat job dari reminder (prefill dari job sebelumnya di asset yang sama). */
-export async function createRepeatJob(tenantId: string, reminderId: string, createdById: string) {
-  const reminder = await prisma.repeatReminder.findFirst({ where: { id: reminderId, tenantId } });
-  if (!reminder) throw new Error("Reminder tidak ditemukan");
-
-  const asset = await prisma.asset.findUnique({ where: { id: reminder.assetId } });
-  if (!asset) throw new Error("Asset tidak ditemukan");
-
-  // Ambil job terakhir di asset ini sebagai template prefill
-  const lastJob = await prisma.jobOrder.findFirst({
-    where: { tenantId, assetId: asset.id, status: "COMPLETED" },
-    orderBy: { completedAt: "desc" },
-  });
-
-  const job = await prisma.$transaction(async (tx) => {
-    const created = await tx.jobOrder.create({
-      data: {
-        tenantId, customerId: asset.customerId, assetId: asset.id,
-        serviceType: lastJob?.serviceType ?? "CLEANING",
-        status: "DRAFT", source: "REPEAT",
-        price: lastJob?.price ?? null,
-        parentJobId: lastJob?.id ?? null,
-        createdById,
-      },
-    });
-    await tx.repeatReminder.update({
-      where: { id: reminder.id },
-      data: { status: "CONVERTED", jobId: created.id },
-    });
-    return created;
-  });
-
-  return job;
-}
-
 /**
  * RUNNER money loop (dipanggil cron harian): untuk SEMUA tenant aktif,
  * kirim WA reminder untuk RepeatReminder yang due. Dikelompokkan PER PELANGGAN:

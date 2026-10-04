@@ -49,7 +49,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 | Status kirim + callback monoton | `MessageLog.status`, `api/wa/callback/route.ts` |
 | Korelasi reminder↔MessageLog **tanpa kolom baru** via `sentAt` ±5s (uji 10/10 cocok) | uji 2026-10-03 |
 | Enum penutupan: `DISMISSED`, `EXPIRED`, `CONVERTED` | `prisma/schema.prisma` `ReminderStatus` |
-| Fungsi `CONVERTED` (`createRepeatJob`) — tak pernah dipanggil | `reminder-service.ts:133` |
+| Fungsi `CONVERTED` (`createRepeatJob`) — tak pernah dipanggil → DIHAPUS (bukti audit 2026-10-04, 0 pemanggil) | pernah di `reminder-service.ts:133` |
 | `reminderExpireDays:14` — tak pernah dipakai | `money-loop.ts:10` |
 | Guard plan `Tenant.plan` + UI edit `PlanConfig` admin | `schema.prisma`, `admin/config-actions.ts` |
 | Template `reminder`/`reminder_multi` bisa diedit tenant | `message-template-service.ts` (EDITABLE_KEYS) |
@@ -117,7 +117,7 @@ callback      → status naik monoton: QUEUED < SENT < DELIVERED < READ         
 - [x] 4.4 Gate: TSC 0, LINT 0 (bersih), **442 tes** (48 file), BUILD 0. Migrasi sudah di-apply (tidak menumpuk di deploy).
 
 ### FASE 5 — KONVERSI & PENUTUPAN  `status: [x]`
-- [x] 5.1 Konversi via `actionCreateJob(reminderId)` — RED 1 gagal -> GREEN 7/7. Guard tenant-scoped: reminderId asing/unit beda/status CLOSED TIDAK diubah tapi job tetap dibuat (operasi utama tak diblokir). Prefill `?assetId&customerId&reminderId` di page form DIPERIKSA ULANG terhadap opsi tenant-scoped (ID asing tidak pernah dirender). Alasan pakai `actionCreateJob` (bukan `createRepeatJob`): tombol harus membawa user ke form yang bisa isi jadwal+teknisi; `createRepeatJob` tetap DRAFT tanpa jadwal. Catatan: `createRepeatJob` TETAP tak terpanggil (tak dihapus — ada, tak dipakai, dokumentasikan).
+- [x] 5.1 Konversi via `actionCreateJob(reminderId)` — RED 1 gagal -> GREEN 7/7. Guard tenant-scoped: reminderId asing/unit beda/status CLOSED TIDAK diubah tapi job tetap dibuat (operasi utama tak diblokir). Prefill `?assetId&customerId&reminderId` di page form DIPERIKSA ULANG terhadap opsi tenant-scoped (ID asing tidak pernah dirender). Alasan pakai `actionCreateJob` (bukan `createRepeatJob`): tombol harus membawa user ke form yang bisa isi jadwal+teknisi; `createRepeatJob` tetap DRAFT tanpa jadwal. Catatan: `createRepeatJob` DIHAPUS pada audit 2026-10-04 (0 pemanggil di seluruh repo — mencegah jalur penugasan ganda).
 - [x] 5.2 **BATAL — alasan terverifikasi survei:** kernet SUDAH punya UI lengkap di detail pekerjaan (`owner-actions.tsx` + `actionAssignTeam` multi-peran, tersedia dari `page.tsx` utk status ASSIGNABLE). Menambah selector kernet di form baru = duplikasi UI (melanggar "jangan buat komponen baru"). Penugasan kernet tetap lewat jalur yang ada setelah job jadi.
 - [x] 5.3 Auto-`EXPIRED` — RED 4 gagal -> GREEN 5/5 (`expireDueReminders`, dipanggil sekali di awal worker harian, spec `BuildSpecPack_Part3` baris 37 = lewat due+14). **Semantik dikunci dgn justifikasi:** hanya `SENT` yang di-expire; `QUEUED` TIDAK (kalau di-expire, pengingat belum terkirim hilang permanen — anti-duplikat unique(tenant,asset,dueDate) memblokir pembuatan ulang). Batas hari dari `REPEAT_DEFAULTS.reminderExpireDays` (bukan angka lekat). "Tanpa aksi" = tidak di-COMPLETE/DISMISSED lewat inbox dalam 14 hari.
 - [x] 5.4 Gate: TSC 0, LINT 0, **454 tes** (50 file), BUILD 0.

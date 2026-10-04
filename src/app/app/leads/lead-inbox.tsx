@@ -59,7 +59,19 @@ export function LeadInbox({ initialLeads }: { initialLeads: Lead[] }) {
                 {lead.status !== "QUOTED" && <Button type="button" size="sm" variant="outline" onClick={() => updateStatus(lead.id, "QUOTED")} disabled={pending}>Tandai Dikutip</Button>}
                 <Button type="button" size="sm" variant="ghost" onClick={() => updateStatus(lead.id, "LOST")} disabled={pending}>Tidak Jadi</Button>
               </div>}
-              {lead.convertedCustomerId && <Link className="mt-3 inline-block text-sm text-sky-600 hover:underline" href={`/app/pelanggan/${lead.convertedCustomerId}`}>Buka pelanggan →</Link>}
+              {lead.convertedCustomerId && (
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t pt-3">
+                  <Link className="text-sm text-sky-600 hover:underline" href={`/app/pelanggan/${lead.convertedCustomerId}`}>Buka pelanggan →</Link>
+                  {/* D (audit 2026-10-04): perpanjangan alur booking → pekerjaan. Guard prefill
+                      di /app/pekerjaan/baru tetap sama (customerId harus milik tenant ini). */}
+                  <Link
+                    className="text-sm text-sky-600 hover:underline"
+                    href={`/app/pekerjaan/baru?customerId=${encodeURIComponent(lead.convertedCustomerId)}`}
+                  >
+                    Buat Pekerjaan →
+                  </Link>
+                </div>
+              )}
             </article>
           ))}
         </div>

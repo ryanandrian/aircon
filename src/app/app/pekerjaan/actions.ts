@@ -5,7 +5,6 @@ import { getServerContext } from "@/lib/auth/context";
 import { assertRole, AuthError } from "@/lib/auth/guard";
 import {
   createJob,
-  assignJob,
   JobError,
   type CreateJobInput,
 } from "@/lib/services/job-management-service";
@@ -130,36 +129,6 @@ export async function actionCreateJob(
     return { ok: true, data: { id: job.id } };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal membuat pekerjaan. Coba lagi.") };
-  }
-}
-
-/** Assign/ubah teknisi + jadwal pekerjaan (DRAFT/ASSIGNED). SECURITY: OWNER/ADMIN. */
-export async function actionAssignJob(
-  jobId: string,
-  technicianId: string,
-  scheduledDate: string,
-  scheduledTime?: string,
-): Promise<ActionResult> {
-  try {
-    const ctx = await getServerContext();
-    assertRole(ctx.role, ["OWNER", "ADMIN"]);
-
-    if (!jobId) return { ok: false, error: "Pekerjaan tidak dikenal." };
-    if (!technicianId) return { ok: false, error: "Teknisi wajib dipilih." };
-    const when = toDate(scheduledDate, scheduledTime);
-    if (!when) return { ok: false, error: "Jadwal wajib diisi." };
-
-    await assignJob(ctx.tenantId, jobId, ctx.userId, {
-      technicianId,
-      scheduledDate: when,
-      windowStart: when,
-    });
-
-    revalidatePath("/app/pekerjaan");
-    revalidatePath(`/app/pekerjaan/${jobId}`);
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: toMessage(err, "Gagal menugaskan teknisi. Coba lagi.") };
   }
 }
 

@@ -48,9 +48,17 @@ export default async function PekerjaanBaruPage({ searchParams }: {
 
   const params = await searchParams;
   // Prefill dikunci ulang terhadap opsi tenant-scoped; ID asing tidak pernah dipantulkan ke form.
+  // (D) `customerId` saja kini valid juga — dipakai pintasan "Buat Pekerjaan" dari inbox Booking
+  // Online. Guard tetap sama: id harus ada di daftar customers tenant ini (query di atas sudah
+  // tenantId + deletedAt:null), sehingga id asing tetap tak pernah dirender.
   const initialAsset = assetOptions.find((a) => a.id === params.assetId);
-  const initialCustomerId = initialAsset?.customerId === params.customerId ? params.customerId : undefined;
-  const initialAssetId = initialCustomerId ? initialAsset?.id : undefined;
+  const initialCustomerId =
+    initialAsset && initialAsset.customerId === params.customerId
+      ? params.customerId
+      : customers.some((c) => c.id === params.customerId)
+        ? params.customerId
+        : undefined;
+  const initialAssetId = initialCustomerId && initialAsset?.customerId === initialCustomerId ? initialAsset.id : undefined;
   const reminderId = params.reminderId && params.reminderId.length <= 64 ? params.reminderId : undefined;
 
   return (

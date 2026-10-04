@@ -79,7 +79,14 @@ export default async function PekerjaanDetailPage({
 
   // Tim yang ditugaskan (multi-personel, peran cair — F3.3).
   const { listAssignments } = await import("@/lib/services/assignment-service");
-  const team = await listAssignments(ctx.tenantId, id);
+  const roster = await listAssignments(ctx.tenantId, id);
+  // B (audit 2026-10-04): job lama (5 di DB) punya JobOrder.technicianId tanpa baris
+  // JobAssignment — tanpa fallback ini baris "Tim" salah menampilkan "Belum ditugaskan".
+  const team = roster.length > 0
+    ? roster
+    : job.technician
+      ? [{ personId: job.technician.id, name: job.technician.user.name, roleOnJob: "TECHNICIAN" as const, isLead: true }]
+      : [];
 
   const unit = job.asset
     ? [job.asset.brand, job.asset.model].filter(Boolean).join(" ").trim() || "Unit AC"

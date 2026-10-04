@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * FASE 5 modul Pengingat — konversi pengingat jadi pekerjaan.
  * Tombol "Jadikan Pekerjaan" di /app/pengingat membawa reminderId ke form
  * /app/pekerjaan/baru; setelah job dibuat, pengingat -> CONVERTED + jobId
- * (semantik yang sama dengan createRepeatJob yang sudah ada).
+ * (jalur konversi tunggal sejak createRepeatJob dihapus pada audit 2026-10-04).
  *
  * Guard WAJIB: reminderId tenant-scoped + harus milik unit/pelanggan yang sama,
  * dan status masih QUEUED/SENT (bukan sudah ditutup/konversi orang lain).
@@ -16,7 +16,8 @@ const store: {
   customers: any[];
   assets: any[];
   techs: any[];
-} = { reminders: [], jobs: [], customers: [], assets: [], techs: [] };
+  assignments: any[];
+} = { reminders: [], jobs: [], customers: [], assets: [], techs: [], assignments: [] };
 
 let session: any = { tenantId: "t1", userId: "u1", role: "OWNER", name: "Pemilik" };
 
@@ -44,7 +45,19 @@ vi.mock("@/lib/prisma", () => ({
       update: vi.fn(async ({ where, data }: any) => { const r = store.reminders.find((x) => x.id === where.id); if (!r) throw new Error("tidak ada"); Object.assign(r, data); return r; }),
       findFirst: vi.fn(async ({ where }: any) => store.reminders.find((r) => r.id === where.id && r.tenantId === where.tenantId) ?? null),
     },
-    $transaction: vi.fn(async (ops: any[]) => Promise.all(ops)),
+    // Callback (bukan array) — bentuk yang dipakai src: prisma.$transaction(async (tx) => ...).
+    // Preseden sama dengan tests/assignment.test.ts. Akses store via closure saat runtime.
+    $transaction: vi.fn(async (fn: any) => fn({
+      jobOrder: {
+        create: vi.fn(async ({ data }: any) => { const row = { id: `j${store.jobs.length + 1}`, status: "DRAFT", ...data }; store.jobs.push(row); return row; }),
+        findFirst: vi.fn(async () => null),
+      },
+      jobProgressEvent: { create: vi.fn(async () => ({ id: "e1" })) },
+      // Fiks A: createJob dengan teknisi ikut menulis roster penugasan.
+      jobAssignment: {
+        create: vi.fn(async ({ data }: any) => { store.assignments.push(data); return { id: `a${store.assignments.length}`, ...data }; }),
+      },
+    })),
   },
 }));
 
@@ -61,6 +74,7 @@ beforeEach(() => {
   store.assets = [{ id: "a1", tenantId: "t1", customerId: "c1" }];
   store.techs = [{ id: "tech1", tenantId: "t1" }];
   store.jobs = [];
+  store.assignments = [];
   store.reminders = [
     { id: "r1", tenantId: "t1", assetId: "a1", status: "QUEUED", jobId: null },
     { id: "r-asing", tenantId: "t-asing", assetId: "a2", status: "QUEUED", jobId: null },
