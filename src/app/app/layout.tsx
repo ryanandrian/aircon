@@ -7,6 +7,7 @@ import { TenantLogo } from "@/components/tenant-logo";
 import { gatewaySessionStatus } from "@/lib/wa/gateway-relay";
 import { CustomerServiceFab } from "@/components/customer-service-fab";
 import { AppNav } from "./_components/app-nav";
+import { SidebarMenuScroll } from "./_components/sidebar-menu-scroll";
 import { TenantIdentityProvider } from "./_components/tenant-identity-context";
 import { LogoutButton } from "./logout-button";
 
@@ -34,10 +35,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           {/* Menu discroll sendiri: kepala (logo) & footer (Tampilan + Keluar) tetap
-              terlihat walau viewport laptop pendek — footer tak lagi terpotong. */}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              terlihat walau viewport laptop pendek — footer tak lagi terpotong.
+              Scrollbar mengikuti gaya HP: tipis, muda, hanya tampil saat digulir. */}
+          <SidebarMenuScroll>
             <AppNav />
-          </div>
+          </SidebarMenuScroll>
           <div className="mt-auto shrink-0 space-y-3 border-t pt-4">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Tampilan</span>

@@ -246,3 +246,48 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Scrollbar sidebar desktop (.sidebar-menu-scroll) — disamakan dengan tampilan
+ * versi HP: tipis, abu-abu MUDA, tanpa tombol panah, dan hanya terlihat saat
+ * sedang discroll (lihat sidebar-menu-scroll.tsx utk toggling .is-scrolling).
+ * Khusus sidebar — drawer HP memakai scrollbar native sistem dan TIDAK diubah.
+ *
+ * Chromium/WebKit: perlu -webkit-scrollbar (properti standar tak berlaku utk WebKit).
+ * Firefox & engine standar: scrollbar-width/scrollbar-color.
+ * Transparan by default → terungkap hanya saat hover / sedang discroll / fokus.
+ */
+.sidebar-menu-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-menu-scroll:hover,
+.sidebar-menu-scroll.is-scrolling,
+.sidebar-menu-scroll:focus-visible {
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.sidebar-menu-scroll::-webkit-scrollbar {
+  width: 8px; /* tanpa tombol panah */
+}
+.sidebar-menu-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-menu-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 8px;
+  border: 2px solid transparent; /* jaga rail tetap 8px total */
+  background-clip: content-box;
+  transition: background-color 0.35s ease;
+}
+.sidebar-menu-scroll:hover::-webkit-scrollbar-thumb,
+.sidebar-menu-scroll.is-scrolling::-webkit-scrollbar-thumb,
+.sidebar-menu-scroll:focus-visible::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  background-clip: content-box;
+}
+.sidebar-menu-scroll:hover::-webkit-scrollbar-thumb:hover,
+.sidebar-menu-scroll.is-scrolling::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+  background-clip: content-box;
+}
