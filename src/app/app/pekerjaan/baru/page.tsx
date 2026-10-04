@@ -25,7 +25,7 @@ export default async function PekerjaanBaruPage({ searchParams }: {
     }),
     prisma.asset.findMany({
       where: { tenantId: ctx.tenantId, deletedAt: null },
-      select: { id: true, customerId: true, brand: true, model: true, roomLocation: true },
+      select: { id: true, customerId: true, brand: true, capacityPk: true, roomLocation: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.technician.findMany({
@@ -38,10 +38,11 @@ export default async function PekerjaanBaruPage({ searchParams }: {
   const assetOptions = assets.map((a) => ({
     id: a.id,
     customerId: a.customerId,
-    label:
-      [a.brand, a.model].filter(Boolean).join(" ").trim() ||
-      a.roomLocation ||
-      "Unit AC",
+    // Label = pola unit-manager.tsx (merek · PK · ruangan) agar unit se-merek
+    // pada pelanggan yang sama bisa dibedakan (17 pelanggan bermerek sama).
+    label: [a.brand ?? "AC", a.capacityPk ? `${a.capacityPk} PK` : null, a.roomLocation]
+      .filter(Boolean)
+      .join(" · "),
   }));
   const technicians = technicianRows.map((t) => ({ id: t.id, name: t.user.name }));
 
