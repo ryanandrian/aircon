@@ -27,6 +27,7 @@ import {
   agendaQueryString,
   agendaRangeLabel,
   agendaToday,
+  effectiveHistoryDate,
   fmtDurasi,
   fmtJam,
   groupByDay,
@@ -148,7 +149,9 @@ export function AgendaBoard({
   const clearHref = `/app/pekerjaan?${agendaQueryString({ ...params, q: "", tim: "", status: "SEMUA" })}`;
 
   const groups = groupByDay(items, {
-    dateOf: (row) => row.scheduledDate,
+    // Riwayat: pakai tanggal efektif (jadwal → selesai → dibatalkan) agar job final
+    // tanpa jadwal tidak salah masuk grup "Belum terjadwal" (lihat effectiveHistoryDate).
+    dateOf: (row) => (params.view === "riwayat" ? effectiveHistoryDate(row) : row.scheduledDate),
     desc: params.view === "riwayat",
   });
 
@@ -174,7 +177,7 @@ export function AgendaBoard({
       >
         <TabsList className="w-full">
           {VIEWS.map((v) => (
-            <TabsTrigger key={v.value} value={v.value} className="min-h-9 flex-1">
+            <TabsTrigger key={v.value} value={v.value}>
               {v.label}
             </TabsTrigger>
           ))}
@@ -234,7 +237,13 @@ export function AgendaBoard({
         >
           <SelectTrigger className="min-h-[44px] w-full rounded-xl sm:h-9 sm:w-52">
             <span className="sr-only">Saring berdasarkan tim</span>
-            <SelectValue placeholder="Semua tim" />
+            <SelectValue>
+              {(value: string | null) => {
+                if (!value || value === "SEMUA") return "Semua tim";
+                const selected = people.find((person) => person.id === value);
+                return selected?.name ?? (value ? "Personel tidak aktif" : "Semua tim");
+              }}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="SEMUA">Semua tim</SelectItem>
@@ -253,7 +262,11 @@ export function AgendaBoard({
         >
           <SelectTrigger className="min-h-[44px] w-full rounded-xl sm:h-9 sm:w-48">
             <span className="sr-only">Saring berdasarkan status</span>
-            <SelectValue />
+            <SelectValue>
+              {(value: string | null) =>
+                STATUS_FILTERS.find((filter) => filter.key === value)?.label ?? "Semua status"
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {STATUS_FILTERS.map((f) => (

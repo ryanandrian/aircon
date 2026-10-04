@@ -141,6 +141,25 @@ export function agendaToday(params: AgendaParams): AgendaParams {
   return { ...params, year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
 }
 
+/**
+ * Tanggal EFEKTIF utk pengelompokan riwayat — mencegah job final yang tidak
+ * pernah dijadwalkan masuk grup "Belum terjadwal" (temuan live AC Depok Jaya,
+ * 2026-10-04: 1 COMPLETED + 1 CANCELLED tanpa jadwal muncul sbg "belum terjadwal").
+ * Prioritas: jadwal → selesai (completedAt) → dibatalkan (updatedAt) → null.
+ * Job AKTIF tanpa jadwal tetap null → layak masuk grup "Belum terjadwal".
+ */
+export function effectiveHistoryDate(row: {
+  scheduledDate?: string | null;
+  status?: string | null;
+  completedAt?: string | null;
+  updatedAt?: string | null;
+}): string | null {
+  if (row.scheduledDate) return row.scheduledDate;
+  if (row.status === "COMPLETED" && row.completedAt) return row.completedAt;
+  if (row.status === "CANCELLED" && row.updatedAt) return row.updatedAt;
+  return null;
+}
+
 /** Kunci hari YYYY-MM-DD (zona LOKAL) — pemisah grup agenda. */
 export function dayKey(iso: string | null | undefined): string {
   if (!iso) return "unscheduled";

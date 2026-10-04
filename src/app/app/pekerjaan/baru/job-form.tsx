@@ -7,6 +7,7 @@ import { SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -137,6 +138,8 @@ export function JobForm({
   }
 
   return (
+    <Card>
+      <CardContent className="p-6">
     <form
       className="space-y-5"
       onSubmit={(e) => {
@@ -323,5 +326,7 @@ export function JobForm({
         Simpan Pekerjaan
       </SubmitButton>
     </form>
+      </CardContent>
+    </Card>
   );
 }

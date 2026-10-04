@@ -29,6 +29,9 @@ export interface AgendaJobItem {
   serviceType: string;
   status: string;
   scheduledDate: string | null;
+  /** Riwayat: dipakai mengelompokkan job final tanpa jadwal (lihat effectiveHistoryDate). */
+  completedAt: string | null;
+  updatedAt: string;
   /** Jam selesai bila diisi pada form (data live saat ini: belum ada yang mengisi). */
   windowEnd: string | null;
   unit: string | null;
@@ -81,8 +84,12 @@ export function agendaWhere(
         { scheduledDate: { lte: range.to } },
       ],
     });
-    // Tanpa jadwal → selalu ikut (grup "Belum terjadwal").
-    rangeClauses.push({ scheduledDate: null });
+    // Tanpa jadwal → hanya yang MASIH AKTIF (mis. belum diatur jadwalnya).
+    // Job COMPLETED/CANCELLED tanpa jadwal TIDAK ikut tampilan pekan/bulan:
+    // bukan lagi "pekerjaan yang butuh jadwal", hanya terlihat di Riwayat.
+    rangeClauses.push({
+      AND: [{ scheduledDate: null }, { status: { in: ACTIVE } }],
+    });
     // Terlewat & belum selesai → tetap terlihat di periode mana pun (jangan lolos).
     rangeClauses.push({
       AND: [{ scheduledDate: { lt: range.from } }, { status: { in: ACTIVE } }],
@@ -154,6 +161,8 @@ export async function listAgendaJobs(
       serviceType: true,
       status: true,
       scheduledDate: true,
+      completedAt: true,
+      updatedAt: true,
       windowEnd: true,
       addressSnapshot: true,
       technicianId: true,
@@ -200,6 +209,8 @@ export async function listAgendaJobs(
       serviceType: j.serviceType,
       status: j.status,
       scheduledDate: j.scheduledDate?.toISOString() ?? null,
+      completedAt: j.completedAt?.toISOString() ?? null,
+      updatedAt: j.updatedAt.toISOString(),
       windowEnd: j.windowEnd?.toISOString() ?? null,
       unit,
       technicians,

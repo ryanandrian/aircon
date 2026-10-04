@@ -26,15 +26,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card p-5 md:flex">
-          <div className="mb-6 flex items-center gap-2.5">
+          <div className="mb-6 flex shrink-0 items-center gap-2.5">
             <TenantLogo name={name} logoUrl={tenant?.logoUrl} size={36} />
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-foreground">{name}</div>
               {ctx.email && <div className="truncate text-xs text-muted-foreground">{ctx.email}</div>}
             </div>
           </div>
-          <AppNav />
-          <div className="mt-auto space-y-3 border-t pt-4">
+          {/* Menu discroll sendiri: kepala (logo) & footer (Tampilan + Keluar) tetap
+              terlihat walau viewport laptop pendek — footer tak lagi terpotong. */}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <AppNav />
+          </div>
+          <div className="mt-auto shrink-0 space-y-3 border-t pt-4">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Tampilan</span>
               <ThemeToggle />

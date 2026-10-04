@@ -5,6 +5,7 @@ import {
   agendaRangeLabel,
   agendaQueryString,
   agendaToday,
+  effectiveHistoryDate,
   shiftAgenda,
   startOfWeek,
   dayKey,
@@ -74,6 +75,33 @@ describe("parseAgendaParams — validasi ketat", () => {
     for (const f of STATUS_FILTERS) {
       expect(parseAgendaParams({ status: f.key }).status).toBe(f.key);
     }
+  });
+});
+
+describe("effectiveHistoryDate — job final tanpa jadwal tidak jadi 'Belum terjadwal'", () => {
+  // REGRESI live AC Depok Jaya 2026-10-04 (lihat juga tests/agenda-where.test.ts).
+  it("COMPLETED tanpa jadwal memakai completedAt", () => {
+    expect(effectiveHistoryDate({
+      scheduledDate: null, status: "COMPLETED",
+      completedAt: "2026-09-18T03:45:08.066Z", updatedAt: "2026-09-18T03:45:08.443Z",
+    })).toBe("2026-09-18T03:45:08.066Z");
+  });
+  it("CANCELLED tanpa jadwal memakai updatedAt", () => {
+    expect(effectiveHistoryDate({
+      scheduledDate: null, status: "CANCELLED",
+      completedAt: null, updatedAt: "2026-09-18T04:00:56.672Z",
+    })).toBe("2026-09-18T04:00:56.672Z");
+  });
+  it("job AKTIF tanpa jadwal tetap null (berhak masuk 'Belum terjadwal')", () => {
+    for (const status of ["DRAFT", "ASSIGNED", "IN_PROGRESS", "WAITING"]) {
+      expect(effectiveHistoryDate({ scheduledDate: null, status, completedAt: null, updatedAt: "x" })).toBeNull();
+    }
+  });
+  it("jadwal menang atas tanggal lain (prioritas pertama)", () => {
+    expect(effectiveHistoryDate({
+      scheduledDate: "2026-09-10T00:00:00.000Z", status: "COMPLETED",
+      completedAt: "2026-09-18T03:45:08.066Z", updatedAt: "2026-09-18T04:00:00Z",
+    })).toBe("2026-09-10T00:00:00.000Z");
   });
 });
 
