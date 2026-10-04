@@ -1,5 +1,24 @@
 # Peta Aplikasi Aircon — LIVE (Domain Baru airconet.id)
 
+## STATUS CHECKLIST AKTIF — diverifikasi 2026-10-03
+
+- Satu model: template opsional per `ServiceCatalog.serviceId`; hasil teknisi per `WorkItem` (layanan×unit).
+  Tidak ada checklist default. Tidak ada template/result lama per `serviceType/jobId` di schema/database.
+- Teknisi/kernet mengisi checklist progresif di layar **Catat Pekerjaan**; tipe foto memakai upload/pilihan
+  berkas atau pemicu kamera HP, disimpan via uploader S3 existing. Perilaku kamera pada HP fisik belum diuji.
+- Satu finalisasi: tombol **Selesaikan & Tagihan** → `closeWorkSession`; required checklist dicek sebelum
+  sesi ditutup/job COMPLETED/dokumen terbit. Transaction menyatukan invoice/proforma & efek servis/reminder/review.
+- Jalur status COMPLETED lama dan guard checklist legacy sudah dihapus dari source.
+- Database sudah di-migrate dan Prisma melaporkan up-to-date. Rilis live PASS:
+  `ff1aade4a335df7cc7a8ef43ca311f93b87aa78a`; service active, `/` dan `/login` HTTP 200.
+- Gate pada commit: TSC 0, lint 0, 523 test lulus, build 0.
+- **BELUM DIVERIFIKASI:** upload file kamera nyata ke bucket S3 dan akses objeknya.
+
+---
+
+> Peta halaman berikut adalah inventory navigasi; status checklist runtime di atas sumber terbaru untuk alur ini.
+
+
 > (DB Supabase sama) sebagai cadangan/rollback — tapi domain resmi mulai sekarang di bawah.
 
 ## Base URL
@@ -43,7 +62,9 @@ Pemisahan ini disengaja: root = halaman jualan publik; `app.` = seluruh aplikasi
 | Halaman | Path |
 |---|---|
 | Pekerjaan hari ini | https://app.airconet.id/t |
-| Detail + checklist + foto | /t/pekerjaan/[id] |
+| Detail pekerjaan | /t/pekerjaan/[id] (status nonfinal) |
+| Catat Pekerjaan | /t/kerja/[customerId] — checklist per layanan×unit, isi progresif, foto file/kamera; finalisasi job + invoice/proforma |
+ |
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ## 🛡️ PLATFORM ADMIN (Lumite — akun ryan.andrian.diputra@gmail.com)

@@ -1,4 +1,23 @@
-# PETA KONDISI AIRCON — Status & Rencana Lanjutan
+## RUNTIME CHECKLIST (status aktif diverifikasi 2026-10-03)
+
+`JobOrder.status=COMPLETED` tetap menjadi status hasil, tetapi tidak lagi dicapai lewat state-machine umum.
+Teknisi menyelesaikan lewat satu jalur: **Catat Pekerjaan / `closeWorkSession`**. Di dalam finalisasi,
+required checklist per WorkItem divalidasi; jika lolos, satu transaksi mengunci sesi, membuat Invoice/Proforma,
+menyelesaikan JobOrder, memperbarui jadwal servis, membuat RepeatReminder/ReviewRequest dan event.
+
+Checklist hanya per layanan (`ChecklistTemplate.serviceId`) dan hasil per baris layanan×unit
+(`ChecklistResult.workItemId`), opt-in, default kosong. Teknisi/kernet mengisi secara progresif di layar kerja;
+foto memakai upload/camera control yang menyimpan URL S3 terikat tenant+job.
+
+Legacy field/guard/button per serviceType/jobId sudah dihapus. DB migrasi up-to-date dan kode live
+`ff1aade4a335df7cc7a8ef43ca311f93b87aa78a` (deploy PASS; TSC/lint/build 0, 523 tes).
+BELUM DIVERIFIKASI: pengujian kamera di perangkat HP fisik dan upload/akses objek foto nyata S3.
+
+---
+
+**Semua teks, diagram, tabel, dan status sebelum bagian `RUNTIME CHECKLIST` di atas adalah snapshot historis**.
+Snapshot ini berasal dari September 2026. Jangan gunakan untuk menentukan runtime/checklist aktif setelah
+release `ff1aade4a335df7cc7a8ef43ca311f93b87aa78a`; satu referensi checklist adalah `SSOT_Checklist_Servis.md`.
 
 > Catatan status dan rencana pada satu titik waktu.
 >
@@ -7,7 +26,13 @@
 > menggunakan redirect iPaymu. Referensi payment provider lama di dokumen historis tidak boleh dipakai
 > sebagai status kini. Lihat `docs/Ipaymu_Integration_Spec.md` dan `docs/Ipaymu_Production_Runbook.md`.
 
-## 1. RINGKAS SATU PARAGRAF
+## SSOT fitur Checklist Servis (sumber aktif)
+
+Rangkuman code/runtime dan bukti deploy terbaru: [`SSOT_Checklist_Servis.md`](SSOT_Checklist_Servis.md).
+Dokumen itu membedakan fakta terverifikasi dari yang belum diuji; jangan jadikan snapshot lama di dokumen lain
+sebagai keadaan runtime bila tidak cocok.
+
+
 Aircon (AC Service Growth OS) — SaaS PWA multi-tenant untuk usaha servis AC kecil Indonesia,
 Digital Asset #1 dari "12 SaaS/tahun". Aplikasi LIVE self-host di **VPS BiznetGio (app.airconet.id,
 103.127.135.132, systemd `aircon-app`, Node 22, TLS Let's Encrypt)**. Infrastruktur WhatsApp+MQTT
@@ -37,7 +62,7 @@ bukan coding.
 
 ## 3. FITUR SELESAI (per domain)
 - Inti: multi-tenant, onboarding, 4 peran (owner Google SSO / admin / teknisi phone+PIN / customer booking publik)
-- Job Order FSM + app teknisi (checklist, foto S3, timeline) + kuota per paket
+- Job Order FSM + app teknisi (checklist per layanan×unit di Catat Pekerjaan, foto S3, timeline; finalisasi satu pintu melalui `closeWorkSession`) + kuota per paket
 - Billing iPaymu (langganan + IoT jual-putus) — **aktif** melalui redirect/callback iPaymu; PPN PKP-aware; faktur/kwitansi
 - Dunning otomatis + teks penagihan editable admin
 - Program keagenan Tahap 1 berjalan untuk jalur Agen → Tenant → PAID → ledger → payout manual; rate per plan dan snapshot ledger tersedia. Full reseller E2E dan payout otomatis belum dianggap selesai.
@@ -46,7 +71,12 @@ bukan coding.
 - No-hardcode 100%: semua aturan bisnis DB-driven + editable admin (paket, kebijakan, infra,
   keagenan, perusahaan, IoT, template WA tenant /app/pesan, checklist /app/checklist)
 
-## 4. YANG BELUM SELESAI (prioritas menuju go-komersial)
+
+## 9. CHECKLIST — status rilis terkini
+
+Untuk keputusan checklist aktif, schema, satu-satunya finalizer, migrasi produksi, bukti test/deploy, dan gap
+kamera/S3 yang belum diuji, rujuk [`SSOT_Checklist_Servis.md`](SSOT_Checklist_Servis.md).
+Ringkasan fitur Aircon pada dokumen ini tidak menggantikan detail kontrak tersebut.
 ### KRITIS (butuh input/keputusan owner)
 1. iPaymu production — menunggu verifikasi merchant/credential production dan controlled production payment.
 2. Warm-up nomor WA — 7 hari (by-design pelan agar tak diblokir). Mulai setelah nomor bisnis final.

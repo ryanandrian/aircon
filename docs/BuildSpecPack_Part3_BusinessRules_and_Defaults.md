@@ -38,7 +38,29 @@ Rumus: `earliest_start_B = finish_prev + travel(prev→B) + buffer`; `finish_pre
 
 ---
 
-# 3. CHECKLIST TEMPLATE DEFAULT (per jenis service)
+# 3. CHECKLIST LAYANAN & FINALISASI (aturan aktif 2026-10-03)
+
+- Checklist bersifat opt-in per tenant/per layanan; tidak ada template default yang diseed.
+- Teknisi/kernet mengisi item progresif di WorkSession per WorkItem (layanan×unit), termasuk upload/capture
+  foto hasil kerja. Item photo bukan teks; foto diunggah ke S3.
+- Item required harus valid di sisi server sebelum satu-satunya finalisasi `closeWorkSession` menutup sesi,
+  mengubah JobOrder menjadi COMPLETED, menerbitkan Invoice/Proforma, dan membuat jadwal servis,
+  RepeatReminder, ReviewRequest, serta JobProgressEvent dalam satu transaksi. Checklist optional tidak
+  menghalangi.
+- Field/checklist template lama per `serviceType`, hasil lama per `jobId`, seed checklist, serta jalur
+  tombol status COMPLETED lama sudah dihapus. Tidak boleh dibangun ulang sebagai jalur paralel.
+- Bukti lokal/live 2026-10-03: TSC/lint/build 0, 523 tests/58 files; deploy PASS commit
+  `ff1aade4a335df7cc7a8ef43ca311f93b87aa78a`; DB migration up-to-date; `/` dan `/login` 200.
+- BELUM DIVERIFIKASI: uji kamera fisik dan upload/akses objek foto nyata S3 belum dilakukan.
+
+> Materi di bawah awalnya menyebut template seed/guard per jenis service. Itu **arsip spesifikasi historis**
+> dan tidak berlaku sebagai alur produk aktif.
+
+# 3. CHECKLIST TEMPLATE & GUARD (ARSIP HISTORIS — NON-AKTIF)
+
+> Isi bagian ini dan subbagian lama sampai akhir dokumen adalah rancangan awal per `serviceType` yang
+> sekarang tidak berlaku. Source, schema, dan DB live sudah memakai satu checklist per `serviceId` / `workItemId`.
+> Lihat bagian “CHECKLIST LAYANAN & FINALISASI (aturan aktif 2026-10-03)” di atas.
 
 Format item: `{key,label,type,required}`. Ini seed default; tenant boleh edit (S-O10).
 
@@ -76,7 +98,10 @@ Format item: `{key,label,type,required}`. Ini seed default; tenant boleh edit (S
 
 **DISMANTLE / OTHER**: minimal photo_before, photo_after, notes.
 
-Guard COMPLETED: semua item `required` (bool harus true, photo harus ada, number/text harus terisi) → jika tidak, `422 GUARD_FAILED {missing:[...]}`.
+> Guard COMPLETED lama (`422 GUARD_FAILED`) adalah perilaku historis, sudah diganti finalizer `closeWorkSession` — tidak berlaku di runtime sekarang.
+
+
+  **SELURUH SUBBAGIAN DI BAWAH §3 ADALAH SPEC LAMA NON-AKTIF** (ditulis 2026-09). Daftar template seed, guard COMPLETED langsung, dan klaim API `GUARD_FAILED` tidak berlaku pada runtime sekarang. Keadaan aktif: lihat §3 di atas dan `docs/SSOT_Checklist_Servis.md`.
 
 ---
 

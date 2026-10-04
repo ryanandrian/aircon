@@ -14,16 +14,34 @@
 - File ini setelah baris ini adalah arsip historis 2026-09-08; checklist `[ ]` dan pernyataan dual-read
   di bawah tidak menggambarkan target atau status kode saat ini.
 
----
 
-## ARSIP HISTORIS — rencana 2026-09-08 (bukan status saat ini)
+### Checklist Per Layanan & Foto — aturan bisnis terkini (2026-10-03)
 
-# Rencana Perbaikan Checklist Servis — Per Layanan × Unit (Aircon, GO-LIVE)
+- Checklist dibuat tenant per layanan; default tidak ada checklist dan item boleh wajib/opsional.
+- Teknisi/kernet mengisi tiap WorkItem secara progresif selama bekerja. Item photo adalah bukti gambar
+  yang diunggah/dicapture di HP dan URL-nya terikat ke job tenant; item photo bukan teks.
+- Server memvalidasi seluruh item wajib dari DB sebelum finalisasi. Checklist wajib yang belum sah
+  menolak tutup sesi, perubahan status final, dan penerbitan Invoice/Proforma.
+- `IN_PROGRESS -> COMPLETED` tidak lagi transisi state-machine umum. Finalisasi satu pintu adalah
+  `closeWorkSession` yang secara atomik menutup sesi, membuat dokumen, menyelesaikan JobOrder,
+  mengatur next service date, membuat RepeatReminder/ReviewRequest, dan menulis JobProgressEvent.
+- Tidak ada template checklist seed. Tidak ada konfigurasi/hasil checklist legacy per `serviceType/jobId`;
+  kolomnya telah dihapus lewat migrasi. Baris demo/test legacy dibersihkan hanya oleh migrasi tersebut.
+- Gate lokal sebelum deploy (2026-10-03): TSC 0; ESLint 0; 523 test / 58 file lulus; build 0.
+- Live: deploy PASS commit `ff1aade4a335df7cc7a8ef43ca311f93b87aa78a`; `aircon-app` active; `/` dan
+  `/login` HTTP 200; database 51 migrasi up-to-date. Jalur foto S3 pada perangkat kamera fisik belum
+  diuji, sehingga validasi device kamera nyata tetap BELUM DIVERIFIKASI.
+- Catatan lokal: `.hermes/plans/2026-10-03_checklist-service-alignment.md` adalah execution log historis;
+  ringkasan status terminal di atas adalah status selesai pada 2026-10-03.
 
-Status: TERLAKSANA (FASE 1a + FASE 2) 2026-09-08. Disusun dari deep-dive kode.
-Tujuan: checklist relevan di lapangan, opt-in per tenant, granular per layanan & per unit — tanpa bug/ranjau di produksi.
 
-## STATUS EKSEKUSI (2026-09-08)
+# Rencana historis Checklist Servis — 2026-09 (ARSIP, BUKAN STATUS/PLAN AKTIF)
+
+> **SELURUH ISI DARI SINI SAMPAI AKHIR FILE ADALAH ARSIP HISTORIS.** Snapshot, status fase, dan langkah migrasi
+> di bawah sudah digantikan. Runtime/DB live memakai `serviceId/workItemId`, seluruh migrasi legacy-drop telah
+> diterapkan. Jangan gunakan bagian arsip ini untuk analisa/rencana/implementasi baru; status otoritatif ada di
+> section aktif di atas dan `docs/SSOT_Checklist_Servis.md`.
+
 - FASE 1a SELESAI (commit 17842b7): default KOSONG/opt-in; provisioning tak lagi seed checklist; layar admin jujur (applied vs example).
 - FASE 2 SKEMA+BE SELESAI (commit a96372e): migrasi ADDITIVE `20260908135053_checklist_per_service_unit_additive`
   diterapkan ke DB PRODUKSI (Supabase) — ChecklistTemplate.+serviceId, ChecklistResult.+workItemId; kolom lama (serviceType/jobId)
@@ -107,7 +125,10 @@ jadi SATU-satunya sistem, dengan titik ISI = titik KUNCI di layar yang sama.
 - [ ] SSOT dok (PROJECT_STATUS / build spec) disinkronkan.
 
 ## 4. Rencana MIGRASI DATA (go-live, reversibel)
-Prod: 4 tenant, ~60 pekerjaan, ChecklistTemplate(serviceType) & ChecklistResult(jobId) berisi data nyata.
+> **ARSIP HISTORIS — data/asumsi prod snapshot 2026-09, tidak berlaku setelah migrasi 2026-10-03:**
+> Prod: 4 tenant, ~60 pekerjaan, ChecklistTemplate(serviceType) & ChecklistResult(jobId) berisi data nyata.
+
+
 - FASE 1 (additive, nol hapus):
   1. Tambah kolom nullable (serviceId, workItemId) + unique baru. Kolom lama tetap.
   2. Default kosong berlaku utk tenant BARU. Tenant lama: template serviceType lama tetap dihormati (dual-read) agar job berjalan tak putus.

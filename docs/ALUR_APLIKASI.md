@@ -110,7 +110,7 @@ flowchart LR
 
 **Detail teknis money loop:**
 - Booking → `createLeadFromBooking` (source=WEBSITE, status=NEW)
-- COMPLETED → efek: `set_completed_at` + `compute_next_service_date` + `create_repeat_reminder` (+trigger review)
+- `closeWorkSession` → JobOrder COMPLETED → nextServiceDate + RepeatReminder + ReviewRequest + JobProgressEvent + invoice/proforma (atomik; satu-satunya finalisasi; detail aturan di Part3 §3).
 - Cron `/api/cron/reminders` (harian) → `runDueReminders` → **batch per pelanggan** (1 WA untuk banyak unit due) → `MessageLog` QUEUED → flusher → gateway WA VPS
 - Interval servis default 90 hari (dari InfraConfig/tenant, editable)
 
@@ -128,7 +128,7 @@ flowchart TD
   FORM --> CREATE["createTenantForOwner"]
   CREATE --> T["Tenant: plan=TRIAL/Basic, status=ACTIVE, nextDueDate=NULL (GRATIS PERMANEN)"]
   CREATE --> U["User OWNER"]
-  CREATE --> SEED["Seed default: checklist + template WA"]
+  CREATE --> SEED["Seed default: template WA; checklist default kosong (opt-in per layanan)"]
   CREATE -.->|"bila ada kode"| ATTR["Atribusi keagenan (permanen)"]
   T --> SET["/app/pengaturan?baru=1 (banner: Satu langkah lagi)"]
   SET --> WA["Hubungkan WhatsApp (scan QR) → gateway"]
@@ -141,38 +141,26 @@ flowchart TD
 
 ---
 
-## 4. Job State Machine (FSM — alur kerja teknisi)
+## FSM pekerjaan teknisi (SSOT runtime — finalisasi satu pintu)
 
-```mermaid
-stateDiagram-v2
-  [*] --> DRAFT
-  DRAFT --> ASSIGNED: owner assign (teknisi+jadwal)
-  DRAFT --> CANCELLED: owner batal
-  ASSIGNED --> ACCEPTED: teknisi terima
-  ASSIGNED --> RESCHEDULED: owner jadwal ulang
-  ASSIGNED --> CANCELLED
-  ACCEPTED --> EN_ROUTE: teknisi berangkat
-  EN_ROUTE --> ARRIVED: teknisi tiba
-  ARRIVED --> IN_PROGRESS: mulai kerja
-  IN_PROGRESS --> WAITING: tunda (wajib alasan)
-  WAITING --> IN_PROGRESS: lanjut
-  IN_PROGRESS --> COMPLETED: selesai (guard: checklist + foto)
-  ACCEPTED --> RESCHEDULED
-  EN_ROUTE --> RESCHEDULED
-  ARRIVED --> RESCHEDULED
-  IN_PROGRESS --> RESCHEDULED
-  WAITING --> RESCHEDULED
-  ACCEPTED --> CANCELLED
-  EN_ROUTE --> CANCELLED
-  ARRIVED --> CANCELLED
-  IN_PROGRESS --> CANCELLED
-  WAITING --> CANCELLED
-  COMPLETED --> [*]
-```
+Status kerja nonfinal tetap memakai `transitionJob`: ASSIGNED → ACCEPTED → EN_ROUTE → ARRIVED →
+IN_PROGRESS ↔ WAITING; OWNER/ADMIN dapat reschedule/cancel sesuai aturan.
 
-- **Guard COMPLETED:** semua item checklist required terisi + foto "after" (bila template minta).
-- **Efek COMPLETED:** set completed_at, hitung next service date, buat RepeatReminder, picu permintaan ulasan.
-- **Transisi tak terdaftar = ilegal (ditolak).** Role diperiksa tiap transisi (OWNER/ADMIN vs TECHNICIAN).
+**Tidak ada transisi umum `IN_PROGRESS→COMPLETED`.** Tombol Selesaikan status lama dan `assertCompletionGuards`
+legacy sudah dihapus; pemanggilan `transitionJob({toStatus:COMPLETED})` ditolak.
+
+Satu-satunya finalisasi adalah tombol **Selesaikan & Tagihan** di detail pekerjaan yang membuka
+**Catat Pekerjaan**. Saat teknisi menutup sesi:
+
+1. Server memeriksa semua ChecklistResult required pada tiap WorkItem layanan×unit dari DB.
+2. Jika wajib belum sah: transaksi tidak menutup sesi, tidak menerbitkan tagihan, dan tidak mengubah job final.
+3. Jika lolos: satu transaksi menutup WorkSession, menandai JobOrder COMPLETED, menerbitkan Invoice/Proforma,
+   mengatur nextServiceDate dan asset terkait, membuat RepeatReminder, ReviewRequest dan JobProgressEvent.
+4. Job tanpa sesi/atau tanpa jobId: perilaku finalisasi job belum dikunci sebagai dukungan bisnis; jangan gunakan
+   jalur status manual. Detail gap dilacak di plan checklist aktif.
+
+Checklist template tidak ada by default. Foto wajib berupa URL bukti hasil upload S3 yang cocok dengan tenant
+& job; teknisi/kernet bisa mengisi progresif dari WorkSession.
 
 ---
 
@@ -318,6 +306,9 @@ flowchart LR
 ---
 
 ## 11. Model Data Inti (relasi ringkas)
+
+Checklist runtime memakai model per layanan×unit; untuk definisi schema dan perilaku finalisasi lihat
+`docs/SSOT_Checklist_Servis.md` dan schema otoritatif `prisma/schema.prisma`.
 
 ```mermaid
 erDiagram

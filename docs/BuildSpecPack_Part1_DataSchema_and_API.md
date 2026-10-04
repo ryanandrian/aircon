@@ -4,7 +4,9 @@
 
 **Tujuan:** menghapus ambiguitas teknis. Ini "gambar kerja" — presisi tipe, constraint, enum, index, dan kontrak request/response per endpoint. Developer/Agentic AI tidak perlu menebak.
 
-Basis: PostgreSQL + Prisma. Semua tabel domain: `id` (cuid), `tenant_id`, `created_at`, `updated_at`, dan (untuk data yang bisa dihapus) `deleted_at` soft-delete. Row-Level Security aktif: setiap policy `tenant_id = current_setting('app.tenant_id')::text`.
+`docs/SSOT_Checklist_Servis.md` adalah pointer ringkas kondisi aktif Checklist Servis yang ditelusuri ke source,
+schema, migrasi dan bukti release. Dokumen dengan tanggal/snapshot lebih lama (termasuk arsip dual-read) bukan
+pengganti audit source dan tidak boleh dikutip sebagai runtime terkini.
 
 ---
 
@@ -175,22 +177,25 @@ model JobProgressEvent {
   @@index([tenantId, jobId, at])
 }
 
+// ── MODEL CHECKLIST — runtime aktif 2026-10-03 (default kosong; tanpa anchor serviceType/jobId;
+//    migrasi legacy-drop sudah berjalan di DB; otoritatif = prisma/schema.prisma) ──
 model ChecklistTemplate {
-  id          String   @id @default(cuid())
-  tenantId    String
-  serviceType ServiceType
-  items       Json     // [{key,label,type:"bool|number|text|photo",required}]
-  @@unique([tenantId, serviceType])
+  id        String @id @default(cuid())
+  tenantId  String
+  serviceId String // required FK ServiceCatalog; unique per tenant/service
+  items     Json
+  service   ServiceCatalog @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, serviceId])
 }
-
 model ChecklistResult {
-  id       String  @id @default(cuid())
-  tenantId String
-  jobId    String
-  itemKey  String
-  checked  Boolean @default(false)
-  value    String?
-  @@unique([tenantId, jobId, itemKey])
+  id         String @id @default(cuid())
+  tenantId   String
+  workItemId String // required FK WorkItem; 1 layanan × 1 unit
+  itemKey    String
+  checked    Boolean @default(false)
+  value      String?
+  workItem   WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, workItemId, itemKey])
 }
 
 model JobPhoto {
@@ -357,9 +362,21 @@ model Subscription {
 
 ---
 
-# 3. JOB STATE MACHINE — TABEL TRANSISI LENGKAP (jantung aplikasi)
+# JOB STATUS & TRANSISI — arsip historis; finalisasi aktual tercatat di atas
 
-Transisi yang TIDAK ada di tabel ini = ilegal → API tolak dengan `409 ILLEGAL_TRANSITION`.
+> **JANGAN gunakan `IN_PROGRESS→COMPLETED` atau model checklist per-job pada tabel/contoh di bawah sebagai kontrak runtime.**
+> Source aktif menolak `transitionJob(COMPLETED)`. Finalisasi JobOrder hanya melalui `closeWorkSession`.
+> Schema aktif checklist adalah `ChecklistTemplate.serviceId` dan `ChecklistResult.workItemId` (required).
+> Tabel/model lama yang tersisa di Part1 ini semata provenance historis 2026, bukan panduan implementasi.
+
+
+
+# JOB STATUS & TRANSISI — arsip historis; tabel berikut BUKAN transisi runtime aktif
+
+> **JANGAN gunakan `IN_PROGRESS→COMPLETED` di tabel ini sebagai kontrak runtime.** Source sekarang tidak
+> mendaftarkan atau menerima transisi umum tersebut. Finalisasi job hanya melalui `closeWorkSession`.
+> Tabel berikut dipertahankan untuk provenance versi lama; ringkasan finalizer/checklist aktif ada di
+> status di atas dan BuildSpec Part2 §S-T3.
 
 | Dari | Ke | Siapa boleh | Guard/syarat | Efek samping |
 |---|---|---|---|---|
@@ -373,18 +390,27 @@ Transisi yang TIDAK ada di tabel ini = ilegal → API tolak dengan `409 ILLEGAL_
 | ARRIVED | IN_PROGRESS | technician | — | mulai durasi kerja aktual → trigger re-plan job berikutnya |
 | IN_PROGRESS | WAITING | technician | reason wajib (mis. tunggu sparepart) | pause; trigger re-plan |
 | WAITING | IN_PROGRESS | technician | — | resume |
-| IN_PROGRESS | COMPLETED | technician | checklist required selesai; foto after ada (bila template minta) | set completedAt, price bila ada; **hitung nextServiceDate → RepeatReminder**; picu review request |
+| IN_PROGRESS | COMPLETED | ⛔ TRANSISI SUDAH DIHAPUS — finalisasi lewat Catat Pekerjaan / `closeWorkSession` (bukan API transition) | checklist WorkItem required + finalizer mengatur completedAt/nextServiceDate, reminder, review, event + Invoice/Proforma atomik |
 | ACCEPTED/EN_ROUTE/ARRIVED/IN_PROGRESS/WAITING | RESCHEDULED | owner, admin | window baru | re-plan + approval + notif |
 | (semua sebelum COMPLETED) | CANCELLED | owner, admin | reason | batalkan reminder terkait bila ada |
 
-Aturan keras:
-- COMPLETED hanya dari IN_PROGRESS. Tidak ada jalan pintas.
-- Setiap transisi menulis `JobProgressEvent` (idempoten via `clientEventId` untuk offline).
-- `nextServiceDate = completedAt + (asset.maintenanceIntervalDays ?? tenant.maintenanceIntervalDays)`.
+Aturan keras (runtime aktif):
+- `transitionJob` tidak mendaftarkan/menerima COMPLETED. Satu-satunya finalizer adalah `closeWorkSession`.
+- Checklist required per WorkItem + Invoice/Proforma + efek job selesai terjadi dalam finalizer itu.
+- Setiap transisi NONFINAL menulis `JobProgressEvent` (idempotent dengan `clientEventId` bila dikirim).
+- Tabel transisi di atas selain baris COMPLETED mencatat status historis/spesifikasi umum dan bukan definisi
+  lengkap semua behavior UI aktif. Untuk jalur final saat ini lihat Part2 §S-T3 dan schema `prisma/schema.prisma`.
+
 
 ---
 
-# 4. API CONTRACT (request/response konkret)
+# 4. API CONTRACT (endpoint v1 di bawah = kontrak historis, bukan seluruh implementasi runtime sekarang)
+
+> **Catatan checklist/finalisasi aktif (2026-10-03):** endpoint transition umum tetap dipakai hanya untuk status
+> nonfinal. Request `toStatus=COMPLETED` ditolak. Penyelesaian sekarang adalah server action
+> `actionCloseWorkSession` (bukan endpoint `/jobs/:id/transition`), yang gate checklist DB dan secara atomik
+> membuat Invoice/Proforma + JobOrder COMPLETED + efek servis/reminder/review. Jangan implementasikan ulang
+> kontrak lama di bawah tanpa merujuk Part2 §S-T3 dan schema/source aktif.
 
 > **Infra auth (lihat TechStack v2.1):** OTP/JWT tidak dibuat sendiri — pakai **Supabase Auth**. Endpoint `/auth/otp/*` di bawah = kontrak logis; implementasinya lewat Supabase client + (opsi) SMS provider untuk OTP, atau email+password owner / PIN teknisi. Realtime progress pakai **Supabase Realtime** (subscribe `JobProgressEvent`), foto pakai **Supabase Storage**. Kontrak endpoint domain (jobs, schedule, repeat, dst.) tetap seperti di bawah.
 >

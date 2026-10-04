@@ -19,7 +19,7 @@ Perkiraan: setara ~40-50% dari total yang sudah dibangun. **Wajib bertahap + ver
 ### Yang SUDAH ADA (dipakai ulang) ✓
 - Customer (nama, phone, address, geoLat/geoLng, notes) — **koordinat & alamat SUDAH ada**
 - Customer list **sudah cursor-pagination** (`listCustomers`) — tinggal pasang lazy-load di UI
-- JobOrder + FSM 10-status + guard checklist/foto + money-loop (COMPLETED→reminder)
+- JobOrder + FSM 10-status + finalisasi aktif satu pintu lewat `closeWorkSession` (checklist WorkItem + invoice/proforma + reminder/review; bukan guard checklist di transition umum)
 - Technician (1 job = 1 technicianId saat ini) + JobPhoto + ChecklistResult
 - CompanyProfile: `isPkp`, `npwp`, `taxLabel`, `taxPercent` — **untuk Lumite** (sudah ada)
 - Midtrans (langganan tenant→Lumite). PlanConfig/BillingPolicy no-hardcode.

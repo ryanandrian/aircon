@@ -114,7 +114,7 @@ Aturan: teknisi tidak pernah melihat menu owner. Role menentukan nav yang di-ren
 - Usaha: nama, jam kerja, area, buffer, interval maintenance default, lead time reminder.
 - Tim: daftar user, [Undang teknisi] (link WA), atur role.
 - Template WA: edit template (reminder/reschedule/review/follow-up/campaign) dgn placeholder.
-- Checklist: edit item per jenis service.
+- Checklist (`/app/checklist`): edit item per LAYANAN katalog (opt-in, default kosong, wajib/opsional per item).
 - Billing: paket aktif (Starter/Growth/Pro), status, [Hubungi kami untuk upgrade] (v1.0 manual).
 
 ---

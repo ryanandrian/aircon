@@ -1,3 +1,15 @@
+# 0. STATUS DOKUMEN
+
+> Execution plan ini adalah **log historis sesi**. Status terminal terbaru ada di
+> `docs/SSOT_Checklist_Servis.md`, lalu diverifikasi terhadap source, `prisma/schema.prisma`, status DB,
+> Git, dan VPS. Jangan gunakan snapshot/gap/status di bawah sebagai keadaan sekarang.
+
+**Terminal terverifikasi 2026-10-03:** kode+schema live `ff1aade4a335df7cc7a8ef43ca311f93b87aa78a`;
+51 migration up-to-date; `/` dan `/login` 200; service active; TSC/lint/build 0; 523 tes.
+Kamera fisik + upload/GET objek S3 tetap **BELUM DIVERIFIKASI**.
+
+---
+
 # RENCANA KERJA — ALUR CHECKLIST SERVIS (SATU SISTEM)
 
 > **File ini dipulihkan oleh asisten pada 2026-10-03 setelah keliru menimpa rencana 7 fase**
@@ -232,28 +244,33 @@ BuildSpec Part2 §S-T3 masih menulis `[Selesai] (→S-T3)`. Perlu disinkronkan d
 - [x] State machine tak lagi memaparkan `IN_PROGRESS→COMPLETED`; tests/domain diselaraskan.
 - [ ] `grep` fosil final setelah pembaruan docs/tes dan review.
 
-### FASE 6 — Bersihkan DB schema legacy + otorisasi + SSOT  `[~: schema/migrasi lokal; deploy belum]
+### FASE 6 — Bersihkan DB schema legacy + otorisasi + SSOT  `[x: selesai 2026-10-03]`
 - [x] Schema kini mewajibkan serviceId/workItemId dan menghapus field/index legacy.
 - [x] `openWorkSession` memverifikasi job tenant+customer sebelum mengaitkan sesi; tes 6 kasus termasuk
       OPEN-session re-link.
 - [x] Migration ReviewRequest unique + drop kolom checklist legacy ditulis. Read-only DB diff membuktikan
       migrasi perlu menghapus 7 template + 2 result baris demo/test dengan anchor NULL, karena diff
       mengharuskan anchor baru NOT NULL. Migrasi memastikan index → delete rows → NOT NULL → drop columns.
-- [ ] `migrate status` mengonfirmasi dua migration BELUM diterapkan; DB lokal == produksi. Jangan jalankan
-      migrate deploy/dev sebelum izin eksplisit untuk mutasi database production.
-- [x] Docs PLAN Checklist (status baru + bagian bawah diberi label archive historis) dan BuildSpec Part2
-      S-T2/S-T3 diperbarui. (BuildSpec Part3/help tech masih perlu sinkronisasi akhir.)
+- [x] Migrasi DIEKSEKUSI ke produksi setelah rilis baru live (backup baris sebelum migrasi disimpan lokal:
+      `.backups/checklist_before_migrate_1791037052521.json`, gitignored). `prisma migrate status` =
+      51 migrasi, **Database schema is up to date!**. Verifikasi pascamigrasi: 0 anchor NULL, 0 duplikat
+      ReviewRequest, template=2 / result=4 / review=10, index legacy hilang, index baru ada.
+- [x] SSOT disinkronkan: `docs/SSOT_Checklist_Servis.md` (dibuat), PLAN Checklist (status aktif + arsip), BuildSpec
+      Part1 (schema aktif + penanda arsip transisi/API), Part2 §S-T2/S-T3, Part3 §3, ALUR_APLIKASI,
+      PETA_APLIKASI_LIVE, PROJECT_STATUS, help teknisi.
 - [ ] Tinjau billing/proforma, dunning, reminder UI, void/cancel transitions terhadap finalizer tunggal.
 
-### FASE 7 — Verifikasi, commit, push, dan deploy  `[ ]`
-- [ ] Seluruh gates lulus setelah seluruh edit terakhir: TSC, lint tanpa warning, semua test, build.
-- [ ] Review diff per file, migrations, leak/security, UI HP, verify hash/snapshot; commit/push.
-- [ ] Evidence gate resmi, lalu deploy satu-satunya skrip `bash scripts/deploy-vps.sh`.
-- [ ] Perhatian: script deploy tidak menjalankan migrasi. Urutan produksi aman perlu kode baru live dahulu,
-      lalu migrasi; jika melakukan step terpisah, minta izin eksplisit user untuk DB.
-- [ ] Verifikasi source-sha/live endpoints/service/checksum/release count.
-- [ ] E2E di tenant test: progresif checklist + foto kamera + invoice/proforma + finalizer effects.
-      Upload S3 nyata akan menulis bucket produksi, jadi harus ada izin eksplisit atau non-prod bucket.
+### FASE 7 — Verifikasi, commit, push, dan deploy  `[x: PASS 2026-10-03]`
+- [x] Gates final setelah seluruh edit: TSC 0, ESLint 0, 523 tes / 58 file lulus, BUILD 0.
+- [x] Commit/push `ff1aade` (sesudah `ff598e2` dan `5ce7cc8`); `HEAD == origin/main`; tree bersih.
+- [x] `bash scripts/deploy-vps.sh` PASS: `PASS: deployed ff1aade4a...`; checksum archive sama (`OK`);
+      `aircon-app` active; `/` 200; `/login` 200; `current/source-sha` == commit; 2 release tersisa (≤3).
+- [x] Migrasi dijalankan sebagai langkah terpisah SETELAH kode live (script deploy tidak memanggil
+      `migrate deploy`) — urutan aman: kode lama+skema lama kompatibel → rilis baru live → migrasi →
+      `prisma migrate status` up-to-date.
+- [x] Smoke DB read-only pascamigrasi: `tests/checklist-smoke-live.test.ts` 3/3 lulus terhadap DB produksi.
+- [ ] **E2E perangkat nyata: BELUM DIVERIFIKASI** — capture kamera HP fisik dan upload/GET objek foto
+      nyata ke bucket S3 belum diuji (menulis ke bucket produksi butuh izin eksplisit / bucket non-prod).
 
 
 ---
