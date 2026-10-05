@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { getJob } from "@/lib/services/job-management-service";
+import { getJobCost } from "@/lib/services/worksession-service";
 import { prisma } from "@/lib/prisma";
 import { JOB_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "../status-badge";
@@ -78,6 +79,10 @@ export default async function PekerjaanDetailPage({
   });
   const technicians = technicianRows.map((t) => ({ id: t.id, name: t.user.name }));
 
+  // Biaya resmi utk baris "Biaya" — dibaca dari WorkSession/WorkItem + Invoice
+  // (jalur alur teknisi → closing → tagihan), TIDAK dari JobOrder.price.
+  const cost = await getJobCost(ctx.tenantId, id);
+
   // Tim yang ditugaskan (multi-personel, peran cair — F3.3).
   const { listAssignments } = await import("@/lib/services/assignment-service");
   const roster = await listAssignments(ctx.tenantId, id);
@@ -149,10 +154,10 @@ export default async function PekerjaanDetailPage({
           </CardContent>
         </Card>
 
-        {/* Jadwal & teknisi */}
+        {/* Jadwal & tim — view (baris data) + edit (panel OwnerActions) dalam SATU kartu */}
         <Card>
           <CardContent className="p-5">
-            <h2 className="text-base font-bold text-foreground">Jadwal &amp; Teknisi</h2>
+            <h2 className="text-base font-bold text-foreground">Jadwal &amp; Tim</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="shrink-0 text-muted-foreground">Jadwal</dt>
@@ -166,8 +171,8 @@ export default async function PekerjaanDetailPage({
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                         Belum terjadwal
                       </span>
-                      {/* CTA hanya bila panel Aksi Pemilik ikut dirender (kondisi yang sama
-                          dengan canAssign/canCancel di bawah) — status terminal: tanpa anchor. */}
+                      {/* CTA hanya bila panel di bawah ikut dirender (kondisi yang sama
+                          dengan canAssign/canCancel) — status terminal: tanpa anchor. */}
                       {(ASSIGNABLE.includes(job.status) || CANCELLABLE.includes(job.status)) && (
                         <a
                           href="#jadwal-tim"
@@ -197,26 +202,55 @@ export default async function PekerjaanDetailPage({
                   )}
                 </dd>
               </div>
-              <Row label="Harga" value={job.price != null ? fmtRupiah(job.price) : "—"} />
+              {/* Keputusan: baris "Harga" (angka ketiga, tak mengalir ke tagihan) DIGANTI
+                  "Biaya" dari jalur resmi yang sudah jalan: WorkItem snapshot → Invoice. */}
+              <div className="flex justify-between gap-4 py-0.5">
+                <dt className="shrink-0 text-muted-foreground">Biaya</dt>
+                <dd className="text-right font-medium text-foreground">
+                  {cost === null ? (
+                    <span className="text-muted-foreground">Belum ada pekerjaan tercatat</span>
+                  ) : cost.invoice ? (
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span>{fmtRupiah(cost.invoice.total)}</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {cost.invoice.docType === "PROFORMA" ? "Proforma" : "Invoice"}
+                        {Number(cost.invoice.discountAmount) > 0 ? " · sudah diskon" : ""}
+                        {" · "}
+                        <Link href={`/app/faktur/${cost.invoice.id}`} className="text-sky-600 hover:underline dark:text-sky-400">
+                          lihat
+                        </Link>
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span>{fmtRupiah(cost.subtotal)}</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        {cost.sessions.some((s) => s.status === "OPEN")
+                          ? "Sedang dicatat teknisi"
+                          : "Belum ditagih"}
+                      </span>
+                    </span>
+                  )}
+                </dd>
+              </div>
             </dl>
-        {/* Catatan — Poin 3: inline edit sebelum closing (guard status di server) */}
-        <NotesEditor
-          jobId={job.id}
-          notes={job.notes}
-          editable={job.status !== "COMPLETED" && job.status !== "CANCELLED"}
-        />
+            {/* Catatan — Poin 3: inline edit sebelum closing (guard status di server) */}
+            <NotesEditor
+              jobId={job.id}
+              notes={job.notes}
+              editable={job.status !== "COMPLETED" && job.status !== "CANCELLED"}
+            />
+            {/* Panel edit jadwal/tim — bagian dari kartu ini (keputusan gabung kartu) */}
+            <OwnerActions
+              jobId={job.id}
+              canAssign={ASSIGNABLE.includes(job.status)}
+              canCancel={CANCELLABLE.includes(job.status)}
+              technicians={technicians}
+              defaultDate={defaultDate}
+              initialTeam={team.map((m) => ({ personId: m.personId, roleOnJob: m.roleOnJob }))}
+            />
           </CardContent>
         </Card>
-
-        {/* Aksi owner */}
-        <OwnerActions
-          jobId={job.id}
-          canAssign={ASSIGNABLE.includes(job.status)}
-          canCancel={CANCELLABLE.includes(job.status)}
-          technicians={technicians}
-          defaultDate={defaultDate}
-          initialTeam={team.map((m) => ({ personId: m.personId, roleOnJob: m.roleOnJob }))}
-        />
 
         {/* Foto */}
         <Card>

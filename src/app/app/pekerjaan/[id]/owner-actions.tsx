@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { actionAssignTeam, actionCheckTeamConflicts, actionCancelJob } from "../actions";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { Label } from "@/components/ui/label";
@@ -85,38 +84,39 @@ export function OwnerActions({
   if (!canAssign && !canCancel) return null;
   const nameOf = (id: string) => technicians.find((t) => t.id === id)?.name ?? "—";
 
+  // Komponen ini dirender sebagai BAGIAN dari kartu "Jadwal & Tim" (keputusan gabung
+  // kartu view+edit). Pembungkus <Card>/judul berada di halaman detail — di sini hanya
+  // panel edit + aksinya, dipisah garis pemisah dari baris jadwal/tim di atasnya.
   return (
-    <Card id="jadwal-tim">
-      <CardContent className="p-5">
-        <h2 className="text-base font-bold text-foreground">Aksi Pemilik</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Panel ini menetapkan <span className="font-medium text-foreground">jadwal (tanggal &amp; jam)</span> sekaligus
-          <span className="font-medium text-foreground"> tim</span> pekerjaan — keduanya tersimpan bersamaan saat Anda menekan Simpan Penugasan.
+    <div id="jadwal-tim" className="mt-4 border-t border-border pt-4">
+      <p className="text-xs text-muted-foreground">
+        Atur <span className="font-medium text-foreground">jadwal (tanggal &amp; jam)</span> dan
+        <span className="font-medium text-foreground"> tim</span> pekerjaan — keduanya tersimpan bersamaan saat Anda menekan Simpan Penugasan.
+      </p>
+
+      {msg && (
+        <p role={msg.kind === "err" ? "alert" : "status"}
+          className={`mt-3 rounded-xl border px-4 py-3 text-sm ${msg.kind === "err"
+            ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400"
+            : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-400"}`}>
+          {msg.text}
         </p>
+      )}
 
-        {msg && (
-          <p role={msg.kind === "err" ? "alert" : "status"}
-            className={`mt-3 rounded-xl border px-4 py-3 text-sm ${msg.kind === "err"
-              ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-400"}`}>
-            {msg.text}
-          </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {canAssign && (
+          <Button type="button" onClick={() => { setShowAssign((v) => !v); setShowCancel(false); }}
+            size="lg" className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600">
+            {technicians.length ? "Tugaskan Tim" : "Teknisi belum ada"}
+          </Button>
         )}
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {canAssign && (
-            <Button type="button" onClick={() => { setShowAssign((v) => !v); setShowCancel(false); }}
-              size="lg" className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600">
-              {technicians.length ? "Tugaskan Tim" : "Teknisi belum ada"}
-            </Button>
-          )}
-          {canCancel && (
-            <Button type="button" variant="outline" onClick={() => { setShowCancel((v) => !v); setShowAssign(false); }}
-              size="lg" className="min-h-[44px] border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40">
-              Batalkan
-            </Button>
-          )}
-        </div>
+        {canCancel && (
+          <Button type="button" variant="outline" onClick={() => { setShowCancel((v) => !v); setShowAssign(false); }}
+            size="lg" className="min-h-[44px] border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40">
+            Batalkan
+          </Button>
+        )}
+      </div>
 
         {showAssign && technicians.length > 0 && (
           <div className="mt-4 space-y-4 rounded-2xl bg-muted/40 p-4">
@@ -206,7 +206,6 @@ export function OwnerActions({
             </SubmitButton>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
   );
 }

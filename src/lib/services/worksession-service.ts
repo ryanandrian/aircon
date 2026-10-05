@@ -339,3 +339,71 @@ export async function closeWorkSession(
 
   return { invoiceId: result, docType, number };
 }
+
+/**
+ * Ringkasan biaya resmi per pekerjaan, dibaca dari WorkSession/WorkItem dan Invoice.
+ *
+ * TIDAK membaca JobOrder.price. Jalurnya sama dengan alur teknisi:
+ * CustomerPricing/ServiceCatalog → resolvePrice → WorkItem.unitPriceSnapshot →
+ * closeWorkSession → Invoice (INVOICE cash / PROFORMA tempo sesuai TOP).
+ *
+ * Belum ada sesi: null (bukan Rp0, sebab biaya belum dicatat).
+ * Sesi OPEN: subtotal sementara dari snapshot item.
+ * Invoice terbit: tampilkan subtotal/diskon/PPN/total persis dari invoice final.
+ */
+export async function getJobCost(tenantId: string, jobId: string) {
+  const sessions = await prisma.workSession.findMany({
+    where: { tenantId, jobId },
+    select: {
+      id: true,
+      status: true,
+      items: { select: { qty: true, unitPriceSnapshot: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (sessions.length === 0) return null;
+
+  const wsIds = sessions.map((s) => s.id);
+  const invoices = await prisma.invoice.findMany({
+    where: { tenantId, workSessionId: { in: wsIds } },
+    select: {
+      id: true,
+      workSessionId: true,
+      docType: true,
+      status: true,
+      subtotal: true,
+      discountAmount: true,
+      ppnAmount: true,
+      total: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Satu sesi OPEN per pelanggan (enforced oleh openWorkSession); sesi CLOSED dapat
+  // lebih dari satu bila pekerjaan dicicil/dipecah — jumlahkan snapshot sesi tanpa
+  // invoice untuk subtotal aktivitas; invoice final terbaru tetap ditampilkan.
+  const latestInvoice = invoices[0] ?? null;
+  const subtotal = sessions.reduce((sum, ws) => {
+    const sessionSubtotal = ws.items.reduce((s, item) => {
+      return s + Math.round(Number(item.qty) * Number(item.unitPriceSnapshot));
+    }, 0);
+    return sum + sessionSubtotal;
+  }, 0);
+
+  return {
+    subtotal,
+    invoice: latestInvoice
+      ? {
+          id: latestInvoice.id,
+          docType: latestInvoice.docType,
+          status: latestInvoice.status,
+          subtotal: Number(latestInvoice.subtotal),
+          discountAmount: Number(latestInvoice.discountAmount),
+          ppnAmount: Number(latestInvoice.ppnAmount),
+          total: Number(latestInvoice.total),
+        }
+      : null,
+    sessions: sessions.map((ws) => ({ id: ws.id, status: ws.status })),
+  };
+}
+

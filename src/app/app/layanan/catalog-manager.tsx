@@ -72,9 +72,15 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Harga wajib & > 0 (guard server adalah pagar utama; ini hanya umpan balik cepat).
+    if (!form.standardPrice.trim() || !(Number(form.standardPrice) > 0)) {
+      toast.error("Harga layanan wajib diisi dan harus lebih dari 0.");
+      return;
+    }
     const payload = {
       code: form.code, name: form.name, category: form.category,
-      standardPrice: Number(form.standardPrice) || 0, unit: form.unit, description: form.description,
+      // dikirim apa adanya (string) — server yang mem-parse & memvalidasi harga
+      standardPrice: form.standardPrice, unit: form.unit, description: form.description,
       techIncentiveType: form.techIncentiveType, techIncentiveValue: Number(form.techIncentiveValue) || 0,
       kernetIncentiveType: form.kernetIncentiveType, kernetIncentiveValue: Number(form.kernetIncentiveValue) || 0,
     };
@@ -152,8 +158,9 @@ export function CatalogManager({ items }: { items: CatalogRow[] }) {
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="s-price">Harga Standar (Rp)</Label>
-                  <Input id="s-price" type="number" min="0" value={form.standardPrice} onChange={(e) => set("standardPrice", e.target.value)} placeholder="75000" />
+                  <Label htmlFor="s-price">Harga Standar (Rp) <span className="text-red-500">*</span></Label>
+                  <Input id="s-price" type="number" inputMode="numeric" min="1" step="1" value={form.standardPrice} onChange={(e) => set("standardPrice", e.target.value)} placeholder="75000" required aria-describedby="s-price-hint" />
+                  <p id="s-price-hint" className="text-xs text-muted-foreground">Wajib &gt; 0 — inilah harga resmi yang dipakai saat teknisi mencatat pekerjaan.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="s-unit">Satuan</Label>

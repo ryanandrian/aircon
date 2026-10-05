@@ -266,7 +266,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
       "Halaman satu pekerjaan: melihat status, menetapkan jadwal & tim, memantau progres/foto lapangan, dan membuka alur tagihan saat pekerjaan selesai.",
     steps: [
       "Jika jadwal belum ditetapkan, pilih 'Atur jadwal & tim' pada baris Jadwal.",
-      "Di panel Jadwal & Teknisi, pilih tanggal, jam, personel, dan peran untuk pekerjaan ini.",
+      "Di bagian 'Jadwal & Tim', pilih tanggal, jam, personel, dan peran untuk pekerjaan ini.",
       "Tanggal yang tampil sebagai saran belum tersimpan sampai Anda menekan 'Simpan Penugasan'.",
       "Pantau status dan progres yang dilaporkan teknisi dari aplikasi lapangan.",
       "Tagihan dibuat teknisi melalui Catat Pekerjaan setelah layanan/unit dicatat.",

@@ -40,6 +40,18 @@ function sanitize(raw: Record<string, unknown>): CatalogInput {
   };
 }
 
+/**
+ * Harga layanan WAJIB dan harus > 0 (keputusan tenant: biaya pekerjaan tidak boleh 0).
+ * `sanitize()` sengaja membiarkan angka mentah (kosong/teks acak → 0); guard ini
+ * menahan input invalid SEBELUM tersimpan, sehingga tidak ada baris harga-0 baru.
+ */
+function priceError(standardPrice: number): string | null {
+  if (!Number.isFinite(standardPrice) || standardPrice <= 0) {
+    return "Harga layanan wajib diisi dan harus lebih dari 0.";
+  }
+  return null;
+}
+
 export async function actionCreateCatalog(raw: Record<string, unknown>): Promise<Result> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
@@ -47,6 +59,8 @@ export async function actionCreateCatalog(raw: Record<string, unknown>): Promise
   const input = sanitize(raw);
   if (!input.code) return { ok: false, error: "Kode layanan wajib diisi" };
   if (!input.name) return { ok: false, error: "Nama layanan wajib diisi" };
+  const priceMsg = priceError(input.standardPrice);
+  if (priceMsg) return { ok: false, error: priceMsg };
   try {
     await createCatalogItem(ctx.tenantId, input);
     revalidatePath("/app/layanan");
@@ -61,8 +75,11 @@ export async function actionUpdateCatalog(id: string, raw: Record<string, unknow
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  const input = sanitize(raw);
+  const priceMsg = priceError(input.standardPrice);
+  if (priceMsg) return { ok: false, error: priceMsg };
   try {
-    await updateCatalogItem(ctx.tenantId, id, sanitize(raw));
+    await updateCatalogItem(ctx.tenantId, id, input);
     revalidatePath("/app/layanan");
     return { ok: true };
   } catch (e) {
