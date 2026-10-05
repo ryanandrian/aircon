@@ -530,6 +530,27 @@ export const OWNER_TOPICS: HelpTopic[] = [
   },
 
   {
+    key: "kinerja",
+    title: "Kinerja Tim",
+    icon: "Star",
+    group: "Keuangan & Langganan",
+    audience: "owner",
+    order: 5,
+    whatIsIt:
+      "Kinerja tiap personel pada periode tertentu (harian/mingguan/bulanan): jumlah pekerjaan, layanan dikerjakan, dan insentif — dihitung dari pekerjaan yang benar-benar dicatat teknisi, bukan dari penugasan.",
+    steps: [
+      "Pilih periode: Harian, Mingguan, atau Bulan ini.",
+      "Geser periode dengan tombol panah, atau tekan 'Hari ini'.",
+      "Klik satu nama personel untuk melihat rincian: tanggal, pelanggan, unit, layanan, peran, dan insentif per baris.",
+    ],
+    tips: [
+      "Penugasan yang belum dikerjakan tidak dihitung — hanya pekerjaan yang sudah ditutup teknisi di lapangan.",
+      "Seluruh angka di halaman ini memakai tanggal kerja (teknisi menutup sesi), sehingga konsisten antar-kolom; berbeda dgn Laporan Keuangan yang memakai acuan invoice (lunas/terbit).",
+      "Kolom insentif muncul bila program insentif diaktifkan di Pengaturan.",
+    ],
+  },
+
+  {
     key: "pesan",
     title: "Template Pesan WhatsApp",
     icon: "MessageSquare",

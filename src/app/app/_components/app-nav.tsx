@@ -25,6 +25,7 @@ export const APP_NAV_SECTIONS: NavSection[] = [
       { href: "/app/pekerjaan", label: "Pekerjaan", icon: Icon.Job },
       { href: "/app/faktur", label: "Invoice & Proforma", icon: Icon.Billing },
       { href: "/app/laporan", label: "Laporan Keuangan", icon: Icon.Chart },
+      { href: "/app/kinerja", label: "Kinerja Tim", icon: Icon.Star },
     ],
   },
   {
