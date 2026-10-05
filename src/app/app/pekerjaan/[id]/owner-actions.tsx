@@ -2,12 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { actionAssignTeam, actionCheckTeamConflicts, actionCancelJob } from "../actions";
+import { actionAssignTeam, actionCheckTeamConflicts } from "../actions";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Icon } from "@/components/icons";
 
 interface TechOption { id: string; name: string; }
@@ -15,11 +14,10 @@ type Role = "TECHNICIAN" | "KERNET";
 interface Member { personId: string; roleOnJob: Role; }
 
 export function OwnerActions({
-  jobId, canAssign, canCancel, technicians, defaultDate, initialTeam,
+  jobId, canAssign, technicians, defaultDate, initialTeam,
 }: {
   jobId: string;
   canAssign: boolean;
-  canCancel: boolean;
   technicians: TechOption[];
   defaultDate: string;
   initialTeam?: { personId: string; roleOnJob: Role }[];
@@ -37,9 +35,6 @@ export function OwnerActions({
   const [time, setTime] = useState("09:00");
   const [durationMin, setDurationMin] = useState(60);
   const [conflicts, setConflicts] = useState<{ name: string; conflicts: { customerName: string }[] }[] | null>(null);
-
-  const [showCancel, setShowCancel] = useState(false);
-  const [reason, setReason] = useState("");
 
   // personel yang belum dipilih (untuk dropdown tambah)
   const chosen = new Set(members.map((m) => m.personId));
@@ -70,18 +65,9 @@ export function OwnerActions({
     });
   }
 
-  function submitCancel() {
-    setMsg(null);
-    start(async () => {
-      const res = await actionCancelJob(jobId, reason);
-      if (!res.ok) { setMsg({ kind: "err", text: res.error }); return; }
-      setMsg({ kind: "ok", text: "Pekerjaan dibatalkan." });
-      setShowCancel(false);
-      router.refresh();
-    });
-  }
-
-  if (!canAssign && !canCancel) return null;
+  // Aksi "Batalkan pekerjaan" pindah ke komponen sendiri (CancelJobPanel),
+  // dirender di LUAR kartu — lihat catatan pada file cancel-job.tsx.
+  if (!canAssign) return null;
   const nameOf = (id: string) => technicians.find((t) => t.id === id)?.name ?? "—";
 
   // Komponen ini dirender sebagai BAGIAN dari kartu "Jadwal & Tim" (keputusan gabung
@@ -104,18 +90,10 @@ export function OwnerActions({
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {canAssign && (
-          <Button type="button" onClick={() => { setShowAssign((v) => !v); setShowCancel(false); }}
-            size="lg" className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600">
-            {technicians.length ? "Tugaskan Tim" : "Teknisi belum ada"}
-          </Button>
-        )}
-        {canCancel && (
-          <Button type="button" variant="outline" onClick={() => { setShowCancel((v) => !v); setShowAssign(false); }}
-            size="lg" className="min-h-[44px] border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/40">
-            Batalkan
-          </Button>
-        )}
+        <Button type="button" onClick={() => setShowAssign((v) => !v)}
+          size="lg" className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600">
+          {technicians.length ? "Tugaskan Tim" : "Teknisi belum ada"}
+        </Button>
       </div>
 
         {showAssign && technicians.length > 0 && (
@@ -189,20 +167,6 @@ export function OwnerActions({
               pendingLabel="Menyimpan…" size="lg"
               className="min-h-[48px] w-full rounded-2xl bg-sky-500 px-6 text-white hover:bg-sky-600">
               Simpan Penugasan
-            </SubmitButton>
-          </div>
-        )}
-
-        {showCancel && (
-          <div className="mt-4 space-y-3 rounded-2xl bg-muted/40 p-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="cancel-reason">Alasan pembatalan</Label>
-              <Textarea id="cancel-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)}
-                placeholder="Contoh: pelanggan menunda, alamat tidak ditemukan…" className="rounded-2xl text-base" />
-            </div>
-            <SubmitButton type="button" onClick={submitCancel} pending={pending} pendingLabel="Memproses…" size="lg"
-              className="min-h-[48px] w-full rounded-2xl bg-red-500 px-6 text-white hover:bg-red-600">
-              Ya, Batalkan Pekerjaan
             </SubmitButton>
           </div>
         )}

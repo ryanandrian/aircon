@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { JOB_STATUS_LABEL, SERVICE_TYPE_LABEL } from "@/lib/copy/terms";
 import { StatusBadge } from "../status-badge";
 import { OwnerActions } from "./owner-actions";
+import { CancelJobPanel } from "./cancel-job";
 import { NotesEditor } from "./notes-editor";
 import { Card, CardContent } from "@/components/ui/card";
 import { HelpButton } from "@/components/help/help-button";
@@ -171,9 +172,10 @@ export default async function PekerjaanDetailPage({
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                         Belum terjadwal
                       </span>
-                      {/* CTA hanya bila panel di bawah ikut dirender (kondisi yang sama
-                          dengan canAssign/canCancel) — status terminal: tanpa anchor. */}
-                      {(ASSIGNABLE.includes(job.status) || CANCELLABLE.includes(job.status)) && (
+                      {/* CTA hanya bila panel Tugaskan Tim di bawah benar-benar dirender
+                          (kondisi YANG SAMA dgn OwnerActions: canAssign/ASSIGNABLE) —
+                          status lain: tanpa anchor mati. */}
+                      {ASSIGNABLE.includes(job.status) && (
                         <a
                           href="#jadwal-tim"
                           className="text-xs font-medium text-sky-600 hover:underline dark:text-sky-400"
@@ -244,13 +246,17 @@ export default async function PekerjaanDetailPage({
             <OwnerActions
               jobId={job.id}
               canAssign={ASSIGNABLE.includes(job.status)}
-              canCancel={CANCELLABLE.includes(job.status)}
               technicians={technicians}
               defaultDate={defaultDate}
               initialTeam={team.map((m) => ({ personId: m.personId, roleOnJob: m.roleOnJob }))}
             />
           </CardContent>
         </Card>
+
+        {/* Aksi destruktif: DI LUAR kartu Jadwal & Tim (temuan UX: jangan disandingkan
+            dgn Tugaskan Tim — maknanya membatalkan Pekerjaan, bukan penugasan).
+            Guard visibilitas = CANCELLABLE, sama persis dgn tombol lama. */}
+        {CANCELLABLE.includes(job.status) && <CancelJobPanel jobId={job.id} />}
 
         {/* Foto */}
         <Card>
