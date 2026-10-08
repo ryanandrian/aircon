@@ -181,4 +181,66 @@ describe("round-trip template → preview → commit", () => {
     const { previewCustomerImport } = await svc();
     await expect(previewCustomerImport(T, Buffer.from("bukan xlsx"))).rejects.toThrow();
   }, 30_000);
+
+  it("sheet template ada tapi judul kolom diubah → DITOLAK (bukan parse salah posisi)", async () => {
+    const { generateCustomerTemplate, previewCustomerImport } = await svc();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await generateCustomerTemplate()) as unknown as ArrayBuffer);
+    // Ubah judul kolom pertama baris 4 (posisi tetap dipakai parser → meleset bila lolos).
+    wb.getWorksheet("Pelanggan Tunai")!.getRow(4).getCell(1).value = "Nama Kolom Asing";
+
+    const p = await previewCustomerImport(T, Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(p.valid).toHaveLength(0);                 // tak ada baris yang "lolos" diam-diam
+    expect(p.errors.length).toBeGreaterThan(0);
+    expect(p.errors[0].errors.join()).toMatch(/tidak sesuai template/);
+    expect(p.errors[0].errors.join()).toMatch(/Nama Kolom Asing/);
+  }, 30_000);
+
+  it("file .xlsx valid TANPA sheet template → error eksplisit, bukan '0 data' diam-diam", async () => {
+    const { previewCustomerImport } = await svc();
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Sheet1");
+    ws.getRow(1).getCell(1).value = "Sesuatu yang bukan template Aircon";
+
+    const p = await previewCustomerImport(T, Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(p.valid).toHaveLength(0);
+    expect(p.errors).toHaveLength(1);
+    expect(p.errors[0].errors.join()).toMatch(/Tidak ada sheet/);
+    expect(p.errors[0].errors.join()).toMatch(/unduh dulu lewat tombol/);
+  }, 30_000);
+
+  it("kuota terlampaui → baris kelebihan ditolak dengan alasan, tak senyap", async () => {
+    const { generateCustomerTemplate, commitCustomerImport } = await svc();
+    const prismaMod = (await import("@/lib/prisma")) as unknown as {
+      prisma: {
+        planConfig: { findUnique: ReturnType<typeof vi.fn> };
+        customer: { findMany: ReturnType<typeof vi.fn> };
+      };
+    };
+    // Reset mock dedup milik test sebelumnya (persist di lintas test dalam 1 file).
+    prismaMod.prisma.customer.findMany.mockImplementation(async () => []);
+    // Paket hanya muat 1 pelanggan, sudah terpakai 0 → dari 2 baris valid, hanya 1 yang masuk.
+    prismaMod.prisma.planConfig.findUnique.mockResolvedValue({
+      plan: "TRIAL", maxCustomers: 1,
+    } as never);
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await generateCustomerTemplate()) as unknown as ArrayBuffer);
+    const ws = wb.getWorksheet("Pelanggan Tunai")!;
+    ws.getRow(5).getCell(1).value = "Satu";
+    ws.getRow(5).getCell(2).value = "0811111111111";
+    ws.getRow(6).getCell(1).value = "Dua";
+    ws.getRow(6).getCell(2).value = "0812222222222";
+
+    const res = await commitCustomerImport(T, Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(res.created).toBe(1);
+    expect(res.failed).toBe(1);                       // kelebihan TIDAK senyap
+    expect(res.failureReasons.some((f) => /kuota/.test(f.reason))).toBe(true);
+    expect(res.quotaLimit).toBe(1);
+
+    // kembalikan mock utk tes lain
+    prismaMod.prisma.planConfig.findUnique.mockResolvedValue({
+      plan: "TRIAL", maxCustomers: 20,
+    } as never);
+  }, 30_000);
 });

@@ -13,6 +13,10 @@ export type ImportPreviewResult =
       dupInFileCount: number;
       errorCount: number;
       totalRows: number;
+      // Kuota paket (untuk FE membatasi & menjelaskan sebelum commit).
+      quotaLimit: number | null;
+      quotaUsed: number;
+      quotaFit: number;
       // Sampel untuk ditampilkan (maks 8 tiap kategori).
       sampleValid: Array<{ name: string; phone: string }>;
       sampleErrors: Array<{ excelRow: number; name: string; reason: string }>;
@@ -49,6 +53,9 @@ export async function actionImportPreview(formData: FormData): Promise<ImportPre
       dupInFileCount: p.duplicatesInFile.length,
       errorCount: p.errors.length,
       totalRows: p.totalRows,
+      quotaLimit: p.quotaLimit,
+      quotaUsed: p.quotaUsed,
+      quotaFit: p.quotaFit,
       sampleValid: p.valid.slice(0, 8).map((r) => ({ name: r.name, phone: r.data.phone ?? "" })),
       sampleErrors: p.errors.slice(0, 8).map((r) => ({ excelRow: r.excelRow, name: r.name, reason: r.errors.join("; ") })),
       sampleExisting: p.existing.slice(0, 8).map((r) => ({ name: r.name, phone: r.data.phone ?? "" })),
@@ -60,7 +67,15 @@ export async function actionImportPreview(formData: FormData): Promise<ImportPre
 }
 
 export type ImportCommitResult =
-  | { ok: true; created: number; skipped: number; failed: number }
+  | {
+      ok: true;
+      created: number;
+      skipped: number;
+      failed: number;
+      failureReasons: Array<{ name: string; reason: string }>;
+      quotaLimit: number | null;
+      quotaUsed: number;
+    }
   | { ok: false; error: string };
 
 /** Simpan impor: buat pelanggan dari baris valid (re-parse server-side, tak percaya klien). */
@@ -76,7 +91,15 @@ export async function actionImportCommit(formData: FormData): Promise<ImportComm
     const buf = Buffer.from(await g.file.arrayBuffer());
     const res = await commitCustomerImport(ctx.tenantId, buf);
     revalidatePath("/app/pelanggan");
-    return { ok: true, ...res };
+    return {
+      ok: true,
+      created: res.created,
+      skipped: res.skipped,
+      failed: res.failed,
+      failureReasons: res.failureReasons,
+      quotaLimit: res.quotaLimit,
+      quotaUsed: res.quotaUsed,
+    };
   } catch (err) {
     console.error("[actionImportCommit] gagal:", err);
     return { ok: false, error: "Gagal menyimpan. Coba lagi atau periksa file." };

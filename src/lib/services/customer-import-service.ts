@@ -5,6 +5,7 @@
 import "server-only";
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
+import { getPlanConfig } from "@/lib/billing/config";
 import { createCustomer } from "@/lib/services/customer-service";
 import {
   columnsFor, sheetName, HEADER_ROW, SHEET_PANDUAN, SHEET_TUNAI, SHEET_TEMPO,
@@ -174,6 +175,43 @@ export interface ImportPreview {
   existing: ParsedRow[];          // nomor sudah ada di DB tenant
   errors: ParsedRow[];
   totalRows: number;
+  /** Kuota paket (PlanConfig) — null bila unlimited. Agar FE bisa membatasi sebelum commit. */
+  quotaLimit: number | null;
+  /** Sudah terpakai di DB tenant (di luar file ini). */
+  quotaUsed: number;
+  /** Berapa baris valid yang muat di sisa kuota (sisanya = ditolak saat commit). */
+  quotaFit: number;
+}
+
+/**
+ * Validasi judul kolom baris 4 terhadap spec.
+ *
+ * MENGAPA WAJIB: parser membaca sel BERDASARKAN POSISI. Bila tenant mengunggah file
+ * asing (bukan template), atau menggeser/menghapus judul kolom, posisi kolom meleset →
+ * alamat masuk ke kolom nomor, termin jadi salah, dst. Tanpa cek ini file salah
+ * justru terlihat "valid" dan menuliskan data rusak ke DB.
+ */
+function collectHeaderProblems(ws: ExcelJS.Worksheet, profile: ImportProfile): string[] {
+  const cols = columnsFor(profile);
+  const problems: string[] = [];
+  cols.forEach((col, i) => {
+    const raw = ws.getRow(HEADER_ROW).getCell(i + 1).value;
+    const text =
+      raw && typeof raw === "object"
+        ? String((raw as { text?: string; richText?: Array<{ text: string }> }).text ??
+            (raw as { richText?: Array<{ text: string }> }).richText?.map((t) => t.text).join("") ??
+            "")
+        : String(raw ?? "");
+    const clean = text.replace(/\s*\*+\s*$/, "").trim();
+    if (clean !== col.header) {
+      problems.push(
+        clean
+          ? `Kolom ${i + 1} berjudul "${clean}", seharusnya "${col.header}"`
+          : `Kolom ${i + 1} judulnya kosong, seharusnya "${col.header}"`,
+      );
+    }
+  });
+  return problems;
 }
 
 /** Ambil sel baris data dari worksheet sesuai jumlah kolom profil. */
@@ -197,15 +235,29 @@ function rowCells(ws: ExcelJS.Worksheet, rowNum: number, ncol: number): unknown[
 /**
  * Parse buffer .xlsx → pratinjau tervalidasi + dedup (vs file & vs DB).
  * Tenant-scoped: existing dicek terhadap nomor pelanggan tenant ini saja.
+ * PLUS: validasi judul kolom (tolak file asing/salah template) & hitung sisa kuota
+ *       supaya FE bisa membatasi sebelum commit (jangan sampai diam-diam gagal).
  */
 export async function previewCustomerImport(tenantId: string, buf: Buffer): Promise<ImportPreview> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as unknown as ArrayBuffer);
 
+  const headerProblems: string[] = [];
   const all: ParsedRow[] = [];
+  let sheetsFound = 0;
   for (const profile of ["TUNAI", "TEMPO"] as ImportProfile[]) {
     const ws = wb.getWorksheet(profile === "TUNAI" ? SHEET_TUNAI : SHEET_TEMPO);
     if (!ws) continue;
+    sheetsFound++;
+    // Cek judul SELESAI: file yang satu sheet-nya salah template = bukan template Aircon.
+    const hp = collectHeaderProblems(ws, profile);
+    if (hp.length) {
+      headerProblems.push(
+        `Sheet "${sheetName(profile)}" tidak sesuai template: ${hp[0]}` +
+          (hp.length > 1 ? ` (dan ${hp.length - 1} kolom lain)` : ""),
+      );
+      continue; // jangan parse posisi kolom yang meleset
+    }
     const ncol = columnsFor(profile).length;
     const last = ws.rowCount;
     for (let rn = HEADER_ROW + 1; rn <= last; rn++) {
@@ -219,7 +271,21 @@ export async function previewCustomerImport(tenantId: string, buf: Buffer): Prom
   }
 
   const totalRows = all.length;
-  const errors = all.filter((r) => r.status === "error");
+  const errors = [...all.filter((r) => r.status === "error")];
+  // File tak punya sheet template sama sekali (nama sheet diubah / file lain) → beritahu
+  // tegas. Tanpa ini hasilnya "0 data" yang membingungkan bagi tenant yang baru pertama impor.
+  if (sheetsFound === 0) {
+    errors.push({
+      excelRow: 0, data: {}, phoneNorm: "", name: "(file tidak dikenali)",
+      status: "error",
+      errors: [`Tidak ada sheet "${SHEET_TUNAI}" maupun "${SHEET_TEMPO}" — pastikan mengunggah template Aircon (unduh dulu lewat tombol di atas).`],
+    });
+  }
+  // Header tak sesuai template → SEMUA baris jadi error (tanpa ini tenant tak diberi tahu).
+  for (const hp of headerProblems) {
+    errors.push({ excelRow: 0, data: {}, phoneNorm: "", name: "(file bukan template Aircon)",
+      status: "error", errors: [hp] });
+  }
   const okRows = all.filter((r) => r.status === "valid");
 
   // Dedup dalam file (nomor sama muncul >1x) → yang kedua dst masuk duplicatesInFile.
@@ -248,20 +314,61 @@ export async function previewCustomerImport(tenantId: string, buf: Buffer): Prom
     else finalValid.push(r);
   }
 
-  return { valid: finalValid, duplicatesInFile, existing, errors, totalRows };
+  // Kuota paket: berapa yang MUAT saat commit (agar FE bisa membatasi & memberi pesan jelas).
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
+  const planCfg = tenant ? await getPlanConfig(tenant.plan) : null;
+  const quotaLimit = planCfg?.maxCustomers ?? null; // null = unlimited (Business)
+  const quotaUsed = await prisma.customer.count({ where: { tenantId, deletedAt: null } });
+  const quotaFit = quotaLimit === null ? finalValid.length : Math.max(0, Math.min(finalValid.length, quotaLimit - quotaUsed));
+
+  return { valid: finalValid, duplicatesInFile, existing, errors, totalRows, quotaLimit, quotaUsed, quotaFit };
 }
 
 /**
  * Commit impor: buat pelanggan dari baris valid (re-parse buffer utk keamanan — tak percaya klien).
  * Idempoten terhadap dedup: cek ulang existing saat commit (hindari balapan).
- * Return jumlah dibuat + dilewati.
+ * Return jumlah dibuat + dilewati + alasan kegagalan (bukan cuma angka).
  */
-export async function commitCustomerImport(tenantId: string, buf: Buffer): Promise<{ created: number; skipped: number; failed: number }> {
+export interface ImportCommitResult {
+  created: number;
+  skipped: number;
+  failed: number;
+  /** Alasan kegagalan per baris (maks 8) — supaya FE TIDAK menelan error diam-diam. */
+  failureReasons: Array<{ name: string; reason: string }>;
+  /** Sisa kuota setelah commit (null = unlimited). */
+  quotaLimit: number | null;
+  quotaUsed: number;
+}
+
+/**
+ * Commit impor: buat pelanggan dari baris valid (re-parse buffer utk keamanan — tak percaya klien).
+ * Idempoten terhadap dedup: cek ulang existing saat commit (hindari balapan).
+ * Baris valid yang DIATAS sisa kuota DITOLAK dengan alasan eksplisit (bukan diam-diam),
+ * karena createCustomer melempar QuotaError begitu batas terlampaui.
+ */
+export async function commitCustomerImport(tenantId: string, buf: Buffer): Promise<ImportCommitResult> {
   const preview = await previewCustomerImport(tenantId, buf);
-  let created = 0, failed = 0;
-  const skipped = preview.duplicatesInFile.length + preview.existing.length + preview.errors.length;
+  const failureReasons: ImportCommitResult["failureReasons"] = [];
+  let created = 0;
+  let failed = 0; // hitungan PENUH (daftar alasan dibatasi 8 agar respons tidak membengkak)
+  const quotaLimit = preview.quotaLimit;
+  const baseUsed = preview.quotaUsed;
+  const skipped =
+    preview.duplicatesInFile.length + preview.existing.length + preview.errors.length;
 
   for (const row of preview.valid) {
+    // Batas kuota: cukupkan ruang bagi baris ini (kuota dihitung ulang dari DB oleh assertQuota
+    // di dalam createCustomer, jadi urutan aman).
+    if (quotaLimit !== null && baseUsed + created >= quotaLimit) {
+      failed += 1;
+      if (failureReasons.length < 8) {
+        failureReasons.push({
+          name: row.name,
+          reason: `Ditolak: kuota pelanggan paket Anda sudah penuh (maks ${quotaLimit}).`,
+        });
+      }
+      continue;
+    }
     try {
       await createCustomer(tenantId, {
         name: row.data.name!,
@@ -281,9 +388,15 @@ export async function commitCustomerImport(tenantId: string, buf: Buffer): Promi
         email: row.data.email,
       });
       created++;
-    } catch {
-      failed++;
+    } catch (err) {
+      failed += 1;
+      if (failureReasons.length < 8) {
+        const msg = err instanceof Error ? err.message : "Gagal menyimpan baris ini";
+        failureReasons.push({ name: row.name, reason: msg });
+      }
     }
   }
-  return { created, skipped, failed };
+
+  const quotaUsed = await prisma.customer.count({ where: { tenantId, deletedAt: null } });
+  return { created, skipped, failed, failureReasons, quotaLimit, quotaUsed };
 }

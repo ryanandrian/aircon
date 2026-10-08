@@ -16,12 +16,14 @@ export function ImportPanel({ onClose, onDone }: { onClose: () => void; onDone: 
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [failureReasons, setFailureReasons] = useState<Array<{ name: string; reason: string }>>([]);
   const [pending, start] = useTransition();
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setPreview(null);
     setMsg(null);
+    setFailureReasons([]);
     if (f && f.size > 8 * 1024 * 1024) {
       setMsg({ ok: false, text: "File terlalu besar (maks 8MB)." });
       e.target.value = "";
@@ -35,13 +37,23 @@ export function ImportPanel({ onClose, onDone }: { onClose: () => void; onDone: 
     if (!file) return;
     setMsg(null);
     start(async () => {
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await actionImportPreview(fd);
-      if (!res.ok) { setMsg({ ok: false, text: res.error }); return; }
-      setPreview(res);
-      if (res.validCount === 0) {
-        setMsg({ ok: false, text: res.errorCount > 0 ? "Tidak ada baris yang bisa disimpan — perbaiki baris bermasalah di bawah." : "Tidak ada data baru untuk disimpan." });
+      try {
+        const fd = new FormData();
+        fd.set("file", file);
+        const res = await actionImportPreview(fd);
+        if (!res.ok) { setMsg({ ok: false, text: res.error }); return; }
+        setPreview(res);
+        if (res.validCount === 0) {
+          setMsg({ ok: false, text: res.errorCount > 0 ? "Tidak ada baris yang bisa disimpan — perbaiki baris bermasalah di bawah." : "Tidak ada data baru untuk disimpan." });
+        } else if (res.quotaFit < res.validCount) {
+          setMsg({
+            ok: false,
+            text: `Sisa kuota hanya ${Math.max(0, (res.quotaLimit ?? 0) - res.quotaUsed)} pelanggan — hanya ${res.quotaFit} dari ${res.validCount} baris yang bisa disimpan. Yang lain akan ditolak.`,
+          });
+        }
+      } catch {
+        // Gagal jaringan / server action throw → jangan diam.
+        setMsg({ ok: false, text: "Gagal memeriksa file — periksa koneksi Anda lalu coba lagi." });
       }
     });
   }
@@ -50,14 +62,25 @@ export function ImportPanel({ onClose, onDone }: { onClose: () => void; onDone: 
     if (!file) return;
     setMsg(null);
     start(async () => {
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await actionImportCommit(fd);
-      if (!res.ok) { setMsg({ ok: false, text: res.error }); return; }
-      setMsg({ ok: true, text: `Berhasil menyimpan ${res.created} pelanggan${res.skipped > 0 ? ` · ${res.skipped} dilewati (duplikat/kosong)` : ""}.` });
-      setPreview(null);
-      setFile(null);
-      onDone();
+      try {
+        const fd = new FormData();
+        fd.set("file", file);
+        const res = await actionImportCommit(fd);
+        if (!res.ok) { setMsg({ ok: false, text: res.error }); return; }
+        const failedNote =
+          res.failed > 0 ? ` · ${res.failed} gagal (lihat rincian di bawah)` : "";
+        const skipNote = res.skipped > 0 ? ` · ${res.skipped} dilewati (duplikat/kosong)` : "";
+        setMsg({
+          ok: res.created > 0,
+          text: `Berhasil menyimpan ${res.created} pelanggan${skipNote}${failedNote}.`,
+        });
+        setFailureReasons(res.failed > 0 ? res.failureReasons : []);
+        setPreview(null);
+        setFile(null);
+        onDone();
+      } catch {
+        setMsg({ ok: false, text: "Gagal menyimpan — periksa koneksi Anda lalu coba lagi." });
+      }
     });
   }
 
@@ -73,6 +96,17 @@ export function ImportPanel({ onClose, onDone }: { onClose: () => void; onDone: 
           <p className={`rounded-lg px-3 py-2 text-sm ${msg.ok ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"}`}>
             {msg.text}
           </p>
+        )}
+
+        {failureReasons.length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+            <p className="font-semibold">Baris yang gagal disimpan:</p>
+            <ul className="mt-1 space-y-0.5">
+              {failureReasons.map((f, i) => (
+                <li key={i}>• {f.name} — {f.reason}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Langkah 1: unduh template */}
@@ -111,6 +145,11 @@ export function ImportPanel({ onClose, onDone }: { onClose: () => void; onDone: 
         {/* Langkah 3: pratinjau + simpan */}
         {preview && (
           <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Kuota paket: <b>{preview.quotaLimit === null ? "tanpa batas" : `${preview.quotaLimit} pelanggan`}</b>
+              {" · "}terpakai {preview.quotaUsed}
+              {preview.quotaLimit !== null && ` · sisa ${Math.max(0, preview.quotaLimit - preview.quotaUsed)}`}
+            </p>
             <div className="grid grid-cols-3 gap-2">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center dark:border-emerald-900 dark:bg-emerald-950">
                 <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{preview.validCount}</div>
@@ -156,9 +195,18 @@ export function ImportPanel({ onClose, onDone }: { onClose: () => void; onDone: 
             )}
 
             {preview.validCount > 0 && (
-              <Button className="w-full" onClick={doCommit} disabled={pending}>
-                {pending ? "Menyimpan…" : `Simpan ${preview.validCount} Pelanggan`}
+              <Button className="w-full" onClick={doCommit} disabled={pending || preview.quotaFit === 0}>
+                {pending
+                  ? "Menyimpan…"
+                  : preview.quotaFit < preview.validCount
+                    ? `Simpan ${preview.quotaFit} Pelanggan (batas kuota)`
+                    : `Simpan ${preview.validCount} Pelanggan`}
               </Button>
+            )}
+            {preview.quotaFit === 0 && preview.validCount > 0 && (
+              <p className="text-center text-xs font-medium text-red-600 dark:text-red-400">
+                Kuota pelanggan Anda sudah penuh — tingkatkan paket untuk menambah lagi.
+              </p>
             )}
           </div>
         )}
