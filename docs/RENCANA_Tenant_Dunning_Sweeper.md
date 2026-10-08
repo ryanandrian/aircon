@@ -1,7 +1,7 @@
 # RENCANA KERJA — Perbaikan Alur Tenant Status & Dunning (Sweeper Inaktivitas)
 
 Status dokumen: RENCANA AKTIF (tahan sesi; diperbarui tiap perubahan status)
-Dibuat: 2026-10-08 · Owner keputusan: pemilik repo
+Dibuat: 2026-10-08 · Owner keputusan: pemilik repo · Terakhir diperbarui: 2026-10-08
 Eksekusi wajib mengikuti AGENTS.md (gate → commit eksplisit → deploy `scripts/deploy-vps.sh`).
 
 Semua fakta di bawah diverifikasi pada 2026-10-08 dari source + DB produksi (Supabase
@@ -117,12 +117,12 @@ pooler, read-only) + log VPS. Jika ada yang diulang di sesi baru, VERIFIKASI ULA
 
 ## 2. PEKERJAAN
 
-### T1 — Hapus teks trial di onboarding (FIX kecil) — ✅ SELESAI 2026-10-08
+### T1 — Hapus teks trial di onboarding (FIX kecil) — ✅ SELESAI + LIVE (commit `3d661d8`)
 - [x] `src/app/onboarding/page.tsx:66`: "Gratis coba 14 hari" →
       "Gratis untuk selamanya, dengan batas jumlah pelanggan & unit AC sesuai paket."
-- Gate: tsc+lint+test+build SEMUA LULUS.
+- Gate: tsc+lint+test+build SEMUA LULUS → deploy `3d661d8` PASS (HTTPS / & /login 200).
 
-### T2 — Pesan status non-usable sesuai penyebab (FIX) — ✅ SELESAI 2026-10-08
+### T2 — Pesan status non-usable sesuai penyebab (FIX) — ✅ SELESAI + LIVE (commit `3d661d8`)
 - [x] Helper murni `tenantBlockedMessage(status)` di `gating-pure.ts`:
       SUSPENDED → pesan tunggakan+perpanjang (dipertahankan); CANCELLED →
       "Berhenti (diatur admin)… hubungi Kontak" (TANPA "tunggakan"/"perpanjang");
@@ -132,12 +132,37 @@ pooler, read-only) + log VPS. Jika ada yang diulang di sesi baru, VERIFIKASI ULA
 - [x] Hapus cabang mati `app/page.tsx:70-72` redirect `?status=nonaktif`
       yang tak pernah tercapai & param tak pernah dibaca.
 - [x] Test unit 3 kasus (SUSPENDED / CANCELLED / unknown) ditambahkan.
-- Gate: tsc+lint+test+build SEMUA LULUS.
+- Gate: tsc+lint+test+build SEMUA LULUS → deploy `3d661d8` PASS (HTTPS / & /login 200).
 
 CATATAN BELUM DISELESAIKAN (didokumentasikan, bukan dilupakan): 7 action /app
 (pesan, perangkat, alert, faktur, checklist, langganan, laporan) memanggil
 `getServerContext()` TANPA menangkap `AuthError` → error tak tertangkap.
 Ini di luar skop T1/T2 (kualitas error handling), masuk daftar tindak lanjut.
+
+### T4 — Impor pelanggan dari template (FIX keamanan alur) — ✅ SELESAI + LIVE (commit `cd702ea`)
+Latar: akan ada tenant yang MELAKUKAN IMPOR PERTAMA KALI memakai template bawaan.
+Empat celah terbukti dari audit menyeluruh FE → server action → service → parser → DB:
+- [x] **Parser tak memvalidasi judul kolom baris 4** — sel dibaca POSISIONAL; file
+      asing/kolom digeser = posisi meleset & terlihat VALID. Kini tiap sheet dicek
+      terhadap spec (abaikan tanda " *" & trim); tak cocok → sheet dilewati + error eksplisit.
+- [x] **File .xlsx tanpa sheet template → "0 data" diam-diam** (bingungkan tenant baru).
+      Kini error eksplisit menyebut kedua nama sheet + ajakan unduh template.
+- [x] **Kuota penuh ditelan `catch {}`** → "Berhasil menyimpan 0" tanpa sebab.
+      Kini: preview kirim `quotaLimit/quotaUsed/quotaFit`; commit hitung `failed`
+      PENUH + `failureReasons` (maks 8); FE tampil sisa kuota, batasi tombol simpan
+      (`quotaFit=0` → nonaktif + pesan upgrade), & tampilkan rincian baris gagal.
+- [x] **FE tanpa try/catch** → gangguan jaringan diam. Kini pelindung di
+      `doPreview` & `doCommit` (pesan jelas, coba lagi).
+- [x] Test baru (3): judul kolom diubah → ditolak; tanpa sheet template → error eksplisit;
+      kuota terlampaui → `failed=1` + alasan kuota (bukan senyap).
+- Gate: pnpm test **664 lulus (70 file)**, lint 0, tsc 0, build sukses →
+  commit `cd702ea` → deploy **PASS** (HTTPS / & /login 200).
+
+KOMITMEN (aturan khusus, jangan lupa): nomor HP sama BOLEH terdaftar di tenant
+berbeda. Dedup impor **hanya** dalam tenant yang mengimpor (`customer-import-service`
+where `tenantId` + `deletedAt IS NULL`), index DB `(tenantId, phone)` NON-unique.
+Koreksi sikap: "belum tervalidasi" tidak boleh dipakai untuk menutup pekerjaan
+yang masih bisa dikerjakan dengan code/test/DB — tuntaskan sampai 100%.
 
 ### T3 — Purge tuntas (BLOKER aktivasi sweeper; wajib sebelum K4)
 - [ ] T3a. Tambah ke daftar hapus `purgeTenantData`, urut hormati FK:
