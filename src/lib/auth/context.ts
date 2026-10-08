@@ -5,6 +5,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "@/lib/auth/guard";
+import { isTenantUsable, tenantBlockedMessage } from "@/lib/billing/gating-pure";
 import { getTechSessionUserId } from "@/lib/auth/tech-session";
 import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import type { Role } from "@prisma/client";
@@ -57,15 +58,17 @@ export async function getServerContext(): Promise<ServerContext> {
     throw new AuthError("UNAUTHORIZED", "Akun belum terhubung ke usaha manapun.");
   }
 
-  // SECURITY: blokir seluruh user bila usaha dinonaktifkan karena tunggakan.
+  // SECURITY: blokir seluruh user bila usaha tidak dapat dipakai (tunggakan / status berhenti).
+  // Pesan DIKELUARKAN PER STATUS supaya tidak menyesatkan: SUSPENDED = tunggakan,
+  // CANCELLED = diatur admin (bukan tunggakan) → jangan disuruh "perpanjang".
   const tenant = await prisma.tenant.findUnique({
     where: { id: domainUser.tenantId },
     select: { status: true },
   });
-  if (!tenant || (tenant.status !== "TRIAL" && tenant.status !== "ACTIVE" && tenant.status !== "PAST_DUE")) {
+  if (!tenant || !isTenantUsable(tenant.status)) {
     throw new AuthError(
       "FORBIDDEN",
-      "Akun usaha dinonaktifkan karena tunggakan langganan. Hubungi pemilik usaha.",
+      tenant ? tenantBlockedMessage(tenant.status) : "Usaha tidak ditemukan.",
     );
   }
 

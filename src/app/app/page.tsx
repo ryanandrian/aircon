@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { prisma } from "@/lib/prisma";
-import { isTenantUsable } from "@/lib/billing/gating";
 import { AppHeader } from "./_components/app-header";
 import { listReminderInbox } from "@/lib/services/reminder-service";
 import { ServicedTrendChart } from "./_components/serviced-trend-chart";
@@ -66,10 +65,6 @@ export default async function AppDashboard() {
     trend.push({ label: d.toLocaleDateString("id-ID", { day: "numeric", month: "short" }), value: bucket.get(key) ?? 0 });
   }
   const trendTotal = trend.reduce((s, t) => s + t.value, 0);
-
-  if (tenant && !isTenantUsable(tenant.status)) {
-    redirect("/app/langganan?status=nonaktif");
-  }
 
   return (
     <>

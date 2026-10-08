@@ -9,6 +9,24 @@ export function isTenantUsable(status: TenantStatus): boolean {
   return status === "TRIAL" || status === "ACTIVE" || status === "PAST_DUE";
 }
 
+/**
+ * Pesan penolakan akses yang AKURAT untuk status non-usable — per status, bukan satu kalimat.
+ * Alasan: SUSPENDED memang karena tunggakan (dunning), sedangkan CANCELLED bisa di-set admin
+ * lewat /admin/tenants tanpa tunggakan → menyebut "tunggakan"/"perpanjang" menyesatkan dan
+ * tidak menyelesaikan masalahnya. Murni (tanpa DB) agar bisa diuji unit.
+ */
+export function tenantBlockedMessage(status: TenantStatus): string {
+  switch (status) {
+    case "SUSPENDED":
+      return "Akun usaha dinonaktifkan karena tunggakan langganan. Hubungi pemilik usaha untuk memperpanjang.";
+    case "CANCELLED":
+      return "Usaha ini berstatus Berhenti (diatur oleh admin platform). Bila menurut Anda ini keliru, hubungi kami lewat halaman Kontak.";
+    default:
+      // Status usable tidak sampai ke sini; jaring pengaman untuk status tak dikenal.
+      return "Akun usaha tidak dapat dipakai sementara. Hubungi kami lewat halaman Kontak.";
+  }
+}
+
 /** Akhir masa trial = start + N hari. */
 export function computeTrialEnd(start: Date, days: number): Date {
   const d = new Date(start);

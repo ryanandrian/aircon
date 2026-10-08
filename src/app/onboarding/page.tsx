@@ -63,7 +63,8 @@ export default async function OnboardingPage({
           </h1>
           <p className="mx-auto mt-2 max-w-md text-slate-600">
             Yuk siapkan usaha Anda dulu. Cukup 1 menit — isi 3 hal di bawah,
-            langsung bisa dipakai. Gratis coba 14 hari.
+            langsung bisa dipakai. Gratis untuk selamanya, dengan batas jumlah
+            pelanggan & unit AC sesuai paket.
           </p>
         </header>
 

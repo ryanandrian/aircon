@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isTenantUsable,
+  tenantBlockedMessage,
   withinQuota,
   computeTrialEnd,
   isTrialExpired,
@@ -28,6 +29,25 @@ describe("tenant lifecycle", () => {
     expect(isTrialExpired(past)).toBe(true);
     expect(isTrialExpired(future)).toBe(false);
     expect(isTrialExpired(null)).toBe(false);
+  });
+
+  it("pesan blokir: SUSPENDED menyebut tunggakan & perpanjang", () => {
+    const m = tenantBlockedMessage("SUSPENDED");
+    expect(m).toContain("tunggakan");
+    expect(m).toContain("memperpanjang");
+  });
+
+  it("pesan blokir: CANCELLED TIDAK menyebut tunggakan/perpanjang", () => {
+    const m = tenantBlockedMessage("CANCELLED");
+    expect(m).not.toContain("tunggakan");
+    expect(m).not.toContain("perpanjang");
+    expect(m).toContain("Berhenti");
+  });
+
+  it("pesan blokir: status tak dikenal → generik netral", () => {
+    const m = tenantBlockedMessage("SOMETHING_NEW" as never);
+    expect(m).not.toContain("tunggakan");
+    expect(m).not.toContain("perpanjang");
   });
 });
 
