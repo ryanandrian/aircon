@@ -130,32 +130,61 @@ async function queueDunningReminder(
 /**
  * Hapus PERMANEN seluruh data satu tenant (child tenant-scoped lalu tenant), dalam satu transaksi.
  * Dipakai bersama oleh dunning (purgeMarkedTenants) & sweeper inaktivitas. Idempoten.
- * SECURITY: urutan hapus menghormati FK; SEMUA tabel anak tenant-scoped disertakan.
+ * SECURITY: urutan hapus menghormati FK (anak dulu, tenant terakhir).
+ *
+ * TABEL YANG DICAKUP = semua tabel anak FK ke Tenant (RESTRICT harus dihapus dulu,
+ * CASCADE ikut terhapus) + semua tabel ber-`tenantId` tanpa FK (fosil) + InvoiceItem
+ * (FK ke Invoice). KELLENGKAPAN DITES OTOMATIS: tests/purge-completeness.test.ts
+ * mem-parse schema.prisma dan menggagalkan test bila ada tabel baru terlewat.
+ *
+ * PENGECUALIAN SATU-SATUNYA: CommissionLedger sengaja TIDAK dihapus — buku besar
+ * komisi APPEND-ONLY (audit keuangan; koreksi = baris reversal, lihat schema). Barisnya
+ * jadi arsip tanpa tenant aktif; whitelist ini dipantau test kelengkapan.
  */
 export async function purgeTenantData(id: string): Promise<void> {
   await prisma.$transaction([
+    // — anak FK / tenantId terdalam lebih dulu —
+    prisma.checklistResult.deleteMany({ where: { tenantId: id } }),
     prisma.invoiceItem.deleteMany({ where: { invoice: { tenantId: id } } }),
     prisma.invoice.deleteMany({ where: { tenantId: id } }),
     prisma.workItem.deleteMany({ where: { tenantId: id } }),
     prisma.workSession.deleteMany({ where: { tenantId: id } }),
     prisma.messageLog.deleteMany({ where: { tenantId: id } }),
+    prisma.messageTemplate.deleteMany({ where: { tenantId: id } }),
     prisma.repeatReminder.deleteMany({ where: { tenantId: id } }),
-    prisma.jobProgressEvent.deleteMany({ where: { job: { tenantId: id } } }),
+    prisma.jobProgressEvent.deleteMany({ where: { tenantId: id } }),
+    prisma.jobPhoto.deleteMany({ where: { tenantId: id } }),
     prisma.jobAssignment.deleteMany({ where: { tenantId: id } }),
     prisma.jobOrder.deleteMany({ where: { tenantId: id } }),
     prisma.customerPricing.deleteMany({ where: { tenantId: id } }),
+    prisma.checklistTemplate.deleteMany({ where: { tenantId: id } }),
     prisma.serviceCatalog.deleteMany({ where: { tenantId: id } }),
+    prisma.unitCode.deleteMany({ where: { tenantId: id } }),
+    // Device → Telemetry/CommandLog duluan (FK RESTRICT ke Device).
+    prisma.telemetry.deleteMany({ where: { tenantId: id } }),
+    prisma.commandLog.deleteMany({ where: { tenantId: id } }),
+    prisma.device.deleteMany({ where: { tenantId: id } }),
     prisma.asset.deleteMany({ where: { tenantId: id } }),
     prisma.customer.deleteMany({ where: { tenantId: id } }),
     prisma.invite.deleteMany({ where: { tenantId: id } }),
     prisma.payment.deleteMany({ where: { tenantId: id } }),
+    prisma.couponRedemption.deleteMany({ where: { tenantId: id } }),
     prisma.iotOrderItem.deleteMany({ where: { order: { tenantId: id } } }),
     prisma.iotOrder.deleteMany({ where: { tenantId: id } }),
     prisma.technician.deleteMany({ where: { tenantId: id } }),
-    prisma.messageTemplate.deleteMany({ where: { tenantId: id } }),
-    prisma.checklistTemplate.deleteMany({ where: { tenantId: id } }),
     prisma.subscription.deleteMany({ where: { tenantId: id } }),
+    prisma.tenantAttribution.deleteMany({ where: { tenantId: id } }),
+    // fosil tanpa FK (tetap milik tenant — kalau tak dihapus jadi data yatim)
+    prisma.alert.deleteMany({ where: { tenantId: id } }),
+    prisma.campaignRecipient.deleteMany({ where: { tenantId: id } }),
+    prisma.campaign.deleteMany({ where: { tenantId: id } }),
+    prisma.lead.deleteMany({ where: { tenantId: id } }),
+    prisma.referral.deleteMany({ where: { tenantId: id } }),
+    prisma.reviewRequest.deleteMany({ where: { tenantId: id } }),
+    prisma.platformNotification.deleteMany({ where: { tenantId: id } }),
+    prisma.tenantNotification.deleteMany({ where: { tenantId: id } }),
     prisma.user.deleteMany({ where: { tenantId: id } }),
+    // CommissionLedger: TIDAK dihapus (lihat catatan fungsi — whitelist test).
     prisma.tenant.delete({ where: { id } }),
   ]);
 }
@@ -163,7 +192,7 @@ export async function purgeTenantData(id: string): Promise<void> {
 export async function purgeMarkedTenants(
   now: Date = new Date(),
   purgeGraceHours: number = 24,
-): Promise<{ purged: number; tenantIds: string[] }> {
+): Promise<{ purged: number; failed: number; tenantIds: string[] }> {
   const threshold = new Date(now.getTime() - purgeGraceHours * 3_600_000);
   const marked = await prisma.tenant.findMany({
     // SECURITY/SAFETY: hanya tenant yang ditandai LEBIH LAMA dari ambang & masih SUSPENDED.
@@ -172,10 +201,22 @@ export async function purgeMarkedTenants(
   });
 
   const purged: string[] = [];
+  const failed: string[] = [];
   for (const t of marked) {
-    await purgeTenantData(t.id);
-    purged.push(t.id);
-    console.info(`[dunning] PURGE tenant ${t.id} (${t.name}) — data dihapus permanen`);
+    // ISOLASI KEGAGALAN: 1 tenant gagal TIDAK boleh menggugurkan loop (dan TIDAK boleh
+    // melempar ke pemanggil cron — route dunning menjalankan flush WA & platform notify
+    // SETELAH fungsi ini; satu throw = langkah berikutnya gugur hari itu, tiap hari).
+    try {
+      await purgeTenantData(t.id);
+      purged.push(t.id);
+      console.info(`[dunning] PURGE tenant ${t.id} (${t.name}) — data dihapus permanen`);
+    } catch (err) {
+      failed.push(t.id);
+      console.error(
+        `[dunning] PURGE GAGAL tenant ${t.id} (${t.name}) — lanjut ke kandidat berikutnya:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
-  return { purged: purged.length, tenantIds: purged };
+  return { purged: purged.length, failed: failed.length, tenantIds: purged };
 }

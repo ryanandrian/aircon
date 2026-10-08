@@ -21,6 +21,13 @@ Tenant lifecycle:
 `TRIAL → ACTIVE → PAST_DUE → SUSPENDED → marked for deletion → purged`
 
 Basic is free forever when `nextDueDate` is null. There is no auto-charge; paid plans are manual checkout and manual renewal.
+`CANCELLED` (usaha Berhenti) = status terminal yang bisa di-set admin; NON-usable sama
+dengan SUSPENDED, tapi **bukan karena tunggakan** (pesan blokir dibedakan per status di
+`tenantBlockedMessage`). Belum punya jalur purge otomatis. Usable = TRIAL / ACTIVE /
+PAST_DUE (`isTenantUsable`, `src/lib/billing/gating-pure.ts`).
+Model berbayar TIDAK memakai masa trial — pembatasan paket gratis = kuota PlanConfig
+(pelanggan & unit AC), dijaga `quota-guard.assertQuota`; field `trialEndsAt` tidak pernah
+dievaluasi mesin manapun (fungsi `isTrialExpired`/`computeTrialEnd` hanya di-re-export).
 
 ## Gateway state
 
@@ -86,6 +93,43 @@ Dunning is separate from customer service reminders. It acts on tenant `nextDueD
 
 All dunning timing, templates, tax, and reminder settings are configurable through `BillingPolicy`; no payment provider status may bypass the domain rules. A confirmed `PAID` event enters `activateSubscription`, which resets the overdue lifecycle.
 
+## Inactivity sweeper (khusus tenant gratis/telantar)
+
+Terpisah dari dunning (yang berbasis telat bayar). Kandidat = tenant dengan
+`nextDueDate IS NULL` + `markedForDeletionAt IS NULL` + status TRIAL/ACTIVE
+(`inactivity-sweeper-service.ts`). Alur: R1 hari tanpa aktivitas → reminder #1;
+R2 → reminder #2 (peringatan hapus); D → hapus permanen (reuse `purgeTenantData`);
+kekecualian: pernah bayar / ≥N pelanggan / ≥N pekerjaan.
+
+Nilai `BillingPolicy` produksi per 2026-10-08: `inactivitySweepEnabled=false`,
+`inactivityDryRun=true`, R1=30, R2=45, D=52, minCustomers=5, minJobs=3,
+exemptPaid=true. Karena master switch mati, journal cron VPS tiap hari mencatat
+`scanned=0` — sweeper belum pernah mengeksekusi penghapusan.
+
+Cron `aircon-dunning.timer` @01:00 WIB menjalankan, urut: `runDunningCycle` →
+`purgeMarkedTenants` → `runInactivitySweep` → flush WA → platform notify — dalam
+SATU try/catch di `api/cron/dunning/route.ts`.
+
+## Purge safety & completeness (`purgeTenantData`)
+
+Satu transaksi; anak→tenant; `tenant.delete` TERAKHIR. Cakupan diverifikasi
+terhadap `pg_constraint` produksi (2026-10-08):
+- 19 anak FK ke Tenant semuanya tercakup (CASCADE ikut terhapus; RESTRICT dihapus dulu).
+- 37 tabel berkolom `tenantId` semuanya tercakup; **satu-satunya pengecualian:
+  `CommissionLedger`** — buku besar komisi APPEND-ONLY (koreksi = baris reversal).
+- Tabel kritis yang dahulu terlewat: `TenantAttribution`, `CouponRedemption`,
+  `JobPhoto` (ketiganya RESTRICT → `tenant.delete` pasti ditolak → rollback total).
+- Kelengkapan DITES OTOMATIS: `tests/purge-completeness.test.ts` mem-parse
+  `schema.prisma` dan menggagalkan bila ada model `tenantId` baru terlewat;
+  memeriksa `tenant.delete` terakhir & urutan JobPhoto/Telemetry-Device.
+- Urutan FK diaudit otomatis terhadap 43 FK produksi: nol pelanggaran
+  (hanya RESTRICT/NO ACTION butuh urutan; CASCADE/SET NULL tidak menahan).
+- Isolasi kegagalan: `purgeMarkedTenants` membungkus tiap tenant try/catch →
+  1 tenant gagal TIDAK menggugurkan flush WA & platform notify
+  (`tests/purge-isolation.test.ts`).
+- Bukti empiris (Postgres isolasi `/tmp`, BUKAN produksi): urutan lama DITOLAK
+  FK `JobPhoto_jobId_fkey`; urutan baru sukses; rollback mengembalikan semua baris.
+
 Refund policy: `src/app/refund/page.tsx` — publik dan dirujuk dari Ketentuan, footer, dan Kontak.
 Kontak publik: `src/app/kontak/page.tsx` — alamat, telepon, email, jam kerja.
 
@@ -110,6 +154,7 @@ Kontak publik: `src/app/kontak/page.tsx` — alamat, telepon, email, jam kerja.
 
 | Date | Files/area | Evidence | Status |
 |---|---|---|---|
+| 2026-10-08 | `dunning-service.ts` purgeTenantData + purgeMarkedTenants; tests kelengkapan & isolasi; SSOT | tsc 0, lint 0, 673 test (72 file) lulus; audit 43 FK produksi 0 pelanggaran; uji Postgres isolasi: kode lama DITOLAK FK `JobPhoto_jobId_fkey`, kode baru sukses + rollback utuh | T3 code+docs siap deploy; sweeper tetap OFF sampai aktivasi (K4) |
 | 2026-09-18 | iPaymu-only adapter, callback, reconcile, active payment schema/data | DB audit: 5 Payment records; latest pending and 4 paid redirects use iPaymu sandbox | Active migration complete; production gate pending |
 | 2026-09-15 | Public refund/contact pages, terms/footer links | tsc + test + lint + build passed; deploy pending | Ready to deploy |
 

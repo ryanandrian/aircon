@@ -164,16 +164,26 @@ where `tenantId` + `deletedAt IS NULL`), index DB `(tenantId, phone)` NON-unique
 Koreksi sikap: "belum tervalidasi" tidak boleh dipakai untuk menutup pekerjaan
 yang masih bisa dikerjakan dengan code/test/DB — tuntaskan sampai 100%.
 
-### T3 — Purge tuntas (BLOKER aktivasi sweeper; wajib sebelum K4)
-- [ ] T3a. Tambah ke daftar hapus `purgeTenantData`, urut hormati FK:
-  `tenantAttribution` (tenantId), `couponRedemption` (tenantId), `jobPhoto` (via jobId → JobOrder milik tenant).
-- [ ] T3b. **Test kelengkapan otomatis** (inti "tuntas"): test yang membaca peta FK asli
-  dari schema/migrasi (daftar 19 anak Tenant) + daftar tabel ber-tenantId, lalu memastikan
-  SEMUA anak tenant-scoped tercakup daftar hapus. Gagal bila ada tabel baru kelewat.
-- [ ] T3c. **Isolasi kegagalan**: `purgeMarkedTenants` bungkus tiap `purgeTenantData`
-  dengan try/catch + log (1 tenant gagal ≠ mematikan flush WA & platform notify di cron).
-- [ ] T3d. Skenario uji A→Z (lihat §3) — semua lulus.
-- Gate: tsc+lint+test+build → commit → deploy → verifikasi cron run berikutnya di journal VPS.
+### T3 — Purge tuntas (BLOKER aktivasi sweeper; wajib sebelum K4) — ✅ SELESAI 2026-10-08 (menunggu deploy)
+- [x] T3a. `purgeTenantData` ditutup penuh: +`tenantAttribution`, `couponRedemption`,
+  `jobPhoto` (3 bloker RESTRICT) + seluruh tabel ber-tenantId yang belum tercakup
+  (dibuktikan test: nol model terlewat, kecuali whitelist `CommissionLedger`).
+  Urutan ditata ulang menghormati rantai FK (JobPhoto→jobOrder, Telemetry/CommandLog→Device).
+- [x] T3b. `tests/purge-completeness.test.ts` — parse schema.prisma; gagal bila ada model
+      `tenantId` baru terlewat; + `tenant.delete` terakhir; + urutan kritis.
+      TERBUKTI: dicabut 1 baris → 2 test gagal; dikembalikan → 5 lulus.
+- [x] T3c. `purgeMarkedTenants` try/catch per-tenant + hitung `failed` → throw tak lagi
+      mematikan flush WA & platform notify di cron.
+      `tests/purge-isolation.test.ts` (4 test) TERBUKTI: tanpa isolasi → 4/4 gagal.
+- [x] T3d. Skenario A–F lulus:
+  A) nol model terlewat + 0 pelanggaran urutan (audit 43 FK produksi via pg_constraint);
+  B–D,E) uji Postgres NYATA di PGlite `/tmp` (ISOLASI, bukan Supabase): purge sukses tanpa
+      error FK, tetangga (Agent/PartnerCode) utuh, idempoten, rollback atomik;
+  F) isolasi kegagalan lulus.
+  G–I) HARUS DIIKUTI setelah deploy (butuh cron hidup) — lihat §3.
+- [x] SSOT `docs/Payment_Dunning_SSOT.md` disinkronkan: CANCELLED, model gratis-kuota,
+  sweeper + nilai BillingPolicy produksi, cakupan purge & buktinya.
+- Gate: 673 test (72 file), lint 0, tsc 0, build sukses.
 
 ### HAPUS mode simulasi (K3) — hanya SETELAH T3 deploy
 - [ ] Hapus field `inactivityDryRun` dari schema+DB (migrasi), `runInactivitySweep`
