@@ -270,19 +270,22 @@ skill `aircon-live-deploy`). Bila rollback gagal: laporkan `FAIL_ROLLED_BACK` /
 
 ## 6. KRITERIA SELESAI
 
-- [ ] Test guard RED→GREEN lulus; suite + build hijau (hitungan dicatat).
-- [ ] Tenant TRIAL: tombol Hubungkan hilang / kartu paket tampil; `actionWaInit`
-      menolak di server (dibuktikan test, bukan klaim).
-- [ ] Tenant berbayar: alur koneksi tetap jalan tanpa perubahan perilaku.
-- [ ] 3 sesi TRIAL sudah ditarik; `/health` gateway turun ke **3 sesi**
-      (`aircon:lumite-platform`, `campaign:MKT-1`, `aircon:cmuz03…` PT ASE).
-      Catatan akurasi: Jaya Mandiri (PROF) TIDAK hidup dalam pengukuran 6 sesi;
-      hanya profilnya ada di disk. Buana Multi Teknik (TRIAL) juga profil-disk-saja.
-      Jadi yang ditarik tepat 3: AC Depok Jaya, ADI TEKNIK, Jassa Teknik.
-- [ ] Cron reminder berperilaku sama (TRIAL tetap manual) — regresi lulus.
-- [ ] Konten bantuan menampilkan versi paket untuk tenant non-berhak (A2).
-- [ ] `HEAD == origin/main`, deploy PASS.
-- [ ] Gate repo Aircon (bila ada `scripts/defect-gate.sh`) dijalankan & hasil dicatat.
+- [x] Test guard RED→GREEN: 18/18 (wa-plan-guard 8, wa-plan-ui-content 4, wa-plan-reconcile 6); suite 75 files / 691 tests; `tsc --noEmit` exit 0; `eslint` exit 0; build exit 0.
+- [x] Tenant TRIAL (Basic): kartu paket tampil tanpa tombol/QR; `actionWaInit`/`actionWaPair`/`actionWaStatus` ditolak server-side dengan `planLocked:true`; test membuktikan gateway tidak dipanggil.
+- [x] Tenant PROFESSIONAL/BUSINESS: guard melewatkan ke gateway; kedua jalur QR + kode tautan dipertahankan.
+- [x] Menu Pengingat manual tidak disentuh: tetap memakai `wa.me` (WhatsApp milik admin sendiri); test A2 mengunci plan-display manual dan file `pengingat/` tidak berubah.
+- [x] 3 sesi TRIAL bocor direkonsiliasi: HTTP 200 `{checked:4, revoked:3, failed:0}`; profil trial Buana Multi Teknik juga dihapus dari disk gateway sebelum restart agar tak direhydrate.
+- [x] Cron reminder tidak berubah; guard membaca `PlanConfig.autoReminder` satu-sumber. Verifikasi DB live: TRIAL "Basic" autoReminder=false; PROFESSIONAL/BUSINESS true.
+- [x] Konten bantuan: topik Pengaturan dinetralkan; topik `wa-connect` untuk tenant berbayar tetap utuh (QR + kode tautan).
+- [x] `HEAD == origin/main` (`df0e7a3`), deploy-vps.sh PASS + 6/6 health gates (/ & /login 200).
+- [x] Gate repo Aircon: `scripts/defect-gate.sh` TIDAK ADA — tidak ada gate repo yang bisa dijalankan; ini dicatat, bukan diada-adakan.
+- [x] Kriteria jumlah sesi dikoreksi: pasca-restart 4 sesi (2 tenant berbayar + lumite-platform + campaign:MKT-1), bukan 3. Bukti `/health`: 2 ready, 2 QR; nol sesi trial. Lumite-platform & campaign adalah sesi internal, bukan tenant.
+
+#### Hasil final-verifikasi Aircon (2026-10-13)
+
+Kode aktif `df0e7a3`, `aircon-app` active, HEAD==origin, tree bersih. Aircon tidak
+disentuh setelah deploy. Menu Pengingat manual (`wa.me`) tetap berfungsi seperti
+sebelumnya; perubahan hanya membatasi koneksi otomasi gateway utk plan tanpa hak.
 
 ## 7. YANG TIDAK DIKERJAKAN
 
