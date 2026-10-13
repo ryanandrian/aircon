@@ -309,6 +309,23 @@ Yang TIDAK disentuh (jalur sah, bukan tulis inbound):
 
 Suite: 76 files / 694 tests (baseline 75/691 utuh + 3 baru) · tsc=0 · lint=0.
 
+#### Hasil deploy G7-Aircon — LIVE `fb0f9f4` (2026-10-14 01:34 WIB)
+
+```
+commit   : fb0f9f4 (push OK, HEAD == origin/main)
+build    : pnpm run build PASS (DEPLOY_EXIT=0)
+deploy   : scripts/deploy-vps.sh PASS (jalur resmi Aircon)
+release  : /opt/aircon-app/current = fb0f9f4668e52c12b18b3ec30bbd0d146e51efb6/app
+service  : aircon-app active, start 01:34:31 WIB
+HTTPS    : https://app.airconet.id/ -> 200
+suite    : 76 files / 694 tests PASS · tsc=0 · eslint=0
+bundle   : .next/server/chunks/_1ch31dc._.js — messageLog.create=0,
+           INBOUND=0; findFirst=1 + messageLog.updateMany=1 (delivery_status
+           terjaga); notifyPlatform=1 (autopilot disconnected terjaga)
+DB live  : INBOUND=0 (dibersihkan sebelumnya + tak ada lagi jalur tulis);
+           OUTBOUND=47 (tetap ada)
+```
+
 ## 8. YANG TIDAK DIKERJAKAN
 
 Tidak mengubah kontrak gateway; tidak mengubah `PlanConfig`/kebijakan plan
