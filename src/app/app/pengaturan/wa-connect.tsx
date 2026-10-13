@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { actionWaInit, actionWaPair, actionWaPairCancel, actionWaStatus, actionWaLogout } from "./actions";
 
-type Phase = "loading" | "connected" | "disconnected" | "connecting" | "error";
+type Phase = "loading" | "connected" | "disconnected" | "connecting" | "error" | "plan-locked";
 
 /** Format nomor WA dari gateway (mis. "6281319150260") → "+62 813-1915-0260" agar mudah dibaca. */
 function formatWaPhone(raw: string): string {
@@ -51,6 +51,9 @@ export function WaConnect() {
       try {
         const r = await actionWaStatus();
         if (cancelled) return;
+        // Guard A1: paket Basic (TRIAL) tidak punya otomasi gateway → kartu paket,
+        // tanpa tombol/QR/polling percuma. Server sudah menolak (planLocked).
+        if (r.planLocked) { setPhase("plan-locked"); setError(""); return; }
         if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memeriksa status"); return; }
         if (r.ready) { setPhase("connected"); setQr(null); setPhone(r.phone ?? null); setPairing(false); setPairingCode(null); stopPoll(); }
         else { setPairing(Boolean(r.pairing)); setPairingCode(r.pairingCode ?? null); setPhase((p) => (p === "connecting" ? p : "disconnected")); }
@@ -68,6 +71,7 @@ export function WaConnect() {
     setConnectionMode("qr");
     setPhase("connecting"); setError(""); setQr(null); setAuthenticating(false); setPairing(false); setPairingCode(null);
     const r = await actionWaInit();
+    if (r.planLocked) { setPhase("plan-locked"); setError(""); return; }
     if (!r.ok) { setPhase("error"); setError(r.error ?? "Gagal memulai"); return; }
     if (r.ready) { setPhase("connected"); return; }
     if (r.qr) setQr(r.qr);
@@ -88,6 +92,7 @@ export function WaConnect() {
     setPairingBusy(true); setError(""); setPhase("connecting"); setPairing(true); setQr(null); setAuthenticating(false);
     const r = await actionWaPair(pairingPhone);
     setPairingBusy(false);
+    if (r.planLocked) { setPairing(false); setPhase("plan-locked"); setError(""); return; }
     if (!r.ok) { setPairing(false); setPhase("error"); setError(r.error ?? "Gagal meminta kode tautan"); return; }
     setPairingCode(r.pairingCode ?? null);
     if (r.ready) { setPhase("connected"); setPhone(r.phone ?? null); setPairing(false); stopPoll(); return; }
@@ -130,6 +135,7 @@ export function WaConnect() {
           </div>
           {phase === "connected" && <Badge className="shrink-0 bg-emerald-600 hover:bg-emerald-600">Tersambung</Badge>}
           {(phase === "disconnected" || phase === "connecting") && <Badge variant="secondary" className="shrink-0">Belum tersambung</Badge>}
+          {phase === "plan-locked" && <Badge variant="secondary" className="shrink-0">Paket Basic</Badge>}
         </div>
 
         {phase === "loading" && <p className="text-sm text-muted-foreground">Memeriksa status…</p>}
@@ -219,6 +225,19 @@ export function WaConnect() {
             <div>
               <Button variant="ghost" size="sm" onClick={() => { stopPoll(); setPhase("disconnected"); setQr(null); }}>Batal</Button>
             </div>
+          </div>
+        )}
+
+        {phase === "plan-locked" && (
+          <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-900/40 dark:bg-sky-950/20">
+            <p className="font-medium text-sky-900 dark:text-sky-200">
+              Otomasi WhatsApp termasuk paket berbayar
+            </p>
+            <p className="text-sm text-sky-800/90 dark:text-sky-200/80">
+              Anda dapat tetap mengirimkan pengingat jatuh tempo secara manual dari{" "}
+              <b>menu Pengingat</b> melalui WhatsApp Anda sendiri. Untuk pengiriman
+              otomatis ke pelanggan, upgrade paket lewat menu Langganan.
+            </p>
           </div>
         )}
 

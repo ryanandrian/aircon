@@ -12,13 +12,18 @@ import { actionWaStatus } from "@/app/app/pengaturan/actions";
  */
 export function WaConnectBanner() {
   const [show, setShow] = useState(false);
+  const [planLocked, setPlanLocked] = useState(false);
 
   useEffect(() => {
     let alive = true;
     actionWaStatus()
       .then((r) => {
+        if (!alive) return;
+        // Guard A1: tenant paket Basic tak boleh diajak sambung otomasi → pesan
+        // yang jujur (pengingat tetap bisa dikirim manual), bukan tombol Hubungkan.
+        if (r.planLocked) { setPlanLocked(true); setShow(true); return; }
         // Tampilkan HANYA bila panggilan sukses & sesi jelas belum siap.
-        if (alive && r.ok && r.ready !== true) setShow(true);
+        if (r.ok && r.ready !== true) setShow(true);
       })
       .catch(() => {
         /* gateway tak terjangkau → jangan tampilkan (hindari false alarm) */
@@ -29,6 +34,30 @@ export function WaConnectBanner() {
   }, []);
 
   if (!show) return null;
+
+  if (planLocked) {
+    return (
+      <Link
+        href="/app/pengingat"
+        className="flex flex-col items-stretch gap-3 rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sky-900 transition hover:bg-sky-100 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200 dark:hover:bg-sky-950/50 sm:flex-row sm:items-center"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-500 text-white">
+          <Icon.Message className="h-5 w-5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Pengingat masih bisa dikirim manual</span>
+          <span className="block text-sm text-sky-800/80 dark:text-sky-200/70">
+            Kirim pengingat jatuh tempo dari menu Pengingat via WhatsApp Anda.
+            Otomasi WhatsApp tersedia pada paket berbayar.
+          </span>
+        </span>
+        <span className="flex w-full shrink-0 items-center justify-end gap-1 text-sm font-semibold sm:w-auto">
+          Pengingat
+          <Icon.ChevronRight className="h-4 w-4" aria-hidden />
+        </span>
+      </Link>
+    );
+  }
 
   return (
     <Link

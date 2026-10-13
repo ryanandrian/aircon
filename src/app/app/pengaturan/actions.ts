@@ -7,12 +7,27 @@ import { updateTenantProfile } from "@/lib/services/tenant-profile-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 import { ServiceError } from "@/lib/services/customer-service";
 import { gatewayInitSession, gatewayPairSession, gatewayCancelPairSession, gatewaySessionStatus, gatewayLogoutSession } from "@/lib/wa/gateway-relay";
+import { waAutomationEligibility } from "@/lib/services/wa-identity-service";
 
 type Result = { ok: boolean; error?: string };
 
 /** Hanya owner/admin tenant yang boleh ubah profil usaha. */
 function canManage(role: string): boolean {
   return role === "OWNER" || role === "ADMIN";
+}
+
+/**
+ * Guard ATURAN PRODUK (2026-10-13): paket Basic (enum DB: TRIAL) tidak boleh
+ * membuat sesi gateway. Sumber keputusan = `PlanConfig.autoReminder` (satu-sumber
+ * dgn guard cron), BUKAN daftar plan hardcode. Uji: tests/wa-plan-guard.test.ts.
+ *
+ * DI TERAPKAN di: actionWaInit (QR) · actionWaPair (kode tautan) · actionWaStatus
+ * (polling — tanpa ini UI TRIAL terus polling percuma).
+ * TIDAK diterapkan di actionWaPairCancel / actionWaLogout: memutuskan sesi harus
+ * selalu boleh, termasuk bagi tenant yang sudah terlanjur tersambung.
+ */
+async function planGate(tenantId: string): Promise<{ ok: true } | { ok: false; planLocked: true; error: string }> {
+  return waAutomationEligibility(tenantId);
 }
 
 /** Upload aset tenant (logo/QRIS) LANGSUNG lewat server — anti-CORS. FormData: file. */
@@ -64,18 +79,22 @@ export async function actionSaveTenantProfile(raw: {
 }
 
 /** Tautkan WhatsApp: mulai/bangunkan sesi tenant → balikkan QR (data URL) atau ready. */
-export async function actionWaInit(): Promise<{ ok: boolean; qr?: string | null; ready?: boolean; error?: string }> {
+export async function actionWaInit(): Promise<{ ok: boolean; qr?: string | null; ready?: boolean; error?: string; planLocked?: true }> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  const gate = await planGate(ctx.tenantId);
+  if (!gate.ok) return { ok: false, planLocked: true, error: gate.error };
   return gatewayInitSession(ctx.tenantId);
 }
 
 /** Mulai pairing code dari HP tenant tanpa mengubah QR flow. */
-export async function actionWaPair(phone: string): Promise<{ ok: boolean; pairingCode?: string | null; pairing?: boolean; ready?: boolean; phone?: string | null; error?: string }> {
+export async function actionWaPair(phone: string): Promise<{ ok: boolean; pairingCode?: string | null; pairing?: boolean; ready?: boolean; phone?: string | null; error?: string; planLocked?: true }> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  const gate = await planGate(ctx.tenantId);
+  if (!gate.ok) return { ok: false, planLocked: true, error: gate.error };
   return gatewayPairSession(ctx.tenantId, phone);
 }
 
@@ -88,10 +107,15 @@ export async function actionWaPairCancel(): Promise<Result> {
 }
 
 /** Status sesi WA tenant (untuk polling di UI): {exists, ready, qr, phone, pairing}. */
-export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; pairing?: boolean; pairingCode?: string | null; pairingPhone?: string | null; error?: string; conflict?: boolean }> {
+export async function actionWaStatus(): Promise<{ ok: boolean; exists?: boolean; ready?: boolean; qr?: string | null; phone?: string | null; authenticating?: boolean; pairing?: boolean; pairingCode?: string | null; pairingPhone?: string | null; error?: string; conflict?: boolean; planLocked?: true }> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
   if (!canManage(ctx.role)) return { ok: false, error: "Tidak berwenang" };
+  // Guard A1: hentikan polling percuma & sembunyikan status sesi dari tenant
+  // yang tidak berhak. Bentuk field lama dipertahankan (exists/ready/qr) agar
+  // pemakaian UI lama tidak rusak.
+  const gate = await planGate(ctx.tenantId);
+  if (!gate.ok) return { ok: false, planLocked: true, error: gate.error, exists: false, ready: false, qr: null };
   const status = await gatewaySessionStatus(ctx.tenantId);
 
   // Anti akun-ganda (Lapis 2 — kunci keras): saat sesi READY, nomor sudah TERVERIFIKASI.

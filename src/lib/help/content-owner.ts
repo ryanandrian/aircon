@@ -419,14 +419,14 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 1,
     whatIsIt:
-      "Atur identitas usaha dan koneksi WhatsApp. Pengiriman yang bisa dipastikan adalah Diterima perangkat (DELIVERED); status Dibaca terkonfirmasi (READ_CONFIRMED) hanya muncul bila WhatsApp mengirim sinyal baca.",
+      "Atur identitas usaha, branding, rekening, dan jadwal pengingat. Pengiriman yang bisa dipastikan adalah Diterima perangkat (DELIVERED); status Dibaca terkonfirmasi (READ_CONFIRMED) hanya muncul bila WhatsApp mengirim sinyal baca.",
     steps: [
       "Isi 'Identitas Usaha': Nama Usaha, Telepon/WhatsApp, moto, dan alamat.",
       "Unggah logo di bagian 'Branding Usaha' (tampil di faktur & halaman usaha).",
       "Isi data rekening bank (Nama Bank & Atas Nama) bila perlu ditampilkan ke pelanggan.",
       "Aktifkan 'Terapkan program insentif tim' bila usaha Anda memberi insentif ke teknisi.",
       "Ketuk 'Simpan Profil Usaha' untuk menyimpan perubahan.",
-      "Di bagian WhatsApp, gunakan 'Hubungkan WhatsApp' untuk mengaktifkan pengingat otomatis.",
+      "Pengingat dapat dikirim dari menu Pengingat (kirim manual via WhatsApp Anda). Koneksi WhatsApp otomatis tersedia pada paket berbayar — lihat bantuan 'Hubungkan WhatsApp'.",
     ],
     tips: [
       "Bila pesan sudah Diterima perangkat tetapi tidak muncul Dibaca terkonfirmasi, itu bukan berarti pengiriman gagal atau penerima belum membaca. WhatsApp tidak selalu mengirim ACK_READ.",
