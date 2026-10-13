@@ -31,13 +31,16 @@ export async function POST(req: NextRequest) {
 
   try {
     if (type === "inbound") {
-      // Simpan pesan masuk customer.
-      await prisma.messageLog.create({
-        data: {
-          tenantId, channel: "WA", direction: "INBOUND", status: "DELIVERED",
-          toPhone: String(body.fromPhone ?? ""), body: String(body.body ?? ""),
-        },
-      }).catch(() => { /* MessageLog opsional; jangan gagalkan callback */ });
+      // G7-Aircon: pesan TULISAN pelanggan TIDAK lagi ditulis ke DB.
+      // BUKTI: 4.034 baris INBOUND (100% dari nomor yang tidak pernah dituju
+      // aplikasi; NOL pembaca, NOL tindak lanjut) = percakapan pribadi pelanggan
+      // menumpuk tanpa gunanya + risiko privasi/hukum. Aircon TIDAK membutuhkan
+      // balasan teks — yang dipakai = status pengiriman keluar (delivery_status).
+      // Jalur callback TETAP membalas 200 (transport netral — gateway tak boleh
+      // dipaksa tahu urusan penyimpanan konsumen).
+      // Sejalan dengan G7 gateway: listener "message" sudah dibuang (live b4268c4),
+      // jadi tipe ini praktis tak lagi diproduksi — cabang disimpan untuk
+      // kompatibilitas konsumen lama.
     } else if (type === "sent" || type === "failed" || type === "delivery_status") {
       // Update status pesan keluar bila messageId dikenal (best-effort).
       const messageId = body.gatewayMessageId ? String(body.gatewayMessageId) : body.messageId ? String(body.messageId) : null;

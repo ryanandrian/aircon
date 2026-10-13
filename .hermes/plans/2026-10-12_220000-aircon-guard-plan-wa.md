@@ -287,7 +287,29 @@ Kode aktif `df0e7a3`, `aircon-app` active, HEAD==origin, tree bersih. Aircon tid
 disentuh setelah deploy. Menu Pengingat manual (`wa.me`) tetap berfungsi seperti
 sebelumnya; perubahan hanya membatasi koneksi otomasi gateway utk plan tanpa hak.
 
-## 7. YANG TIDAK DIKERJAKAN
+## 7. G7-Aircon — callback inbound tak lagi menulis DB (2026-10-14, lanjutan G7 gateway)
+
+**Keputusan pemilik:** pesan tulisan pelanggan dari WA tenant **tidak dicatat** Aircon.
+
+Bukti: DB 4.034 baris `INBOUND` (100% dari nomor tak pernah dituju aplikasi; nol
+pembaca, nol tindak lanjut). Konsumen Aircon tidak butuh balasan teks — yang
+dipakai = status pengiriman keluar (`delivery_status`).
+
+Perubahan (jalur yang sudah ada, nol modul baru):
+- `src/app/api/wa/callback/route.ts` — branch `type === "inbound"` jadi no-op
+  (balasan 200 tetap; transport netral). Tipe tetap dikenali (kompatibilitas).
+- Test `tests/wa-callback-inbound-noop.test.ts` (3) RED 1 gagal → GREEN 3/3:
+  inbound → `messageLog.create` TIDAK dipanggil; `delivery_status` → `findFirst`
+  + `updateMany` TETAP; `ready` → nol tulis.
+
+Yang TIDAK disentuh (jalur sah, bukan tulis inbound):
+- `disconnected` → `notifyPlatform` (autopilot putus sesi) — utuh.
+- status pengiriman (`sent`/`failed`/`delivery_status`) — utuh.
+- tulis outbound (`reminder`/`dunning`/`invoice`) — utuh.
+
+Suite: 76 files / 694 tests (baseline 75/691 utuh + 3 baru) · tsc=0 · lint=0.
+
+## 8. YANG TIDAK DIKERJAKAN
 
 Tidak mengubah kontrak gateway; tidak mengubah `PlanConfig`/kebijakan plan
 (hanya membaca); tidak menyentuh repo lumite-gateway (lihat rencana partner);
