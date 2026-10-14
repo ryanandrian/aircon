@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
-import { getInvoiceForView } from "@/lib/services/invoice-service";
+import { getInvoiceForView, publicDocUrl } from "@/lib/services/invoice-service";
 import { InvoiceView } from "@/components/invoice-view";
 import { InvoiceActions } from "@/components/invoice-actions";
 import { PaymentPanel } from "@/components/payment-panel";
@@ -37,7 +37,7 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
       <div className="mx-auto max-w-4xl space-y-4 px-5 py-6 print:max-w-none print:p-0">
         <InvoiceView inv={inv} tenant={data.tenant} assetMap={data.assetMap} billTo={data.billTo} />
         {inv.status !== "CANCELLED" && (
-          <InvoiceActions invoiceId={inv.id} variant="admin" docLabel={isProforma ? "Proforma" : "Invoice"} />
+          <InvoiceActions invoiceId={inv.id} variant="admin" docLabel={isProforma ? "Proforma" : "Invoice"} docUrl={publicDocUrl(inv.docToken)} />
         )}
         {inv.status === "PAID" && inv.docType === "INVOICE" && (
           <a href={`/app/kwitansi/${inv.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:underline dark:text-sky-400 print:hidden">

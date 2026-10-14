@@ -16,16 +16,42 @@ export function InvoiceActions({
   invoiceId,
   variant,
   docLabel = "dokumen",
+  docUrl,
 }: {
   invoiceId: string;
   variant: "admin" | "tech";
   docLabel?: string;
+  /** F7d: tautan dokumen publik (/d/{token}) — bila ada, tombol "Salin link dokumen"
+   *  muncul supaya admin/teknisi bisa kirim manual via WhatsApp Apps/Web miliknya. */
+  docUrl?: string | null;
 }) {
   const [pending, start] = useTransition();
   const [sent, setSent] = useState(false);
   // F3: fallback utk tenant TRIAL/BASIC (plan-locked) — server mengirim balik
   // tautan wa.me (aplikasi WA milik pengirim) → tombol "Buka WhatsApp" muncul.
   const [waMe, setWaMe] = useState<{ url: string; message: string } | null>(null);
+
+  async function copyDocLink() {
+    if (!docUrl) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(docUrl);
+      } else {
+        // Fallback utk konteks non-secure / browser lama (user-friendly).
+        const ta = document.createElement("textarea");
+        ta.value = docUrl;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      toast.success("Link dokumen disalin — tempel di WhatsApp Anda.");
+    } catch {
+      toast.error("Gagal menyalin link. Salin manual dari alamat browser.");
+    }
+  }
 
   function sendWa() {
     start(async () => {
@@ -50,6 +76,11 @@ export function InvoiceActions({
       <Button type="button" variant="outline" onClick={() => window.print()} className="gap-2">
         <Icon.Print className="h-4 w-4" aria-hidden /> Cetak / Simpan PDF
       </Button>
+      {docUrl && (
+        <Button type="button" variant="outline" onClick={copyDocLink} className="gap-2">
+          <Icon.Copy className="h-4 w-4" aria-hidden /> Salin link dokumen
+        </Button>
+      )}
       <Button type="button" onClick={sendWa} disabled={pending} className="gap-2">
         <Icon.Send className="h-4 w-4" aria-hidden />
         {pending ? "Mengirim…" : sent ? "Kirim WA lagi" : "Kirim via WA"}

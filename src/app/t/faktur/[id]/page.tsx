@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
-import { getInvoiceForView } from "@/lib/services/invoice-service";
+import { getInvoiceForView, publicDocUrl } from "@/lib/services/invoice-service";
 import { InvoiceView } from "@/components/invoice-view";
 import { InvoiceActions } from "@/components/invoice-actions";
 import { PaymentPanel } from "@/components/payment-panel";
@@ -24,7 +24,7 @@ export default async function TechInvoicePage({ params }: { params: Promise<{ id
       <div className="mx-auto max-w-2xl space-y-4 p-4 print:max-w-none print:p-0">
         <InvoiceView inv={data.inv} tenant={data.tenant} assetMap={data.assetMap} backHref="/t" billTo={data.billTo} />
         {data.inv.status !== "CANCELLED" && (
-          <InvoiceActions invoiceId={data.inv.id} variant="tech" docLabel={data.inv.docType === "PROFORMA" ? "Proforma" : "Invoice"} />
+          <InvoiceActions invoiceId={data.inv.id} variant="tech" docLabel={data.inv.docType === "PROFORMA" ? "Proforma" : "Invoice"} docUrl={publicDocUrl(data.inv.docToken)} />
         )}
         {data.inv.status === "PAID" && data.inv.docType === "INVOICE" && (
           <a href={`/t/kwitansi/${data.inv.id}`} className="inline-flex items-center gap-1 text-sm font-medium text-sky-600 hover:underline dark:text-sky-400 print:hidden">

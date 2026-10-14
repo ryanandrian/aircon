@@ -175,6 +175,32 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
   return { inv, tenant, assetMap, billTo, serviceCustomer: inv.customer };
 }
 
+/**
+ * F7b (keputusan pemilik A+C): resolve dokumen publik via token unik.
+ * Pola SAMA dgn customer-card-service (getCustomerCardByToken) — token acak
+ * = kunci akses (anti-enumeration); tanpa sesi auth.
+ * Reuse PENUH jalur getInvoiceForView (logika tenant/billTo/assetMap tidak
+ * diduplikasi) — 0 perubahan perilaku utk rute internal.
+ * @returns null bila token tak dikenal (page publik menampilkan "tidak ditemukan").
+ */
+/** Tautan dokumen publik (F7c): {APP_URL}/d/{token}. Pola env utk rute publik (riwayat/u). */
+export function publicDocUrl(docToken: string | null | undefined): string | null {
+  if (!docToken) return null;
+  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
+  if (!base) return null;
+  return `${base}/d/${docToken}`;
+}
+
+export async function getInvoiceForPublicDoc(docToken: string) {
+  if (!docToken || docToken.length < 16) return null;
+  const probe = await prisma.invoice.findFirst({
+    where: { docToken },
+    select: { tenantId: true, id: true },
+  });
+  if (!probe) return null;
+  return getInvoiceForView(probe.tenantId, probe.id);
+}
+
 /** Batalkan invoice/proforma (K11: admin only, dilakukan di action). Tak bisa bila sudah PAID. */
 export async function cancelInvoice(tenantId: string, invoiceId: string): Promise<void> {
   const inv = await prisma.invoice.findFirst({ where: { id: invoiceId, tenantId }, select: { id: true, status: true } });
@@ -367,6 +393,8 @@ export function buildInvoiceMessage(args: {
   issueDate: Date; dueDate: Date | null; total: unknown; customerName: string;
   serviceLocation?: string | null;
   bank?: { name: string | null; no: string | null; holder: string | null } | null;
+  /** F7c: tautan dokumen publik (keputusan A+C) — pelanggan print dari link. */
+  docUrl?: string | null;
 }): string {
   const doc = DOC_WORD[args.docType] ?? "Tagihan";
   const lines: string[] = [];
@@ -385,6 +413,12 @@ export function buildInvoiceMessage(args: {
   }
   lines.push("");
   lines.push("Terima kasih. Mohon konfirmasi setelah pembayaran. 🙏");
+  // F7c (keputusan A+C): tautan dokumen publik — pelanggan print dari link
+  // (gateway tetap teks-only; halaman disajikan Aircon, bukan lampiran).
+  if (args.docUrl) {
+    lines.push("");
+    lines.push(`Dokumen: ${args.docUrl}`);
+  }
   return lines.join("\n");
 }
 
@@ -430,6 +464,9 @@ export async function sendInvoiceViaWa(
     issueDate: inv.issueDate, dueDate: inv.dueDate, total: inv.total,
     customerName: contact.name, serviceLocation,
     bank: { name: tenant?.bankName ?? null, no: tenant?.bankAccountNo ?? null, holder: tenant?.bankAccountName ?? null },
+    // F7c (A+C pemilik): tautan dokumen publik utk print-sendiri — gateway
+    // tetap teks-only (halaman disajikan Aircon, bukan lampiran).
+    docUrl: publicDocUrl(inv.docToken),
   });
 
   // F1 guard (B-1, KRITIS): tenant TRIAL/BASIC TIDAK boleh lewat WA-GATEWAY
@@ -456,6 +493,8 @@ export async function sendInvoiceViaWa(
 export function buildReceiptMessage(args: {
   tenantName: string; receiptNo: string; invoiceNo: string;
   total: unknown; paidAt: Date | null; payMethod: string | null; customerName: string;
+  /** F7c: tautan dokumen publik (keputusan A+C). */
+  docUrl?: string | null;
 }): string {
   const fmtP: Record<string, string> = { CASH: "Tunai", TRANSFER: "Transfer", QRIS: "QRIS" };
   const lines: string[] = [];
@@ -470,6 +509,10 @@ export function buildReceiptMessage(args: {
   lines.push(`Tanggal: ${fmtTgl(args.paidAt)}`);
   lines.push("");
   lines.push("Terima kasih atas pembayarannya. 🙏");
+  if (args.docUrl) {
+    lines.push("");
+    lines.push(`Dokumen: ${args.docUrl}`);
+  }
   return lines.join("\n");
 }
 
@@ -499,6 +542,8 @@ export async function sendReceiptViaWa(
     tenantName: tenant?.name ?? "Aircon",
     receiptNo: receiptNumber(inv.number), invoiceNo: inv.number,
     total: inv.total, paidAt: inv.paidAt, payMethod: inv.payMethod, customerName: contact.name,
+    // F7c: tautan dokumen publik (invoice resmi — kwitansi menumpuk anchor sama).
+    docUrl: publicDocUrl(inv.docToken),
   });
 
   // F1 guard (B-1) + F3 fallback — sama dengan sendInvoiceViaWa (titik terendah).

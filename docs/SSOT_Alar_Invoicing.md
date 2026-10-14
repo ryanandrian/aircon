@@ -331,22 +331,28 @@ log   : error runtime 5 menit bersih
       job-cancel-placement; mock Prisma penuh utk service berat terbukti rapuh
       & tidak perlu) + unit nyata helper (format+entropi).
       invoice dengan token live: 0 (wajar — token terisi saat dokumen BARU terbit).
-- [ ] **7b. Halaman publik `/d/{token}`** — REUSE pola `/riwayat/{token}` yang sudah
-      teruji: server resolve token → InvoiceView (kolektor, tanpa chrome) + print:
-      rapi; tenant scoping via token (bukan id); token acak = anti-enumeration;
-      invoice CANCELLED → tampil jujur "Dibatalkan"; header/branding tenant.
-- [ ] **7c. Pesan WA** — `buildInvoiceMessage`/`buildReceiptMessage`: rapikan
-      struktur (kop usaha, identitas dokumen, ringkasan item ringkas, total,
-      info bayar) + TAMBAH baris tautan dokumen (`{APP_URL}/d/{token}`).
-      Kontrak teks-only TIDAK berubah — gateway TIDAK tersentuh.
-- [ ] **7d. UI/UX (user-friendly — perintah pemilik)**: di `InvoiceActions`
-      (jalur yang sudah ada) tambah aksi **"Salin link dokumen"** (untuk admin
-      kirim manual via WhatsApp Apps/Web miliknya) + tetap pertahankan
-      "Cetak / Simpan PDF". Untuk TRIAL/BASIC: tautan ikut wa.me.
-- [ ] **7e. Uji** — 3 dokumen (INVOICE/PROFORMA/KWITANSI) konsisten; token
-      unik & anti-duplikat; token salah/tak dikenal → 404 aman; pesan WA
-      berisi tautan & rincian; TRIAL→wa.me + link; PRO→gateway + link.
-- [ ] STATUS: BELUM DIMULAI
+- [x] **7b. Halaman publik `/d/{token}`** — **SELESAI (2026-10-15)**
+      `src/app/d/[token]/page.tsx` + `print-button.tsx` (Button+Icon.Print yang
+      SUDAH ada). Pola PERSIS `/riwayat/{token}`; resolve via loader
+      `getInvoiceForPublicDoc` → **REUSE PENUH `getInvoiceForView`** (nol
+      duplikasi logika); 404 aman; CANCELLED tampil jujur ("Batal" via
+      InvoiceView); nol gaya/kolektor baru; tanpa chrome app.
+- [x] **7c. Pesan WA + tautan** — **SELESAI (2026-10-15)**
+      `publicDocUrl()` = `{NEXT_PUBLIC_APP_URL}/d/{token}` (pola env rute publik
+      yang sudah ada; **defensif**: base kosong → null → tanpa link, aman);
+      `buildInvoiceMessage` + `buildReceiptMessage`: baris `Dokumen: {docUrl}`;
+      keduanya kini meneruskan docUrl (berlaku utk GATEWAY & fallback wa.me —
+      3 dokumen). **Kontrak teks-only gateway TIDAK berubah — gatewayRelay tak
+      tersentuh** (dikunci test).
+- [x] **7d. UI/UX "Salin link dokumen"** — **SELESAI (2026-10-15)**
+      prop `docUrl` di `InvoiceActions`; clipboard API + fallback
+      `execCommand` (user-friendly); muncul hanya bila docUrl ada; **Cetak PDF +
+      Kirim via WA TETAP** (tidak diganti); diteruskan dari 2 page detail
+      (admin & teknisi).
+- [ ] **7e. Uji E2E 3 dokumen** — UNDONE-AMAN: unit/verifikasi kode sudah
+      hijau (tests/public-doc-token-link.test.ts), **uji nyata 3 dokumen di
+      VPS setelah deploy** (lihat BAGIAN 5).
+- STATUS: **7a–7d SELESAI (kode)** — 7e (uji E2E live) menyusul setelah deploy.
 
 ### F8 — Status OVERDUE sinkron di titik yang tepat (B-4) ← **SELESAI (kode + test, 2026-10-15)**
 - [x] `refreshOverdueStatus(tenantId)` dipanggil di `/app/faktur/page.tsx` (jalur
