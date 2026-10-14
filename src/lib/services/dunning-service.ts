@@ -150,6 +150,7 @@ export async function purgeTenantData(id: string): Promise<void> {
     prisma.workItem.deleteMany({ where: { tenantId: id } }),
     prisma.workSession.deleteMany({ where: { tenantId: id } }),
     prisma.messageLog.deleteMany({ where: { tenantId: id } }),
+    prisma.pushSubscription.deleteMany({ where: { tenantId: id } }),
     prisma.messageTemplate.deleteMany({ where: { tenantId: id } }),
     prisma.repeatReminder.deleteMany({ where: { tenantId: id } }),
     prisma.jobProgressEvent.deleteMany({ where: { tenantId: id } }),

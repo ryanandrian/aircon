@@ -310,6 +310,7 @@ model Tenant {
   invoices              Invoice[]
   platformNotifications PlatformNotification[]
   tenantNotifications   TenantNotification[]
+  pushSubscriptions     PushSubscription[]
   teamIncentiveMode     TeamIncentiveMode      @default(BAGI_RATA)
   // Niat EKSPLISIT tenant menerapkan program insentif tim. Menggerbang SEMUA UI insentif
   // sisi teknisi (kartu, kolom, catatan). Default false = aman: aplikasi TIDAK memperkenalkan
@@ -342,6 +343,7 @@ model User {
 
   tenant     Tenant      @relation(fields: [tenantId], references: [id])
   technician Technician?
+  pushSubscriptions PushSubscription[]
 
   @@unique([tenantId, phone])
   @@index([tenantId, role])
@@ -1079,6 +1081,34 @@ model TenantNotification {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, readAt, createdAt])
+}
+
+// ================= WEB PUSH SUBSCRIPTION (PWA /t — notifikasi penugasan) =================
+// FASE 1: khusus notifikasi PENUGASAN ke teknisi/kernet (keputusan pemilik 2026-10-14).
+// Satu baris = 1 perangkat browser yang memberi izin push. Endpoint unik lintas
+// perangkat; deviceId membedakan perangkat milik user yang sama (Android/iOS).
+// revokedAt = unsubscribe eksplisit / endpoint basi (410 Gone) — jangan dihapus,
+// pertahankan sebagai jejak audit (pola "catat status, bukan hapus baris").
+model PushSubscription {
+  id         String    @id @default(cuid())
+  tenantId   String
+  userId     String
+  deviceId   String
+  endpoint   String
+  p256dh     String
+  auth       String
+  userAgent  String?
+  lastSentAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, deviceId])
+  @@unique([endpoint])
+  @@index([tenantId, revokedAt])
 }
 
 // ================= CONFIG (DB-DRIVEN, EDITABLE ADMIN — NO HARDCODE) =================
