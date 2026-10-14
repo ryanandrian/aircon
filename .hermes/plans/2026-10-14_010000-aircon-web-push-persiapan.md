@@ -324,6 +324,43 @@ test   : tests/push-notification-service.test.ts 11/11 (+2 utk retry);
          pulihkan → 11 lulus)
 ```
 
+### Hasil E2E Android (uji nyata pemilik, HP Android, teknisi Ryan/Jaya Mandiri) + FIX
+
+**Bukti LULUS (dari pemilik + query server):**
+```
+izin browser     : diizinkan teknisi Ryan (13:54 WIB)
+subscription     : 1 baris live — tenant Jaya Mandiri, user Ryan Andrian,
+                   revoked=null, lastSentAt tercatat (push terkirim nyata)
+push masuk layar : YA (laporan pemilik)
+klik → app       : YA (dibawa ke aplikasi teknisi)
+```
+
+**3 TEMUAN E2E (semua diperbaiki, deploy live `bf3b626`):**
+```
+1. TANPA SUARA — showNotification tanpa renotify: notifikasi ber-tag sama
+   hanya menimpa, tak berbunyi.
+   FIX (sw.js, handler yang sama): renotify: true + requireInteraction: true
+   (tampil menonjol sampai disentuh).
+2. KLIK → state basi (perlu refresh manual): notificationclick hanya focus.
+   FIX: focus + postMessage {aircon:open-url} ke tab aktif; listener message
+   DI PushPermission (komponen yang sudah ada) → router.push(url) +
+   router.refresh(). NOL file/jalur baru; teknisi tak perlu refresh manual.
+   (Belum diverifikasi ulang pasca-deploy — tunggu uji ulang pemilik.)
+3. HEADER PENUH SESAK (screenshot pemilik): teks "Notifikasi tugas aktif"
+   tetap tampil walau tak ada tindakan. FIX progressive disclosure: status
+   aktif → cukup icon bell hijau (aria-label+title lengkap); teks panjang
+   hanya saat BUTUH TINDAKAN (belum aktif).
+
+VERIFIKASI LIVE pasca-fix: current `bf3b626`; sw.js publik berisi
+renotify×2 + requireInteraction + postMessage (browser tarik versi baru);
+suite 80/729 · tsc=0 · eslint=0 · build=0; deploy-vps.sh PASS.
+```
+
+**UJI ULANG YG MENUNGGU PEMILIK:** kirim penugasan lagi dari Jaya Mandiri →
+cek (a) suara berbunyi, (b) sentuh notifikasi → tugas LANGSUNG tampil tanpa
+refresh, (c) header ringkas (hanya icon bell hijau). Setelah 3 kriteria ini
+lulus → G-A8 (dokumen arsitektur) dikerjakan berdasarkan bukti final.
+
 ### Hasil Deploy G-A7 — LIVE `38772ce` (2026-10-14 13:37 WIB)
 
 ```
