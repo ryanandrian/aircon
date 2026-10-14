@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { actionAssignTeam, actionCheckTeamConflicts } from "../actions";
+import { actionAssignTeam, actionCheckTeamConflicts, actionResendAssignPush, type AssignPushResult } from "../actions";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,9 @@ export function OwnerActions({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  // G-A9b: push gagal → panel + tombol Kirim Ulang (tanpa refresh; permintaan pemilik).
+  const [retryPush, setRetryPush] = useState<{ personIds: string[]; names: string } | null>(null);
+  const [resending, startResend] = useTransition();
 
   const [showAssign, setShowAssign] = useState(false);
   const [members, setMembers] = useState<Member[]>(
@@ -54,14 +57,48 @@ export function OwnerActions({
     setConflicts(res.data ?? []);
   }
 
+  // Toast sukses otomatis hilang beberapa detik (permintaan pemilik: "pesan ke
+  // admin panel beberapa saat lalu otomatis hilang — tanpa refresh").
+  useEffect(() => {
+    if (msg?.kind !== "ok") return;
+    const t = window.setTimeout(() => setMsg(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [msg]);
+
   function submitAssign() {
-    setMsg(null);
+    setMsg(null); setRetryPush(null);
     start(async () => {
       const res = await actionAssignTeam(jobId, members, date, time, durationMin);
       if (!res.ok) { setMsg({ kind: "err", text: res.error }); return; }
-      setMsg({ kind: "ok", text: "Tim berhasil ditugaskan." });
+      // push-report dari server: totalFailed>0 → tawarkan kirim ulang.
+      const report: AssignPushResult | undefined = (res as { data?: AssignPushResult }).data;
+      const failedPeople = report?.perPerson.filter((p) => p.failed > 0) ?? [];
+      if (failedPeople.length > 0) {
+        const names = failedPeople.map((p) => p.name ?? "personel").join(", ");
+        setRetryPush({ personIds: failedPeople.map((p) => p.personId), names });
+        setMsg({ kind: "err", text: `Penugasan tersimpan, tapi notifikasi ke ${names} GAGAL terkirim.` });
+      } else {
+        const sent = report?.totalSent ?? 0;
+        setMsg({ kind: "ok", text: sent > 0 ? `Tim ditugaskan · notifikasi terkirim ke ${sent} personel.` : "Tim berhasil ditugaskan." });
+      }
       setShowAssign(false);
       router.refresh();
+    });
+  }
+
+  function resendFailedPush() {
+    if (!retryPush) return;
+    startResend(async () => {
+      const r = await actionResendAssignPush(jobId, retryPush.personIds);
+      if (!r.ok) { setMsg({ kind: "err", text: `Kirim ulang gagal: ${r.error}` }); return; }
+      const stillFailed = r.data?.perPerson.filter((p) => p.failed > 0) ?? [];
+      if (stillFailed.length > 0) {
+        setRetryPush({ personIds: stillFailed.map((p) => p.personId), names: stillFailed.map((p) => p.name ?? "personel").join(", ") });
+        setMsg({ kind: "err", text: `Masih gagal untuk ${retryPush.names}. Coba lagi atau periksa HP teknisi.` });
+      } else {
+        setRetryPush(null);
+        setMsg({ kind: "ok", text: "Notifikasi berhasil dikirim ulang." });
+      }
     });
   }
 
@@ -87,6 +124,15 @@ export function OwnerActions({
             : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-400"}`}>
           {msg.text}
         </p>
+      )}
+      {retryPush && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/50 dark:text-amber-300">
+          <span>Notifikasi ke <b>{retryPush.names}</b> gagal terkirim.</span>
+          <Button type="button" size="sm" variant="outline" disabled={resending}
+            onClick={resendFailedPush} className="min-h-9">
+            {resending ? "Mengirim…" : "Kirim Ulang"}
+          </Button>
+        </div>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">

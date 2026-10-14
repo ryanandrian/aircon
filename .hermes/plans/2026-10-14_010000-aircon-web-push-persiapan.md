@@ -377,6 +377,40 @@ tabel  : PushSubscription 12 kolom live, 0 baris (belum ada subscribe)
 test   : 80 files / 729 tests · tsc=0 · eslint=0 · build=0
 ```
 
+### G-A9 — Respons E2E pemilik (2026-10-14, keputusan pemilik)
+
+**Temuan pemilik + status penyelesaian:**
+
+```
+1. "Tidak ada fasilitas edit teknisi di daftar pekerjaan"
+   → BUKAN BUG utk ASSIGNED: halaman daftar (AgendaBoard) memang tanpa tombol
+     edit (desain: klik card → halaman DETAIL → "Tugaskan Tim"). Terbukti dari
+     kode (agenda-board.tsx:418 Link ke /app/pekerjaan/[id]) + screenshot
+     pemilik (detail Cafe Kopi Kita = ASSIGNED → tombol Tugaskan Tim ADA).
+   → BUG NYATA utk ACCEPTED: job Effi (Ryan sudah tekan "Terima") status
+     ACCEPTED → panel edit disembunyikan, admin tak bisa koreksi sebelum
+     teknisi berangkat. PERLUASAN: ASSIGNABLE_STATUSES + ASSIGNABLE kini
+     {DRAFT, ASSIGNED, ACCEPTED}; EN_ROUTE+ tetap TERKUNCI (teknisi sudah
+     jalan — batas yang dipertahankan). Test: tests/assignable-accepted.test.ts
+     (5) — ACCEPTED lolos; EN_ROUTE/IN_PROGRESS/COMPLETED/CANCELLED tetap tolak.
+
+2. "Push harus ada status & tombol kirim ulang (tanpa refresh)"
+   → notifyAssignees kini MENGEMBALIKAN PushDeliveryReport (perPerson + nama,
+     totalSent/totalFailed) — sebelumnya void senyap. Aman-gagal TETAP: error
+     internal → report kosong, tak pernah melempar.
+   → assignJob meneruskan report; actionAssignTeam menampilkannya di UI.
+   → owner-actions.tsx (jalur msg yang sudah ada):
+       • toast sukses auto-dismiss 5 dtk (tanpa refresh — permintaan pemilik)
+       • push gagal → panel amber "Notifikasi ke X gagal" + tombol KIRIM ULANG
+         (actionResendAssignPush — jalur service notifyAssignees yang sama,
+         nol modul baru) → hasil resend diperiksa lagi; masih gagal → tombol
+         tetap tersedia.
+   Test: tests/notify-assignees-report.test.ts (6/6 RED→GREEN).
+
+3. Suara + klik → segarkan state: SUDAH diperbaiki & LIVE (bf3b626,
+   renotify + postMessage router.refresh) — menunggu uji ulang pemilik.
+```
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```

@@ -16,7 +16,7 @@ import { getHelpTopic } from "@/lib/help/help-content";
 export const dynamic = "force-dynamic";
 
 /** Status di mana pekerjaan masih boleh di-assign/batalkan oleh owner. */
-const ASSIGNABLE: string[] = ["DRAFT", "ASSIGNED"];
+const ASSIGNABLE: string[] = ["DRAFT", "ASSIGNED", "ACCEPTED"];
 const CANCELLABLE: string[] = [
   "DRAFT",
   "ASSIGNED",

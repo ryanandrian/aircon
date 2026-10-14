@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
 import { JobError } from "@/lib/services/job-management-service";
 import { notifyAssignees } from "@/lib/services/push-notification-service";
+import type { PushDeliveryReport } from "@/lib/services/push-notification-service";
 
 export type AssignmentRole = "TECHNICIAN" | "KERNET";
 
@@ -85,7 +86,7 @@ export async function detectConflict(
  * panggilan server action langsung tidak bisa mengubah job yang sudah berjalan
  * atau status terminal (COMPLETED/CANCELLED).
  */
-const ASSIGNABLE_STATUSES = new Set(["DRAFT", "ASSIGNED"]);
+const ASSIGNABLE_STATUSES = new Set(["DRAFT", "ASSIGNED", "ACCEPTED"]);
 
 /**
  * Tetapkan N personel ke sebuah job dengan peran cair (K3). Mengganti seluruh assignment job (replace-set).
@@ -107,7 +108,7 @@ export async function assignJob(
   jobId: string,
   people: AssignmentInput[],
   window?: TimeWindow,
-): Promise<void> {
+): Promise<PushDeliveryReport | void> {
   const job = await prisma.jobOrder.findFirst({ where: { id: jobId, tenantId }, select: { id: true, status: true } });
   if (!job) throw new ServiceError("NOT_FOUND", "Pekerjaan tidak ditemukan");
   if (people.length === 0) throw new ServiceError("CONFLICT", "Minimal 1 personel ditugaskan");
@@ -153,9 +154,10 @@ export async function assignJob(
     });
   });
 
-  // G-A5: notifikasi penugasan (Web Push) — AMAN-GAGAL, fire-and-forget.
-  // Penugasan SUDAH tersimpan di atas; kegagalan push TIDAK mengubah hasil.
-  void notifyAssignees({ tenantId, jobId, personIds: people.map((p) => p.personId) });
+  // G-A9b: push menyusul penugasan; hasil DITERUSKAN utk toast admin
+  // (permintaan pemilik: konfirmasi sukses hilang otomatis; gagal = tombol ulang).
+  // Aman-gagal tetap dijaga: push TIDAK PERNAH menggagalkan penugasan.
+  return notifyAssignees({ tenantId, jobId, personIds: people.map((p) => p.personId) });
 }
 
 /** Ambil daftar personel yang ditugaskan pada job (dgn nama & peran). */

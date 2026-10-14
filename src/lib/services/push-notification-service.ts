@@ -193,28 +193,53 @@ export async function sendPushToUser(input: {
  * FASE 1: notifikasi PENUGASAN — kirim push ke SEMUA personel yang ditugaskan.
  * Dipanggil dari assignment-service.assignJob & job-management.createJob.
  * AMAN-GAGAL TOTAL: penugasan TIDAK PERNAH gagal/ditunda karena push.
+ *
+ * G-A9b: mengembalikan laporan hasil kirim PER PERSONEL sehingga admin panel
+ * bisa menampilkan status jujur (permintaan pemilik 2026-10-14): "konfirmasi
+ * push notifikasi berhasil harus ada pesan ke admin panel beberapa saat lalu
+ * otomatis hilang (tanpa refresh), tapi kalau gagal harus ada tombol kirim ulang".
+ * Aman-gagal tetap dijaga: kegagalan internal menelan error dan melaporkan
+ * report kosong — TIDAK PERNAH melempar ke pemanggil.
  */
+export interface PersonPushReport {
+  personId: string;
+  name: string | null;
+  sent: number;
+  failed: number;
+  revoked: number;
+  skipped: number;
+}
+
+export interface PushDeliveryReport {
+  perPerson: PersonPushReport[];
+  totalSent: number;
+  totalFailed: number;
+}
+
 export async function notifyAssignees(input: {
   tenantId: string;
   jobId: string;
   personIds: string[];
-}): Promise<void> {
+}): Promise<PushDeliveryReport> {
+  const empty: PushDeliveryReport = { perPerson: [], totalSent: 0, totalFailed: 0 };
   try {
-    if (input.personIds.length === 0) return;
+    if (input.personIds.length === 0) return empty;
     const job = await prisma.jobOrder.findFirst({
       where: { id: input.jobId, tenantId: input.tenantId },
       select: { id: true, customer: { select: { name: true } } },
     });
     const jobName = job?.customer?.name ?? "pelanggan";
-    // Map personel → user (technician.userId). Nol query utk tanpa personel.
+    // Map personel → user (technician.userId + nama utk toast admin).
     const techs = await prisma.technician.findMany({
       where: { tenantId: input.tenantId, id: { in: input.personIds } },
-      select: { userId: true },
+      select: { id: true, userId: true, user: { select: { name: true } } },
     });
-    if (techs.length === 0) return;
+    if (techs.length === 0) return empty;
+
+    const report: PushDeliveryReport = { perPerson: [], totalSent: 0, totalFailed: 0 };
     for (const t of techs) {
       // Aman-gagal per orang — satu kegagalan tak menghentikan lain.
-      await sendPushToUser({
+      const res = await sendPushToUser({
         tenantId: input.tenantId,
         userId: t.userId,
         payload: {
@@ -223,9 +248,22 @@ export async function notifyAssignees(input: {
           url: `/t/pekerjaan/${input.jobId}`,
           tag: `assignment:${input.jobId}`,
         },
-      }).catch(() => {});
+      }).catch(() => ({ sent: 0, revoked: 0, failed: 1, skipped: 0 }));
+      const personId = t.id ?? input.personIds[0] ?? "";
+      report.perPerson.push({
+        personId,
+        name: t.user?.name ?? null,
+        sent: res.sent,
+        failed: res.failed,
+        revoked: res.revoked,
+        skipped: res.skipped,
+      });
+      report.totalSent += res.sent;
+      report.totalFailed += res.failed;
     }
+    return report;
   } catch {
     // Notifikasi = pelengkap; TIDAK PERNAH melempar ke pemanggil (penugasan tetap utuh).
+    return empty;
   }
 }

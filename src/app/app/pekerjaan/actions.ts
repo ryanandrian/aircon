@@ -25,6 +25,7 @@ import {
   type AgendaCounts,
 } from "@/lib/services/agenda-service";
 import { agendaRange, parseAgendaParams, type AgendaParams } from "@/lib/domain/agenda";
+import { notifyAssignees } from "@/lib/services/push-notification-service";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
@@ -218,6 +219,13 @@ export async function actionCheckTeamConflicts(
   }
 }
 
+/** Hasil push notifikasi penugasan (diteruskan ke UI — toast sukses auto-dismiss + retry bila gagal). */
+export type AssignPushResult = {
+  perPerson: { personId: string; name: string | null; sent: number; failed: number; revoked: number; skipped: number }[];
+  totalSent: number;
+  totalFailed: number;
+};
+
 /** Tugaskan tim (N personel + peran) ke pekerjaan + jadwal. SECURITY: OWNER/ADMIN. */
 export async function actionAssignTeam(
   jobId: string,
@@ -225,7 +233,7 @@ export async function actionAssignTeam(
   scheduledDate: string,
   scheduledTime: string,
   durationMin: number,
-): Promise<ActionResult> {
+): Promise<ActionResult<AssignPushResult>> {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
@@ -238,7 +246,8 @@ export async function actionAssignTeam(
     const people: AssignmentInput[] = members.map((m) => ({
       personId: m.personId, roleOnJob: m.roleOnJob, isLead: m.isLead,
     }));
-    await assignTeam(ctx.tenantId, jobId, people, { start, end });
+    // push-report diteruskan dari service (aman-gagal: null bila tak tersedia)
+    const pushReport = await assignTeam(ctx.tenantId, jobId, people, { start, end }) as AssignPushResult | void;
 
     // Status DRAFT→ASSIGNED (transition lama, lewat lead). Abaikan bila sudah ASSIGNED+.
     try {
@@ -247,13 +256,36 @@ export async function actionAssignTeam(
 
     revalidatePath("/app/pekerjaan");
     revalidatePath(`/app/pekerjaan/${jobId}`);
-    return { ok: true };
+    // return report push (bila service mengembalikannya)
+    return pushReport && typeof pushReport === "object" && "perPerson" in pushReport
+      ? { ok: true, data: pushReport }
+      : { ok: true };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal menugaskan tim.") };
   }
 }
 
 // ─────────── Agenda (pengganti tab today/upcoming/done) ───────────
+
+/**
+ * G-A9b: Kirim ULANG notifikasi push utk personel yang KEGAGALAN saat
+ * penugasan (permintaan pemilik: "kalau gagal harus ada tombol kirim ulang").
+ * SECURITY: OWNER/ADMIN; job harus milik tenant aktif. Tanpa refresh halaman.
+ */
+export async function actionResendAssignPush(
+  jobId: string,
+  personIds: string[],
+): Promise<ActionResult<AssignPushResult>> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    if (!jobId || personIds.length === 0) return { ok: false, error: "Data tidak lengkap." };
+    const r = await notifyAssignees({ tenantId: ctx.tenantId, jobId, personIds });
+    return { ok: true, data: r };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal mengirim ulang notifikasi.") };
+  }
+}
 
 export type { AgendaJobItem, AgendaCounts };
 
