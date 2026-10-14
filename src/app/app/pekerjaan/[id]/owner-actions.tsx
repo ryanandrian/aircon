@@ -138,7 +138,7 @@ export function OwnerActions({
       <div className="mt-3 flex flex-wrap gap-2">
         <Button type="button" onClick={() => setShowAssign((v) => !v)}
           size="lg" className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600">
-          {technicians.length ? "Tugaskan Tim" : "Teknisi belum ada"}
+          {technicians.length ? "Atur Jadwal & Tim" : "Teknisi belum ada"}
         </Button>
       </div>
 

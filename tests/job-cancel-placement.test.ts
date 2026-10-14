@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 /**
  * Poin layout (keputusan user 2026-10-05): aksi "Batalkan pekerjaan" tidak boleh
- * sebaris dengan "Tugaskan Tim" di dalam kartu Jadwal & Tim — harus DI LUAR kartu
+ * sebaris dengan tombol "Atur Jadwal & Tim" (dulu "Tugaskan Tim") di dalam kartu Jadwal & Tim — harus DI LUAR kartu
  * (di bawahnya, sebelum kartu Foto), dipisah garis.
  *
  * Repo tidak punya React Testing Library/jsdom (terverifikasi), jadi assertion
@@ -24,7 +24,7 @@ function between(src: string, start: string, end: string) {
 }
 
 describe("detail pekerjaan — aksi Batalkan dipisahkan dari kartu Jadwal & Tim", () => {
-  it("kartu Jadwal & Tim TIDAK memuat aksi Batalkan (hanya view + panel Tugaskan Tim)", () => {
+  it("kartu Jadwal & Tim TIDAK memuat aksi Batalkan (hanya view + panel Atur Jadwal & Tim)", () => {
     const region = between(page, "{/* Jadwal & tim", "{/* Foto */}");
     const lastClose = region.lastIndexOf("</Card>");
     expect(lastClose).toBeGreaterThan(-1);

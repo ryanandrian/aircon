@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 /**
  * Aksi "Batalkan pekerjaan" — DIRENDER DI LUAR kartu "Jadwal & Tim" (di bawah,
  * dipisah garis putus-putus) agar tidak terbaca sebagai bagian dari alur
- * Tugaskan Tim / Simpan Penugasan (temuan UX user 2026-10-05).
+ * "Atur Jadwal & Tim" / Simpan Penugasan (temuan UX user 2026-10-05; label
+ * tombol diubah 2026-10-14 dari "Tugaskan Tim" agar mencakup jadwal juga).
  *
  * Perilaku & guard TIDAK berubah: sama seperti saat tombol masih sebaris —
  * panel konfirmasi 2 langkah (alasan + "Ya, batalkan pekerjaan"), action

@@ -172,7 +172,7 @@ export default async function PekerjaanDetailPage({
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                         Belum terjadwal
                       </span>
-                      {/* CTA hanya bila panel Tugaskan Tim di bawah benar-benar dirender
+                      {/* CTA hanya bila panel "Atur Jadwal & Tim" di bawah benar-benar dirender
                           (kondisi YANG SAMA dgn OwnerActions: canAssign/ASSIGNABLE) —
                           status lain: tanpa anchor mati. */}
                       {ASSIGNABLE.includes(job.status) && (
@@ -254,7 +254,7 @@ export default async function PekerjaanDetailPage({
         </Card>
 
         {/* Aksi destruktif: DI LUAR kartu Jadwal & Tim (temuan UX: jangan disandingkan
-            dgn Tugaskan Tim — maknanya membatalkan Pekerjaan, bukan penugasan).
+            dgn "Atur Jadwal & Tim" — maknanya membatalkan Pekerjaan, bukan penugasan).
             Guard visibilitas = CANCELLABLE, sama persis dgn tombol lama. */}
         {CANCELLABLE.includes(job.status) && <CancelJobPanel jobId={job.id} />}
 

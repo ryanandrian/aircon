@@ -430,6 +430,43 @@ server action → tab lama yang belum di-refresh akan menolak aksi (tombol
 senyap). Mitigasi sementara: refresh sekali setelah deploy. (Deteksi tab basi
 + pesan jujur ke pengguna = kandidat perbaikan lanjutan, butuh arahan.)
 
+### Hasil E2E FINAL (konfirmasi pemilik, 2026-10-14 pasca-deploy 3192a1a) ← **PRODUCTION ACCEPTED**
+
+```
+Pemilik (HP Android) mengonfirmasi SEMUA kriteria lulus:
+  [x] edit tim utk job ACCEPTED bisa (guard ACCEPTED bekerja)
+  [x] penugasan ke Ibu Hesti → notifikasi DITERIMA
+  [x] ADA BUNYI (renotify bekerja — temuan E2E #1 tertutup)
+  [x] sentuh notifikasi → aplikasi teknisi terbuka LANGSUNG di tugas tsb,
+      tanpa refresh (postMessage + router.refresh bekerja — temuan #2 tertutup)
+  [x] teknisi mengubah status → "sudah sampai di tempat" (alur lanjut utuh)
+```
+
+### G-A8 — Dokumen arsitektur ← **SELESAI** (`docs/Web_Push_Arsitektur.md`)
+
+```
+Isi: ruang lingkup FASE 1 (+ eksplisit keluar lingkup), alur end-to-end
+     (admin → service → FCM → sw → notificationclick → router), 10 keputusan
+     arsitektur + alasannya, skema DB, kontrak payload, perilaku UI admin
+     (toast/Kirim Ulang), operasional (perintah cek runtime), pola tab-basi
+     pasca-deploy, tabel 6 test suite, E2E manual wajib utk perubahan push,
+     daftar pengembangan lanjutan (butuh arahan).
+Ditulis dari BUKTI E2E final (bukan dari desain) — sesuai permintaan pemilik.
+```
+
+### G-A9c — Label tombol "Atur Jadwal & Tim" ← **SELESAI** (keputusan pemilik)
+
+```
+Perubahan: tombol "Tugaskan Tim" → "Atur Jadwal & Tim" (owner-actions.tsx)
+           — lebih informatif karena panel berisi tambah/ubah tim DAN jadwal.
+           Konsisten dgn anchor link page.tsx:184 ("Atur jadwal & tim →")
+           dan judul kartu "Jadwal & Tim".
+Tidak disentuh: label "Simpan Penugasan" (tombol simpan, memang sudah jelas).
+Komentar terkait di page.tsx/cancel-job.tsx + judul test disesuaikan agar
+tidak menyesatkan deep-dive berikutnya.
+Test: 82 files / 740 tests · tsc=0 · eslint=0 · build=0.
+```
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```
