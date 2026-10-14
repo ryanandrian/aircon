@@ -194,6 +194,144 @@ kode yang membutuhkan tabel (pola expand: tabel dulu → kode kemudian).
 
 ---
 
+## §9. PROGRESS EKSEKUSI (diperbarui terus — sumber kebenaran antar-sesi)
+
+> Aturan pemilik: SEMUA temuan/progress dicatat di sini SEBELUM sesi berakhir.
+> Status per gerbang: SELESAI (tervalidasi) / BERJALAN / BELUM.
+
+### G-A1 — Skema PushSubscription + deps + VAPID + migration ← **SELESAI & TERVERIFIKASI**
+
+```
+commit 8480c05 (push OK)
+deps   : web-push@3.6.7 + @types/web-push@3.6.4 (pnpm — jalur mapan)
+skema  : model PushSubscription (pola TenantNotification) — id, tenantId, userId,
+         deviceId, endpoint, p256dh, auth, userAgent, lastSentAt, revokedAt,
+         createdAt, updatedAt; unique (tenantId,userId,deviceId) + unique(endpoint);
+         FK cascade Tenant & User; back-relation Tenant+User ditambahkan
+migrat.: prisma/migrations/20261014020000_push_subscription/migration.sql
+         — SQL diverifikasi IDENTIK dgn `prisma migrate diff --from-empty`
+         (kolom 12, 3 index, 2 FK persis)
+purge  : pushSubscription.deleteMany ikut purgeTenantData (ditemukan test
+         anti-fosil purge-completeness — jalur purge yang sudah ada)
+```
+
+**Temuan migration (FOSIL — sudah ditangani):** 2 migration pending sejak
+09 Sep (`20260909060000_tenant_wa_verified_phone`, `20260909070000_page_visit`)
+— kolom sudah ada di DB tapi baris tak pernah ditandai applied; file ada di
+repo lokal (yang hilang hanya dari artefak VPS). **Ditangani via jalur resmi
+Prisma:** `prisma migrate resolve --applied` (idempoten; gagal ulang = P3008
+"already applied" = keadaan diinginkan). Status akhir: **0 pending**.
+
+**Migration PushSubscription applied ke DB live** (`prisma migrate deploy`,
+jalur terpisah dari deploy-vps.sh sesuai skill aircon-live-deploy):
+```
+Applying migration 20261014020000_push_subscription — SUCCESS
+Database schema up to date; kolom 12 + 4 index terverifikasi di DB live
+```
+
+### G-A2 — push-notification-service (upsert/revoke/send/notify) ← **SELESAI & TERVERIFIKASI**
+
+```
+commit ea6d7af
+file   : src/lib/services/push-notification-service.ts
+fungsi : upsertPushSubscription (idempotent per-device, subscribe ulang = revokeAt null)
+         revokePushSubscription (tandai revokedAt — JEJAK AUDIT, bukan delete)
+         sendPushToUser (aman-gagal per device; TTL 24j urgency high;
+                         404/410 → revoke endpoint basi; 5xx → failed, sub aktif)
+         notifyAssignees (G-A5 — dipanggil dari 2 titik assignment)
+auth   : tryGetServerContext() = SATU-SATUNYA sumber tenantId/userId
+VAPID  : kosong → skipped=1 jujur, tanpa crash (rollout additive pola planConfig)
+test   : tests/push-notification-service.test.ts 9/9; RED→GREEN tervalidasi ketat
+         (balik perilaku 404/410 sementara → 1 gagal; kembali → 9 lulus)
+```
+
+### G-A3 — Server action push di /t ← **SELESAI & TERVERIFIKASI**
+
+```
+commit 889a1ee
+file   : src/app/t/actions.ts (+3 action: techPushVapidKey / techEnablePush /
+         techDisablePush) — jalur action /t yang sudah ada
+kontrak: getServerContext() MELEMPAR (bukan null) — dead-code null-check
+         dihapus sesuai kontrak asli; test diuji via mockRejectedValue
+regresi: tests/tech-upload-photo.test.ts (lama) ikut gagal impor server-only —
+         diperbaiki dgn 2 baris vi.mock (pola repo)
+test   : tests/tech-push-actions.test.ts 6/6
+```
+
+### G-A4 — Service worker + tombol izin di /t ← **SELESAI & TERVERIFIKASI**
+
+```
+commit 23e9a27
+file   : public/sw.js (handler push + notificationclick; nol dependensi; scope /)
+         src/lib/push-client.ts (helper MURNI — urlBase64ToUint8Array, deviceId,
+         subscriptionToInput, pushStatusLabel) — dipisah dr React utk bisa diuji
+         src/app/t/push-permission.tsx (tombol izin JUJUR — pengguna tekan sekali,
+         bukan popup otomatis; status: aktif/izin-diblokir/tidak-dukin/disiapkan)
+         src/app/t/page.tsx (+ <PushPermission /> di header)
+perilaku: effect mengikuti pola TenantNotificationBell (void load() lokal) —
+          lolos react-hooks/set-state-in-effect
+test   : tests/push-client.test.ts 12/12
+suite  : 79 files / 721 tests · tsc=0 · eslint=0 · build=0
+```
+
+### G-A5 — Notifikasi dari 2 titik assignment ← **SELESAI & TERVERIFIKASI (commit adce53b)**
+
+```
+file   : push-notification-service.ts → fungsi notifyAssignees (TERPUSAT, 1 jalur)
+         assignment-service.ts:158 → 1 baris void notifyAssignees(...) setelah trx
+         job-management-service.ts → createJob diubah dari
+           `return prisma.$transaction(...)` menjadi
+           `const job = await prisma.$transaction(...)` + push SETELAH commit
+           (side-effect eksternal TIDAK boleh di dalam transaksi DB).
+           Pola DIDUKUNG: actionCreateJob sudah melakukan write terpisah
+           (konversi pengingat + revalidatePath) setelah createJob kembali.
+payload: judul "Tugas baru" + nama pelanggan + deep-link /t/pekerjaan/:id
+kontrak: aman-gagal TOTAL — push tak pernah membatalkan penugasan (try/catch
+         di notifyAssignees + void fire-and-forget di kedua pemanggil)
+test   : tests/assignment-push-notify.test.ts 6/6; RED→GREEN tervalidasi ketat
+         (hapus wiring sementara via trap EXIT → 2 gagal utk titik1+titik2;
+          file dipulihkan → 6 lulus) — membuktikan test benar-benar menguji wiring
+         (bukan tests-after yang lemah)
+regresi: 6 suite transitif (assignment.test, assignment-action,
+         job-management-create, job-notes-update, job-work-auth,
+         reminder-convert) di-mock push service (pola tech-upload-photo)
+suite  : 80 files / 727 tests · tsc=0 · eslint=0
+jalur  : TIDAK membuat jalur assignment baru — hanya menambah pemanggilan pada
+         assignJob & createJob yang sudah ada
+```
+
+### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
+
+```
+1. G-A6  VAPID key di VPS via script (nilai tak pernah tercetak) + cron route
+         /api/cron/push-retry utk sub gagal sementara (pola reminders:
+         CRON_SECRET timing-safe + systemd timer 1x/hari) + test.
+2. G-A7  Deploy exact-SHA (bash scripts/deploy-vps.sh) lalu E2E MANUAL di HP
+         Android pemilik (tenant Jaya Mandiri, nomor 081284848901):
+         login /t → Aktifkan notifikasi → izin → subscribe → owner menugaskan
+         → PUSH MUNCUL DI LAYAR + BERBUNYI → klik → buka tugas.
+         **BUKTI SELESAI. Tanpa ini status = prototype, BUKAN production accepted.**
+3. G-A8  Dokumen arsitektur web-push di docs/ (permintaan pemilik:
+         "setelah selesai dan valid 100% harus ada dokumen arsitektur di repo")
+         + update ledger + rencana ini.
+```
+
+### Catatan sesi (jangan dihapus — konteks tahan-kompaksi)
+
+```
+HEAD aircon (ter-push)      : adce53b (G-A5) · tree bersih sebelum dokumen ini
+DB live                     : PushSubscription applied; 0 migration pending;
+                              2 fosil lama sudah resolve --applied
+VAPID di .env VPS           : BELUM dibuat (G-A6)
+Gateway live (referensi)    : b4268c4 — G7 inbound listener DIBUANG; status WA
+                              utuh; TIDAK disentuh utk fitur push ini
+Pola mock server-only       : 6 suite transitif sudah dimock; suite baru yg impor
+                              job-management/assignment-service HARUS ikut mock
+                              push-notification-service (baris vi.mock identik)
+Jalur migrasi               : deploy-vps.sh TIDAK menjalankan migrate deploy;
+                              migration DB = pekerjaan terpisah (skill aircon-live-deploy)
+```
+
 ## §8. Yang TIDAK akan saya lakukan tanpa arahan
 
 - Menambah deps / migration / file apa pun sebelum arah eksekusi eksplisit.
