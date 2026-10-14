@@ -378,7 +378,14 @@ sehingga tautan / tombol salin tidak berfungsi untuk dokumen lama.
       null → generate+conditional write, race count=0 → re-read, return non-null,
       parallel invoke.
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **92 files / 807 tests** · build=0.
-- STATUS: SELESAI (kode) — deploy menyusul batch.
+- STATUS: SELESAI — deploy live `e54dcad` (2026-10-15):
+      PASS · `/` 200 · `/login` 200 · route `/d/{token}` aktif (404 aman) ·
+      marker string-literal ADA ("Dokumen tidak ditemukan").
+      Catatan bukti (jujur): `ensureInvoiceDocToken` TIDAK terlihat sbg string di
+      bundle karena fungsi DI-MINIFY (ada di source map `.js.map` — dibuktikan);
+      marker literal dipakai sebagai bukti build. **Verifikasi E2 fungsional
+      nyata** (token DB 0 → ≥1) menunggu admin membuka 1 dokumen — TIDAK
+      fabricate data & TIDAK login.
 
 ### Status total F7 (A+C)
 - F7a schema/migration/token create: LIVE `0347cdb`.
