@@ -32,7 +32,8 @@ describe.skipIf(!hasDb)("smoke DB asli (read-only) — listReminderInbox + expir
 
     let total = 0;
     for (const t of tenants) {
-      const rows = await listReminderInbox(t.id);
+      const res = await listReminderInbox(t.id);
+      const rows = res.rows;
       // Isi daftar konsisten dgn tipe: tiap baris punya pelanggan + status yang sah.
       for (const r of rows) {
         expect(typeof r.customerName).toBe("string");
@@ -42,9 +43,15 @@ describe.skipIf(!hasDb)("smoke DB asli (read-only) — listReminderInbox + expir
           "DIBACA", "GAGAL", "TIDAK_DIKETAHUI", "DITUTUP",
         ]).toContain(r.sendStatus);
       }
-      total += rows.length;
+      // G-A10: daftar kini berpaginasi (limit default 20) — totalCount = seluruh
+      // baris lolos filter, inilah angka yang dipakai kartu Ringkasan (/app).
+      expect(res.totalCount).toBeGreaterThanOrEqual(rows.length);
+      expect(res.totalCount).toBeGreaterThanOrEqual(0);
+      // nextCursor konsisten: hanya null bila tak ada halaman berikutnya.
+      if (res.nextCursor !== null) expect(res.totalCount).toBeGreaterThan(rows.length);
+      total += res.totalCount;
     }
-    // Satu sumber angka: jumlah total = jumlah baris tanpa filter (sinkron Ringkasan).
+    // Satu sumber angka: jumlah total = totalCount tanpa filter (sinkron Ringkasan).
     expect(total).toBeGreaterThanOrEqual(0);
   }, 30_000);
 });

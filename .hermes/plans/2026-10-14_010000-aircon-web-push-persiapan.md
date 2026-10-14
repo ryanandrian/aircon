@@ -480,6 +480,45 @@ test    : 82 files / 740 tests · tsc=0 · eslint=0 · build=0
 dokumen : docs/Web_Push_Arsitektur.md (G-A8) ikut ter-deploy via artifact
 ```
 
+### G-A10 — Seragamkan inbox Pengingat ke pola cursor (keputusan pemilik 2026-10-14)
+
+**MASALAH (audit halaman list):**
+```
+repo TIDAK memakai next/dynamic sama sekali — tapi itu BUKAN masalahnya
+(App Router sudah code-split per-rute). Masalah sebenarnya = strategi DATA:
+  Booking/Pelanggan/Pekerjaan/Invoice : cursor + take:limit+1  ✓ standar
+  Laporan/Kinerja                     : agregat ringkasan      ✓ ringan
+  PENGINGAT                           : ambil SEMUA unit due, filter client ⚠
+BUKTI skala (query live read-only): Jaya Mandiri = 142 unit due
+(PT ASE 15 · AC Depok 2 · total aktif 159) → payload penuh + DOM semua kartu.
+SEBAB (git): inbox dibuat 3 Okt 2026 FASE 1 dgn desain "filter client-side
+atas daftar tenant-scoped" — keputusan awal tak pernah dievolusi saat halaman
+lain seragam ke cursor.
+```
+
+**PERBAIKAN (jalur yang sudah ada — dikembangkan, bukan diganti):**
+```
+service : listReminderInbox kini {rows, nextCursor, totalCount} + opts
+          {sendStatus?: array, limit (default 20=DEFAULT_LIMIT pelanggan), cursor}
+          filter sendStatus server-side (kelompok "Terkirim" = 4 status —
+          pemetaan PERSIS useMemo lama, perilaku tak berubah)
+          cursor = assetId baris terakhir; lanjut SETELAHnya (tanpa duplikat);
+          cursor basi → pulih ke halaman pertama
+          totalCount = jumlah lolos filter (SEBELUM slice) — dipakai kartu
+          Ringkasan (/app) supaya angka TETAP AKURAT walau daftar berpaginasi
+action  : actionLoadReminderInbox (pola persis actionLoadCustomers) —
+          serialisasi Date + waLinkPesan (template) utk batch load-more
+page    : baca searchParams filter+cursor → service
+inbox   : filter = navigasi URL (server); load-more = cursor + sentinel
+          infinite-scroll (pola customer-manager); aksi Tutup/Tandai TETAP
+          optimis di state lokal (perilaku tak berubah, server action tak disentuh)
+ringkasan: rows.length → totalCount (kontrak baru)
+```
+
+**Test**: tests/reminder-inbox-pagination.test.ts (11, RED→GREEN) — paginasi
+tanpa duplikat, totalCount akurat, filter kelompok multi-status, + 3 regresi
+aturan lama (includeClosed, leadTime jatuh tempo, urutan baku).
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```

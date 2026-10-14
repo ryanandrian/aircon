@@ -68,6 +68,12 @@ vi.mock("@/lib/prisma", () => ({
 import { ServiceError } from "../src/lib/services/customer-service";
 import { listReminderInbox } from "../src/lib/services/reminder-service";
 
+// G-A10: kontrak listReminderInbox kini {rows, nextCursor, totalCount}.
+// Helper ini meng-UNWRAP .rows agar test di bawah tetap fokus ke isi baris
+// (perilaku yang dikunci tidak berubah — hanya pembungkus kontrak baru).
+const rowsOf = (...args: Parameters<typeof listReminderInbox>) =>
+  listReminderInbox(...args).then((r) => r.rows);
+
 const NOW = Date.now();
 const day = 86_400_000;
 const iso = (ms: number) => new Date(NOW + ms);
@@ -87,37 +93,37 @@ function unit(id: string, nextInDays: number): Unit {
 describe("listReminderInbox — aturan jatuh tempo (sesuai konfigurasi tenant)", () => {
   it("unit yang sudah lewat jadwal masuk daftar", async () => {
     state.units = [unit("a1", -1)];
-    const rows = await listReminderInbox("t1");
+    const rows = await rowsOf("t1");
     expect(rows).toHaveLength(1);
     expect(rows[0].assetId).toBe("a1");
   });
 
   it("unit jauh di masa depan TIDAK masuk daftar", async () => {
     state.units = [unit("a1", 60)];
-    expect(await listReminderInbox("t1")).toHaveLength(0);
+    expect(await rowsOf("t1")).toHaveLength(0);
   });
 
   it("unit 2 hari lagi MASUK bila lead tenant = 3 hari (H-3 sudah waktunya siap)", async () => {
     state.units = [unit("a1", 2)];
-    expect(await listReminderInbox("t1")).toHaveLength(1);
+    expect(await rowsOf("t1")).toHaveLength(1);
   });
 
   it("unit 2 hari lagi TIDAK masuk bila lead tenant = 0 (kirim pas hari H)", async () => {
     state.tenants.t1.reminderLeadDays = 0;
     state.units = [unit("a1", 2)];
-    expect(await listReminderInbox("t1")).toHaveLength(0);
+    expect(await rowsOf("t1")).toHaveLength(0);
   });
 
   it("unit tanpa jadwal (nextServiceDate null) tidak masuk", async () => {
     state.units = [{ ...unit("a1", -1), nextServiceDate: null }];
-    expect(await listReminderInbox("t1")).toHaveLength(0);
+    expect(await rowsOf("t1")).toHaveLength(0);
   });
 });
 
 describe("listReminderInbox — isi baris (info pelanggan + unit)", () => {
   it("baris memuat identitas unit, pelanggan, dan jadwal", async () => {
     state.units = [unit("a1", -5)];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.assetId).toBe("a1");
     expect(r.brand).toBe("Panasonic");
     expect(r.roomLocation).toBe("R. Tamu");
@@ -134,7 +140,7 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
 
   it("tanpa RepeatReminder -> BELUM_DIKIRIM", async () => {
     state.units = [unit("a1", -5)];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("BELUM_DIKIRIM");
     expect(r.messageLogId).toBeNull();
   });
@@ -142,7 +148,7 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
   it("RepeatReminder QUEUED -> MENUNGGU_KRIM (antre menunggu cron)", async () => {
     state.units = [unit("a1", -5)];
     state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "QUEUED", sentAt: null }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("MENUNGGU_KRIM");
   });
 
@@ -151,7 +157,7 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
     state.units = [unit("a1", -5)];
     state.reminders = [REM_SENT(sentAt)];
     state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 500), status: "DELIVERED" }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("DITERIMA");
     expect(r.messageLogId).toBe("m1");
   });
@@ -161,7 +167,7 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
     state.units = [unit("a1", -5)];
     state.reminders = [REM_SENT(sentAt)];
     state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 300), status: "FAILED" }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("GAGAL");
   });
 
@@ -170,14 +176,14 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
     state.units = [unit("a1", -5)];
     state.reminders = [REM_SENT(sentAt)];
     state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 300), status: "READ_CONFIRMED" }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("DIBACA");
   });
 
   it("SENT tapi MessageLog tidak ketemu -> TIDAK_DIKETAHUI (jangan menebak)", async () => {
     state.units = [unit("a1", -5)];
     state.reminders = [{ ...REM_SENT(iso(-2 * day)), sentAt: null }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("TIDAK_DIKETAHUI");
     expect(r.messageLogId).toBeNull();
   });
@@ -187,7 +193,7 @@ describe("listReminderInbox — status pengiriman via korelasi MessageLog", () =
     state.units = [unit("a1", -5)];
     state.reminders = [REM_SENT(sentAt)];
     state.messages = [{ id: "m-asing", tenantId: "t-asing", customerId: "c1", templateKey: "reminder", at: sentAt, status: "DELIVERED" }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("TIDAK_DIKETAHUI");
   });
 });
@@ -199,21 +205,21 @@ describe("listReminderInbox — reminder yang sudah DITUTUP keluar dari daftar (
     it(`reminder ${st} -> unit TIDAK tampil di daftar default (tidak menumpuk selamanya)`, async () => {
       state.units = [unit("a1", -5)];
       state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: st, sentAt: null }];
-      expect(await listReminderInbox("t1")).toHaveLength(0);
+      expect(await rowsOf("t1")).toHaveLength(0);
     });
   }
 
   it("filter includeClosed=true MENAMPILKAN yang sudah ditutup (riwayat, R5)", async () => {
     state.units = [unit("a1", -5)];
     state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "DISMISSED", sentAt: null }];
-    const rows = await listReminderInbox("t1", { includeClosed: true });
+    const rows = await rowsOf("t1", { includeClosed: true });
     expect(rows).toHaveLength(1);
     expect(rows[0].reminderStatus).toBe("DISMISSED");
   });
 
   it("unit due TANPA reminder tetap tampil (BELUM_DIKIRIM) saat includeClosed=true", async () => {
     state.units = [unit("a1", -5)];
-    const rows = await listReminderInbox("t1", { includeClosed: true });
+    const rows = await rowsOf("t1", { includeClosed: true });
     expect(rows).toHaveLength(1);
     expect(rows[0].sendStatus).toBe("BELUM_DIKIRIM");
   });
@@ -224,7 +230,7 @@ describe("listReminderInbox — reminder yang sudah DITUTUP keluar dari daftar (
       { id: "r-lama", tenantId: "t1", assetId: "a1", dueDate: iso(-40 * day), leadTimeDays: 3, status: "SENT", sentAt: iso(-40 * day) },
       { id: "r-baru", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "DISMISSED", sentAt: null },
     ];
-    expect(await listReminderInbox("t1")).toHaveLength(0);
+    expect(await rowsOf("t1")).toHaveLength(0);
   });
 });
 
@@ -238,7 +244,7 @@ describe("listReminderInbox — keamanan & error", () => {
       unit("a1", -1),
       { ...unit("a2", -1), tenantId: "t-asing" },
     ];
-    const rows = await listReminderInbox("t1");
+    const rows = await rowsOf("t1");
     expect(rows.map((r) => r.assetId)).toEqual(["a1"]);
   });
 });
@@ -246,7 +252,7 @@ describe("listReminderInbox — keamanan & error", () => {
 describe("listReminderInbox — urutan default kartu (Rencana B)", () => {
   it("overdueDays menurun: paling telat di atas", async () => {
     state.units = [unit("a-overdue-2", -2), unit("a-overdue-40", -40), unit("a-overdue-7", -7)];
-    const rows = await listReminderInbox("t1");
+    const rows = await rowsOf("t1");
     expect(rows.map((r) => r.overdueDays)).toEqual([40, 7, 2]);
   });
 
@@ -257,7 +263,7 @@ describe("listReminderInbox — urutan default kartu (Rencana B)", () => {
       { ...unit("a-akhir", -5), nextServiceDate: new Date(base + 1000) },
       { ...unit("a-awal", -5), nextServiceDate: new Date(base) },
     ];
-    const rows = await listReminderInbox("t1");
+    const rows = await rowsOf("t1");
     expect(rows.map((r) => r.assetId)).toEqual(["a-awal", "a-akhir"]);
   });
 
@@ -272,16 +278,16 @@ describe("listReminderInbox — urutan default kartu (Rencana B)", () => {
       { ...unit("a1", -3), customerId: "cZ", nextServiceDate: new Date(now - 3 * 86400000) },
       { ...unit("a2", -3), customerId: "cA", nextServiceDate: new Date(now - 3 * 86400000) },
     ];
-    const rows = await listReminderInbox("t1");
+    const rows = await rowsOf("t1");
     expect(rows.map((r) => r.customerName)).toEqual(["Agus", "Zelda"]);
   });
 
   it("kasus tunggal & kosong tetap aman", async () => {
     state.units = [unit("a1", -1)];
-    const rows = await listReminderInbox("t1");
+    const rows = await rowsOf("t1");
     expect(rows).toHaveLength(1);
     state.units = [];
-    expect(await listReminderInbox("t1")).toHaveLength(0);
+    expect(await rowsOf("t1")).toHaveLength(0);
   });
 });
 
@@ -291,7 +297,7 @@ describe("listReminderInbox — Terkirim Otomatis vs Terkirim Manual (Rencana A)
     state.units = [unit("a1", -5)];
     state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt, manualSentAt: null } as any];
     state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 300), status: "SENT" }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("TERKIRIM_OTOMATIS");
   });
 
@@ -300,7 +306,7 @@ describe("listReminderInbox — Terkirim Otomatis vs Terkirim Manual (Rencana A)
     state.units = [unit("a1", -5)];
     state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt: manualAt, manualSentAt: manualAt } as any];
     state.messages = [];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("TERKIRIM_MANUAL");
     expect(r.messageLogId).toBeNull();
   });
@@ -310,7 +316,7 @@ describe("listReminderInbox — Terkirim Otomatis vs Terkirim Manual (Rencana A)
     state.units = [unit("a1", -5)];
     state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt, manualSentAt: iso(-1 * day) } as any];
     state.messages = [{ id: "m1", tenantId: "t1", customerId: "c1", templateKey: "reminder", at: new Date(sentAt.getTime() + 300), status: "FAILED" }];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("GAGAL");
   });
 
@@ -318,7 +324,7 @@ describe("listReminderInbox — Terkirim Otomatis vs Terkirim Manual (Rencana A)
     state.units = [unit("a1", -5)];
     state.reminders = [{ id: "r1", tenantId: "t1", assetId: "a1", dueDate: iso(-5 * day), leadTimeDays: 3, status: "SENT", sentAt: null, manualSentAt: null } as any];
     state.messages = [];
-    const [r] = await listReminderInbox("t1");
+    const [r] = await rowsOf("t1");
     expect(r.sendStatus).toBe("TIDAK_DIKETAHUI");
   });
 });

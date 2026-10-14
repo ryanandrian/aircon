@@ -2,16 +2,24 @@
 
 /**
  * Inbox Pengingat — mobile-first (sesuai pola Booking Online / leads/).
- * Filter client-side atas daftar yang sudah tenant-scoped oleh server.
+ *
+ * G-A10 (2026-10-14, keputusan pemilik): filter dipindah ke SERVER + cursor
+ * pagination (pola persis pelanggan/faktur/pekerjaan — standar repo).
+ * Sebelumnya: semua unit due dimuat sekaligus lalu difilter via useMemo di
+ * client (berat utk tenant dgn banyak unit — Jaya Mandiri = 142 unit due).
+ *
+ * Aksi (Tutup Pengingat / Tandai Terkirim) tetap optimis di state lokal —
+ * perilaku TIDAK berubah; server action-nya juga tidak disentuh.
  */
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/icons";
-import { actionCloseReminder, actionMarkReminderSentManual } from "./actions";
+import { actionCloseReminder, actionMarkReminderSentManual, actionLoadReminderInbox } from "./actions";
 
 export type ReminderInboxItem = {
   assetId: string;
@@ -33,7 +41,7 @@ export type ReminderInboxItem = {
   waLinkPesan: string;
 };
 
-type Filter = "SEMUA" | "BELUM" | "MENUNGGU" | "SENT" | "GAGAL" | "TIDAK_DIKETAHUI" | "DITUTUP";
+export type Filter = "SEMUA" | "BELUM" | "MENUNGGU" | "SENT" | "GAGAL" | "TIDAK_DIKETAHUI" | "DITUTUP";
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "SEMUA", label: "Semua" },
@@ -63,20 +71,64 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function ReminderInbox({ initialItems, showClosed }: { initialItems: ReminderInboxItem[]; showClosed: boolean }) {
+export function ReminderInbox({
+  initialItems,
+  showClosed,
+  activeFilter,
+  initialCursor,
+  initialTotal,
+}: {
+  initialItems: ReminderInboxItem[];
+  showClosed: boolean;
+  activeFilter: Filter;
+  initialCursor: string | null;
+  initialTotal: number;
+}) {
+  const router = useRouter();
   const [items, setItems] = useState(initialItems);
-  const [filter, setFilter] = useState<Filter>("SEMUA");
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState(initialTotal);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const visible = useMemo(() => items.filter((item) => {
-    if (filter === "SEMUA") return true;
-    if (filter === "BELUM") return item.sendStatus === "BELUM_DIKIRIM";
-    if (filter === "MENUNGGU") return item.sendStatus === "MENUNGGU_KRIM";
-    if (filter === "SENT") return ["TERKIRIM_OTOMATIS", "TERKIRIM_MANUAL", "DITERIMA", "DIBACA"].includes(item.sendStatus);
-    if (filter === "GAGAL") return item.sendStatus === "GAGAL";
-    if (filter === "TIDAK_DIKETAHUI") return item.sendStatus === "TIDAK_DIKETAHUI";
-    return item.sendStatus === "DITUTUP";
-  }), [items, filter]);
+  // G-A10: ganti filter = navigasi URL (searchParams) — server yang memilah.
+  function selectFilter(id: Filter) {
+    const params = new URLSearchParams();
+    if (showClosed) params.set("riwayat", "1");
+    if (id !== "SEMUA") params.set("filter", id);
+    const qs = params.toString();
+    router.push(qs ? `/app/pengingat?${qs}` : "/app/pengingat");
+  }
+
+  // G-A10: muat batch berikutnya (pola persis customer-manager: cursor + sentinel).
+  const loadMore = useCallback(async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    const res = await actionLoadReminderInbox({ cursor, includeClosed: showClosed });
+    if (res.ok && res.rows) {
+      // action sudah mengirim tipe ReminderInboxActionItem: tanggal string,
+      // waLinkPesan sudah dihitung di server — tinggal pakai apa adanya.
+      const rows: ReminderInboxItem[] = res.rows;
+      setItems((prev) => [...prev, ...rows]);
+      setCursor(res.nextCursor ?? null);
+      if (typeof res.totalCount === "number") setTotal(res.totalCount);
+    } else if (!res.ok) {
+      toast.error(res.error ?? "Gagal memuat pengingat berikutnya.");
+    }
+    setLoadingMore(false);
+  }, [cursor, loadingMore, showClosed]);
+
+  // Infinite scroll via IntersectionObserver (pola customer-manager).
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !cursor) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) loadMore();
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [cursor, loadMore]);
 
   async function closeReminder(item: ReminderInboxItem) {
     if (!item.reminderId) {
@@ -88,6 +140,7 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
       const result = await actionCloseReminder(item.reminderId);
       if (!result.ok) { toast.error(result.error); return; }
       toast.success("Pengingat ditutup");
+      setTotal((t) => Math.max(0, t - 1));
       if (!showClosed) setItems((current) => current.filter((row) => row.assetId !== item.assetId));
       else setItems((current) => current.map((row) => row.assetId === item.assetId ? { ...row, reminderStatus: "DISMISSED", sendStatus: "DITUTUP" } : row));
     } finally {
@@ -126,20 +179,20 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
     <div className="space-y-4">
       <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter pengingat">
         {FILTERS.filter((f) => f.id !== "DITUTUP" || showClosed).map((f) => (
-          <Button key={f.id} type="button" size="sm" variant={filter === f.id ? "default" : "outline"}
-            onClick={() => setFilter(f.id)} aria-pressed={filter === f.id} className="shrink-0">
-            {f.label}{f.id === "SEMUA" ? ` (${items.length})` : ""}
+          <Button key={f.id} type="button" size="sm" variant={activeFilter === f.id ? "default" : "outline"}
+            onClick={() => selectFilter(f.id)} aria-pressed={activeFilter === f.id} className="shrink-0">
+            {f.label}{activeFilter === f.id ? ` (${total})` : ""}
           </Button>
         ))}
       </div>
 
-      {visible.length === 0 ? (
+      {items.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {items.length === 0 ? "Belum ada unit yang masuk jadwal pengingat." : "Tidak ada pengingat pada filter ini."}
+          {total === 0 ? "Belum ada unit yang masuk jadwal pengingat." : "Tidak ada pengingat pada filter ini."}
         </div>
       ) : (
         <div className="space-y-3">
-          {visible.map((item) => {
+          {items.map((item) => {
             const unit = [item.brand, item.model].filter(Boolean).join(" ").trim() || "Unit AC";
             return (
               <Card key={item.assetId}>
@@ -197,6 +250,19 @@ export function ReminderInbox({ initialItems, showClosed }: { initialItems: Remi
               </Card>
             );
           })}
+
+          {/* Sentinel infinite-scroll (pola customer-manager) */}
+          {cursor && (
+            <div ref={sentinelRef} className="space-y-2 pt-1">
+              {loadingMore ? (
+                <p className="py-2 text-center text-sm text-muted-foreground">Memuat pengingat berikutnya…</p>
+              ) : (
+                <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => void loadMore()}>
+                  Muat lebih banyak
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

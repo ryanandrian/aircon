@@ -15,8 +15,62 @@ import { revalidatePath } from "next/cache";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { assertRole, AuthError } from "@/lib/auth/guard";
 import { prisma } from "@/lib/prisma";
+import { listReminderInbox, type ReminderInboxSendStatus } from "@/lib/services/reminder-service";
+import { renderTemplate } from "@/lib/wa/gateway";
 
 export type ReminderActionResult = { ok: boolean; error?: string };
+
+/** Tipe baris inbox utk beban lazy-load (tanggal + waLinkPesan sudah terserialisasi). */
+export type ReminderInboxActionItem = Omit<
+  Awaited<ReturnType<typeof listReminderInbox>>["rows"][number],
+  "nextServiceDate" | "sentAt"
+> & { nextServiceDate: string | null; sentAt: string | null; waLinkPesan: string };
+
+/**
+ * G-A10 — Muat batch inbox pengingat berikutnya (lazy-load + filter server-side).
+ * Pola persis actionLoadCustomers: { ok, ...result } — cursor di server,
+ * bukan memuat seluruh daftar sekaligus (standar repo pelanggan/faktur/pekerjaan).
+ * SECURITY: tenantId dari sesi (tidak pernah dari input); role OWNER/ADMIN.
+ */
+export async function actionLoadReminderInbox(params: {
+  cursor?: string | null;
+  includeClosed?: boolean;
+  sendStatus?: ReminderInboxSendStatus[];
+}): Promise<{ ok: boolean; error?: string } & Partial<{ rows: ReminderInboxActionItem[]; nextCursor: string | null; totalCount: number }>> {
+  const ctx = await tryGetServerContext();
+  if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
+  try {
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+  } catch (e) {
+    if (e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+  try {
+    const res = await listReminderInbox(ctx.tenantId, {
+      includeClosed: params.includeClosed,
+      sendStatus: params.sendStatus,
+      cursor: params.cursor ?? undefined,
+    });
+    const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true } });
+    const template = await prisma.messageTemplate.findUnique({
+      where: { tenantId_key: { tenantId: ctx.tenantId, key: "reminder" } },
+    });
+    const body = template?.body ?? "Halo {{customer}}, saatnya servis AC {{unit}}. Balas untuk jadwalkan. — {{usaha}}";
+    const rows = res.rows.map((r) => {
+      const unitLabel = [r.brand, r.roomLocation].filter(Boolean).join(" ").trim() || "AC";
+      const text = renderTemplate(body, { customer: r.customerName, unit: unitLabel, usaha: tenant?.name ?? "" });
+      return {
+        ...r,
+        nextServiceDate: r.nextServiceDate?.toISOString() ?? null,
+        sentAt: r.sentAt?.toISOString() ?? null,
+        waLinkPesan: `https://wa.me/${r.customerPhone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`,
+      };
+    });
+    return { ok: true, ...res, rows };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal memuat pengingat" };
+  }
+}
 
 /** Status yang boleh ditutup manual oleh tenant (bukan CONVERTED/DISMISSED/EXPIRED). */
 const CLOSABLE = ["QUEUED", "SENT"] as const;

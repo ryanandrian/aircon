@@ -39,7 +39,9 @@ export default async function AppDashboard() {
       return { customers, activeJobs, completed };
     })(),
     // Satu sumber angka dengan halaman /app/pengingat (risiko R10 — jangan query terpisah).
-    listReminderInbox(ctx.tenantId).then((rows) => rows.length),
+    // G-A10: kontrak baru {rows,nextCursor,totalCount}; totalCount = jumlah lolos
+    // filter (bukan rows.length yang kini terbatas limit) → angka Ringkasan tetap akurat.
+    listReminderInbox(ctx.tenantId).then((r) => r.totalCount),
     prisma.alert.count({ where: { tenantId: ctx.tenantId, status: { in: ["OPEN", "ACK"] } } }),
     prisma.jobOrder.count({ where: { tenantId: ctx.tenantId, scheduledDate: { gte: todayStart, lte: todayEnd }, status: { notIn: ["CANCELLED", "COMPLETED"] } } }),
     // Unit dilayani 30 hari terakhir: pekerjaan selesai (tenant-scoped).

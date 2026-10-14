@@ -275,10 +275,34 @@ export const CLOSED_REMINDER_STATUSES = ["DISMISSED", "CONVERTED", "EXPIRED"] as
  * includeClosed=true -> tampilkan juga pengingat yang sudah DITUTUP (riwayat/filter).
  * Default false -> keluar dari daftar (prinsip user 2026-10-03: "tidak selamanya ada di list").
  */
+/** G-A10 — hasil listReminderInbox: pola cursor yg SUDAH mapan (pelanggan/faktur). */
+export type ListReminderInboxResult = {
+  rows: ReminderInboxRow[];
+  nextCursor: string | null;
+  /** Jumlah baris lolos filter (SEBELUM slice limit) — utk kartu Ringkasan. */
+  totalCount: number;
+};
+
+/** Sama dgn DEFAULT_LIMIT pelanggan (20) — standar repo, jangan beda-beda. */
+const REMINDER_INBOX_DEFAULT_LIMIT = 20;
+
+function clampInboxLimit(limit?: number): number {
+  if (!limit || Number.isNaN(limit) || limit <= 0) return REMINDER_INBOX_DEFAULT_LIMIT;
+  return Math.min(Math.floor(limit), 100);
+}
+
 export async function listReminderInbox(
   tenantId: string,
-  opts: { includeClosed?: boolean } = {},
-): Promise<ReminderInboxRow[]> {
+  opts: {
+    includeClosed?: boolean;
+    /** G-A10: filter server-side (pengganti useMemo filter di client).
+     *  ARRAY karena filter "Terkirim" mencakup 4 status
+     *  (TERKIRIM_OTOMATIS, TERKIRIM_MANUAL, DITERIMA, DIBACA) — sama dgn Filter UI. */
+    sendStatus?: ReminderInboxSendStatus[];
+    limit?: number;
+    cursor?: string;
+  } = {},
+): Promise<ListReminderInboxResult> {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: { reminderLeadDays: true },
@@ -298,7 +322,7 @@ export async function listReminderInbox(
     trigger.setDate(trigger.getDate() - lead);
     return trigger.getTime() <= now.getTime();
   });
-  if (unitsDue.length === 0) return [];
+  if (unitsDue.length === 0) return { rows: [], nextCursor: null, totalCount: 0 };
 
   const assetIds = unitsDue.map((u) => u.id);
   const reminders = await prisma.repeatReminder.findMany({
@@ -398,5 +422,33 @@ export async function listReminderInbox(
     if (da !== db) return da - db;
     return a.customerName.localeCompare(b.customerName, "id");
   });
-  return rows;
+
+  // ── G-A10: filter server-side (pengganti useMemo filter di client) ──
+  // Komposisi persis dgn Filter di inbox.tsx: SEMUA tanpa filter; selain itu
+  // filter sendStatus (array utk kelompok multi-status, mis. "Terkirim").
+  const filtered = opts.sendStatus?.length ? rows.filter((r) => opts.sendStatus!.includes(r.sendStatus)) : rows;
+
+  // ── G-A10: cursor + limit (pola persis pelanggan: take limit+1, skip+cursor) ──
+  // Karena urutan baku dihitung di JS, cursor = assetId baris terakhir;
+  // halaman berikutnya mulai SETELAH index baris itu (tanpa tumpang tindih).
+  const totalCount = filtered.length;
+  if (!opts.cursor) {
+    const limit = clampInboxLimit(opts.limit);
+    const page = filtered.slice(0, limit);
+    const nextCursor = totalCount > limit ? page[page.length - 1]?.assetId ?? null : null;
+    return { rows: page, nextCursor, totalCount };
+  }
+  const startIdx = filtered.findIndex((r) => r.assetId === opts.cursor);
+  if (startIdx === -1) {
+    // cursor basi (baris sudah tak ada) -> halaman pertama (pulihkan diri).
+    const limit = clampInboxLimit(opts.limit);
+    const page = filtered.slice(0, limit);
+    const nextCursor = totalCount > limit ? page[page.length - 1]?.assetId ?? null : null;
+    return { rows: page, nextCursor, totalCount };
+  }
+  const limit = clampInboxLimit(opts.limit);
+  const page = filtered.slice(startIdx + 1, startIdx + 1 + limit);
+  const hasMore = startIdx + 1 + limit < totalCount;
+  const nextCursor = hasMore && page.length > 0 ? page[page.length - 1].assetId : null;
+  return { rows: page, nextCursor, totalCount };
 }
