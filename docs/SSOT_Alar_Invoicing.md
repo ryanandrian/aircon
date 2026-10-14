@@ -352,7 +352,40 @@ log   : error runtime 5 menit bersih
 - [ ] **7e. Uji E2E 3 dokumen** — UNDONE-AMAN: unit/verifikasi kode sudah
       hijau (tests/public-doc-token-link.test.ts), **uji nyata 3 dokumen di
       VPS setelah deploy** (lihat BAGIAN 5).
-- STATUS: **7a–7d SELESAI (kode)** — 7e (uji E2E live) menyusul setelah deploy.
+- STATUS: **7a–7d SELESAI & LIVE `b39a9fc`** (2026-10-15):
+      deploy PASS · release aktif b39a9fc · `/` 200 · `/login` 200 ·
+      `/d/{token palsu}` → jujur "Dokumen tidak ditemukan" (pola /riwayat,
+      tanpa bocorkan status lain) · 4 penanda (publicDocUrl, "Dokumen: ",
+      "Salin link dokumen", getInvoiceForPublicDoc) ADA di server bundle ·
+      log error 5 menit bersih ·
+      DB: dokumen lama masih 0 token (wajar — token terisi saat dokumen BARU
+      terbit; migrasi nullable, tanpa backfill, dokumen lama tidak rusak).
+      7e uji E2E nyata 3 dokumen (buka /d/{token} asli, cetak, kirim WA) =
+      menunggu pemilik buat dokumen baru (token baru = satu-satunya cara
+      uji jalur token; tidak saya fabricate).
+
+### E2 — Dokumen lama tanpa token jangan mangkrak (anti-jalur mati, owner)
+**Temuan saat live verification (2026-10-15):** DB punya 51 INVOICE + 10 PROFORMA,
+semua `docToken=NULL` (wajar saat sebelum F7a; migration nullable/no-backfill),
+sehingga tautan / tombol salin tidak berfungsi untuk dokumen lama.
+- [x] `ensureInvoiceDocToken` (race-safe): token dibuat sekali saat dokumen pertama
+      dibuka. `updateMany WHERE docToken=null` + re-read; token lama tidak
+      dirotasi, tautan stabil. Ditempatkan di jalur existing `getInvoiceForView`
+      (titik bersama admin + teknisi + loader publik) — bukan jalur backfill/cron.
+- [x] `inv.docToken` objek hasil loader diisi token hasil ensure; `/d/{token}`
+      tetap resolve via token saja.
+- [x] Test `invoice-doc-token-ensure.test.ts` 5/5: token existing tak diubah,
+      null → generate+conditional write, race count=0 → re-read, return non-null,
+      parallel invoke.
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **92 files / 807 tests** · build=0.
+- STATUS: SELESAI (kode) — deploy menyusul batch.
+
+### Status total F7 (A+C)
+- F7a schema/migration/token create: LIVE `0347cdb`.
+- F7b–F7d public link, pesan, salin: LIVE `b39a9fc`.
+- E2 old-doc token ensure: KODE SELESAI, deploy menyusul.
+- 7e end-to-end nyata di 3 dokumen: setelah deploy; perlu dokumen baru/akses
+  asli. Belum diklaim lulus.
 
 ### F8 — Status OVERDUE sinkron di titik yang tepat (B-4) ← **SELESAI (kode + test, 2026-10-15)**
 - [x] `refreshOverdueStatus(tenantId)` dipanggil di `/app/faktur/page.tsx` (jalur

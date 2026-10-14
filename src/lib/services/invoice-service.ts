@@ -150,7 +150,11 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
     },
   });
   if (!inv) throw new ServiceError("NOT_FOUND", "Dokumen tidak ditemukan");
-  // BILL-TO: bila invoice punya billingCustomerId (kantor pusat), muat entitas penagihan itu.
+  // E2: dokumen LAMA (docToken null) — isi token saat dibuka (titik bersama:
+  // page detail admin/teknisi + loader publik). Tombol "Salin link" & pesan WA
+  // langsung berfungsi; tidak ada dokumen mangkrak tanpa token.
+  const ensuredToken = await ensureInvoiceDocToken(inv);
+  // Bill-to: bila invoice punya billingCustomerId (kantor pusat), muat entitas penagihan itu.
   // "Ditagihkan kepada" = bill-to; "Lokasi servis" = customer (outlet). Bila self, keduanya sama.
   const billTo = inv.billingCustomerId
     ? await prisma.customer.findFirst({
@@ -172,6 +176,8 @@ export async function getInvoiceForView(tenantId: string, invoiceId: string) {
       bankName: true, bankAccountNo: true, bankAccountName: true, qrisImageUrl: true,
     },
   });
+  // Pastikan objek yg dikembalikan membawa token YANG SUDAH DIISI (bukan null lama).
+  inv.docToken = ensuredToken;
   return { inv, tenant, assetMap, billTo, serviceCustomer: inv.customer };
 }
 
@@ -189,6 +195,28 @@ export function publicDocUrl(docToken: string | null | undefined): string | null
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/+$/, "");
   if (!base) return null;
   return `${base}/d/${docToken}`;
+}
+
+/**
+ * F7a/E2: PASTIKAN dokumen punya token (dokumen LAMA dgn docToken null).
+ * Dipanggil di getInvoiceForView (titik BERSAMA semua dokumen: page detail admin
+ * + teknisi + loader publik) — begitu dokumen dibuka, token terisi → tombol
+  * "Salin link dokumen" & pesan WA langsung berfungsi; TIDAK ada dokumen
+ * mangkrak tanpa token. Race-safe: updateMany WHERE docToken null (sekali jalan,
+ * gagal tenang = token sudah terisi proses lain; ulang baca memakai token valid).
+ */
+export async function ensureInvoiceDocToken(inv: { id: string; docToken: string | null }): Promise<string> {
+  if (inv.docToken) return inv.docToken;
+  const token = generateInvoiceDocToken();
+  await prisma.invoice.updateMany({
+    where: { id: inv.id, docToken: null },
+    data: { docToken: token },
+  });
+  const cur = await prisma.invoice.findFirst({
+    where: { id: inv.id },
+    select: { docToken: true },
+  });
+  return cur?.docToken ?? token;
 }
 
 export async function getInvoiceForPublicDoc(docToken: string) {
