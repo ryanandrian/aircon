@@ -300,19 +300,22 @@ log   : error runtime 5 menit bersih
       dokumen, pemisahan billing Lumite vs tenant→pelanggan, jumlah model/migrasi.
 - [x] STATUS: SELESAI — commit & push menyusul bersama fase lain.
 
-### F6 — Format invoice & proforma cetak/PDF profesional (G-6)
-- [ ] `invoice-view.tsx`: sembunyikan badge status UI saat print
-      (label aplikasi "Terbit/Lunas" tidak boleh jadi bagian dokumen; bila status
-      perlu ditampilkan, tampilkan sebagai teks dokumen yang pantas).
-- [ ] Tambah blok pengesahan dokumen: "Hormat kami," + ruang tanda tangan/pengesahan
-      penerbit (nama tenant; format identik utk INVOICE, PROFORMA, dan Kwitansi
-      `KwitansiView` — satu pola, bukan dua gaya).
-- [ ] Varian print (tanpa shadow/rounded berlebih, `print:` konsisten) + halaman
-      rapi (hindari pemotongan blok total/tanda tangan di akhir halaman).
-- [ ] Uji cetak nyata (print preview → PDF) dari halaman invoice, proforma, kwitansi;
-      verifikasi label "PROFORMA INVOICE" vs "INVOICE" tetap benar (2 jenis dokumen,
-      jangan disamakan).
-- [ ] STATUS: BELUM DIMULAI
+### F6 — Format invoice & proforma cetak/PDF profesional (G-6) ← **SELESAI (kode + test, 2026-10-15)**
+- [x] `invoice-view.tsx` Badge status UI → `print:hidden` (label aplikasi "Terbit/
+      Lunas" tidak lagi ikut tercetak).
+- [x] Blok pengesahan "Hormat kami," + nama penerbit — **pola PERSIS KwitansiView**
+      (kolektor gaya yang sudah ada, bukan gaya baru): invoice/proforma/kwitansi
+      konsisten sebagai dokumen cetak. Teks kaki dibedakan jujur: invoice
+      ("Dokumen ini sah…") vs proforma ("rancangan tagihan; invoice resmi menyusul").
+- [x] Varian print: Card `print:rounded-none print:border-0 print:shadow-none` +
+      pengesahan `print:break-inside-avoid` (tidak terpotong halaman) + label grup
+      unit `print:text-black`.
+- [x] Judul TETAP membedakan INVOICE vs PROFORMA INVOICE (tidak diseragamkan).
+- [x] Test RED→GREEN: tests/print-doc-professional.test.ts (3/3; RED: badge
+      tanpa print:hidden + tanpa "Hormat kami").
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **89 files / 782 tests** · build=0.
+- STATUS: SELESAI (kode) — print preview → PDF visual di browser/perangkat
+      pemilik tetap perlu (bukti layar; sama dgn F4).
 
 ### F7 — Pesan WA profesional + tautan dokumen publik (A+C) (G-7, keputusan pemilik)
 **Konsesi penting:** keputusan pemilik menggabungkan pesan (A) + tautan dokumen (C).

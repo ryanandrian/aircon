@@ -46,8 +46,8 @@ export function InvoiceView({ inv, tenant, assetMap, backHref, billTo }: {
   return (
     <div className="space-y-4">
       {backHref && <a href={backHref} className="text-xs text-muted-foreground print:hidden">← Kembali</a>}
-      <Card>
-        <CardContent className="space-y-5 p-6">
+      <Card className="print:rounded-none print:border-0 print:shadow-none">
+        <CardContent className="space-y-5 p-6 print:space-y-4 print:p-0">
           {/* Header: logo tenant (K2) + judul dokumen */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -63,7 +63,7 @@ export function InvoiceView({ inv, tenant, assetMap, backHref, billTo }: {
             <div className="text-right">
               <div className="text-sm font-bold tracking-wide text-foreground">{title}</div>
               <div className="font-mono text-xs text-muted-foreground">{inv.number}</div>
-              <Badge variant={inv.status === "PAID" ? "secondary" : "outline"} className="mt-1">{STATUS_LABEL[inv.status] ?? inv.status}</Badge>
+              <Badge variant={inv.status === "PAID" ? "secondary" : "outline"} className="mt-1 print:hidden">{STATUS_LABEL[inv.status] ?? inv.status}</Badge>
             </div>
           </div>
 
@@ -92,7 +92,7 @@ export function InvoiceView({ inv, tenant, assetMap, backHref, billTo }: {
           <div className="space-y-3 border-t pt-4">
             {[...groups.entries()].map(([unitLabel, items], gi) => (
               <div key={gi}>
-                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400">{gi + 1}. {unitLabel}</div>
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-600 dark:text-sky-400 print:text-black">{gi + 1}. {unitLabel}</div>
                 <div className="space-y-1">
                   {items.map((it, i) => (
                     <div key={i} className="flex justify-between gap-3 text-sm">
@@ -149,6 +149,20 @@ export function InvoiceView({ inv, tenant, assetMap, backHref, billTo }: {
               Dokumen ini bukan Faktur Pajak elektronik (e-Faktur). Faktur Pajak resmi diterbitkan terpisah bila diperlukan.
             </p>
           )}
+
+          {/* F6/G-6: blok pengesahan — pola PERSIS KwitansiView (kolektor, bukan gaya baru)
+              supaya invoice/proforma/kwitansi konsisten sebagai dokumen cetak. */}
+          <div className="flex items-end justify-between border-t pt-6 print:break-inside-avoid">
+            <div className="text-xs text-muted-foreground">
+              {isProforma
+                ? "Proforma ini merupakan rancangan tagihan; invoice resmi menyusul."
+                : "Dokumen ini sah diterbitkan oleh usaha di atas."}
+            </div>
+            <div className="text-center text-sm">
+              <div className="text-xs text-muted-foreground">Hormat kami,</div>
+              <div className="mt-10 border-t border-dashed pt-1 font-medium text-foreground">{tenant?.name ?? "—"}</div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
