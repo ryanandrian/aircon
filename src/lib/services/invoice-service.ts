@@ -366,6 +366,7 @@ export async function sendInvoiceViaWa(
 ): Promise<{ ok: boolean; error?: string; to?: string }> {
   const { resolveBillingContact } = await import("@/lib/services/customer-service");
   const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
+  const { waAutomationEligibility } = await import("@/lib/services/wa-identity-service");
 
   const inv = await prisma.invoice.findFirst({
     where: { id: invoiceId, tenantId },
@@ -373,6 +374,14 @@ export async function sendInvoiceViaWa(
   });
   if (!inv) return { ok: false, error: "Dokumen tidak ditemukan" };
   if (inv.status === "CANCELLED") return { ok: false, error: "Dokumen sudah dibatalkan" };
+  // F1 guard (B-1, KRITIS): tenant TRIAL/BASIC tidak boleh lewat WA-GATEWAY
+  // (keputusan pemilik: tak punya fasilitas menautkan nomor). Ditempatkan di
+  // SERVICE (titik terendah) — tertutup semua rute & 4 aksi (admin + teknisi).
+  // Jalur pengganti (tautan dokumen via wa.me) disiapkan di F7.
+  const gate = await waAutomationEligibility(tenantId);
+  if (!gate.ok) {
+    return { ok: false, error: "Paket Anda belum memiliki WhatsApp otomatis. Bagikan dokumen melalui aplikasi WhatsApp Anda." };
+  }
   if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
   const contact = await resolveBillingContact(tenantId, inv.customer.id);
@@ -427,6 +436,7 @@ export async function sendReceiptViaWa(
 ): Promise<{ ok: boolean; error?: string; to?: string }> {
   const { resolveBillingContact } = await import("@/lib/services/customer-service");
   const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
+  const { waAutomationEligibility } = await import("@/lib/services/wa-identity-service");
 
   const inv = await prisma.invoice.findFirst({
     where: { id: invoiceId, tenantId },
@@ -434,6 +444,11 @@ export async function sendReceiptViaWa(
   });
   if (!inv) return { ok: false, error: "Dokumen tidak ditemukan" };
   if (inv.status !== "PAID") return { ok: false, error: "Kwitansi hanya untuk invoice yang sudah LUNAS" };
+  // F1 guard (B-1): sama dengan sendInvoiceViaWa — titik terendah, semua rute.
+  const gateRcpt = await waAutomationEligibility(tenantId);
+  if (!gateRcpt.ok) {
+    return { ok: false, error: "Paket Anda belum memiliki WhatsApp otomatis. Bagikan kwitansi melalui aplikasi WhatsApp Anda." };
+  }
   if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
   const contact = await resolveBillingContact(tenantId, inv.customer.id);

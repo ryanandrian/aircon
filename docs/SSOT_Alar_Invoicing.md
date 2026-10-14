@@ -207,13 +207,19 @@ F4 → print:hidden ditambah di layout yang SUDAH ADA; tidak menambah komponen.
 F5 → dokumen; nol kode.
 ```
 
-### F1 — Guard plan di 4 aksi faktur/kwitansi (B-1, G-3)
-- [ ] `waAutomationEligibility(tenantId)` dipanggil sebelum `gatewaySend` di
-      `sendInvoiceViaWa` & `sendReceiptViaWa` (satu titik, terpakai 4 aksi).
-- [ ] Bila plan-locked: pesan jelas → "Paket Anda belum memiliki WhatsApp terhubung.
-      Gunakan 'Buka WhatsApp' untuk mengirim sendiri dari nomor Anda."
-- [ ] Test: TRIAL ditolak; PROFESSIONAL lolos.
-- STATUS: BELUM DIMULAI
+### F1 — Guard plan di 4 aksi faktur/kwitansi (B-1, G-3) ← **SELESAI (kode + test, 2026-10-15)**
+- [x] `waAutomationEligibility(tenantId)` dipanggil **di service** (`sendInvoiceViaWa`
+      & `sendReceiptViaWa`) SEBELUM `isGatewayConfigured`/`gatewaySend` — satu titik,
+      terpakai 4 aksi (admin + teknisi), dynamic-import (pola file: resolveBillingContact).
+      urutan guard: dokumen ada → status valid → **guard plan** → gateway → kontak.
+- [x] Bila plan-locked: `"Paket Anda belum memiliki WhatsApp otomatis. Bagikan
+      dokumen/kwitansi melalui aplikasi WhatsApp Anda."` (konteks dokumen — bukan
+      pesan cron Pengingat).
+- [x] Test RED→GREEN: tests/invoice-wa-plan-guard.test.ts (6/6) — TRIAL ditolak +
+      gatewaySend TIDAK dipanggil (tak ada sesi gateway dibuat utk TRIAL);
+      PROFESSIONAL lolos + dipanggil; guard di 2 fungsi; urutan cek dokumen dulu.
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **84 files / 757 tests** · build=0.
+- STATUS: SELESAI (kode) — deploy + verifikasi live menyusul bersama batch fase
 
 ### F2 — Guard role + scope pembayaran (B-2, B-3)
 - [ ] `actionMarkPaid` / `actionUploadPaymentProof` / `actionTechSend*` → `assertRole`
