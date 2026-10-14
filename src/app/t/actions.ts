@@ -8,10 +8,46 @@ import { JobError } from "@/lib/services/job-management-service";
 import { listTechnicianJobHistory } from "@/lib/services/technician-service";
 import { putPhoto, isStorageConfigured } from "@/lib/storage/s3";
 import { clearTechSession } from "@/lib/auth/tech-session";
+import { upsertPushSubscription, revokePushSubscription } from "@/lib/services/push-notification-service";
 import type { JobStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export type TechActionResult = { ok: true } | { ok: false; error: string };
+
+export type TechPushResult =
+  | { ok: true; vapidPublicKey: string | null }
+  | { ok: false; error: string };
+
+/**
+ * VAPID public key utk klien subscribe (pushManager.subscribe).
+ * Private key TIDAK pernah disentuh klien — hanya publik.
+ */
+export async function techPushVapidKey(): Promise<TechPushResult> {
+  // getServerContext() MELEMPAR AuthError bila belum masuk (kontraknya) —
+  // Next menanganinya sbg action error; tak ada null-check yang tak pernah terjadi.
+  await getServerContext();
+  const pub = (process.env.PUSH_VAPID_PUBLIC_KEY ?? "").trim();
+  if (!pub) return { ok: true, vapidPublicKey: null }; // fitur belum diset — jujur
+  return { ok: true, vapidPublicKey: pub };
+}
+
+/**
+ * Aktifkan notifikasi push perangkat ini (PWA /t). Idempoten (unique per device).
+ */
+export async function techEnablePush(input: {
+  deviceId: string;
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } };
+  userAgent?: string | null;
+}): Promise<TechActionResult> {
+  const r = await upsertPushSubscription(input);
+  return r.ok ? { ok: true } : { ok: false, error: r.error ?? "Gagal menyimpan" };
+}
+
+/** Cabut notifikasi push perangkat ini (logout/PWA uninstall). */
+export async function techDisablePush(input: { deviceId: string }): Promise<TechActionResult> {
+  const r = await revokePushSubscription(input);
+  return r.ok ? { ok: true } : { ok: false, error: "Gagal mencabut" };
+}
 
 /** Logout teknisi (hapus sesi cookie). */
 export async function techLogout(): Promise<void> {

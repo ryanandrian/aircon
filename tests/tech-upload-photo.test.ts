@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const store: any = {};
+// G-A3: actions.ts kini mengimpor push-notification-service (server-only) —
+// test ini menguji techUploadPhoto, jadi service push di-mock agar tak ikut dimuat.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/push-notification-service", () => ({
+  upsertPushSubscription: vi.fn(),
+  revokePushSubscription: vi.fn(),
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     technician: { findFirst: vi.fn(async () => store.me) },
