@@ -284,8 +284,8 @@ log   : error runtime 5 menit bersih
       FAB print:hidden; /t tanpa sidebar/FAB. (Pola source-level repo — tanpa RTL,
       + gate tsc/lint/build; sama seperti job-cancel-placement.)
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **87 files / 776 tests** · build=0.
-- STATUS: SELESAI (kode) — uji print visual manual di browser (preview → PDF)
-      tetap perlu dilakukan pemilik setelah deploy (bukti layar, bukan klaim kode).
+- STATUS: SELESAI — deploy live `0347cdb` (2026-10-15). Uji print visual manual
+      (preview → PDF) di browser/perangkat pemilik tetap perlu (bukti layar).
 
 ### F5 — Dokumen (G-5) ← **SELESAI (2026-10-14, tanpa kode)**
 - [x] Tandai jelas di `Dokumen_Keuangan_Faktur_Kwitansi.md` bahwa dokumen itu = billing
@@ -314,16 +314,23 @@ log   : error runtime 5 menit bersih
 - [x] Test RED→GREEN: tests/print-doc-professional.test.ts (3/3; RED: badge
       tanpa print:hidden + tanpa "Hormat kami").
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **89 files / 782 tests** · build=0.
-- STATUS: SELESAI (kode) — print preview → PDF visual di browser/perangkat
-      pemilik tetap perlu (bukti layar; sama dgn F4).
+- STATUS: SELESAI — deploy live `0347cdb` (2026-10-15). Print preview → PDF
+      visual di browser/perangkat pemilik tetap perlu (bukti layar; sama dgn F4).
 
 ### F7 — Pesan WA profesional + tautan dokumen publik (A+C) (G-7, keputusan pemilik)
 **Konsesi penting:** keputusan pemilik menggabungkan pesan (A) + tautan dokumen (C).
-- [ ] **7a. Field token** — `Invoice.docToken String? @unique` (nullable, additive;
-      migration manual + `prisma generate` — pola migrasi yang sudah mapan).
-      Token dibuat saat dokumen terbit (closeWorkSession & createInvoiceFromProforma);
-      acak tinggi entropi (pola UnitCode). Kwitansi memakai token invoice yang sama
-      (satu-satu anchor, tanpa token duplikat — anti-redundan).
+- [x] **7a. Field token** — **SELESAI & LIVE** (`0347cdb`):
+      kolom `Invoice.docToken String? @unique` (nullable+additive) — SKEMA +
+      MIGRATION file (`20261015020000_invoice_doc_token`) — **applied ke DB live**
+      (verifikasi: kolom `text` + unique index `Invoice_docToken_key`; kolom
+      nullable → dokumen LAMA tanpa token TIDAK rusak / tanpa backfill).
+      `generateInvoiceDocToken()` pola technician-service (randomBytes(24)→base64url,
+      32 char); diisi di 2 create jalur yang SUDAH ADA (closeWorkSession cash &
+      proforma + createInvoiceFromProforma); kwitansi memakai token invoice sama.
+      Test: tests/invoice-doc-token.test.ts (6/6) — source-level (pola mapan
+      job-cancel-placement; mock Prisma penuh utk service berat terbukti rapuh
+      & tidak perlu) + unit nyata helper (format+entropi).
+      invoice dengan token live: 0 (wajar — token terisi saat dokumen BARU terbit).
 - [ ] **7b. Halaman publik `/d/{token}`** — REUSE pola `/riwayat/{token}` yang sudah
       teruji: server resolve token → InvoiceView (kolektor, tanpa chrome) + print:
       rapi; tenant scoping via token (bukan id); token acak = anti-enumeration;
@@ -348,7 +355,7 @@ log   : error runtime 5 menit bersih
 - [x] Test RED→GREEN: tests/overdue-sync-invoice-list.test.ts (3/3) — pemanggilan
       ada; URUTAN sinkron < count < list (kode); import ar-service (tanpa modul baru).
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **88 files / 779 tests**.
-- STATUS: SELESAI (kode) — deploy menyusul batch berikutnya (F6/F7).
+- STATUS: SELESAI — deploy live `0347cdb` (2026-10-15).
 
 ### TUNTAS DEFINISI (dokumen ini = jaminan)
 ```
