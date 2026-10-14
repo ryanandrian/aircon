@@ -2,6 +2,10 @@
 > Beberapa fakta di dalamnya (hosting, Midtrans, URL, progres) MUNGKIN sudah berubah.
 > **Kebenaran terkini:** `docs/PROJECT_STATUS.md` + jalankan `bash scripts/ssot-status.sh` (read-only).
 > Jangan mengambil keputusan dari file ini tanpa memverifikasi ke sumber di atas.
+> **KOREKSI RUANG LINGKUP (2026-10-14):** dokumen ini khusus **billing tenant → LUMITE**
+> (langganan/iPaymu), BUKAN alur faktur tenant → pelanggan. Alur operasional
+> closing → proforma/invoice → pembayaran → kirim (tenant → pelanggan) =
+> `docs/SSOT_Alar_Invoicing.md`.
 # Dokumen Keuangan: FAKTUR vs KWITANSI (SSOT)
 
 Arsitektur & kaidah akuntansi Indonesia untuk dokumen keuangan Aircon (Lumite → tenant).

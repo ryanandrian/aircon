@@ -1,5 +1,7 @@
 # RENCANA — Cetak, Kirim (WA/Email), Bill-To Kantor Pusat & Kwitansi
 
+> **ARSIP HASIL (bukan sumber kebenaran utama).** Status akhir di bawah = fakta live 2026-09-09.
+> SSOT alur tenant→pelanggan TERKINI: `docs/SSOT_Alar_Invoicing.md` (audit kode 2026-10-14).
 > Status: ✅ SELESAI & LIVE (2026-09-09). Semua lapis (A–E) dieksekusi, teruji, deploy produksi.
 > Dokumen ini disimpan sebagai jejak keputusan + hasil. Bagian "STATUS AKHIR" di bawah = kondisi NYATA;
 > bagian rencana asli dipertahankan sebagai konteks historis.

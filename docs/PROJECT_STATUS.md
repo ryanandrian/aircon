@@ -5,6 +5,11 @@ Teknisi menyelesaikan lewat satu jalur: **Catat Pekerjaan / `closeWorkSession`**
 required checklist per WorkItem divalidasi; jika lolos, satu transaksi mengunci sesi, membuat Invoice/Proforma,
 menyelesaikan JobOrder, memperbarui jadwal servis, membuat RepeatReminder/ReviewRequest dan event.
 
+**SSOT POINTER — alur closing → proforma/invoice → pembayaran → kirim (tenant→pelanggan):**
+[`docs/SSOT_Alar_Invoicing.md`](SSOT_Alar_Invoicing.md) (audit kode 2026-10-14) — status per item,
+temuan gap/bug dengan bukti, rencana F1..F5, aturan jalur & pembaruan dokumen. Mulai analisa
+invoicing dari dokumen itu, BUKAN dari dokumen arsip (RENCANA_INVOICING_*, Dokumen_Keuangan_Faktur_Kwitansi).
+
 Checklist hanya per layanan (`ChecklistTemplate.serviceId`) dan hasil per baris layanan×unit
 (`ChecklistResult.workItemId`), opt-in, default kosong. Teknisi/kernet mengisi secara progresif di layar kerja;
 foto memakai upload/camera control yang menyimpan URL S3 terikat tenant+job.

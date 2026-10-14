@@ -103,6 +103,26 @@ Guard A1 (waAutomationEligibility) melindungi: sesi WA, cron pengingat, dunning,
 | **G-3** | Tenant TRIAL tanpa sesi Gateway tetap melihat tombol "Kirim via WA" yang pasti gagal (dead-end) — seharusnya wa.me / pesan arahan | komponen tak tahu rencana; `sendInvoiceViaWa` cek `isGatewayConfigured` (global, bukan per-tenant) | SEDANG |
 | **G-4** | "Kwitansi WA akan dikirim (fitur WA sedang tahap uji)" — teks basi & membingungkan | `payment-panel.tsx` baris kaki | RENDAH |
 | **G-5** | Dokumen `Dokumen_Keuangan_Faktur_Kwitansi.md` **berpotensi menyesatkan** (billing Lumite, bukan tenant→pelanggan) tapi judulnya menyebut FAKTUR/KWITANSI generik | docs/ | RENDAH (dokumen) |
+| **G-6** | **Format cetak/PDF kurang profesional**: (a) badge status aplikasi ("Terbit"/"Lunas") ikut tercetak — label UI, bukan dokumen; (b) TANPA tanda tangan/pengesahan ("Hormat kami, …"); (c) Card+shadow/rounded tanpa varian print (bisa tak rapi di PDF) | `invoice-view.tsx` baris 66 (Badge), seluruh file tanpa blok tanda tangan | TINGGI (kualitas dokumen) |
+| **G-7** | **Format pesan WA non-attachment**: sudah memuat no dokumen/pelanggan/tanggal/jatuh tempo/total/bank, tapi TANPA rincian item & tanpa tanda pengirim (nama/jabatan pengirim atau kontak) | `buildInvoiceMessage` (invoice-service.ts:334) | SEDANG |
+| **B-4** | Status **OVERDUE hanya sinkron saat admin membuka /app/laporan** (`refreshOverdueStatus` dipanggil di page.tsx:24) — bukan saat daftar faktur dibuka/dicari; badge "Jatuh Tempo" & daftar invoice bisa telat | ar-service.ts:76 hanya dipanggil laporan/page.tsx | SEDANG (jujur: bucket PIUTANG tetap benar karena memakai ISSUED\|OVERDUE — dampak = label/daftar terlambat, bukan salah hitung) |
+
+### STATUS ATTACHMENT (fakta — dijawab dari kode, bukan perkiraan)
+```
+Saat ini: TIDAK ADA lampiran/attachment apa pun saat "Kirim via WA".
+  gateway-relay.ts:52 → body { externalId, toPhone, message } — TEKS SAJA
+  (tak ada mediaBase64/mimetype; gateway v1 memang teks-only)
+Sebab: keputusan DITUNDA tercatat (RENCANA_INVOICING_KIRIM_DAN_BILLTO):
+  "lampiran PDF via WA butuh endpoint media di gateway VPS (repo lumite-gateway)"
+Dokumen utuh (dengan rincian item/QRIS) baru terkirim bila admin MENGGUNAKAN
+  "Cetak / Simpan PDF" lalu mengirim manual dari WhatsApp.
+OPSI (BUTUH KEPUTUSAN PEMILIK — belum dikerjakan):
+  A. Teks saja (kondisi sekarang) + tambah rincian singkat item di pesan.
+  B. Tambah endpoint media di lumite-gateway (F6 terpisah, sentuh 2 repo)
+     → kirim PDF otomatis. Risiko: ukuran PDF, media WA, biaya gateway.
+  C. Kirim LINK dokumen publik read-only (token acak) — perlu halaman baru +
+     keputusan privasi (harga invoice terbuka via link).
+```
 
 ### Yang TIDAK ditemukan masalah (verifikasi, jangan diulang audit):
 - Cash temp → INVOICE, tempo → PROFORMA: SESUAI arahan pemilik & kode.
@@ -183,28 +203,92 @@ F5 → dokumen; nol kode.
 - [ ] Test: teknisi lain menolak; admin lolos; teknisi pemilik invoice cash lolos.
 - STATUS: BELUM DIMULAI
 
-### F3 — Kirim informatif + alternatif wa.me (G-2, G-3)
+### F3 — Kirim informatif + alternatif WA aplikasi teknisi/admin (G-2, G-3)
 - [ ] `InvoiceActions`: status sesi WA (dari relai yang ada), tujuan (PIC keuangan/
       kontak), progress per-tahap, dan bila gagal/plan-locked → tombol
       **"Buka WhatsApp"** (wa.me, pesan terisi — pola menu Pengingat, jalur yang sudah ada).
+- [ ] **KEWAJIBAN TRIAL/BASIC (admin & TEKNISI — 4 aksi):** tidak boleh menyentuh
+      Gateway; fallback = membuka aplikasi WhatsApp mereka sendiri (wa.me), baik
+      dari `/app/faktur` MAUPUN `/t/faktur`. Terapkan di titik terendah
+      (`sendInvoiceViaWa`/`sendReceiptViaWa` + action teknisi) supaya tertutup
+      semua rute, bukan hanya satu halaman.
+- [ ] Test: tenant TRIAL → aksi kirim TIDAK memanggil gateway (guard teruji),
+      fallback wa.me terbentuk dengan pesan benar; PROFESSIONAL → gateway tetap.
 - [ ] STATUS: BELUM DIMULAI
 
-### F4 — Print/PDF profesional (G-1, G-4)
+### F4 — Chrome cetak bersih (G-1, G-4)
 - [ ] `app/app/layout.tsx` & `app/t/layout.tsx`: sidebar + FAB `print:hidden`
-      (elemen chrome, bukan dokumen).
+      (elemen chrome, bukan dokumen). Verifikasi `app/page.tsx` (landing punya FAB
+      sama) tidak terdampak.
 - [ ] Uji print dari halaman faktur admin & teknisi + kwitansi: output = dokumen
       bersih (logo tenant, tanpa tombol/sidebar/FAB).
 - [ ] Perbarui teks kaki payment-panel (G-4).
 - [ ] STATUS: BELUM DIMULAI
 
-### F5 — Dokumen (G-5)
-- [ ] Tandai jelas di `Dokumen_Keuangan_Faktur_Kwitansi.md` bahwa dokumen itu = billing
-      **Lumite**; alur tenant→pelanggan = dokumen ini.
+### F5 — Dokumen (G-5) ← **SELESAI (2026-10-14, tanpa kode)**
+- [x] Tandai jelas di `Dokumen_Keuangan_Faktur_Kwitansi.md` bahwa dokumen itu = billing
+      **Lumite**; alur tenant→pelanggan = dokumen ini. (KOREKSI RUANG LINGKUP ditambahkan.)
+- [x] `RENCANA_INVOICING_KIRIM_DAN_BILLTO.md` diberi label ARSIP HASIL + pointer ke
+      SSOT_Alar_Invoicing.md.
+- [x] `PROJECT_STATUS.md` (dokumen aktif utama) diberi SSOT POINTER ke
+      `docs/SSOT_Alar_Invoicing.md` + penanda HISTORIS di BuildSpecPack_Part2.
+- [x] `scripts/ssot-status.sh` DIBUAT (jalur baru yang dijustifikasi: 9 dokumen aktif
+      merujuknya tapi tidak pernah ada — tautan mati; read-only; laporan lokal).
+- [x] `ssot-status.sh` divalikasi jalan: HEAD==origin, penanda aktif/HISTORIS per
+      dokumen, pemisahan billing Lumite vs tenant→pelanggan, jumlah model/migrasi.
+- [x] STATUS: SELESAI — commit & push menyusul bersama fase lain.
+
+### F6 — Format invoice & proforma cetak/PDF profesional (G-6)
+- [ ] `invoice-view.tsx`: sembunyikan badge status UI saat print
+      (label aplikasi "Terbit/Lunas" tidak boleh jadi bagian dokumen; bila status
+      perlu ditampilkan, tampilkan sebagai teks dokumen yang pantas).
+- [ ] Tambah blok pengesahan dokumen: "Hormat kami," + ruang tanda tangan/pengesahan
+      penerbit (nama tenant; format identik utk INVOICE, PROFORMA, dan Kwitansi
+      `KwitansiView` — satu pola, bukan dua gaya).
+- [ ] Varian print (tanpa shadow/rounded berlebih, `print:` konsisten) + halaman
+      rapi (hindari pemotongan blok total/tanda tangan di akhir halaman).
+- [ ] Uji cetak nyata (print preview → PDF) dari halaman invoice, proforma, kwitansi;
+      verifikasi label "PROFORMA INVOICE" vs "INVOICE" tetap benar (2 jenis dokumen,
+      jangan disamakan).
 - [ ] STATUS: BELUM DIMULAI
 
-**Urutan pengerjaan: F1 → F2 → F3 → F4 → F5** (F1/F2 KRITIS uang & keputusan pemilik;
-tiap fase: RED test → fix → tsc/eslint/test/build hijau → commit → deploy SOP → verifikasi live
-→ update STATUS di sini).
+### F7 — Format pesan WA non-attachment profesional (G-7)
+- [ ] `buildInvoiceMessage`/`buildReceiptMessage`: rapikan struktur (kop usaha,
+      identitas dokumen, ringkasan item pilihan, total, info bayar, penutup +
+      kontak pengirim) tanpa mengubah kontrak teks-only.
+- [ ] Catatan: JANGAN menambahkan lampiran di fase ini — lihat bagian STATUS
+      ATTACHMENT (butuh keputusan pemilik: opsi A/B/C).
+- [ ] STATUS: BELUM DIMULAI
+
+### F8 — Status OVERDUE sinkron di titik yang tepat (B-4)
+- [ ] `refreshOverdueStatus(tenantId)` dipanggil di jalur yang SUDAH ADA untuk
+      invoice list (page/admin invoice — sama dengan pola `/app/laporan`), supaya
+      badge "Jatuh Tempo" & daftar akurat kapan pun admin membuka, bukan hanya
+      saat membuka laporan. (Jangan tambah cron baru — pola sinkron di-request-time
+      sudah ada & cukup.)
+- [ ] Test: invoice lewat dueDate → bucket "unpaid" & label akurat setelah dibuka;
+      PAID/CANCELLED tidak tersentuh.
+- [ ] STATUS: BELUM DIMULAI
+
+### TUNTAS DEFINISI (dokumen ini = jaminan)
+```
+Setelah F1..F8 SELESAI + deploy live + terverifikasi, jalur closing → pembayaran
+dianggap TUNTAS bila seluruh temuan B-1..B-4, G-1..G-7 berstatus TERTUTUP
+(ada commit + bukti deploy + update STATUS di sini), dan:
+  - TIDAK ADA aksi/kirim yang menyentuh Gateway untuk tenant TRIAL/BASIC
+    (termasuk dari halaman TEKNISI) — terbukti guard test;
+  - pembayaran & penomoran & kalkulasi uang teruji anti-race;
+  - cetak/PDF = dokumen profesional (bersih, pengesahan, konsisten kwitansi);
+  - pesan WA non-attachment rapi & informatif.
+Bila ada temuan BARU ditemukan saat eksekusi → CATAT sebagai B-5, G-8, dst.
+di tabel ini + tambahkan fase (F9, dst.) SEBELUM melanjutkan — jangan ditambal diam-diam.
+```
+
+**Urutan pengerjaan: F1 → F2 → F3 → F4 → F5 → F6 → F7 → F8**
+(F1/F2 KRITIS uang & keputusan pemilik; tiap fase: RED test → fix →
+tsc/eslint/test/build hijau → commit → deploy SOP → verifikasi live
+→ update STATUS di sini. F5 mungkin dimajukan bila cepat — dokumen tanpa risiko
+kode, asalkan statusnya jujur sesuai fase yang benar-benar sudah ter-ship.)
 
 ---
 
