@@ -174,3 +174,44 @@ export async function sendPushToUser(input: {
   }
   return result;
 }
+
+/**
+ * FASE 1: notifikasi PENUGASAN — kirim push ke SEMUA personel yang ditugaskan.
+ * Dipanggil dari assignment-service.assignJob & job-management.createJob.
+ * AMAN-GAGAL TOTAL: penugasan TIDAK PERNAH gagal/ditunda karena push.
+ */
+export async function notifyAssignees(input: {
+  tenantId: string;
+  jobId: string;
+  personIds: string[];
+}): Promise<void> {
+  try {
+    if (input.personIds.length === 0) return;
+    const job = await prisma.jobOrder.findFirst({
+      where: { id: input.jobId, tenantId: input.tenantId },
+      select: { id: true, customer: { select: { name: true } } },
+    });
+    const jobName = job?.customer?.name ?? "pelanggan";
+    // Map personel → user (technician.userId). Nol query utk tanpa personel.
+    const techs = await prisma.technician.findMany({
+      where: { tenantId: input.tenantId, id: { in: input.personIds } },
+      select: { userId: true },
+    });
+    if (techs.length === 0) return;
+    for (const t of techs) {
+      // Aman-gagal per orang — satu kegagalan tak menghentikan lain.
+      await sendPushToUser({
+        tenantId: input.tenantId,
+        userId: t.userId,
+        payload: {
+          title: "Tugas baru",
+          body: `Anda ditugaskan ke ${jobName}.`,
+          url: `/t/pekerjaan/${input.jobId}`,
+          tag: `assignment:${input.jobId}`,
+        },
+      }).catch(() => {});
+    }
+  } catch {
+    // Notifikasi = pelengkap; TIDAK PERNAH melempar ke pemanggil (penugasan tetap utuh).
+  }
+}

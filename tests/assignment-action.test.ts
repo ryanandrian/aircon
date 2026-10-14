@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// G-A5: assignment/create service kini memanggil notifyAssignees (push) —
+// test ini menguji assignment, jadi service push di-mock agar tak ikut dimuat.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/push-notification-service", () => ({ notifyAssignees: vi.fn(async () => {}) }));
+
 /**
  * Poin 2 — guard status di SERVER ACTION (bukan hanya tombol FE).
  * Jalur nyata: actionAssignTeam → assignJob (service) → prisma $transaction.

@@ -6,6 +6,7 @@
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
 import { JobError } from "@/lib/services/job-management-service";
+import { notifyAssignees } from "@/lib/services/push-notification-service";
 
 export type AssignmentRole = "TECHNICIAN" | "KERNET";
 
@@ -151,6 +152,10 @@ export async function assignJob(
       },
     });
   });
+
+  // G-A5: notifikasi penugasan (Web Push) — AMAN-GAGAL, fire-and-forget.
+  // Penugasan SUDAH tersimpan di atas; kegagalan push TIDAK mengubah hasil.
+  void notifyAssignees({ tenantId, jobId, personIds: people.map((p) => p.personId) });
 }
 
 /** Ambil daftar personel yang ditugaskan pada job (dgn nama & peran). */

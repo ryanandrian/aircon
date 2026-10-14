@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// G-A5: assignment/create service kini memanggil notifyAssignees (push) —
+// test ini menguji assignment, jadi service push di-mock agar tak ikut dimuat.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/push-notification-service", () => ({ notifyAssignees: vi.fn(async () => {}) }));
+
 // Test adapter bentuk callback transaksi, tanpa memuat client DB nyata.
 vi.mock("@prisma/client", () => ({ Prisma: { Decimal: class Decimal { constructor(public value: unknown) {} } } }));
 

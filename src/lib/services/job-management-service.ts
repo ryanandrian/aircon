@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import type { JobStatus, JobSource, ServiceType } from "@prisma/client";
 import { ACTIVE_STATUSES } from "@/lib/domain/job-state-machine";
+import { notifyAssignees } from "@/lib/services/push-notification-service";
 
 export class JobError extends Error {
   code: "NOT_FOUND" | "VALIDATION" | "FORBIDDEN";
@@ -71,7 +72,7 @@ export async function createJob(
   // tanpa JobAssignment → halaman detail (listAssignments) menampilkan "Belum ditugaskan"
   // padahal sudah ada teknisi (terbukti pada 5 job live). Roster dibuat di sini agar semua
   // pembaca JobAssignment (detail, agenda, insentif kernet) ikut benar.
-  return prisma.$transaction(async (tx) => {
+  const job = await prisma.$transaction(async (tx) => {
     const job = await tx.jobOrder.create({
       data: {
         tenantId,
@@ -115,6 +116,13 @@ export async function createJob(
 
     return job;
   });
+
+  // G-A5: notifikasi tugas baru hanya setelah transaction commit (side-effect
+  // push TIDAK BOLEH di dalam transaksi DB). Aman-gagal, tidak mengubah job.
+  if (input.technicianId) {
+    void notifyAssignees({ tenantId, jobId: job.id, personIds: [input.technicianId] });
+  }
+  return job;
 }
 
 export interface JobListFilter {

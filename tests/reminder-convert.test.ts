@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// G-A5: job-management-service kini mengimpor push-notification-service (server-only)
+// — test ini tidak menguji push, jadi service push di-mock agar tak ikut dimuat.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/push-notification-service", () => ({ notifyAssignees: vi.fn(async () => {}) }));
+
+
 /**
  * FASE 5 modul Pengingat — konversi pengingat jadi pekerjaan.
  * Tombol "Jadikan Pekerjaan" di /app/pengingat membawa reminderId ke form

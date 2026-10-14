@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// G-A5: job-management-service kini mengimpor push-notification-service (server-only)
+// — test ini tidak menguji push, jadi service push di-mock agar tak ikut dimuat.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/push-notification-service", () => ({ notifyAssignees: vi.fn(async () => {}) }));
+
+
 const store: any = {};
 
 vi.mock("@/lib/prisma", () => ({
