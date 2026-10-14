@@ -324,14 +324,35 @@ test   : tests/push-notification-service.test.ts 11/11 (+2 utk retry);
          pulihkan → 11 lulus)
 ```
 
+### Hasil Deploy G-A7 — LIVE `38772ce` (2026-10-14 13:37 WIB)
+
+```
+deploy : scripts/deploy-vps.sh PASS (jalur tunggal AGENTS.md; DEPLOY_EXIT=0)
+         build PASS · boot-test lokal PASS · upload + checksum PASS ·
+         boot-test VPS PASS · switch atomic · verify live HTTPS PASS
+current: /opt/aircon-app/releases/38772cea…/app · aircon-app active
+VAPID  : 3 var PUSH_VAPID_ TERBACA DI PROSES RUNTIME (bukan hanya .env file)
+sw.js  : https://app.airconet.id/sw.js → HTTP 200, content-type
+         application/javascript (siap dipakai service worker browser)
+bundle : notifyAssignees + sendNotification ada di server chunks
+         ([root-of-the-server]__0erxppz._.js) — jalur server terpakai
+tabel  : PushSubscription 12 kolom live, 0 baris (belum ada subscribe)
+test   : 80 files / 729 tests · tsc=0 · eslint=0 · build=0
+```
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```
-1. G-A7  Deploy exact-SHA (bash scripts/deploy-vps.sh) lalu E2E MANUAL di HP
-         Android pemilik (tenant Jaya Mandiri, nomor 081284848901):
-         login /t → Aktifkan notifikasi → izin → subscribe → owner menugaskan
-         → PUSH MUNCUL DI LAYAR + BERBUNYI → klik → buka tugas.
-         **BUKTI SELESAI. Tanpa ini status = prototype, BUKAN production accepted.**
+1. G-A7  Deploy exact-SHA (bash scripts/deploy-vps.sh) → **SELESAI** (live 38772ce;
+         detail bukti di Hasil Deploy G-A7 di bawah).
+       E2E MANUAL di HP Android pemilik (tenant Jaya Mandiri, nomor
+         081284848901) → **MENUNGGU PEMILIK**: perlu login /t lalu tekan
+         "Aktifkan notifikasi" di HP (izin browser + subscribe). Setelah itu
+         admin harus membuat assignment baru utk membuktikan push MUNCUL +
+         bunyi + klik buka tugas. Saat ini `PushSubscription` DB = 0 (belum ada
+         perangkat yang subscribe); layanan kode/live belum bisa diuji E2E.
+       **DEFINISI:** kode sudah production live (deploy PASS); feature end-to-end
+       = BELUM production-accepted sampai bukti push nyata di HP (G-A7 E2E).
 2. G-A8  Dokumen arsitektur web-push di docs/ (permintaan pemilik:
          "setelah selesai dan valid 100% harus ada dokumen arsitektur di repo")
          + update ledger + rencana ini.
@@ -340,10 +361,14 @@ test   : tests/push-notification-service.test.ts 11/11 (+2 utk retry);
 ### Catatan sesi (jangan dihapus — konteks tahan-kompaksi)
 
 ```
-HEAD aircon (ter-push)      : adce53b (G-A5) · tree bersih sebelum dokumen ini
+HEAD aircon (ter-push)      : 38772ce (G-A6 + G-A7 deploy live 13:37 WIB) ·
+                              tree bersih sebelum dokumen ini
 DB live                     : PushSubscription applied; 0 migration pending;
-                              2 fosil lama sudah resolve --applied
-VAPID di .env VPS           : BELUM dibuat (G-A6)
+                              2 fosil lama sudah resolve --applied;
+                              PushSubscription 12 kolom, 0 baris (belum subscribe)
+VAPID                       : SUDAH ada & TERBACA di proses runtime aircon-app
+                              (3 var PUSH_VAPID_; nilai tak pernah tercetak)
+Live                        : aircon-app active, current 38772ce, sw.js HTTP 200
 Gateway live (referensi)    : b4268c4 — G7 inbound listener DIBUANG; status WA
                               utuh; TIDAK disentuh utk fitur push ini
 Pola mock server-only       : 6 suite transitif sudah dimock; suite baru yg impor
