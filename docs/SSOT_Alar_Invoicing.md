@@ -219,7 +219,13 @@ F5 → dokumen; nol kode.
       gatewaySend TIDAK dipanggil (tak ada sesi gateway dibuat utk TRIAL);
       PROFESSIONAL lolos + dipanggil; guard di 2 fungsi; urutan cek dokumen dulu.
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **84 files / 757 tests** · build=0.
-- STATUS: SELESAI (kode) — deploy + verifikasi live menyusul bersama batch fase
+- STATUS: SELESAI — deploy live `eb9bffd` (2026-10-15):
+      scripts/deploy-vps.sh PASS · release aktif eb9bffd · `/` 200 · `/login` 200 ·
+      guard (`waAutomationEligibility` + pesan plan-locked) TERKONFIRMASI di
+      server bundle live · VAPID 3 var utuh.
+      Verifikasi fungsional TRIAL: menunggu uji pemilik pada tenant TRIAL
+      (AC Depok / ADI TEKNIK / Buana / Jassa) — "Kirim via WA" harus menolak
+      dengan pesan paket, TANPA membuat sesi gateway.
 
 ### F2 — Guard role + scope pembayaran (B-2, B-3)
 - [ ] `actionMarkPaid` / `actionUploadPaymentProof` / `actionTechSend*` → `assertRole`
