@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpButton } from "@/components/help/help-button";
 import { getHelpTopic } from "@/lib/help/help-content";
+import { PushPermission } from "./push-permission";
 
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,7 @@ export default async function TechnicianHome() {
           </div>
           <HelpButton topic={getHelpTopic("t-beranda")} />
           <ThemeToggle />
+          <PushPermission />
         </div>
       </header>
       <div className="mx-auto max-w-md space-y-3 p-4">
