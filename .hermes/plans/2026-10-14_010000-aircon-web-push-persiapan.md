@@ -467,6 +467,19 @@ tidak menyesatkan deep-dive berikutnya.
 Test: 82 files / 740 tests · tsc=0 · eslint=0 · build=0.
 ```
 
+### Hasil Deploy G-A8/G-A9c — LIVE `85f7ee0` (2026-10-14 17:10 WIB)
+
+```
+deploy  : scripts/deploy-vps.sh PASS (DEPLOY_EXIT=0)
+current : /opt/aircon-app/releases/85f7ee0…/app · aircon-app active
+HTTPS   : / → 200 · /login → 200 · log error 5 mnt: BERSIH
+label   : 'Atur Jadwal & Tim' ADA di bundle owner-actions;
+          'Tugaskan Tim' sisa 0 (label tombol lama hilang total)
+push    : sw.js renotify 2 · VAPID 3 var tetap aktif
+test    : 82 files / 740 tests · tsc=0 · eslint=0 · build=0
+dokumen : docs/Web_Push_Arsitektur.md (G-A8) ikut ter-deploy via artifact
+```
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```
