@@ -127,15 +127,39 @@ describe("sendPushToUser", () => {
     expect(arg.data.revokedAt).toBeInstanceOf(Date);
   });
 
-  it("gangguan sementara (5xx) → failed, subscription TETAP aktif", async () => {
+  it("gangguan tahan-lama (5xx dua kali) → failed, subscription TETAP aktif", async () => {
     ps.findMany.mockResolvedValueOnce([
       { id: "s1", endpoint: VALID_SUB.endpoint, p256dh: "x".repeat(80), auth: "y".repeat(30) },
     ]);
-    mockWebPush.sendNotification.mockRejectedValueOnce({ statusCode: 503 });
+    mockWebPush.sendNotification.mockRejectedValue({ statusCode: 503 });
     const r = await sendPushToUser({ tenantId: "t", userId: "u", payload: { title: "T", body: "B" } });
     expect(r.failed).toBe(1);
-    // tak ada revoke utk 5xx
+    // 2 percobaan (retry inline 1x), TANPA revoke utk 5xx
+    expect(mockWebPush.sendNotification).toHaveBeenCalledTimes(2);
     expect(ps.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("5xx sesaat lalu sukses (retry inline) → sent=1, TIDAK failed", async () => {
+    ps.findMany.mockResolvedValueOnce([
+      { id: "s1", endpoint: VALID_SUB.endpoint, p256dh: "x".repeat(80), auth: "y".repeat(30) },
+    ]);
+    mockWebPush.sendNotification
+      .mockRejectedValueOnce({ statusCode: 502 })
+      .mockResolvedValueOnce({ statusCode: 201, body: "", headers: {} });
+    const r = await sendPushToUser({ tenantId: "t", userId: "u", payload: { title: "T", body: "B" } });
+    expect(r.sent).toBe(1);
+    expect(r.failed).toBe(0);
+    expect(mockWebPush.sendNotification).toHaveBeenCalledTimes(2);
+    expect(ps.update).toHaveBeenCalledTimes(1); // lastSentAt sekali
+  });
+
+  it("404/410 TIDAK di-retry (endpoint basi — percobaan ulang pasti gagal)", async () => {
+    ps.findMany.mockResolvedValueOnce([
+      { id: "s1", endpoint: VALID_SUB.endpoint, p256dh: "x".repeat(80), auth: "y".repeat(30) },
+    ]);
+    mockWebPush.sendNotification.mockRejectedValueOnce({ statusCode: 410 });
+    await sendPushToUser({ tenantId: "t", userId: "u", payload: { title: "T", body: "B" } });
+    expect(mockWebPush.sendNotification).toHaveBeenCalledTimes(1); // hanya sekali
   });
 
   it("payload body JSON berisi title/body/url", async () => {

@@ -132,7 +132,7 @@ G-A2  kirimPush() wrapper + unit test                (RED→GREEN, mock web-push
 G-A3  subscribe/unsubscribe server action + test     (RED: butuh auth tech-session)
 G-A4  service worker + tombol izin di /t             (RED: nol modul render; test murni)
 G-A5  notifyTechnicians dari 2 titik assignment      (RED: assignJob → push terpanggil)
-G-A6  cron retry + systemd timer                     (ikuti pola reminders)
+G-A6  VAPID di VPS + retry inline 1× (TANPA cron/timer — direvisi, lihat G-A6)
 G-A7  E2E manual di HP Android asli (BUKTI wajib):
        assign → push muncul di layar HP → bunyi → klik → buka tugas
 G-A8  Deploy exact-SHA + verifikasi live + update dokumen
@@ -300,18 +300,39 @@ jalur  : TIDAK membuat jalur assignment baru — hanya menambah pemanggilan pada
          assignJob & createJob yang sudah ada
 ```
 
+### G-A6 — VAPID di VPS + retry inline ← **SELESAI (keputusan desain: TANPA jalur cron)**
+
+```
+VAPID : generate di VPS via crypto Node murni (RFC 8291: pub=87char priv=43char,
+        verifikasi key-pair cocok) → ditulis langsung ke /opt/aircon-app/.env
+        (nilai TIDAK pernah tercetak ke stdout/log/repo); backup .env sebelum
+        tulis; idempoten (tidak di-regenerate bila sudah ada)
+env   : EnvironmentFile=/opt/aircon-app/.env terverifikasi (systemctl cat) →
+        var masuk ke proses saat deploy berikutnya (restart baca .env)
+```
+
+**KOREKSI RENCANA (jalur baru TIDAK diperlukan — sesuai aturan pemilik):**
+Rencana awal G-A6 = cron route `/api/cron/push-retry` + systemd timer + kolom
+`lastFailedAt` + migration kedua. Setelah dievaluasi, kasus yang ditutupnya
+hanya **5xx FCM sesaat** (jarang; 404/410 = endpoint basi, retry pasti gagal).
+Sebagai gantinya: **retry inline 1×** (delay 1 dtk) di `sendPushToUser` —
+jalur YANG SUDAH ADA, nol route/timer/kolom/migration baru.
+
+```
+test   : tests/push-notification-service.test.ts 11/11 (+2 utk retry);
+         RED→GREEN tervalidasi ketat (matikan retry sementara → 2 gagal;
+         pulihkan → 11 lulus)
+```
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```
-1. G-A6  VAPID key di VPS via script (nilai tak pernah tercetak) + cron route
-         /api/cron/push-retry utk sub gagal sementara (pola reminders:
-         CRON_SECRET timing-safe + systemd timer 1x/hari) + test.
-2. G-A7  Deploy exact-SHA (bash scripts/deploy-vps.sh) lalu E2E MANUAL di HP
+1. G-A7  Deploy exact-SHA (bash scripts/deploy-vps.sh) lalu E2E MANUAL di HP
          Android pemilik (tenant Jaya Mandiri, nomor 081284848901):
          login /t → Aktifkan notifikasi → izin → subscribe → owner menugaskan
          → PUSH MUNCUL DI LAYAR + BERBUNYI → klik → buka tugas.
          **BUKTI SELESAI. Tanpa ini status = prototype, BUKAN production accepted.**
-3. G-A8  Dokumen arsitektur web-push di docs/ (permintaan pemilik:
+2. G-A8  Dokumen arsitektur web-push di docs/ (permintaan pemilik:
          "setelah selesai dan valid 100% harus ada dokumen arsitektur di repo")
          + update ledger + rencana ini.
 ```

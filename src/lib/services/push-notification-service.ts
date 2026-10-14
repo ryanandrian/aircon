@@ -151,24 +151,38 @@ export async function sendPushToUser(input: {
     tag: input.payload.tag ?? null,
   });
 
+  const RETRY_DELAY_MS = 1000;
   for (const s of subs) {
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        body,
-        { TTL: 24 * 60 * 60, urgency: "high" }, // tugas lapangan: sampai cepat
-      );
-      await prisma.pushSubscription.update({ where: { id: s.id }, data: { lastSentAt: new Date() } }).catch(() => {});
-      result.sent += 1;
-    } catch (err) {
-      const status = (err as { statusCode?: number }).statusCode;
-      if (status === 404 || status === 410) {
-        // Endpoint mati/basi → revoke (bukan hapus) supaya tidak dikirim lagi.
-        await revokeByEndpoint(s.endpoint);
-        result.revoked += 1;
-      } else {
-        // Gangguan sementara (5xx/network) → biarkan aktif, cron retry menanganinya.
+    let attempts = 0;
+    // Retry inline 1× utk gangguan SESAAT (5xx/network) — cukup menutup kasus
+    // FCM yang berdenyut sesaat TANPA jalur cron/timer/kolom skema baru.
+    // 404/410 TIDAK di-retry (endpoint basi — percobaan ulang pasti gagal).
+    while (true) {
+      attempts += 1;
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          body,
+          { TTL: 24 * 60 * 60, urgency: "high" }, // tugas lapangan: sampai cepat
+        );
+        await prisma.pushSubscription.update({ where: { id: s.id }, data: { lastSentAt: new Date() } }).catch(() => {});
+        result.sent += 1;
+        break;
+      } catch (err) {
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) {
+          // Endpoint mati/basi → revoke (bukan hapus) supaya tidak dikirim lagi.
+          await revokeByEndpoint(s.endpoint);
+          result.revoked += 1;
+          break;
+        }
+        if (attempts < 2) {
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          continue;
+        }
+        // Gangguan tahan-lama → biarkan aktif; teknisi TETAP bisa buka /t (pull).
         result.failed += 1;
+        break;
       }
     }
   }
