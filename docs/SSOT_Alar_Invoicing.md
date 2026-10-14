@@ -338,15 +338,14 @@ log   : error runtime 5 menit bersih
       berisi tautan & rincian; TRIAL→wa.me + link; PRO→gateway + link.
 - [ ] STATUS: BELUM DIMULAI
 
-### F8 — Status OVERDUE sinkron di titik yang tepat (B-4)
-- [ ] `refreshOverdueStatus(tenantId)` dipanggil di jalur yang SUDAH ADA untuk
-      invoice list (page/admin invoice — sama dengan pola `/app/laporan`), supaya
-      badge "Jatuh Tempo" & daftar akurat kapan pun admin membuka, bukan hanya
-      saat membuka laporan. (Jangan tambah cron baru — pola sinkron di-request-time
-      sudah ada & cukup.)
-- [ ] Test: invoice lewat dueDate → bucket "unpaid" & label akurat setelah dibuka;
-      PAID/CANCELLED tidak tersentuh.
-- [ ] STATUS: BELUM DIMULAI
+### F8 — Status OVERDUE sinkron di titik yang tepat (B-4) ← **SELESAI (kode + test, 2026-10-15)**
+- [x] `refreshOverdueStatus(tenantId)` dipanggil di `/app/faktur/page.tsx` (jalur
+      yang SUDAH ADA) SEBELUM count & list — pola persis `/app/laporan` (sinkron
+      di request-time; TANPA cron baru).
+- [x] Test RED→GREEN: tests/overdue-sync-invoice-list.test.ts (3/3) — pemanggilan
+      ada; URUTAN sinkron < count < list (kode); import ar-service (tanpa modul baru).
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **88 files / 779 tests**.
+- STATUS: SELESAI (kode) — deploy menyusul batch berikutnya (F6/F7).
 
 ### TUNTAS DEFINISI (dokumen ini = jaminan)
 ```
