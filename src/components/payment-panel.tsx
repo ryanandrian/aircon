@@ -74,7 +74,7 @@ export function PaymentPanel({ invoiceId, tenantHasQris }: { invoiceId: string; 
           className="w-full min-h-[44px] bg-emerald-600 text-white hover:bg-emerald-700">
           <Icon.Success className="h-4 w-4" aria-hidden /> Tandai LUNAS
         </Button>
-        <p className="text-xs text-muted-foreground">Kwitansi WA ke pelanggan akan dikirim (fitur WA sedang tahap uji).</p>
+        <p className="text-xs text-muted-foreground">Setelah lunas, tombol kirim kwitansi WhatsApp muncul di halaman ini.</p>
       </CardContent>
     </Card>
   );

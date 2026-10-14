@@ -272,14 +272,20 @@ log   : error runtime 5 menit bersih
       BELUM dikerjakan di fase ini (butuh polling relai; dicatat jujur — bukan bagian
       "fallback", jadi tidak diklaim selesai di sini).
 
-### F4 — Chrome cetak bersih (G-1, G-4)
-- [ ] `app/app/layout.tsx` & `app/t/layout.tsx`: sidebar + FAB `print:hidden`
-      (elemen chrome, bukan dokumen). Verifikasi `app/page.tsx` (landing punya FAB
-      sama) tidak terdampak.
-- [ ] Uji print dari halaman faktur admin & teknisi + kwitansi: output = dokumen
-      bersih (logo tenant, tanpa tombol/sidebar/FAB).
-- [ ] Perbarui teks kaki payment-panel (G-4).
-- [ ] STATUS: BELUM DIMULAI
+### F4 — Chrome cetak bersih (G-1, G-4) ← **SELESAI (kode + test, 2026-10-15)**
+- [x] `app/app/layout.tsx` aside (sidebar) → `print:hidden` — FAB
+      `CustomerServiceFab` → `print:hidden` di COMPONENT (satu tempat, terpakai
+      layout app & landing — tanpa duplikasi). Verifikasi: `/t/layout.tsx` TIDAK
+      merender sidebar/FAB (sudah bersih, jangan ditambah apa pun).
+- [x] Perbarui teks kaki payment-panel (G-4): basi "fitur WA tahap uji" →
+      "Setelah lunas, tombol kirim kwitansi WhatsApp muncul di halaman ini."
+      (JUJUR — sesuai perilaku nyata setelah F1/F3).
+- [x] Test RED→GREEN: tests/print-clean-chrome.test.ts (3/3) — sidebar print:hidden;
+      FAB print:hidden; /t tanpa sidebar/FAB. (Pola source-level repo — tanpa RTL,
+      + gate tsc/lint/build; sama seperti job-cancel-placement.)
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **87 files / 776 tests** · build=0.
+- STATUS: SELESAI (kode) — uji print visual manual di browser (preview → PDF)
+      tetap perlu dilakukan pemilik setelah deploy (bukti layar, bukan klaim kode).
 
 ### F5 — Dokumen (G-5) ← **SELESAI (2026-10-14, tanpa kode)**
 - [x] Tandai jelas di `Dokumen_Keuangan_Faktur_Kwitansi.md` bahwa dokumen itu = billing

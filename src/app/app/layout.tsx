@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="flex">
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card p-5 md:flex">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r bg-card p-5 md:flex print:hidden">
           <div className="mb-6 flex shrink-0 items-center gap-2.5">
             <TenantLogo name={name} logoUrl={tenant?.logoUrl} size={36} />
             <div className="min-w-0">
