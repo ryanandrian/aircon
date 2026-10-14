@@ -380,9 +380,17 @@ export function buildInvoiceMessage(args: {
  * KIRIM dokumen via WA gateway (teks) ke kontak penagihan (PIC keuangan → utama).
  * Tenant-scoped, patuh guard anti-spam gateway. Dipakai admin & teknisi.
  */
+/** Hasil kirim WA dokumen: gateway sukses (ok) ATAU fallback wa.me (waMe). */
+export type SendWaDocResult = { ok: boolean; error?: string; to?: string; waMe?: { url: string; message: string } };
+
+/** F3: tautan wa.me dgn pesan terisi (pola menu Pengingat — aplikasi pengirim milik user). */
+function waMeLink(toPhone: string, message: string): string {
+  return `https://wa.me/${toPhone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`;
+}
+
 export async function sendInvoiceViaWa(
   tenantId: string, invoiceId: string,
-): Promise<{ ok: boolean; error?: string; to?: string }> {
+): Promise<SendWaDocResult> {
   const { resolveBillingContact } = await import("@/lib/services/customer-service");
   const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
   const { waAutomationEligibility } = await import("@/lib/services/wa-identity-service");
@@ -393,15 +401,6 @@ export async function sendInvoiceViaWa(
   });
   if (!inv) return { ok: false, error: "Dokumen tidak ditemukan" };
   if (inv.status === "CANCELLED") return { ok: false, error: "Dokumen sudah dibatalkan" };
-  // F1 guard (B-1, KRITIS): tenant TRIAL/BASIC tidak boleh lewat WA-GATEWAY
-  // (keputusan pemilik: tak punya fasilitas menautkan nomor). Ditempatkan di
-  // SERVICE (titik terendah) — tertutup semua rute & 4 aksi (admin + teknisi).
-  // Jalur pengganti (tautan dokumen via wa.me) disiapkan di F7.
-  const gate = await waAutomationEligibility(tenantId);
-  if (!gate.ok) {
-    return { ok: false, error: "Paket Anda belum memiliki WhatsApp otomatis. Bagikan dokumen melalui aplikasi WhatsApp Anda." };
-  }
-  if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
   const contact = await resolveBillingContact(tenantId, inv.customer.id);
   if (!contact.waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
@@ -412,7 +411,7 @@ export async function sendInvoiceViaWa(
   });
   // Lokasi servis hanya relevan bila tagihan ke kantor pusat (bill-to ≠ outlet).
   const serviceLocation = inv.billingCustomerId ? inv.customer.name : null;
-
+  // Payload dipakai BERSAMA oleh jalur gateway & fallback wa.me (tanpa duplikasi).
   const message = buildInvoiceMessage({
     tenantName: tenant?.name ?? "Aircon",
     docType: inv.docType, number: inv.number,
@@ -420,6 +419,21 @@ export async function sendInvoiceViaWa(
     customerName: contact.name, serviceLocation,
     bank: { name: tenant?.bankName ?? null, no: tenant?.bankAccountNo ?? null, holder: tenant?.bankAccountName ?? null },
   });
+
+  // F1 guard (B-1, KRITIS): tenant TRIAL/BASIC TIDAK boleh lewat WA-GATEWAY
+  // (keputusan pemilik: tak punya fasilitas menautkan nomor). Titik terendah —
+  // menutup semua rute & 4 aksi (admin + teknisi).
+  // F3 (jalur yang sama): plan-locked → FALLBACK wa.me (aplikasi WhatsApp milik
+  // pengirim sendiri — pola menu Pengingat); gatewaySend TIDAK dipanggil.
+  const gate = await waAutomationEligibility(tenantId);
+  if (!gate.ok) {
+    return {
+      ok: false,
+      error: "Paket Anda belum memiliki WhatsApp otomatis. Buka WhatsApp Anda untuk mengirim dokumen ini.",
+      waMe: { url: waMeLink(contact.waPhone, message), message },
+    };
+  }
+  if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
   const res = await gatewaySend(tenantId, contact.waPhone, message);
   if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
@@ -452,7 +466,7 @@ export function buildReceiptMessage(args: {
  */
 export async function sendReceiptViaWa(
   tenantId: string, invoiceId: string,
-): Promise<{ ok: boolean; error?: string; to?: string }> {
+): Promise<SendWaDocResult> {
   const { resolveBillingContact } = await import("@/lib/services/customer-service");
   const { gatewaySend, isGatewayConfigured } = await import("@/lib/wa/gateway-relay");
   const { waAutomationEligibility } = await import("@/lib/services/wa-identity-service");
@@ -463,22 +477,29 @@ export async function sendReceiptViaWa(
   });
   if (!inv) return { ok: false, error: "Dokumen tidak ditemukan" };
   if (inv.status !== "PAID") return { ok: false, error: "Kwitansi hanya untuk invoice yang sudah LUNAS" };
-  // F1 guard (B-1): sama dengan sendInvoiceViaWa — titik terendah, semua rute.
-  const gateRcpt = await waAutomationEligibility(tenantId);
-  if (!gateRcpt.ok) {
-    return { ok: false, error: "Paket Anda belum memiliki WhatsApp otomatis. Bagikan kwitansi melalui aplikasi WhatsApp Anda." };
-  }
-  if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
   const contact = await resolveBillingContact(tenantId, inv.customer.id);
   if (!contact.waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
+  // Payload dipakai BERSAMA (gateway & fallback) — tanpa duplikasi.
   const message = buildReceiptMessage({
     tenantName: tenant?.name ?? "Aircon",
     receiptNo: receiptNumber(inv.number), invoiceNo: inv.number,
     total: inv.total, paidAt: inv.paidAt, payMethod: inv.payMethod, customerName: contact.name,
   });
+
+  // F1 guard (B-1) + F3 fallback — sama dengan sendInvoiceViaWa (titik terendah).
+  const gateRcpt = await waAutomationEligibility(tenantId);
+  if (!gateRcpt.ok) {
+    return {
+      ok: false,
+      error: "Paket Anda belum memiliki WhatsApp otomatis. Buka WhatsApp Anda untuk mengirim kwitansi ini.",
+      waMe: { url: waMeLink(contact.waPhone, message), message },
+    };
+  }
+  if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
+
   const res = await gatewaySend(tenantId, contact.waPhone, message);
   if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
   return { ok: true, to: contact.waPhone };

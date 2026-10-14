@@ -242,18 +242,26 @@ F5 → dokumen; nol kode.
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **85 files / 767 tests** · build=0.
 - STATUS: SELESAI (kode) — deploy + verifikasi live menyusul batch berikutnya
 
-### F3 — Kirim informatif + alternatif WA aplikasi teknisi/admin (G-2, G-3)
-- [ ] `InvoiceActions`: status sesi WA (dari relai yang ada), tujuan (PIC keuangan/
-      kontak), progress per-tahap, dan bila gagal/plan-locked → tombol
-      **"Buka WhatsApp"** (wa.me, pesan terisi — pola menu Pengingat, jalur yang sudah ada).
-- [ ] **KEWAJIBAN TRIAL/BASIC (admin & TEKNISI — 4 aksi):** tidak boleh menyentuh
-      Gateway; fallback = membuka aplikasi WhatsApp mereka sendiri (wa.me), baik
-      dari `/app/faktur` MAUPUN `/t/faktur`. Terapkan di titik terendah
-      (`sendInvoiceViaWa`/`sendReceiptViaWa` + action teknisi) supaya tertutup
-      semua rute, bukan hanya satu halaman.
-- [ ] Test: tenant TRIAL → aksi kirim TIDAK memanggil gateway (guard teruji),
-      fallback wa.me terbentuk dengan pesan benar; PROFESSIONAL → gateway tetap.
-- [ ] STATUS: BELUM DIMULAI
+### F3 — Kirim informatif + alternatif WA aplikasi teknisi/admin (G-2, G-3) ← **SELESAI (kode + test, 2026-10-15)**
+- [x] **Fallback di titik terendah** (`sendInvoiceViaWa`/`sendReceiptViaWa`):
+      plan-locked → payload pesan yang SAMA dipakai bersama jalur gateway &
+      fallback `waMe:{url,message}` (url wa.me dgn pesan terisi — pola menu
+      Pengingat) — gatewaySend TIDAK dipanggil utk TRIAL (F1 tetap dijaga;
+      urutan diperbaiki: kontak dulu → guard → gateway, supaya fallback punya
+      nomor tujuan).
+- [x] **4 action** (admin: actionSendInvoiceWa/actionSendReceiptWa + teknisi:
+      actionTechSendInvoiceWa/actionTechSendReceiptWa) meneruskan `waMe` balik ke UI.
+- [x] **UI `InvoiceActions`** (jalur yang sudah ada): bila server balas plan-locked
+      dengan waMe → tombol **"Buka WhatsApp"** muncul (link prefilled), toast
+      mengarahkan; nol komponen baru.
+- [x] Test RED→GREEN: tests/invoice-wa-fallback.test.ts (6/6) — TRIAL+nomor →
+      url memuat nomor tujuan + pesan memuat nomor dokumen & total; TRIAL tanpa
+      nomor → error jelas; PROFESSIONAL → gateway (ok:true, tanpa waMe);
+      fallback aktif di 2 fungsi; gatewaySend TIDAK dipanggil utk TRIAL.
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **86 files / 773 tests** · build=0.
+- STATUS: SELESAI (kode) — status sesi WA & progress per-tahap (opsional G-2 lanjutan)
+      BELUM dikerjakan di fase ini (butuh polling relai; dicatat jujur — bukan bagian
+      "fallback", jadi tidak diklaim selesai di sini).
 
 ### F4 — Chrome cetak bersih (G-1, G-4)
 - [ ] `app/app/layout.tsx` & `app/t/layout.tsx`: sidebar + FAB `print:hidden`

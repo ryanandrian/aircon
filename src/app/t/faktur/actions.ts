@@ -6,7 +6,7 @@ import { assertRole, AuthError } from "@/lib/auth/guard";
 import { markInvoicePaid, createInvoiceFromProforma, cancelInvoice, sendInvoiceViaWa, sendReceiptViaWa } from "@/lib/services/invoice-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 
-type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
+type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string; waMe?: { url: string; message: string } };
 const msg = (e: unknown, fb: string) => (e instanceof Error ? e.message : fb);
 
 /**
@@ -68,25 +68,27 @@ export async function actionInvoiceFromProforma(
   }
 }
 
-/** Kirim dokumen via WA gateway (teknisi — untuk invoice tunai lapangan). */
+/** Kirim dokumen via WA gateway (teknisi — untuk invoice tunai lapangan).
+ *  F3: plan-locked (TRIAL/BASIC) → waMe fallback dikirim balik (tombol "Buka
+ *  WhatsApp"); gateway TIDAK dipanggil utk TRIAL. */
 export async function actionTechSendInvoiceWa(
   invoiceId: string,
 ): Promise<Result<{ to?: string }>> {
   try {
     const ctx = await getServerContext();
     const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
     return { ok: true, data: { to: res.to } };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal mengirim WA") };
   }
 }
-/** Kirim KWITANSI (invoice LUNAS) via WA gateway (teknisi). */
+/** Kirim KWITANSI (invoice LUNAS) via WA gateway (teknisi). Fallback wa.me utk TRIAL. */
 export async function actionTechSendReceiptWa(invoiceId: string): Promise<Result<{ to?: string }>> {
   try {
     const ctx = await getServerContext();
     const res = await sendReceiptViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
     return { ok: true, data: { to: res.to } };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal mengirim WA") };

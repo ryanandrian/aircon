@@ -50,30 +50,32 @@ export async function actionCountInvoices(
   }
 }
 
-/** Kirim dokumen (proforma/invoice) via WA gateway ke kontak penagihan (admin). */
+/** Kirim dokumen (proforma/invoice) via WA gateway ke kontak penagihan (admin).
+ *  F3: bila plan-locked (TRIAL/BASIC) → waMe fallback (aplikasi WA milik pengirim)
+ *  dikirim balik ke UI utk tombol "Buka WhatsApp" — gateway TIDAK dipanggil. */
 export async function actionSendInvoiceWa(
   invoiceId: string,
-): Promise<{ ok: true; to?: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; to?: string } | { ok: false; error: string; waMe?: { url: string; message: string } }> {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
     const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
     return { ok: true, to: res.to };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };
   }
 }
 
-/** Kirim KWITANSI (invoice LUNAS) via WA gateway (admin). */
+/** Kirim KWITANSI (invoice LUNAS) via WA gateway (admin). Fallback wa.me utk TRIAL. */
 export async function actionSendReceiptWa(
   invoiceId: string,
-): Promise<{ ok: true; to?: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; to?: string } | { ok: false; error: string; waMe?: { url: string; message: string } }> {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
     const res = await sendReceiptViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
     return { ok: true, to: res.to };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };

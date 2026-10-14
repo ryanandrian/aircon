@@ -23,13 +23,22 @@ export function InvoiceActions({
 }) {
   const [pending, start] = useTransition();
   const [sent, setSent] = useState(false);
+  // F3: fallback utk tenant TRIAL/BASIC (plan-locked) — server mengirim balik
+  // tautan wa.me (aplikasi WA milik pengirim) → tombol "Buka WhatsApp" muncul.
+  const [waMe, setWaMe] = useState<{ url: string; message: string } | null>(null);
 
   function sendWa() {
     start(async () => {
       const res = variant === "admin"
         ? await actionSendInvoiceWa(invoiceId)
         : await actionTechSendInvoiceWa(invoiceId);
-      if (!res.ok) { toast.error(res.error); return; }
+      if (!res.ok) {
+        const fallback = (res as { waMe?: { url: string; message: string } }).waMe;
+        setWaMe(fallback ?? null);
+        toast.error(fallback ? `${res.error} (lihat tombol "Buka WhatsApp")` : res.error);
+        return;
+      }
+      setWaMe(null);
       const to = variant === "admin" ? (res as { to?: string }).to : (res as { data?: { to?: string } }).data?.to;
       toast.success(to ? `${docLabel} dikirim via WA ke ${to}` : `${docLabel} dikirim via WA`);
       setSent(true);
@@ -45,6 +54,13 @@ export function InvoiceActions({
         <Icon.Send className="h-4 w-4" aria-hidden />
         {pending ? "Mengirim…" : sent ? "Kirim WA lagi" : "Kirim via WA"}
       </Button>
+      {waMe && (
+        <a href={waMe.url} target="_blank" rel="noopener noreferrer">
+          <Button type="button" variant="outline" className="gap-2">
+            <Icon.Message className="h-4 w-4" aria-hidden /> Buka WhatsApp
+          </Button>
+        </a>
+      )}
     </div>
   );
 }
