@@ -116,12 +116,32 @@ Sebab: keputusan DITUNDA tercatat (RENCANA_INVOICING_KIRIM_DAN_BILLTO):
   "lampiran PDF via WA butuh endpoint media di gateway VPS (repo lumite-gateway)"
 Dokumen utuh (dengan rincian item/QRIS) baru terkirim bila admin MENGGUNAKAN
   "Cetak / Simpan PDF" lalu mengirim manual dari WhatsApp.
-OPSI (BUTUH KEPUTUSAN PEMILIK — belum dikerjakan):
-  A. Teks saja (kondisi sekarang) + tambah rincian singkat item di pesan.
-  B. Tambah endpoint media di lumite-gateway (F6 terpisah, sentuh 2 repo)
-     → kirim PDF otomatis. Risiko: ukuran PDF, media WA, biaya gateway.
-  C. Kirim LINK dokumen publik read-only (token acak) — perlu halaman baru +
-     keputusan privasi (harga invoice terbuka via link).
+```
+
+### KEPUTUSAN PEMILIK (2026-10-14): **A + C** — WAJIB DITINDAKLANJUTI
+```
+DIPUTUSKAN: A (pesan WA berisi rincian ringkas + tautan dokumen)
+          + C (halaman dokumen publik bertoken — pelanggan bisa print sendiri
+              dari link; admin tetap bisa Cetak/PDF lalu kirim manual via
+              WhatsApp Apps/Web miliknya bila perlu)
+DITOLAK  : B (attachment PDF via gateway) — membebani wa-gateway; di luar syarat.
+
+ATURAN UI/UX (perintah pemilik): tombol/UX WAJIB user-friendly.
+  - Pesan WA + tautan = 1 langkah bagi pelanggan (klik link → dokumen → print).
+  - Admin: tetap ada "Cetak / Simpan PDF" yang sudah ada + opsi kirim manual
+    yang memudahkan (salin link / buka WhatsApp web) — tanpa menghilangkan
+    yang lama.
+  - TRIAL/BASIC: tautan disertakan lewat wa.me (tetap tanpa gateway).
+
+IMPLIKASI TEKNIS (field additive, jalur yang sudah ada):
+  - kolom baru Invoice.docToken (String? @unique, nullable) — token acak tinggi
+    entropi (pola UnitCode yang sudah ada), dibuat saat dokumen terbit.
+  - halaman publik /d/{token} — REUSE pola /riwayat/{token} yang sudah teruji
+    (kolektor: InvoiceView tanpa chrome + print:true + identitas tenant);
+    token acak → anti-enumeration; invoice CANCELLED → tampil jujur "Dibatalkan".
+  - buildInvoiceMessage/buildReceiptMessage: tambah baris tautan dokumen +
+    rincian ringkas (item teratas/total).
+  - Konsisten utk 3 dokumen: INVOICE, PROFORMA, KWITANSI.
 ```
 
 ### Yang TIDAK ditemukan masalah (verifikasi, jangan diulang audit):
@@ -252,12 +272,28 @@ F5 → dokumen; nol kode.
       jangan disamakan).
 - [ ] STATUS: BELUM DIMULAI
 
-### F7 — Format pesan WA non-attachment profesional (G-7)
-- [ ] `buildInvoiceMessage`/`buildReceiptMessage`: rapikan struktur (kop usaha,
-      identitas dokumen, ringkasan item pilihan, total, info bayar, penutup +
-      kontak pengirim) tanpa mengubah kontrak teks-only.
-- [ ] Catatan: JANGAN menambahkan lampiran di fase ini — lihat bagian STATUS
-      ATTACHMENT (butuh keputusan pemilik: opsi A/B/C).
+### F7 — Pesan WA profesional + tautan dokumen publik (A+C) (G-7, keputusan pemilik)
+**Konsesi penting:** keputusan pemilik menggabungkan pesan (A) + tautan dokumen (C).
+- [ ] **7a. Field token** — `Invoice.docToken String? @unique` (nullable, additive;
+      migration manual + `prisma generate` — pola migrasi yang sudah mapan).
+      Token dibuat saat dokumen terbit (closeWorkSession & createInvoiceFromProforma);
+      acak tinggi entropi (pola UnitCode). Kwitansi memakai token invoice yang sama
+      (satu-satu anchor, tanpa token duplikat — anti-redundan).
+- [ ] **7b. Halaman publik `/d/{token}`** — REUSE pola `/riwayat/{token}` yang sudah
+      teruji: server resolve token → InvoiceView (kolektor, tanpa chrome) + print:
+      rapi; tenant scoping via token (bukan id); token acak = anti-enumeration;
+      invoice CANCELLED → tampil jujur "Dibatalkan"; header/branding tenant.
+- [ ] **7c. Pesan WA** — `buildInvoiceMessage`/`buildReceiptMessage`: rapikan
+      struktur (kop usaha, identitas dokumen, ringkasan item ringkas, total,
+      info bayar) + TAMBAH baris tautan dokumen (`{APP_URL}/d/{token}`).
+      Kontrak teks-only TIDAK berubah — gateway TIDAK tersentuh.
+- [ ] **7d. UI/UX (user-friendly — perintah pemilik)**: di `InvoiceActions`
+      (jalur yang sudah ada) tambah aksi **"Salin link dokumen"** (untuk admin
+      kirim manual via WhatsApp Apps/Web miliknya) + tetap pertahankan
+      "Cetak / Simpan PDF". Untuk TRIAL/BASIC: tautan ikut wa.me.
+- [ ] **7e. Uji** — 3 dokumen (INVOICE/PROFORMA/KWITANSI) konsisten; token
+      unik & anti-duplikat; token salah/tak dikenal → 404 aman; pesan WA
+      berisi tautan & rincian; TRIAL→wa.me + link; PRO→gateway + link.
 - [ ] STATUS: BELUM DIMULAI
 
 ### F8 — Status OVERDUE sinkron di titik yang tepat (B-4)
