@@ -411,6 +411,25 @@ test   : 80 files / 729 tests · tsc=0 · eslint=0 · build=0
    renotify + postMessage router.refresh) — menunggu uji ulang pemilik.
 ```
 
+### Hasil Deploy G-A9 — LIVE `3192a1a` (2026-10-14 16:36 WIB)
+
+```
+deploy : scripts/deploy-vps.sh PASS (DEPLOY_EXIT=0; jalur tunggal AGENTS.md)
+current: /opt/aircon-app/releases/3192a1a5…/app · aircon-app active
+HTTPS  : / → 200 · /login → 200
+penanda: actionResendAssignPush ADA · "Kirim Ulang" ADA di bundle owner-actions
+         · ACCEPTED ada di server bundle · sw.js renotify 2 · VAPID 3 var aktif
+log    : 16:36:53 "Failed with result exit-code" = proses lama saat restart
+         (momen switch — verifier PASS + 2 endpoint 200 menandakan boot sehat);
+         16:37:10 "Server Reference ID…" = tab browser PEMILIK yang masih
+         memegang build lama saat deploy (pola Next.js; bukan crash produksi)
+```
+
+**Catatan pola yang terulang (pemilik perlu tahu):** setiap deploy mengubah ID
+server action → tab lama yang belum di-refresh akan menolak aksi (tombol
+senyap). Mitigasi sementara: refresh sekali setelah deploy. (Deteksi tab basi
++ pesan jujur ke pengguna = kandidat perbaikan lanjutan, butuh arahan.)
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```
