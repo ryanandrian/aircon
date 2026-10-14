@@ -8,6 +8,7 @@
  * Uang = rupiah bulat (Decimal 12,2 di DB); pembulatan eksplisit Math.round.
  */
 import { Prisma } from "@prisma/client";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/customer-service";
 import { terbilangRupiah } from "../domain/terbilang";
@@ -101,7 +102,16 @@ export function computeInvoiceTotals(params: {
 }
 
 /**
- * Nomor dokumen berikutnya, transaksional anti-duplikat.
+ /**
+  * F7a (keputusan pemilik A+C): token dokumen utk tautan publik /d/{token}.
+  * Pola SAMA dengan technician-service: crypto.randomBytes(24).toString("base64url")
+  * → 32 karakter, entropi tinggi (anti-enumeration). 100x generate = 100 unik.
+  */
+ export function generateInvoiceDocToken(): string {
+   return crypto.randomBytes(24).toString("base64url");
+ }
+
+ /** Nomor dokumen berikutnya, transaksional anti-duplikat.
  * Format: {PREFIX}/{YYYY}/{urut-4-digit} — PREFIX = INV (invoice) / PRO (proforma).
  * Retry pada tabrakan unique [tenantId, number].
  */
@@ -313,6 +323,8 @@ export async function createInvoiceFromProforma(
     const inv = await tx.invoice.create({
       data: {
         tenantId, docType: "INVOICE", number, customerId: pro.customerId,
+        // F7a: token dokumen utk tautan publik (keputusan A+C pemilik).
+        docToken: generateInvoiceDocToken(),
         billingCustomerId: pro.billingCustomerId, workSessionId: pro.workSessionId, jobId: pro.jobId,
         status: "ISSUED", issueDate, dueDate: pro.dueDate,
         subtotal: new Prisma.Decimal(totals.subtotal),

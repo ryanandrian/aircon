@@ -1651,6 +1651,12 @@ model Invoice {
   paymentProofUrl   String?
   paidAt            DateTime?
   cashRemitStatus   CashRemitStatus?
+  // F7a (keputusan pemilik A+C): token dokumen utk tautan publik /d/{token}.
+  // Acak tinggi entropi (pola technician-service: randomBytes 24 → base64url);
+  // nullable + unique → dokumen LAMA (tanpa token) tetap aman (tidak merusak),
+  // anti-enumeration; dibuat saat dokumen terbit (closeWorkSession &
+  // createInvoiceFromProforma). Kwitansi memakai token invoice yang sama.
+  docToken          String?          @unique
   createdById       String
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt

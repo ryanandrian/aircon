@@ -19,6 +19,9 @@ vi.mock("@/lib/services/service-catalog-service", () => ({
   resolvePrice: vi.fn(async () => 75000),
 }));
 vi.mock("@/lib/services/invoice-service", () => ({
+  // F7a: helper token dokumen — test ini tidak mengujinya; disediakan agar
+  // closeWorkSession (yang memanggilnya) tetap jalan di mock.
+  generateInvoiceDocToken: () => "TESTTOKEN0123456789012345678901",
   computeInvoiceTotals: ({ items, tenantIsPkp, taxPercent }: any) => {
     const subtotal = items.reduce((s: number, i: any) => s + Math.round(i.qty * i.unitPrice), 0);
     const ppnPercent = tenantIsPkp ? (taxPercent ?? 0) : 0;

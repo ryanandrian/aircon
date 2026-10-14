@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { ServiceError, resolveBillingCustomer } from "@/lib/services/customer-service";
 import { resolvePrice } from "@/lib/services/service-catalog-service";
 import {
-  computeInvoiceTotals, computeDueDate, nextInvoiceNumber,
+  computeInvoiceTotals, computeDueDate, nextInvoiceNumber, generateInvoiceDocToken,
   type InvoiceLineInput, type TopType,
 } from "@/lib/services/invoice-service";
 import { collectChecklistGaps, type ChecklistItemDef } from "@/lib/domain/checklist-validation";
@@ -308,6 +308,8 @@ export async function closeWorkSession(
     const inv = await tx.invoice.create({
       data: {
         tenantId, docType, number, customerId: ws.customer.id,
+        // F7a: token dokumen utk tautan publik (keputusan A+C pemilik).
+        docToken: generateInvoiceDocToken(),
         billingCustomerId: isCentralBilling ? billTo.id : null,
         workSessionId: ws.id, jobId: ws.jobId ?? null,
         status: "ISSUED", issueDate, dueDate,
