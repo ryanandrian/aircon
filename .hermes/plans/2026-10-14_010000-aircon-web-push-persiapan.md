@@ -519,6 +519,18 @@ ringkasan: rows.length → totalCount (kontrak baru)
 tanpa duplikat, totalCount akurat, filter kelompok multi-status, + 3 regresi
 aturan lama (includeClosed, leadTime jatuh tempo, urutan baku).
 
+### Hasil Deploy G-A10 — LIVE `87d4422` (2026-10-14 19:40 WIB)
+
+```
+deploy : scripts/deploy-vps.sh PASS (DEPLOY_EXIT=0)
+current: /opt/aircon-app/releases/87d4422…/app · aircon-app active
+HTTPS : / → 200 · /login → 200 · /app + /app/pengingat → 307 login normal
+bundle: actionLoadReminderInbox ADA · totalCount ADA · sentinel load-more ADA
+push  : sw.js renotify=2 · VAPID 3 var aktif (tidak tersentuh)
+log   : error runtime 5 menit bersih
+test  : 83 files / 751 tests · tsc=0 · eslint=0 · build=0
+```
+
 ### TINDAK LANJUT SESI BERIKUTNYA (urutan, jangan diubah)
 
 ```
