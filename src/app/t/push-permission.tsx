@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { BellRing, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +38,23 @@ const LABEL: Record<PushStatusLabel, string> = {
 export function PushPermission() {
   const [status, setStatus] = useState<PushStatusLabel>("checking");
   const [busy, setBusy] = useState(false);
+  const router = useRouter();
+
+  // Klik notifikasi dari tab lain/SW: fokus + MUAT ULANG data halaman ini —
+  // teknisi tak boleh refresh manual (world-class: state selalu segar
+  // saat dibuka dari notificationclick; sw.js mengirim {aircon:open-url}).
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const d = event.data as { type?: string; url?: string } | null;
+      if (d?.type === "aircon:open-url" && typeof d.url === "string") {
+        router.push(d.url);
+        // refresh: tarik data terbaru (job list) tanpa reload penuh.
+        router.refresh();
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
+  }, [router]);
 
   // Pola TenantNotificationBell (sudah lulus eslint): isi effect dipanggil via
   // void load() (fungsi async lokal), bukan useCallback eksternal.
@@ -115,10 +133,18 @@ export function PushPermission() {
   if (status === "checking") return null;
 
   if (status === "active") {
+    // World-class: setelah aktif TIDAK ada tindakan tersisa di header →
+    // cukup indikator ringkas (icon saja), teks panjang hanya muncul bila
+    // BUTUH TINDAKAN (belum aktif) — header tak lagi penuh sesak.
     return (
-      <p className="flex items-center gap-2 text-xs text-emerald-600">
-        <BellRing className="h-3.5 w-3.5" aria-hidden /> {LABEL.active}
-      </p>
+      <span
+        className="flex items-center text-emerald-600"
+        role="status"
+        aria-label={LABEL.active}
+        title={LABEL.active}
+      >
+        <BellRing className="h-5 w-5" aria-hidden />
+      </span>
     );
   }
 

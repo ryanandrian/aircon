@@ -29,6 +29,11 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title, {
       body,
       tag,
+      // Android: bunyi hanya bila notifikasi BARU; renotify memaksa bunyi
+      // meski tag sama (assignment berikutnya utk tag yang sama).
+      renotify: true,
+      // Tampil menonjol sampai disentuh (tugas lapangan tak boleh terlewat).
+      requireInteraction: true,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
       data: { url },
@@ -41,10 +46,17 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      // Buka tab yang SUDAH membuka aplikasi (bukan duplikat).
+      // Tab app sudah terbuka → FOKUS + MINTA RELOAD DATA (jangan tampilkan
+      // state basi; teknisi tak boleh refresh manual). Client listener
+      // (push-notification-relay) menerima pesan ini lalu router.push + refresh.
       for (const c of list) {
-        if ("focus" in c) return c.focus();
+        if ("focus" in c) {
+          void c.focus();
+          c.postMessage({ type: "aircon:open-url", url });
+          return;
+        }
       }
+      // Belum ada tab → buka baru langsung ke URL tugas.
       return self.clients.openWindow(url);
     }),
   );
