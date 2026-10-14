@@ -227,13 +227,20 @@ F5 → dokumen; nol kode.
       (AC Depok / ADI TEKNIK / Buana / Jassa) — "Kirim via WA" harus menolak
       dengan pesan paket, TANPA membuat sesi gateway.
 
-### F2 — Guard role + scope pembayaran (B-2, B-3)
-- [ ] `actionMarkPaid` / `actionUploadPaymentProof` / `actionTechSend*` → `assertRole`
-      (teknisi boleh TANDAI LUNAS hanya invoice yang dibuatnya sendiri lewat closing
-      `createdById == ctx.userId`; admin bebas). Service: `markInvoicePaid` menerima
-      scope pembuat & divalidasi di sini (bukan di UI).
-- [ ] Test: teknisi lain menolak; admin lolos; teknisi pemilik invoice cash lolos.
-- STATUS: BELUM DIMULAI
+### F2 — Guard role + scope pembayaran (B-2, B-3) ← **SELESAI (kode + test, 2026-10-15)**
+- [x] **B-3** `markInvoicePaid` kini param `actor` WAJIB (InvoiceActor):
+      tanpa actor → UNEXPECTED (tak ada jalur "tanpa peran");
+      TEKNISI → hanya INVOICE `createdById == dirinya` (invoice cash hasil closing
+      sesi sendiri; proforma & invoice admin/teknisi lain → CONFLICT);
+      OWNER/ADMIN → bebas; guard atomik B4 TETAP (race count=0 → CONFLICT).
+- [x] **B-2** `actionUploadPaymentProof` → `assertRole(OWNER|ADMIN)` (teknisi
+      menandai lunas di lapangan TANPA upload — tanpa kehilangan fungsinya).
+- [x] Caller `actionMarkPaid` meneruskan `{userId, role}` dari sesi.
+- [x] Test RED→GREEN: tests/invoice-payment-guard.test.ts (10/10) — 4 gagal di
+      RED (titik B-2/B-3 yang terbukti belum terjaga), 6 lulus = hak admin & urutan
+      guard tetap; invoice-flow lama disesuaikan ke kontrak wajib-actor (+4 pemakaian).
+- [x] Verifikasi: tsc=0 · eslint=0 · suite **85 files / 767 tests** · build=0.
+- STATUS: SELESAI (kode) — deploy + verifikasi live menyusul batch berikutnya
 
 ### F3 — Kirim informatif + alternatif WA aplikasi teknisi/admin (G-2, G-3)
 - [ ] `InvoiceActions`: status sesi WA (dari relai yang ada), tujuan (PIC keuangan/

@@ -244,17 +244,36 @@ export async function countInvoicesByBucket(tenantId: string, search?: string) {
   return { proforma, unpaid, paid, all };
 }
 
-/** Tandai invoice LUNAS (K1: cash lapangan). payMethod + bukti opsional. Hanya invoice (bukan proforma). */
+/**
+ * Tandai invoice LUNAS (K1: cash lapangan). payMethod + bukti opsional.
+ * Hanya invoice (bukan proforma).
+ *
+ * F2 (B-2/B-3, KRITIS uang): param `actor` WAJIB — guard scope pembuat.
+ *  - TEKNISI: hanya boleh menandai lunas INVOICE yang createdById == dirinya
+ *    (invoice cash hasil closing sesi sendiri). Proforma & invoice admin/teknisi
+ *    lain DITOLAK.
+ *  - OWNER/ADMIN: bebas (tetap dijaga guard atomik anti-double-mark).
+ *  - Tanpa actor (null): DITOLAK — caller internal harus menyediakan konteks
+ *    (keamanan default: tidak boleh ada jalur "tanpa peran").
+ */
+export type InvoiceActor = { userId: string; role: "OWNER" | "ADMIN" | "TECHNICIAN" };
+
 export async function markInvoicePaid(
   tenantId: string, invoiceId: string,
   payMethod: "CASH" | "TRANSFER" | "QRIS", paymentProofUrl?: string,
+  actor?: InvoiceActor | null,
 ): Promise<void> {
+  if (!actor) throw new ServiceError("UNEXPECTED", "Konteks aktor wajib — hubungi admin.");
   const inv = await prisma.invoice.findFirst({
     where: { id: invoiceId, tenantId },
-    select: { id: true, docType: true, status: true },
+    select: { id: true, docType: true, status: true, createdById: true },
   });
   if (!inv) throw new ServiceError("NOT_FOUND", "Invoice tidak ditemukan");
   if (inv.docType !== "INVOICE") throw new ServiceError("CONFLICT", "Proforma tak bisa ditandai lunas — buat invoice dulu");
+  // F2 scope pembuat (B-3): teknisi hanya utk invoice cash buatannya sendiri.
+  if (actor.role === "TECHNICIAN" && inv.createdById !== actor.userId) {
+    throw new ServiceError("CONFLICT", "Hanya invoice hasil penutupan pekerjaan Anda yang boleh ditandai lunas. Admin dapat menandai lunas dari kantor.");
+  }
   if (inv.status === "PAID") throw new ServiceError("CONFLICT", "Invoice sudah lunas");
   if (inv.status === "CANCELLED") throw new ServiceError("CONFLICT", "Invoice sudah dibatalkan");
   // B4 fix: update ATOMIK dengan guard status di WHERE — cegah double-mark pada race.

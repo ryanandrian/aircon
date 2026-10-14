@@ -33,6 +33,11 @@ vi.mock("@/lib/prisma", () => ({
 
 import { markInvoicePaid, createInvoiceFromProforma, cancelInvoice } from "../src/lib/services/invoice-service";
 
+// F2 (kontrak baru): markInvoicePaid WAJIB actor (scope pembuat ditegakkan
+// service) — pemanggil aksi nyata meneruskan konteks dari sesi (t/faktur/actions.ts).
+const ACTOR_ADMIN = { userId: "admin-1", role: "ADMIN" as const };
+const ACTOR_TECH_OWN = { userId: "tech-1", role: "TECHNICIAN" as const };
+
 beforeEach(() => {
   updated = null; createdInv = null;
   store.tenant = { isPkp: false, taxPercent: 0 };
@@ -46,22 +51,22 @@ beforeEach(() => {
 
 describe("markInvoicePaid", () => {
   it("invoice ISSUED → PAID + payMethod + paidAt", async () => {
-    await markInvoicePaid("t1", "inv1", "CASH");
+    await markInvoicePaid("t1", "inv1", "CASH", undefined, ACTOR_ADMIN);
     expect(updated.status).toBe("PAID");
     expect(updated.payMethod).toBe("CASH");
     expect(updated.paidAt).toBeInstanceOf(Date);
   });
   it("tolak proforma", async () => {
     store.invoice = { id: "inv1", docType: "PROFORMA", status: "ISSUED" };
-    await expect(markInvoicePaid("t1", "inv1", "CASH")).rejects.toThrow();
+    await expect(markInvoicePaid("t1", "inv1", "CASH", undefined, ACTOR_ADMIN)).rejects.toThrow();
   });
   it("tolak sudah PAID", async () => {
     store.invoice = { id: "inv1", docType: "INVOICE", status: "PAID" };
-    await expect(markInvoicePaid("t1", "inv1", "CASH")).rejects.toThrow();
+    await expect(markInvoicePaid("t1", "inv1", "CASH", undefined, ACTOR_ADMIN)).rejects.toThrow();
   });
   it("B4: race double-mark → updateMany count 0 → tolak (cegah double-mark)", async () => {
     store.markCount = 0; // status berubah proses lain di dalam window
-    await expect(markInvoicePaid("t1", "inv1", "CASH")).rejects.toThrow();
+    await expect(markInvoicePaid("t1", "inv1", "CASH", undefined, ACTOR_ADMIN)).rejects.toThrow();
     store.markCount = 1;
   });
 });

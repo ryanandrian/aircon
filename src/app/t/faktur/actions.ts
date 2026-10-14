@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerContext } from "@/lib/auth/context";
+import { assertRole, AuthError } from "@/lib/auth/guard";
 import { markInvoicePaid, createInvoiceFromProforma, cancelInvoice, sendInvoiceViaWa, sendReceiptViaWa } from "@/lib/services/invoice-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 
@@ -15,6 +16,9 @@ const msg = (e: unknown, fb: string) => (e instanceof Error ? e.message : fb);
 export async function actionUploadPaymentProof(fd: FormData): Promise<Result<{ publicUrl: string }>> {
   try {
     const ctx = await getServerContext();
+    // F2 (B-2): upload bukti = urusan kantor (OWNER/ADMIN). Teknisi menandai lunas
+    // di lapangan TANPA upload (penandaan cukup tunai/transfer/QRIS).
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
     const file = fd.get("file");
     if (!(file instanceof File)) return { ok: false, error: "File tidak ditemukan" };
     const ct = file.type || "image/jpeg";
@@ -34,7 +38,11 @@ export async function actionMarkPaid(
 ): Promise<Result> {
   try {
     const ctx = await getServerContext();
-    await markInvoicePaid(ctx.tenantId, invoiceId, payMethod, paymentProofUrl);
+    // F2 (B-3): actor diteruskan — service menegakkan scope pembuat
+    // (teknisi hanya utk invoice cash buatannya sendiri; admin/owner bebas).
+    await markInvoicePaid(ctx.tenantId, invoiceId, payMethod, paymentProofUrl, {
+      userId: ctx.userId, role: ctx.role,
+    });
     revalidatePath(`/t/faktur/${invoiceId}`);
     revalidatePath(`/app/faktur/${invoiceId}`);
     return { ok: true };
