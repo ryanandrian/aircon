@@ -242,6 +242,15 @@ F5 → dokumen; nol kode.
 - [x] Verifikasi: tsc=0 · eslint=0 · suite **85 files / 767 tests** · build=0.
 - STATUS: SELESAI (kode) — deploy + verifikasi live menyusul batch berikutnya
 
+### Hasil Deploy Batch F2+F3 — LIVE `0d697f7` (2026-10-15)
+```
+deploy : scripts/deploy-vps.sh PASS · release aktif 0d697f7 · `/` 200 · `/login` 200
+penanda: "Hanya invoice hasil penutupan pekerjaan Anda" (F2/B-3) ADA ·
+         "Buka WhatsApp Anda untuk mengirim" (F3 fallback) ADA ·
+         "Konteks aktor wajib" (F2 default-aman) ADA · tombol Buka WhatsApp ADA
+log   : error runtime 5 menit bersih
+```
+
 ### F3 — Kirim informatif + alternatif WA aplikasi teknisi/admin (G-2, G-3) ← **SELESAI (kode + test, 2026-10-15)**
 - [x] **Fallback di titik terendah** (`sendInvoiceViaWa`/`sendReceiptViaWa`):
       plan-locked → payload pesan yang SAMA dipakai bersama jalur gateway &
