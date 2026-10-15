@@ -94,19 +94,20 @@ Diuji langsung terhadap kode + data LIVE (probe read-only):
 ✓ BENAR: actionMarkCashRemitted guard OWNER/ADMIN (laporan/actions.ts:14).
 ✓ BENAR: 0 invoice PAID+CASH tanpa cashRemitStatus (tak ada yang lolos).
 ✓ BENAR: REMITTED pernah dipakai (24 baris) → alur setor nyata jalan.
-DEFECT D1 (data stale — live): 12 invoice ber-'cashRemitStatus=HELD_BY_TECH'
-         padahal payMethod TRANSFER(8)/QRIS(4) → uang masuk BANK, tidak
-         pernah di tangan teknisi; report aman (filter CASH) tetapi kolom
-         menyesatkan utk query lain. AKAR: markInvoicePaid tidak meng-clear
-         cashRemitStatus saat payMethod != CASH (closing sudah tulis
-         HELD_BY_TECH utk semua INVOICE).
-DEFECT D2 (coverage): NOL test menyentuh K17 (getUnremittedCashByTech /
-         markCashRemitted) — alur keuangan tanpa jaring pengaman.
-D3 (label, benar tapi menyempit): judul "per Teknisi" juga memuat pembuat
-         non-teknisi (Pak Budi, 15) — data benar (pembuat sesi = pemegang
-         uang), hanya judulnya.
-Status data stale D1: TIDAK dirawat via DB (larangan mutasi data) —
-         perbaikan kode agar ke depan tak terulang + catatan terbuka.
+CATATAN KUALITAS DATA (koreksi pemilik 2026-10-15): HANYA Jaya Mandiri
+& AC Depok Jaya tenant demo; tenant lain real. Probe read-only saat ini:
+11 row non-CASH HELD pada tenant demo (Jaya Mandiri: 9; AC Depok Jaya: 2).
+Ada juga 1 row TRANSFER Rp85.000 pada tenant REAL PT Ase Dwimitra Mandiri.
+Provenance tiap row (seed vs frontend) tidak tersedia; JANGAN anggap semua row
+pada tenant demo berasal dari seed atau semua row non-CASH sebagai bug nyata.
+Tidak ada data DB yang diubah. Perbaikan F9f adalah invariant kode ke depan:
+hanya CASH boleh HELD_BY_TECH; TRANSFER/QRIS harus null, plus tes K17.
+Row tenant real tetap perlu ditinjau lewat sumber/audit transaksi yang sah
+sebelum tindakan data; tidak termasuk perubahan kode ini.
+D2 (coverage): test service K17 ditambahkan pada F9f.
+D3 (label): judul "Kas Belum Disetor per Teknisi" mengelompokkan createdById
+(pembuat sesi); perlu pastikan bahasa UI sesuai kasus admin/teknisi — bukan
+anomali data tanpa provenance.
 ```
 
 ### 1.2 Kesenjangan riwayat↔beranda (Bukti DB Ryan 2026-10-15)
@@ -137,15 +138,62 @@ filter/riwayat/guard (git log = bukti).
 bila dibutuhkan & belum ada; nol fosil; TDD RED→GREEN; deploy SOP; update
 dokumen ini per progress.**
 
-- [ ] **F9a. Anti-"stuck": indikator memuat + kurangi refetch**
-  - Isi: `/t/loading.tsx` → label jujur "⟳ Memuat…" + spinner (skeleton 4 kartu
-    tetap); `next.config.ts` → `experimental.staleTimes.dynamic: 30` (router
-    cache in-memory utk navigasi bolak-balik; mutasi tetap segar via
-    revalidatePath/router.refresh yang sudah ada).
-  - HASIL: bolak-balik beranda↔riwayat tampil dari cache (tanpa nunggu jaringan);
-    kalau masih menunggu, layar jelas menunjukkan "Memuat…" — tak lagi terasa
-    macet. Bukti validasi: nginx tak lagi memuat request `_rsc` identik berulang.
-  - STATUS: **KODE SELESAI (belum commit/deploy)** — test nav-tech-stuck GREEN.
+- [x] **F9a. Anti-"stuck": indikator memuat + kurangi refetch** — **LIVE**
+  `/t/loading.tsx` label "Memuat…" + `staleTimes.dynamic:30`.
+  Deploy 8ca1415; terverifikasi `required-server-files.json` live.
+  Catatan: belum ada pengukuran jaringan WiFi sesudah deploy; indikator & cache aktif.
+
+- [x] **F9b. Riwayat → pantauan** — **LIVE, lalu disempurnakan F9c'**
+  row jobId; kartu tuntas → "Lihat detail". Kartu cash-belum-lunas bukan di
+  riwayat, melainkan beranda (aturan 0.2). Commit ffee929; E2E cash lulus.
+
+- [x] **F9c'. Riwayat hanya pekerjaan tuntas** — **LIVE** `ffee929`
+  Query hanya COMPLETED/CANCELLED; cash COMPLETED belum PAID keluar; tempo
+  proforma tetap utk pantauan; CANCELLED arsip. Dual status F11 + multi-sesi
+  F12 membetulkan badge/insentif. E2E Ibu Hesti: cash lunas → riwayat.
+
+- [x] **F9d. Beranda = semua yang BELUM TUNTAS** — **LIVE** `ffee929`
+  Hari ini + backlog (take 50 + count) + cash COMPLETED belum lunas.
+  Empty-state & ringkasan menghitung semua kelompok. DoneCount dibetulkan.
+
+- [x] **F9d++/F13. Detail cash-belum-lunas** — **LIVE** `ab2baad`
+  Detail COMPLETED cash belum lunas punya kartu tagihan + tautan Tandai LUNAS;
+  detail COMPLETED punya ringkasan & foto arsip read-only.
+
+- [x] **F9f. Validasi alur kas K17 (D1 + D2)** — **SELESAI (kode + test, 2026-10-15)**
+  Invariant KODE (bukan mutasi data): `markInvoicePaid` kini SET eksplisit
+  `cashRemitStatus` — CASH → `HELD_BY_TECH` (fisik dipegang pembuat sampai
+  setor); TRANSFER/QRIS → `null` (dana bank/kanal, tak pernah "kas teknisi") —
+  membersihkan nilai stale bila ada. Jalur K17 EXISTING tidak diubah
+  (getUnremittedCashByTech / markCashRemitted tetap pola lama; guard
+  OWNER/ADMIN tetap).
+  D2 tertutup: `tests/ar-cash-remittance.test.ts` (4) — filter K17 exact;
+  TRANSFER/QRIS tak terhitung; guard remit tenant/status/type; input kosong.
+  + `invoice-flow`: CASH→HELD, TRANSFER/QRIS→null (RED 2 gagal → GREEN).
+  Verifikasi: tsc=0 · eslint=0 · suite **102 files / 858 tests** · build=0.
+  PROVENANCE (koreksi pemilik): 12 row TRANSFER/QRIS HELD di DB demo Jaya
+  Mandiri = seed backend, provenance TIDAK terverifikasi → TIDAK diklaim
+  defect produksi & TIDAK dimutasi; invariant ini menutup jalur di MASA DEPAN.
+
+- [x] **F9e. Gate kode + deploy F9a–F13** — **LIVE terakhir `ab2baad`**
+  Suite F13: 101 files / 851 tests · tsc=0 · eslint=0 · build=0;
+  SOP deploy PASS · `/` & `/login` 200 · service active · tree bersih.
+  F12 multi-session (badge/insentif Ibu Hesti) live c32ab31; F13 detail live ab2baad.
+
+**KESIMPULAN STATUS (terakhir diperbarui 2026-10-15):** item F9a–F9f
+sudah memiliki implementasi/test lokal sesuai status di atas; F12/F13 live
+sebelumnya. **F9f belum LIVE** sampai full gate + commit + deploy SOP berikutnya.
+F9a/F9b/F9c'/F9d/F9d++/F10/F11/F12/F13 sudah dideploy dan mendapat bukti
+produksi yang tercatat per item. Uji pemilik yang sudah diterima: cash Ibu
+Hesti lunas + invoice/kwitansi PDF terang. Jangan simpulkan seluruh pekerjaan
+100% live sebelum F9f deploy PASS dan dokumen mencatat release-nya.
+
+### Rencana historis awal — SUPERSEDED
+Item F9a–F9f di bawah pada draf historis ini sudah digantikan oleh checklist
+status terbaru di Bagian 2. Jangan gunakan status lama "belum commit/deploy";
+catatan ini dipertahankan sebagai audit trail, bukan rencana aktif. Checkbox
+historis yang tampak kosong bukan status aktif.
+
 
 - [ ] **F9b. Kartu riwayat → PANTAUAN (bukan followup pengerjaan)**
   - Isi: row riwayat + `jobId`; kartu status NON-terminal (TEMPO proforma
@@ -376,10 +424,19 @@ Sisa rencana: F9f (clear cashRemitStatus TRANSFER/QRIS + test K17).
 
 ---
 
-## BAGIAN 3 — BELUM DIVERIFIKASI / TERBUKA
-- Penyebab WiFi 19,3 KB/s: di luar aplikasi (kondisi jaringan pemilik);
-  yang bisa diaplikasi: kurangi refetch (F9a) + indikator jujur.
-- C3 inkonsistensi guard (beranda/riwayat pakai OR assignment; detail hanya
-  teknisi utama) — terbuka, tanpa reproduksi nyata.
-- F9d memperluas daftar kerja beranda (semua belum tuntas) → perlu dipantau
-  dampaknya utk tenant dgn banyak job tertunda (skala masih kecil saat ini).
+## BAGIAN 3 — BELUM DIVERIFIKASI / TERBUKA (AKTIF)
+- F9f: implementasi+test lokal; commit/deploy belum. Harus jalankan full gate + SOP.
+- PT Ase Dwimitra Mandiri (tenant real): 1 invoice PAID TRANSFER dengan
+  HELD_BY_TECH Rp85.000; provenance tidak diketahui. Jangan ubah data via DB.
+  Fix kode F9f memastikan transaksi baru TRANSFER/QRIS tidak terhitung kas.
+- 11 row pada 2 tenant demo (Jaya Mandiri, AC Depok Jaya) tidak boleh dianggap
+  semuanya seed atau semuanya transaksi frontend; provenance per-row belum ada.
+- Hasil pasca-refresh pengguna: badge riwayat Ibu Hesti = "Selesai - Lunas"
+  + insentif 20.000 dan detail read-only F13 — deploy sudah ada, konfirmasi
+  pengguna setelah refresh masih belum tercatat.
+- WiFi: dampak cache setelah deploy belum diukur; indikator + cache sudah live.
+- C3 inkonsistensi guard OR assignment vs detail teknisi utama masih terbuka,
+  tanpa reproduksi nyata; jangan ubah guard keamanan tanpa bukti.
+- Kinerja query backlog pada tenant REAL skala besar belum diukur; list dibatasi
+  50, count terpisah.
+

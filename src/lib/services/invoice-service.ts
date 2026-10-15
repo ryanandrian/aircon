@@ -342,9 +342,16 @@ export async function markInvoicePaid(
   if (inv.status === "CANCELLED") throw new ServiceError("CONFLICT", "Invoice sudah dibatalkan");
   // B4 fix: update ATOMIK dengan guard status di WHERE — cegah double-mark pada race.
   // Hanya ISSUED/OVERDUE yang boleh jadi PAID; bila 0 baris, status sudah berubah proses lain.
+  // F9f (invariant K17 — TANPA opsi): cashRemitStatus = HELD_BY_TECH hanya utk CASH
+  // (dana fisik dipegang pembuat sampai admin catat REMITTED); TRANSFER/QRIS =
+  // null (dana masuk bank/kanal — tidak pernah "kas di tangan teknisi").
+  // Ini juga MEMBERSIHKAN nilai stale yang bisa diwarisi dari closing.
   const res = await prisma.invoice.updateMany({
     where: { id: invoiceId, tenantId, docType: "INVOICE", status: { in: ["ISSUED", "OVERDUE"] } },
-    data: { status: "PAID", payMethod, paymentProofUrl: paymentProofUrl ?? null, paidAt: new Date() },
+    data: {
+      status: "PAID", payMethod, paymentProofUrl: paymentProofUrl ?? null, paidAt: new Date(),
+      cashRemitStatus: payMethod === "CASH" ? "HELD_BY_TECH" : null,
+    },
   });
   if (res.count !== 1) throw new ServiceError("CONFLICT", "Status invoice sudah berubah. Muat ulang halaman.");
 }

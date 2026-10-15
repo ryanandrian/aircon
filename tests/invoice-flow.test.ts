@@ -56,6 +56,18 @@ describe("markInvoicePaid", () => {
     expect(updated.payMethod).toBe("CASH");
     expect(updated.paidAt).toBeInstanceOf(Date);
   });
+  it("cash PAID tetap HELD_BY_TECH sampai admin mencatat setoran", async () => {
+    await markInvoicePaid("t1", "inv1", "CASH", undefined, ACTOR_ADMIN);
+    expect(updated.cashRemitStatus).toBe("HELD_BY_TECH");
+  });
+  it("TRANSFER PAID mengosongkan cashRemitStatus — dana masuk bank, bukan di tangan teknisi", async () => {
+    await markInvoicePaid("t1", "inv1", "TRANSFER", undefined, ACTOR_ADMIN);
+    expect(updated.cashRemitStatus).toBeNull();
+  });
+  it("QRIS PAID mengosongkan cashRemitStatus — dana masuk kanal non-tunai", async () => {
+    await markInvoicePaid("t1", "inv1", "QRIS", undefined, ACTOR_ADMIN);
+    expect(updated.cashRemitStatus).toBeNull();
+  });
   it("tolak proforma", async () => {
     store.invoice = { id: "inv1", docType: "PROFORMA", status: "ISSUED" };
     await expect(markInvoicePaid("t1", "inv1", "CASH", undefined, ACTOR_ADMIN)).rejects.toThrow();
