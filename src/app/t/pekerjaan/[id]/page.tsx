@@ -28,6 +28,30 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
   const job = await getJob(ctx.tenantId, id);
   if (!job || job.technicianId !== tech.id) notFound();
 
+  // F9d++ (laporan pemilik 2026-10-15 — detail Ibu Hesti buntu): job COMPLETED
+  // cash BELUM lunas → tautkan ke halaman invoice (tombol Tandai LUNAS di sana).
+  // Guard F2 selaras: invoice YANG DIBUAT TEKNISI INI saja (bukan invoice admin),
+  // CASH saja (INVOICE, bukan proforma — tempo urusan admin), belum PAID.
+  let unpaidCash: { id: string; number: string; total: unknown } | null = null;
+  if (job.status === "COMPLETED") {
+    const session = await prisma.workSession.findFirst({
+      where: { tenantId: ctx.tenantId, jobId: job.id },
+      select: { id: true },
+    });
+    if (session) {
+      unpaidCash = await prisma.invoice.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          workSessionId: session.id,
+          docType: "INVOICE",
+          status: { not: "PAID" },
+          createdById: ctx.userId,
+        },
+        select: { id: true, number: true, total: true },
+      });
+    }
+  }
+
   return (
     <main className="min-h-screen bg-muted/40 pb-28">
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
@@ -102,6 +126,28 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
           photos={job.photos.map((p) => ({ id: p.id, kind: p.kind, url: p.url }))}
           storageReady={isStorageConfigured()}
         />
+        {/* F9d++: cash BELUM lunas → kartu tagihan tautan ke pembayaran (komplemen
+            kartu "Menunggu pelunasan cash" di beranda; tombol Tandai LUNAS di /t/faktur). */}
+        {job.status === "COMPLETED" && unpaidCash && (
+          <Card className="border-amber-300 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Menunggu pelunasan cash</p>
+                  <p className="mt-0.5 truncate text-xs text-amber-700 dark:text-amber-400">
+                    {unpaidCash.number} · Rp{Number(unpaidCash.total).toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <a
+                  href={`/t/faktur/${unpaidCash.id}`}
+                  className="shrink-0 rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                >
+                  Tandai LUNAS →
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </main>
   );
