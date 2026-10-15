@@ -349,9 +349,11 @@ log   : error runtime 5 menit bersih
       `execCommand` (user-friendly); muncul hanya bila docUrl ada; **Cetak PDF +
       Kirim via WA TETAP** (tidak diganti); diteruskan dari 2 page detail
       (admin & teknisi).
-- [ ] **7e. Uji E2E 3 dokumen** — UNDONE-AMAN: unit/verifikasi kode sudah
-      hijau (tests/public-doc-token-link.test.ts), **uji nyata 3 dokumen di
-      VPS setelah deploy** (lihat BAGIAN 5).
+- [x] **7e. Uji E2E 3 dokumen** — **LULUS (konfirmasi pemilik, 2026-10-15)**
+      Bukti nyata di VPS `c8f7a8b`: buka dokumen → token terisi → tombol
+      "Salin link dokumen" muncul → paste /d/{token} → tampil + Cetak/PDF bersih
+      (tanpa sidebar/FAB, ada blok "Hormat kami") → tenant TRIAL: Kirim WA →
+      tombol "Buka WhatsApp" (aplikasi pengirim, tanpa gateway).
 - STATUS: **7a–7d SELESAI & LIVE `b39a9fc`** (2026-10-15):
       deploy PASS · release aktif b39a9fc · `/` 200 · `/login` 200 ·
       `/d/{token palsu}` → jujur "Dokumen tidak ditemukan" (pola /riwayat,
@@ -391,8 +393,12 @@ sehingga tautan / tombol salin tidak berfungsi untuk dokumen lama.
 - F7a schema/migration/token create: LIVE `0347cdb`.
 - F7b–F7d public link, pesan, salin: LIVE `b39a9fc`.
 - E2 old-doc token ensure: KODE SELESAI, deploy menyusul.
-- 7e end-to-end nyata di 3 dokumen: setelah deploy; perlu dokumen baru/akses
-  asli. Belum diklaim lulus.
+- 7e end-to-end nyata: **LULUS (pemilik, 2026-10-15)** — token terisi saat
+  dibuka, salin link → /d/{token} tampil + cetak bersih, TRIAL → "Buka WhatsApp".
+- **STATUS TOTAL F7 (A+C): TUNTAS 100%.**
+- **RENCANA F1–F8 + E2 (dokumen ini): TUNTAS 100% — semua fase LIVE, bukti
+  nyata pemilik lulus.** Dokumen arsitektur alur faktur menyusul (G-A8-style,
+  ditulis dari bukti ini).
 
 ### F8 — Status OVERDUE sinkron di titik yang tepat (B-4) ← **SELESAI (kode + test, 2026-10-15)**
 - [x] `refreshOverdueStatus(tenantId)` dipanggil di `/app/faktur/page.tsx` (jalur
