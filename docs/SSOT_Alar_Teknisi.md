@@ -171,22 +171,26 @@ dokumen ini per progress.**
   TRANSFER/QRIS tak terhitung; guard remit tenant/status/type; input kosong.
   + `invoice-flow`: CASH→HELD, TRANSFER/QRIS→null (RED 2 gagal → GREEN).
   Verifikasi: tsc=0 · eslint=0 · suite **102 files / 858 tests** · build=0.
-  PROVENANCE (koreksi pemilik): 12 row TRANSFER/QRIS HELD di DB demo Jaya
-  Mandiri = seed backend, provenance TIDAK terverifikasi → TIDAK diklaim
-  defect produksi & TIDAK dimutasi; invariant ini menutup jalur di MASA DEPAN.
+  PROVENANCE (koreksi pemilik): 11 row non-CASH HELD pada 2 tenant demo;
+  1 row TRANSFER Rp85.000 tenant REAL PT Ase Dwimitra Mandiri. Per-row
+  provenance tidak diketahui; tidak dimutasi, tidak diklaim defect nyata.
+  Deploy SOP PASS `f1a0724`: source-sha exact, service active, `/`=200,
+  `/login`=200, runtime errors 0; HEAD == origin/main, tree bersih.
 
 - [x] **F9e. Gate kode + deploy F9a–F13** — **LIVE terakhir `ab2baad`**
   Suite F13: 101 files / 851 tests · tsc=0 · eslint=0 · build=0;
   SOP deploy PASS · `/` & `/login` 200 · service active · tree bersih.
   F12 multi-session (badge/insentif Ibu Hesti) live c32ab31; F13 detail live ab2baad.
 
-**KESIMPULAN STATUS (terakhir diperbarui 2026-10-15):** item F9a–F9f
-sudah memiliki implementasi/test lokal sesuai status di atas; F12/F13 live
-sebelumnya. **F9f belum LIVE** sampai full gate + commit + deploy SOP berikutnya.
-F9a/F9b/F9c'/F9d/F9d++/F10/F11/F12/F13 sudah dideploy dan mendapat bukti
-produksi yang tercatat per item. Uji pemilik yang sudah diterima: cash Ibu
-Hesti lunas + invoice/kwitansi PDF terang. Jangan simpulkan seluruh pekerjaan
-100% live sebelum F9f deploy PASS dan dokumen mencatat release-nya.
+**KESIMPULAN STATUS (terakhir diperbarui 2026-10-15 malam):** SELURUH ITEM
+RENCANA F9a–F9f SELESAI — kode + test + deploy SOP LIVE. Release terakhir
+`f1a0724` (F9f invariant kas K17), sebelumnya: F13 `ab2baad`, F12 `c32ab31`,
+F11 `01379e1`, F10 `f9b41a3`, F9c'/F9d `ffee929`, F9a/F9b `8ca1415`.
+Gate terakhir: 102 files / 858 tests · tsc=0 · eslint=0 · build=0;
+`source-sha` == commit live, `/` & `/login` 200, service active, errors 0,
+HEAD == origin/main, tree bersih.
+Sisa bukan pekerjaan rencana, melainkan item TERBUKA (Bagian 3): uji manual
+pengguna pasca-refresh, provenance row kas demo/real, dan C3 guard.
 
 ### Rencana historis awal — SUPERSEDED
 Item F9a–F9f di bawah pada draf historis ini sudah digantikan oleh checklist
@@ -425,18 +429,18 @@ Sisa rencana: F9f (clear cashRemitStatus TRANSFER/QRIS + test K17).
 ---
 
 ## BAGIAN 3 — BELUM DIVERIFIKASI / TERBUKA (AKTIF)
-- F9f: implementasi+test lokal; commit/deploy belum. Harus jalankan full gate + SOP.
-- PT Ase Dwimitra Mandiri (tenant real): 1 invoice PAID TRANSFER dengan
-  HELD_BY_TECH Rp85.000; provenance tidak diketahui. Jangan ubah data via DB.
-  Fix kode F9f memastikan transaksi baru TRANSFER/QRIS tidak terhitung kas.
-- 11 row pada 2 tenant demo (Jaya Mandiri, AC Depok Jaya) tidak boleh dianggap
-  semuanya seed atau semuanya transaksi frontend; provenance per-row belum ada.
-- Hasil pasca-refresh pengguna: badge riwayat Ibu Hesti = "Selesai - Lunas"
-  + insentif 20.000 dan detail read-only F13 — deploy sudah ada, konfirmasi
-  pengguna setelah refresh masih belum tercatat.
-- WiFi: dampak cache setelah deploy belum diukur; indikator + cache sudah live.
-- C3 inkonsistensi guard OR assignment vs detail teknisi utama masih terbuka,
-  tanpa reproduksi nyata; jangan ubah guard keamanan tanpa bukti.
-- Kinerja query backlog pada tenant REAL skala besar belum diukur; list dibatasi
-  50, count terpisah.
+- Tenant REAL PT Ase Dwimitra Mandiri punya 1 invoice PAID TRANSFER dengan
+  HELD_BY_TECH Rp85.000; provenance tidak diketahui. Jangan mutasi via DB.
+  Perbaikan F9f memastikan transaksi baru TRANSFER/QRIS menjadi null.
+- 11 row non-CASH HELD di dua tenant demo (Jaya Mandiri, AC Depok Jaya)
+  tidak boleh dianggap semuanya seed atau transaksi frontend; provenance
+  per-row belum terverifikasi.
+- Uji manual pengguna pasca-refresh: badge riwayat Ibu Hesti = "Selesai - Lunas"
+  + insentif 20.000 setelah F12; detail readonly F13 — deploy ada, tetapi
+  konfirmasi pasca-refresh belum tercatat.
+- WiFi: dampak cache F9a pasca-deploy belum diukur pengguna.
+- C3 inkonsistensi guard OR assignment vs detail teknisi utama tetap terbuka;
+  jangan ubah guard keamanan tanpa reproduksi nyata.
+- Kinerja backlog pada tenant real skala besar belum diukur (daftar dibatasi 50,
+  count query terpisah).
 
