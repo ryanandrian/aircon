@@ -266,6 +266,9 @@ PERBAIKAN (jalur globals.css, TDD RED 2/3→GREEN): di @media print,
   dua tempat — dikomentari) + html,body putih. Konsekuensi: cetak SELALU
   terang walau mode gelap (benar utk dokumen cetak).
 Test: tests/print-dark-mode.test.ts (3/3).
+Deploy live `f9b41a3` (PASS; / + /login 200; css global `22-xq2w92m0fi.css`
+berisi `html.dark` di media print + `@media print`; service active; suite
+98 files / 838 tests · eslint 0 · build 0).
 ```
 
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
