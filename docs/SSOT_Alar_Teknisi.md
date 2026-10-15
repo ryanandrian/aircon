@@ -331,6 +331,22 @@ UJI PEMILIK: riwayat Ibu Hesti kini "Selesai - Lunas" + insentif 20.000
   (sama dgn beranda) — menunggu konfirmasi refresh tab.
 ```
 
+### F13 — "Lihat Detail" job COMPLETED terbuka tapi KOSONG (laporan pemilik)
+```
+GEJALA: sentuh kartu riwayat → detail hanya kartu pelanggan + "Pekerjaan
+  selesai" — tak ada foto, ringkasan, atau tagihan.
+AKAR TERBUKTI (work.tsx): showWork = [ARRIVED, IN_PROGRESS, WAITING]
+  → kartu "Foto Bukti" disembunyikan utk COMPLETED padahal page.tsx SELALU
+  mengirim job.photos (data di tangan, gate UI salah); tak ada blok ringkasan.
+PERBAIKAN (jalur yang SUDAH ADA — work.tsx & page.tsx, nol komponen baru):
+  showPhotos = showWork || COMPLETED (foto sbg ARSIP, read-only);
+  showUpload = showWork (tombol "+ Ambil Foto" hanya status berjalan —
+  pekerjaan selesai TIDAK BISA diubah; konsisten dgn guard closing);
+  card ringkasan "Ringkasan Pekerjaan" utk COMPLETED (layanan/unit/tanggal,
+  field yg sudah dimuat getJob); copy empty-photo jujur utk arsip.
+Test: tests/tech-detail-completed-content.test.ts (RED 3/3 → GREEN 3/3).
+```
+
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")

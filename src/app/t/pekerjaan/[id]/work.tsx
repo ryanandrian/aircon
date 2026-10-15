@@ -31,6 +31,10 @@ export function TechJobWork({
   const action = nextTechAction(status);
   const working = status === "IN_PROGRESS" || status === "WAITING";
   const showWork = ["ARRIVED", "IN_PROGRESS", "WAITING"].includes(status);
+  // F13 (arsip pekerjaan): foto bukti TETAP terlihat setelah COMPLETED (read-only);
+  // tombol upload hanya selama status berjalan — halaman detail selesai tidak kosong.
+  const showPhotos = showWork || status === "COMPLETED";
+  const showUpload = showWork;
   // Tombol non-final tetap memakai state-machine action. COMPLETED dikerjakan via WorkSession.
   const finalizationAction = action?.to === "COMPLETED" ? null : action;
 
@@ -67,25 +71,29 @@ export function TechJobWork({
 
   return (
     <>
-      {showWork && (
+      {showPhotos && (
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-muted-foreground">Foto Bukti</h2>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading || !storageReady}
-                className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/50"
-              >
-                {uploading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                {uploading ? "Mengunggah…" : "+ Ambil Foto"}
-              </Button>
-              <input
-                ref={fileRef} type="file" accept="image/*" capture="environment"
-                onChange={onPhoto} className="hidden"
-              />
+              {showUpload && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading || !storageReady}
+                  className="bg-sky-100 text-sky-700 hover:bg-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:hover:bg-sky-900/50"
+                >
+                  {uploading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                  {uploading ? "Mengunggah…" : "+ Ambil Foto"}
+                </Button>
+              )}
+              {showUpload && (
+                <input
+                  ref={fileRef} type="file" accept="image/*" capture="environment"
+                  onChange={onPhoto} className="hidden"
+                />
+              )}
             </div>
             {pics.length > 0 ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -95,7 +103,7 @@ export function TechJobWork({
                 ))}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">Belum ada foto. Foto sebelum &amp; sesudah membantu bukti kerja.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Belum ada foto bukti yang tersimpan untuk pekerjaan ini.</p>
             )}
           </CardContent>
         </Card>

@@ -109,6 +109,28 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
           </>
         )}
 
+        {job.status === "COMPLETED" && (
+          <Card>
+            <CardContent className="space-y-2 p-4">
+              <h2 className="text-sm font-semibold text-foreground">Ringkasan Pekerjaan</h2>
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Layanan</span>
+                <span className="text-right font-medium text-foreground">{JOB_STATUS_LABEL[job.status] === "Selesai" ? job.serviceType : job.serviceType}</span>
+              </div>
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">Tanggal</span>
+                <span className="text-right text-foreground">{job.completedAt ? new Date(job.completedAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "—"}</span>
+              </div>
+              {job.asset && (
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Unit</span>
+                  <span className="text-right text-foreground">{[job.asset.brand, job.asset.model, job.asset.roomLocation].filter(Boolean).join(" · ")}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {job.notes && (
           <Card>
             <CardContent className="p-4">
