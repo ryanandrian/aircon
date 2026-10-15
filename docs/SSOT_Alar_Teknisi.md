@@ -300,6 +300,32 @@ Perubahan (jalur yang sudah ada — 0 komponen baru):
 Test: tests/dual-status-label.test.ts (RED 4/6 → GREEN 6/6).
 ```
 
+### F12 — REGRESI RIWAYAT: badge "Belum dibayar" SALAH + insentif 0 (uang SUDAH lunas & disetor)
+```
+LAPORAN PEMILIK (15 Okt malam): invoice INV/2026/0032 = PAID/CASH/REMITTED
+  (verifikasi DB: paidAt 15 Okt 10:23 WIB, cashRemitStatus=REMITTED, uang
+  disetor via admin panel) — TAPI di riwayat Ryan badge tetap "Selesai -
+  Belum dibayar" + insentif 0 (beranda 20.000).
+AKAR TERBUKTI (probe DB + kode):
+  job Ibu Hesti = 2 WorkSession:
+    ws-closing (14 Okt, items + invoice INV/2026/0032)   ← sumber kebenaran
+    ws-empty   (15 Okt, kosong, tanpa invoice)           ← sesi kembar
+  kode lama technician-service: sessionByJob.set(jobId, s) = LAST-WRITE WINS
+  (asumsi 1 sesi/job) → sesi KOSONG terpilih → wsInvoices=[] → paid=false
+  (badge salah) & qualifies=false (insentif 0 — beranda benar, tak lewat peta).
+  (Bukan asumsi: query persis service di-replay against live DB → 2 sesi,
+  invoice hanya di sesi pertama.)
+PERBAIKAN (jalur YANG SAMA — sessionByJob diganti penuh, nol modul/fungsi baru):
+  sessionsByJob (multi per job, orderBy createdAt asc deterministik)
+  - kelunasan = AGREGAT lintas sesi (any PAID) → paid=true dari sesi closing
+  - sesi insentif = sesi CLOSING (yang punya invoice; fallback: sesi awal;
+    terakhir: sesi pertama dgn item) → konsisten dgn kartu beranda
+  - wsInvoices agregat → F9c' filter & badge baca data benar
+  anti-fosil: grep sessionByJob = hanya di komentar penjelasan bug.
+Test: tests/tech-history-multi-session.test.ts (RED 3/4 → GREEN 4/4) +
+  15/15 lintas suite utk behavior ini.
+```
+
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")

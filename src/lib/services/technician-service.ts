@@ -329,7 +329,7 @@ export async function listTechnicianJobHistory(
   });
 
   const jobIds = assignments.map((a) => a.jobId);
-  // WorkSession per job (jobId opsional di WorkSession).
+  // WorkSession per job (jobId opsional di WorkSession) — ORDERED (asc) utk peta urut.
   const sessions = jobIds.length
     ? await prisma.workSession.findMany({
         where: { tenantId, jobId: { in: jobIds } },
@@ -337,10 +337,23 @@ export async function listTechnicianJobHistory(
           id: true, jobId: true,
           items: { select: { serviceId: true, unitPriceSnapshot: true, qty: true, techIds: true, kernetIds: true } },
         },
+        orderBy: { createdAt: "asc" }, // deterministik — sebelumnya TANPA urutan
       })
     : [];
-  const sessionByJob = new Map<string, (typeof sessions)[number]>();
-  for (const s of sessions) if (s.jobId) sessionByJob.set(s.jobId, s);
+  // REGRESI KRITIS (uji live pemilik 2026-10-15): 1 job BISA punya >1 WorkSession
+  // (probe: Ibu Hesti = sesi closing 14 Okt + sesi kosong 15 Okt). Kode lama
+  // sessionByJob.set(jobId, s) = LAST-WRITE WINS → sesi kosong terpilih →
+  // invoice PAID tak terbaca (badge "Belum dibayar" padahal lunas & disetor) +
+  // insentif 0 (beranda benar — tak lewat peta ini).
+  // KONTRAK BARU: kelunasan = AGREGAT lintas sesi; sesi insentif = sesi closing
+  // (yang punya invoice, atau yang punya item) — jalur peta lama dikembangkan.
+  const sessionsByJob = new Map<string, (typeof sessions)[number][]>();
+  for (const s of sessions) {
+    if (!s.jobId) continue;
+    const arr = sessionsByJob.get(s.jobId) ?? [];
+    arr.push(s); // urut asc → index 0 = sesi paling awal (closing)
+    sessionsByJob.set(s.jobId, arr);
+  }
 
   // Invoice per workSession (untuk cek acuan LUNAS/TERBIT).
   const wsIds = sessions.map((s) => s.id);
@@ -393,8 +406,17 @@ export async function listTechnicianJobHistory(
 
   const allRows = assignments.map((a) => {
     const j = a.job;
-    const ws = sessionByJob.get(a.jobId) ?? null;
-    const wsInvoices = ws ? (invoicesByWs.get(ws.id) ?? []) : [];
+    // REGRESI KRITIS: kelunasan = AGREGAT lintas SEMUA sesi utk job ini
+    // (bukan sesi terakhir — probe live: sesi kosong di belakang sesi closing).
+    const jobSessions = sessionsByJob.get(a.jobId) ?? [];
+    const wsInvoices = jobSessions.flatMap((s) => invoicesByWs.get(s.id) ?? []);
+    // Sesi insentif = sesi CLOSING (yg punya invoice INVOICE; fallback: sesi
+    // pertama = paling awal; terakhir: sesi pertama yg punya item).
+    const ws =
+      jobSessions.find((s) => (invoicesByWs.get(s.id) ?? []).length > 0) ??
+      jobSessions[0] ??
+      null;
+    const wsItems = ws?.items ?? [];
     // Cek invoice memenuhi acuan → insentif "muncul".
     let incentiveDate: Date | null = null;
     let qualifies = false;
@@ -409,7 +431,7 @@ export async function listTechnicianJobHistory(
     // Hitung insentif teknisi ini utk pekerjaan ini (hanya bila memenuhi acuan DAN tenant menerapkan insentif).
     let incentive = 0;
     if (incentiveEnabled && qualifies && ws) {
-      for (const it of ws.items) {
+      for (const it of wsItems) {
         if (!it.serviceId) continue;
         const cat = catalogById.get(it.serviceId);
         if (!cat) continue;
