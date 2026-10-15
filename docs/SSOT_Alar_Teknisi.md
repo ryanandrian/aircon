@@ -255,6 +255,19 @@ Deploy live `f2cf589` (PASS; / + /login 200; marker "Menunggu pelunasan cash"
 ada di server bundle; error runtime 3 menit = 0).
 ```
 
+### F10 — PDF "Cetak/Simpan" keluar background HITAM saat mode dark (laporan pemilik)
+```
+GEJALA: di aplikasi teknisi mode malam → cetak Ibu Hesti → PDF hitam.
+AKAR (bukti globals.css): @media print hanya reset body{}; token .dark
+  (kelas di html) TERUS aktif → semua elemen (--background/--card/--muted)
+  gelap → PDF hitam. print:bg-white hanya utk <main> rute faktur/kwitansi.
+PERBAIKAN (jalur globals.css, TDD RED 2/3→GREEN): di @media print,
+  reset token surface html.dark/* ke nilai TERANG (salinan :root; dirawat
+  dua tempat — dikomentari) + html,body putih. Konsekuensi: cetak SELALU
+  terang walau mode gelap (benar utk dokumen cetak).
+Test: tests/print-dark-mode.test.ts (3/3).
+```
+
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")

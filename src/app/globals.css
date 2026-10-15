@@ -103,9 +103,39 @@
   --shadow-lg: 0 12px 28px -6px oklch(0 0 0 / 0.6), 0 6px 12px -6px oklch(0 0 0 / 0.5);
 }
 
-/* Cetak faktur/kwitansi: hilangkan margin browser, warna akurat */
+/* Cetak faktur/kwitansi: hilangkan margin browser, warna akurat. */
 @media print {
   @page { margin: 1.5cm; }
+  /* Laporan pemilik 2026-10-15: mode DARK → PDF keluar background hitam.
+     AKAR: token .dark (di html) terus aktif di media print — body{} saja
+     tidak cukup karena semua elemen memakai --background/--card/--muted.
+     Reset token surface ke nilai TERANG (salinan blok :root di atas —
+     dirawat dua tempat; kalau :root berubah, ikutkan di sini). */
+  html.dark,
+  html.dark * {
+    --background: oklch(0.975 0.004 247);
+    --foreground: oklch(0.21 0.03 257);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.21 0.03 257);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.21 0.03 257);
+    --primary: oklch(0.685 0.145 235);
+    --primary-foreground: oklch(0.985 0.01 240);
+    --secondary: oklch(0.945 0.006 247);
+    --secondary-foreground: oklch(0.28 0.03 257);
+    --muted: oklch(0.945 0.006 247);
+    --muted-foreground: oklch(0.55 0.02 257);
+    --accent: oklch(0.945 0.016 240);
+    --accent-foreground: oklch(0.28 0.03 257);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.912 0.007 247);
+    --input: oklch(0.912 0.007 247);
+    --ring: oklch(0.685 0.145 235);
+    --sidebar: oklch(0.985 0.004 247);
+    --sidebar-foreground: oklch(0.21 0.03 257);
+    --sidebar-border: oklch(0.923 0.006 247);
+  }
+  html { background: #ffffff; }
   body { background: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
