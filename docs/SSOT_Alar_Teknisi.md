@@ -428,10 +428,62 @@ Sisa rencana: F9f (clear cashRemitStatus TRANSFER/QRIS + test K17).
 
 ---
 
+## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
+```
+TANGGAL: 2026-10-15 malam. Sumber: probe read-only live DB + kode + git log.
+FAKTA RECORD (diverifikasi langsung, nol asumsi):
+  invoice cmv1xtu9i00x92aiuh6dljenk · Rp85.000 · PAID · payMethod=TRANSFER
+  cashRemitStatus=HELD_BY_TECH (STALE) · paymentProofUrl=null
+  dibuat 2026-10-09 22:12:28Z · lunas 22:13:17Z (49 detik setelah closing)
+  item TUNGGAL: "Cuci AC (Jatijajar, Azalea)" MAINTENANCE 1 × Rp85.000
+  pelanggan: Bapak Hendra · teknisi/pembuat: Ujang (6288905726131)
+BUKTI TRANSAKSI NYATA (bukan seed) — JobProgressEvent lewat FRONTEND:
+  ASSIGNED 19:16 (actor ase.dwimitra.mandiri) → ACCEPTED 19:19 (Ujang)
+  → EN_ROUTE 19:54 → ARRIVED 20:15 → IN_PROGRESS 20:30
+  → COMPLETED 22:12:28 (meta source=WORK_SESSION_CLOSE)
+  Sesi dibuka 20:53Z, ditutup 22:12:27Z — SATU dokumen, tanpa duplikat.
+AKAR MASALAH = KODE BUKAN KESALAHAN PETUGAS:
+  worksession-service.ts:323 (sejak commit 80ba5a5): closing menulis
+  cashRemitStatus=HELD_BY_TECH utk SEMUA INVOICE tanpa cek payMethod.
+  markInvoicePaid LAMA tidak mengubah kolom ini → nilai tetap STALE
+  setelah lunas TRANSFER. (F9f memperbaiki jalur ini — live.)
+DAMPAK — TIDAK ADA ANGKA SALAH YG TERLIHAT OLEH PELANGGAN:
+  Laporan "Kas Belum Disetor per Teknisi" filter payMethod=CASH
+  (ar-service.ts:94) → invoice INI TIDAK MUNCUL → Rp85.000 TIDAK dihitung
+  kas teknisi. Total/item/status PAID = benar.
+  Konsumen cashRemitStatus HANYA K17 (getUnremittedCashByTech +
+  markCashRemitted) — tidak ada laporan lain yg membaca kolom ini.
+KEPUTUSAN PEMILIK (satu-satunya baris stale di tenant REAL):
+  Opsi A: biarkan — laporan sudah benar; kolom salah hanya utk query mentah.
+  Opsi B: koreksi 1 baris (cashRemitStatus→null) via SQL sekali — BUTUH
+    IJIN EKSPLISIT pemilik; agen TIDAK menyentuh DB.
+Sisa stale serupa: 11 baris HANYA di 2 tenant DEMO (Jaya Mandiri 9, AC
+Depok Jaya 2); provenance per-baris tak terverifikasi.
+```
+
+## BAGIAN 3B — LOG KONFIRMASI UJI PEMILIK (update SETIAP laporan uji masuk)
+```
+TERVERIFIKASI (ucapan pemilik — jangan ditandai ulang tanpa uji baru):
+  [✓] F9d/F9d+ — "sudah saya check dan kartu di berandan sudah muncul"
+      (kartu "Perlu ditindaklanjuti" Effi + Ibu Wati hidup).
+  [✓] F9d++ + F10 — "Ibu Hesti sudah saya tandai lunas, sudah download
+      invoice dan kwitansi, sudah tidak ada latar hitamnya" (alur lunas
+      dari detail → /t/faktur jalan; PDF mode dark terang).
+  [✓] Provenance: hanya Jaya Mandiri + AC Depok Jaya = tenant demo.
+BELUM DIKONFIRMASI PEMILIK (deploy ADA, uji pasca-refresh belum masuk):
+  [ ] F9a  — navigasi beranda↔riwayat dari cache; label "⟳ Memuat…".
+  [ ] F9c' — riwayat Ryan HANYA tuntas (Effi & Wati tidak ada di riwayat).
+  [ ] F11  — label dual status "Selesai - Lunas / Selesai - Belum dibayar".
+  [ ] F12  — badge riwayat Ibu Hesti = "Selesai - Lunas" + insentif 20.000
+             (cocok beranda) setelah refresh.
+  [ ] F13  — detail COMPLETED = ringkasan + foto arsip read-only + status.
+  [ ] F9f  — transaksi CASH/TRANSFER BARU → perilaku Kas Belum Disetor.
+```
+
 ## BAGIAN 3 — BELUM DIVERIFIKASI / TERBUKA (AKTIF)
-- Tenant REAL PT Ase Dwimitra Mandiri punya 1 invoice PAID TRANSFER dengan
-  HELD_BY_TECH Rp85.000; provenance tidak diketahui. Jangan mutasi via DB.
-  Perbaikan F9f memastikan transaksi baru TRANSFER/QRIS menjadi null.
+- PT Ase INV/2026/0003 → TELUSUR SELESAI, lihat BAGIAN 3A (akar = kode lama,
+  laporan keuangan tidak salah; sisa = keputusan pemilik Opsi A/B; mutasi DB
+  memerlukan izin eksplisit).
 - 11 row non-CASH HELD di dua tenant demo (Jaya Mandiri, AC Depok Jaya)
   tidak boleh dianggap semuanya seed atau transaksi frontend; provenance
   per-row belum terverifikasi.
