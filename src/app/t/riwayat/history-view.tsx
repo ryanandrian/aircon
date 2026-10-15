@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { techJobHistory } from "../actions";
 
-type Row = { id: string; jobId: string; invoiceId: string | null; invoiceStatus: string | null; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number };
+type Row = { id: string; jobId: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number };
 
 const SERVICE_LABEL: Record<string, string> = {
   CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
@@ -19,10 +19,6 @@ const JOB_STATUS: Record<string, string> = {
   DRAFT: "Draf", ASSIGNED: "Ditugaskan", ACCEPTED: "Diterima", EN_ROUTE: "Menuju",
   ARRIVED: "Tiba", IN_PROGRESS: "Dikerjakan", WAITING: "Menunggu", COMPLETED: "Selesai", CANCELLED: "Batal",
 };
-// F9b: status yang BELUM selesai → kartu memuat tautan followup ke detail.
-// (Pola & sumber = ACTIVE_STATUSES di job-management-service; terminal =
-// COMPLETED/CANCELLED → tanpa tautan, tak ada yang dilanjutkan.)
-const ACTIVE_STATUSES = ["DRAFT", "ASSIGNED", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS", "WAITING"];
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 function fmtPeriod(p: string): string {
   const [y, m] = p.split("-");
@@ -105,25 +101,14 @@ export function JobHistoryView({
       ) : (
         <ol className="space-y-2">
           {rows.slice(0, visible).map((r, i) => {
-            // F9b: tiga kondisi kartu (SSOT_Alar_Teknisi 0.1/0.2):
-            //  1. job NON-terminal (TEMPO proforma terbit, cash jalan) → pantauan
-            //     ke DETAIL pekerjaan.
-            //  2. job COMPLETED tapi invoice BELUM LUNAS (cash belum tuntas) →
-            //     jalan ke halaman INVOICE (tombol "Tandai LUNAS" di sana).
-            //  3. selain itu (LUNAS/BATAL) → kartu arsip polos.
-            const followable = ACTIVE_STATUSES.includes(r.status);
-            const unpaidCash = !followable
-              && r.status === "COMPLETED"
-              && r.invoiceId != null
-              && r.invoiceStatus !== "PAID";
-            const href = followable && r.jobId
-              ? `/t/pekerjaan/${r.jobId}`
-              : unpaidCash
-                ? `/t/faktur/${r.invoiceId}`
-                : null;
-            const linkLabel = followable ? "Lihat detail →" : unpaidCash ? "Tandai LUNAS →" : null;
+            // F9c' (kesepakatan pemilik 2026-10-15): riwayat = ARSIP+PANTAUAN,
+            // isinya sudah DIFILTER tuntas di service — kartu SEMUA status =
+            // tautan "Lihat detail" utk memantau (tempo: status invoice; cash
+            // lunas: kwitansi/arsip). Pekerjaan belum tuntas TIDAK ada di sini.
+            const href = r.jobId ? `/t/pekerjaan/${r.jobId}` : null;
+            const linkLabel = "Lihat detail";
             const card = (
-              <li key={r.id} className={href ? "rounded-xl border bg-background p-3 transition active:brightness-95" : "rounded-xl border bg-background p-3"}>
+              <li key={r.id} className="rounded-xl border bg-background p-3 transition active:brightness-95">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-foreground">{i + 1}. {r.customer}</p>
@@ -145,7 +130,7 @@ export function JobHistoryView({
                     <span className="text-xs text-muted-foreground">insentif menunggu pelunasan</span>
                   )}
                   {href && (
-                    <span className="ml-auto text-xs font-medium text-sky-600 dark:text-sky-400">{linkLabel}</span>
+                    <span className="ml-auto text-xs font-medium text-sky-600 dark:text-sky-400">{linkLabel} →</span>
                   )}
                 </div>
               </li>

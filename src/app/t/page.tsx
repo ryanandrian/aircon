@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
-import { listTechnicianJobsToday, listTechnicianBacklogJobs, countTechnicianBacklogJobs, countTechnicianCompletedToday } from "@/lib/services/job-management-service";
+import { listTechnicianJobsToday, listTechnicianBacklogJobs, listTechnicianUnpaidCashJobs, countTechnicianCompletedToday } from "@/lib/services/job-management-service";
 import type { JobStatus } from "@prisma/client";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
@@ -36,14 +36,16 @@ export default async function TechnicianHome() {
     );
   }
 
-  const [jobs, backlog, backlogCount, doneToday] = await Promise.all([
+  const [jobs, backlog, unpaidCash, doneToday] = await Promise.all([
     listTechnicianJobsToday(ctx.tenantId, tech.id),
-    // F9d: daftar dibatasi take=50 utk skala; count terpisah = total akurat.
     listTechnicianBacklogJobs(ctx.tenantId, tech.id),
-    countTechnicianBacklogJobs(ctx.tenantId, tech.id),
+    // F9c'/0.2: cash COMPLETED BELUM lunas = BELUM tuntas → tetap terlihat
+    // di beranda (kelompok ini; riwayat hanya tugas+tuntas).
+    listTechnicianUnpaidCashJobs(ctx.tenantId, tech.id),
     countTechnicianCompletedToday(ctx.tenantId, tech.id),
   ]);
   const doneCount = doneToday;
+  const backlogCount = backlog.length; // daftar tak terbatas utk kelompok aktif
 
   // NIAT EKSPLISIT tenant (bukan tebak dari nilai). Off → teknisi TAK PERNAH lihat UI insentif.
   const incentiveEnabled = tech.tenant?.incentiveEnabled ?? false;
@@ -110,6 +112,12 @@ export default async function TechnicianHome() {
                     <p className="text-2xl font-bold tabular-nums">{backlogCount}{backlogCount > backlog.length ? "+" : ""}</p>
                   </div>
                 )}
+                {unpaidCash.length > 0 && (
+                  <div>
+                    <p className="text-xs text-white/80">Menunggu lunas</p>
+                    <p className="text-2xl font-bold tabular-nums">{unpaidCash.length}</p>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-1.5 text-sm text-white/90">
                 Riwayat
@@ -118,7 +126,7 @@ export default async function TechnicianHome() {
             </div>
           </Link>
         )}
-        {jobs.length === 0 && backlog.length === 0 ? (
+        {jobs.length === 0 && backlog.length === 0 && unpaidCash.length === 0 ? (
           <Card className="border-dashed text-center">
             <CardContent className="p-8">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"><Icon.Success className="h-7 w-7" aria-hidden /></div>
@@ -138,6 +146,19 @@ export default async function TechnicianHome() {
                 <div className="space-y-3">
                   {backlog.map((job) => (
                     <JobCard key={`backlog-${job.id}`} job={job} overdue />
+                  ))}
+                </div>
+              </section>
+            )}
+            {unpaidCash.length > 0 && (
+              <section aria-label="Menunggu pelunasan cash">
+                <h2 className="mb-2 mt-4 text-sm font-semibold text-amber-700 dark:text-amber-400">
+                  Menunggu pelunasan cash ({unpaidCash.length})
+                </h2>
+                <p className="mb-2 text-xs text-muted-foreground">Tandai LUNAS setelah uang diterima dari pelanggan.</p>
+                <div className="space-y-3">
+                  {unpaidCash.map((job) => (
+                    <JobCard key={`cash-${job.id}`} job={job} overdue />
                   ))}
                 </div>
               </section>

@@ -198,6 +198,34 @@ dokumen ini per progress.**
   - HASIL: F9a–F9d hidup di produksi (bukan hanya lokal); dokumen = posisi
     sebenarnya utk sesi berikutnya.
 
+### KOREKSI PALING AKHIR (2026-10-15 malam — perintah pemilik: riwayat hanya tuntas)
+```
+KOREKSI KERJA SENDIRI (jujur): F9c' ("riwayat hanya berisi pekerjaan TUNTAS")
+TERTUANG di rencana tapi TIDAK PERNAH dieksekusi — yang dieksekusi justru
+F9b ke arah BERTENTANGAN (kartu non-terminal di riwayat ditautkan) →
+Effi & Ibu Hesti muncul di DUA tempat (beranda + riwayat) — laporan pemilik
+tepat. Pelajaran: eksekusi item rencana URUT sesuai aturan terkunci.
+```
+**Implementasi F9c' (TDD: RED test 5 asersi → GREEN):**
+```
+listTechnicianJobHistory:
+  - query: hanya job status COMPLETED/CANCELLED (relasi job.status.in)
+  - cash COMPLETED tanpa invoice PAID → dibuang (belum tuntas → beranda)
+  - tempo (PROFORMA terbit, probe query TERPISAH — query insentif uang
+    TIDAK disentuh) → tugas teknisi tuntas → tetap utk PANTAU
+  - CANCELLED → arsip
+history-view: SEMUA kartu = "Lihat detail →" (riwayat = arsip+pantauan);
+  jalur "Tandai LUNAS" di riwayat DIHAPUS (bukan tempatnya — beranda).
+  field row invoiceId/invoiceStatus dihapus (fosil; jobId cukup).
+```
+**Implementasi F9d+ (TDD: RED 9 test → GREEN; kelompok baru di beranda):**
+```
+listTechnicianUnpaidCashJobs: job COMPLETED cash BELUM lunas → kelompok
+  "Menunggu pelunasan cash" (2-query utk klasifikasi — WorkSession.jobId
+  opsional tanpa relasi balik; take:50 batas aman skala; scoping sama).
+  Empty-state & angka ringkasan memperhitungkan ketiga kelompok.
+  (Tanpa ini: setelah F9c', Ibu Hesti hilang dari DUA halaman — dicegah.)
+```
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")

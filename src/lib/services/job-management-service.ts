@@ -243,8 +243,6 @@ export async function listTechnicianBacklogJobs(tenantId: string, technicianId: 
   });
 }
 
-/** F9d: hitungan backlog PENUH utk kartu ringkasan (daftar backlog dibatasi take=50
- *  supaya aman skala; angka kartu tetap akurat dari count — bukan dari panjang daftar). */
 export async function countTechnicianBacklogJobs(tenantId: string, technicianId: string): Promise<number> {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -254,12 +252,67 @@ export async function countTechnicianBacklogJobs(tenantId: string, technicianId:
   });
   return prisma.jobOrder.count({
     where: {
-      tenantId,
-      deletedAt: null,
-      status: { in: ACTIVE_STATUSES },
+      tenantId, deletedAt: null, status: { in: ACTIVE_STATUSES },
       scheduledDate: { lt: startOfToday },
       AND: [{ OR: [{ technicianId }, { id: { in: assigned.map((a) => a.jobId) } }] }],
     },
+  });
+}
+
+/**
+ * F9c'/F9d (SSOT_Alar_Teknisi 0.2): kelompok "Menunggu pelunasan cash" —
+ * job COMPLETED (cash, tanpa proforma) yang invoice-nya BELUM PAID.
+ * Aturan terkunci: cash tuntas = LUNAS; sebelum itu pekerjaan BELUM tuntas
+ * dan harus TETAP terlihat di beranda teknisi (bukan hilang dari dua halaman).
+ * Scoping SAMA (technicianId ATAU JobAssignment) — pola dua helper di atas.
+ */
+export async function listTechnicianUnpaidCashJobs(tenantId: string, technicianId: string) {
+  const assigned = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: { jobId: true },
+  });
+  const assignedJobIds = assigned.map((a) => a.jobId);
+  const completed = await prisma.jobOrder.findMany({
+    where: {
+      tenantId,
+      deletedAt: null,
+      status: "COMPLETED",
+      completedAt: { not: null },
+      AND: [{ OR: [{ technicianId }, { id: { in: assignedJobIds } }] }],
+    },
+    select: { // ringan: hanya utk map (UI render kartu dari JobCard polos)
+      id: true, status: true, windowStart: true, scheduledDate: true,
+      customer: { select: { name: true, phone: true, address: true } },
+      asset: { select: { brand: true, model: true, roomLocation: true } },
+    },
+    orderBy: [{ completedAt: "asc" }],
+    take: 50, // batas aman skala — pola listTechnicianBacklogJobs
+  });
+  if (completed.length === 0) return [];
+  // Klasifikasi via 2 langkah query terpisah (WorkSession.jobId opsional,
+  // TANPA relasi invoices di skema WorkSession) — pola listTechnicianJobHistory.
+  const sessions = await prisma.workSession.findMany({
+    where: { tenantId, jobId: { in: completed.map((j) => j.id) } },
+    select: { id: true, jobId: true },
+  });
+  if (sessions.length === 0) return [];
+  const invoices = await prisma.invoice.findMany({
+    where: { tenantId, workSessionId: { in: sessions.map((s) => s.id) } },
+    select: { workSessionId: true, docType: true, status: true },
+  });
+  const byJob = new Map<string, { docType: string; status: string }[]>();
+  for (const inv of invoices) {
+    const s = sessions.find((x) => x.id === inv.workSessionId);
+    if (!s?.jobId) continue;
+    const arr = byJob.get(s.jobId) ?? [];
+    arr.push({ docType: inv.docType, status: inv.status });
+    byJob.set(s.jobId, arr);
+  }
+  return completed.filter((j) => {
+    const invs = byJob.get(j.id) ?? [];
+    if (invs.length === 0) return false;              // tanpa invoice = bukan kasus cash
+    if (invs.some((x) => x.docType === "PROFORMA")) return false; // tempo — tuntas
+    return !invs.some((x) => x.status === "PAID");    // cash: ada yang belum lunas
   });
 }
 

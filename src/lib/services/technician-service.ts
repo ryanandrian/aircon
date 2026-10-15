@@ -293,8 +293,7 @@ export async function listTechnicianJobHistory(
   period?: string,
 ): Promise<{
   rows: {
-    id: string; jobId: string; invoiceId: string | null; invoiceStatus: string | null;
-    date: string | null; customer: string; unit: string;
+    id: string; jobId: string; date: string | null; customer: string; unit: string;
     role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number;
   }[];
   periods: string[];
@@ -311,9 +310,11 @@ export async function listTechnicianJobHistory(
   const basis = tenant?.incentiveBasis ?? "LUNAS";
   const teamMode = (tenant?.teamIncentiveMode ?? "BAGI_RATA") as "BAGI_RATA" | "PENUH";
 
-  // Pekerjaan yang ditugaskan ke teknisi ini.
+  // Pekerjaan yang ditugaskan ke teknisi ini — F9c' (kesepakatan pemilik 2026-10-15):
+  // RIWAYAT hanya pekerjaan TUNTAS. Di query: hanya COMPLETED & CANCELLED (job
+  // status aktif TIDAK ikut — sudah berada di beranda /t sebagai "daftar kerja").
   const assignments = await prisma.jobAssignment.findMany({
-    where: { tenantId, personId: technicianId },
+    where: { tenantId, personId: technicianId, job: { status: { in: ["COMPLETED", "CANCELLED"] as never } } },
     select: {
       id: true, roleOnJob: true, jobId: true,
       job: {
@@ -346,7 +347,7 @@ export async function listTechnicianJobHistory(
   const invoices = wsIds.length
     ? await prisma.invoice.findMany({
         where: { tenantId, workSessionId: { in: wsIds }, docType: "INVOICE" },
-        select: { id: true, workSessionId: true, docType: true, status: true, paidAt: true, issueDate: true },
+        select: { workSessionId: true, status: true, paidAt: true, issueDate: true },
       })
     : [];
   const invoicesByWs = new Map<string, typeof invoices>();
@@ -354,6 +355,20 @@ export async function listTechnicianJobHistory(
     if (!inv.workSessionId) continue;
     const arr = invoicesByWs.get(inv.workSessionId) ?? [];
     arr.push(inv); invoicesByWs.set(inv.workSessionId, arr);
+  }
+
+  // F9c': probe Proforma TERPISAH (utk bedakan cash vs tempo) — query insentif
+  // di atas TIDAK disentuh sama sekali (uang).
+  const proformaRows = wsIds.length
+    ? await prisma.invoice.findMany({
+        where: { tenantId, workSessionId: { in: wsIds }, docType: "PROFORMA" },
+        select: { workSessionId: true },
+      })
+    : [];
+  const proformaJobIds = new Set<string>();
+  for (const p of proformaRows) {
+    const ws = sessions.find((s) => s.id === p.workSessionId);
+    if (ws?.jobId) proformaJobIds.add(ws.jobId);
   }
 
   // Kumpulkan serviceId untuk config insentif katalog.
@@ -376,7 +391,7 @@ export async function listTechnicianJobHistory(
   const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   const periodsSet = new Set<string>();
 
-  const all = assignments.map((a) => {
+  const allRows = assignments.map((a) => {
     const j = a.job;
     const ws = sessionByJob.get(a.jobId) ?? null;
     const wsInvoices = ws ? (invoicesByWs.get(ws.id) ?? []) : [];
@@ -405,6 +420,16 @@ export async function listTechnicianJobHistory(
       }
     }
 
+    // F9c' (kesepakatan pemilik 2026-10-15): CASH tuntas = invoice PAID.
+    // Cash COMPLETED tapi BELUM lunas = BELUM tuntas → keluar dari riwayat
+    // (masih di beranda sebagai kartu "Menunggu pelunasan cash").
+    // TEMPO: proforma terbit = tugas teknisi tuntas → tetap di riwayat utk
+    // teknisi MEMANTAU status invoice (insentif masuk saat LUNAS).
+    if (j.status === "COMPLETED" && wsInvoices.length > 0 && !proformaJobIds.has(a.jobId)) {
+      const anyPaid = wsInvoices.some((x) => x.status === "PAID");
+      if (!anyPaid) return null;
+    }
+
     // Tanggal tampil: pakai tanggal insentif bila ada (agar filter periode konsisten dgn kapan insentif muncul),
     // jika belum lunas pakai tanggal kerja.
     const shownDate = incentiveDate ?? j.completedAt ?? j.scheduledDate ?? j.createdAt;
@@ -415,12 +440,7 @@ export async function listTechnicianJobHistory(
       : "—";
     return {
       id: a.id,
-      jobId: a.jobId, // F9b: pautan pantauan kerja tempo dari riwayat
-      // F9b+: cash COMPLETED tapi BELUM LUNAS = belum tuntas → kartu riwayat
-      // memberi jalan ke halaman invoice (tombol "Tandai LUNAS" ada di sana).
-      invoiceId: wsInvoices.find((x) => x.docType === "INVOICE" && x.status !== "PAID")?.id
-        ?? wsInvoices.find((x) => x.docType === "INVOICE")?.id ?? null,
-      invoiceStatus: wsInvoices.find((x) => x.docType === "INVOICE")?.status ?? null,
+      jobId: a.jobId, // pautan detail (kartu pantauan tempo)
       date: d ? d.toISOString() : null,
       _key: d ? monthKey(d) : "",
       _ts: d ? d.getTime() : 0,
@@ -432,6 +452,9 @@ export async function listTechnicianJobHistory(
       incentive,
     };
   });
+  // F9c' (pemilik 2026-10-15): buang entri null — cash COMPLETED BELUM lunas
+  // keluar dari riwayat (beranda saja). Predicate eksplisit utk aman tipe.
+  const all = allRows.filter((r): r is NonNullable<(typeof allRows)[number]> => r !== null);
   all.sort((x, y) => y._ts - x._ts);
 
   const filtered = period ? all.filter((r) => r._key === period) : all;

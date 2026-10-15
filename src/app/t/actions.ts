@@ -172,7 +172,7 @@ export async function techSaveCustomerLocation(
 
 /** Riwayat pekerjaan + insentif teknisi (dirinya sendiri), filter periode YYYY-MM. */
 export async function techJobHistory(period?: string): Promise<
-  | { ok: true; rows: { id: string; jobId: string; invoiceId: string | null; invoiceStatus: string | null; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number }[]; periods: string[]; totalIncentive: number; incentiveEnabled: boolean }
+  | { ok: true; rows: { id: string; jobId: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number }[]; periods: string[]; totalIncentive: number; incentiveEnabled: boolean }
   | { ok: false; error: string }
 > {
   try {

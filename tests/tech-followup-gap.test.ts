@@ -41,9 +41,10 @@ describe("F9b — riwayat: tautan followup utk job AKTIF", () => {
     expect(historyView).toMatch(/\/t\/pekerjaan\/\$\{r\.jobId\}/);
   });
 
-  it("cash COMPLETED BELUM LUNAS memberi jalan ke halaman invoice (Tandai LUNAS)", () => {
-    expect(historyView).toContain("/t/faktur/");
-    expect(historyView).toContain("Tandai LUNAS");
+  it("riwayat = arsip+pantauan: SEMUA kartu tautan 'Lihat detail'; TANPA jalur 'Tandai LUNAS' (F9c' — beranda saja)", () => {
+    expect(historyView).toContain("Lihat detail");
+    expect(historyView).not.toContain("/t/faktur/");
+    expect(historyView).not.toContain("Tandai LUNAS");
   });
 });
 
