@@ -9,7 +9,15 @@ import {
 } from "@/components/ui/select";
 import { techJobHistory } from "../actions";
 
-type Row = { id: string; jobId: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number };
+type Row = { id: string; jobId: string; paid: boolean; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number };
+
+// Dual status (tawaran pemilik 2026-10-15): label MEMBAWA posisi pembayaran —
+// "Selesai" saja membingungkan (kerja beres, uang belum masuk).
+function statusLabel(r: Row): string {
+  if (r.status === "CANCELLED") return "Batal";
+  if (r.status === "COMPLETED") return r.paid ? "Selesai - Lunas" : "Selesai - Belum dibayar";
+  return JOB_STATUS[r.status] ?? r.status;
+}
 
 const SERVICE_LABEL: Record<string, string> = {
   CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
@@ -125,7 +133,7 @@ export function JobHistoryView({
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <Badge variant={r.role === "KERNET" ? "secondary" : "outline"}>{r.role === "KERNET" ? "Kernet" : "Teknisi"}</Badge>
                   <Badge variant="outline">{SERVICE_LABEL[r.service] ?? r.service}</Badge>
-                  <Badge variant={r.status === "COMPLETED" ? "secondary" : "outline"}>{JOB_STATUS[r.status] ?? r.status}</Badge>
+                  <Badge variant={r.status === "COMPLETED" && r.paid ? "secondary" : "outline"}>{statusLabel(r)}</Badge>
                   {usesIncentive && r.incentive === 0 && r.status === "COMPLETED" && (
                     <span className="text-xs text-muted-foreground">insentif menunggu pelunasan</span>
                   )}

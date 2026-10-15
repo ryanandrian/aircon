@@ -293,7 +293,7 @@ export async function listTechnicianJobHistory(
   period?: string,
 ): Promise<{
   rows: {
-    id: string; jobId: string; date: string | null; customer: string; unit: string;
+    id: string; jobId: string; paid: boolean; date: string | null; customer: string; unit: string;
     role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number;
   }[];
   periods: string[];
@@ -440,7 +440,9 @@ export async function listTechnicianJobHistory(
       : "—";
     return {
       id: a.id,
-      jobId: a.jobId, // pautan detail (kartu pantauan tempo)
+      jobId: a.jobId, // tautan pantauan
+      // Query riwayat sudah ter-filter docType:"INVOICE" → paid dari status saja.
+      paid: wsInvoices.some((x) => x.status === "PAID"),
       date: d ? d.toISOString() : null,
       _key: d ? monthKey(d) : "",
       _ts: d ? d.getTime() : 0,

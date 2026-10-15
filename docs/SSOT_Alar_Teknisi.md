@@ -282,6 +282,21 @@ Kasus nyata Ibu Hesti (INV/2026/0032, Ryan, Rp75.000, cash):
 → alur cash penuh (closing → lunas → cetak) PRODUCTION-ACCEPTED.
 ```
 
+### F11 — Dual status "Selesai - Belum dibayar / Selesai - Lunas" (tawaran pemilik → dieksekusi)
+```
+STATUS AWAL: ditawarkan saat diskusi, TIDAK sempat dieksekusi → pemilik
+  tak melihatnya di aplikasi (laporan 2026-10-15). Kini dikerjakan (TDD).
+Perubahan (jalur yang sudah ada — 0 komponen baru):
+  riwayat : row + paid:boolean (dihitung dari invoicesByWs — data sudah di
+            query, tanpa query tambahan); statusLabel(): CANCELLED→"Batal";
+            COMPLETED+lunas→"Selesai - Lunas"; COMPLETED+belum→"Selesai -
+            Belum dibayar" (tempo menanti admin). Badge lunas = secondary.
+  beranda : JobCard prop unpaidCash → kelompok "Menunggu pelunasan cash"
+            label "Selesai - Belum dibayar" (sifat kelompok = belum lunas,
+            tanpa query tambahan); kelompok lain label biasa.
+Test: tests/dual-status-label.test.ts (RED 4/6 → GREEN 6/6).
+```
+
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")

@@ -158,7 +158,7 @@ export default async function TechnicianHome() {
                 <p className="mb-2 text-xs text-muted-foreground">Tandai LUNAS setelah uang diterima dari pelanggan.</p>
                 <div className="space-y-3">
                   {unpaidCash.map((job) => (
-                    <JobCard key={`cash-${job.id}`} job={job} overdue />
+                    <JobCard key={`cash-${job.id}`} job={job} overdue unpaidCash />
                   ))}
                 </div>
               </section>
@@ -184,7 +184,7 @@ export default async function TechnicianHome() {
 
 /** F9d: kartu pekerjaan (dipakai "Hari ini" & "Perlu ditindaklanjuti") — pola
  *  kartu beranda yang sudah ada; flag `overdue` menambah label telat. */
-function JobCard({ job, overdue = false }: {
+function JobCard({ job, overdue = false, unpaidCash = false }: {
   job: {
     id: string; status: JobStatus; windowStart: Date | null;
     scheduledDate: Date | null;
@@ -192,6 +192,9 @@ function JobCard({ job, overdue = false }: {
     asset: { brand: string | null; model: string | null; roomLocation: string | null } | null;
   };
   overdue?: boolean;
+  /** F9d++/dual status: kartu kelompok "Menunggu pelunasan cash" — label
+   *  status membawa posisi bayar (selesai dikerjakan, uang belum masuk). */
+  unpaidCash?: boolean;
 }) {
   return (
     <Link
@@ -208,7 +211,7 @@ function JobCard({ job, overdue = false }: {
         </div>
         <div className="shrink-0 text-right">
           <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${JOB_STATUS_COLOR[job.status]}`}>
-            {JOB_STATUS_LABEL[job.status]}
+            {unpaidCash ? "Selesai - Belum dibayar" : JOB_STATUS_LABEL[job.status]}
           </span>
           {overdue && (
             <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
