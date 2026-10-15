@@ -428,6 +428,12 @@ Sisa rencana: F9f (clear cashRemitStatus TRANSFER/QRIS + test K17).
 
 ---
 
+## BAGIAN 2B — RENCANA PERBAIKAN KAS TUNAI (AKTIF, dokumen terpisah)
+Lihat `docs/RENCANA_Kas_Tunai_Tampilan_Keuangan.md` — prinsip P1-P4,
+bukti F1-F7, fakta belum-dibaca U1-U5, item G1-G6, keputusan pemilik D1-D5,
+gate. SEMUA item beranda/riwayat teknisi (F9a-F9f, F10-F13) di dokumen ini
+SELESAI (lihat KESIMPULAN STATUS). Pekerjaan berikutnya = rencana kas tsb.
+
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```
 TANGGAL: 2026-10-15 malam. Sumber: probe read-only live DB + kode + git log.
