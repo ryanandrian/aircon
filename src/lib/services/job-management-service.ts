@@ -207,6 +207,85 @@ export async function listTechnicianJobsToday(tenantId: string, technicianId: st
 }
 
 /**
+ * F9d (SSOT_Alar_Teknisi 0.1/0.2): daftar kerja BELUM TUNTAS yang jadwalnya
+ * SUDAH LEWAT (masa lalu, termasuk tanpa tindak lanjut) — scoping SAMA persis
+ * dgn listTechnicianJobsToday (technicianId utama ATAU anggota JobAssignment).
+ * "Hari ini" tetap terpisah (listTechnicianJobsToday TIDAK diubah) — backlog
+ * = PENAMBAH, agar pekerjaan tertunda tak pernah tersembunyi dari teknisi.
+ * Job tempo yg SUDAH closing (proforma terbit) TIDAK lagi "aktif" — otomatis
+ * keluar dari dua daftar ini (masuk riwayat/pantauan).
+ */
+export async function listTechnicianBacklogJobs(tenantId: string, technicianId: string) {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const assigned = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: { jobId: true },
+  });
+  const assignedJobIds = assigned.map((a) => a.jobId);
+  return prisma.jobOrder.findMany({
+    where: {
+      tenantId,
+      deletedAt: null,
+      status: { in: ACTIVE_STATUSES },
+      scheduledDate: { lt: startOfToday }, // lewat jadwal (null = tanpa jadwal → tetap di "hari ini")
+      AND: [{ OR: [{ technicianId }, { id: { in: assignedJobIds } }] }],
+    },
+    include: {
+      customer: { select: { name: true, phone: true, address: true } },
+      asset: { select: { brand: true, model: true, roomLocation: true } },
+    },
+    orderBy: [{ scheduledDate: "asc" }], // jadwal terlama di atas = lama menunggu makin kelihatan
+    // Batas aman skala (keputusan pemilik 2026-10-15: jangan desain dari data demo).
+    // 50 paling telat = mendesak tetap terlihat; jumlah penuh selalu terwakili
+    // di kartu ringkasan (dihitung query count terpisah, bukan dari daftar ini).
+    take: 50,
+  });
+}
+
+/** F9d: hitungan backlog PENUH utk kartu ringkasan (daftar backlog dibatasi take=50
+ *  supaya aman skala; angka kartu tetap akurat dari count — bukan dari panjang daftar). */
+export async function countTechnicianBacklogJobs(tenantId: string, technicianId: string): Promise<number> {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const assigned = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: { jobId: true },
+  });
+  return prisma.jobOrder.count({
+    where: {
+      tenantId,
+      deletedAt: null,
+      status: { in: ACTIVE_STATUSES },
+      scheduledDate: { lt: startOfToday },
+      AND: [{ OR: [{ technicianId }, { id: { in: assigned.map((a) => a.jobId) } }] }],
+    },
+  });
+}
+
+/** F9d: hitung COMPLETED hari ini utk kartu ringkasan (doneCount lama SELALU 0 —
+ *  menghitung COMPLETED dari daftar yg sudah difilter ACTIVE). */
+export async function countTechnicianCompletedToday(tenantId: string, technicianId: string): Promise<number> {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const assigned = await prisma.jobAssignment.findMany({
+    where: { tenantId, personId: technicianId },
+    select: { jobId: true },
+  });
+  return prisma.jobOrder.count({
+    where: {
+      tenantId,
+      deletedAt: null,
+      status: "COMPLETED",
+      completedAt: { gte: startOfToday, lte: endOfToday },
+      AND: [{ OR: [{ technicianId }, { id: { in: assigned.map((a) => a.jobId) } }] }],
+    },
+  });
+}
+
+/**
  * Poin 3 — Edit CATATAN pekerjaan (`JobOrder.notes`) sebelum finalisasi.
  *
  * Jalur edit umum ini memang belum pernah ada (audit: `actionUpdateJob`/`actionEditJob`

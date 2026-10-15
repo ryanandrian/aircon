@@ -293,7 +293,8 @@ export async function listTechnicianJobHistory(
   period?: string,
 ): Promise<{
   rows: {
-    id: string; date: string | null; customer: string; unit: string;
+    id: string; jobId: string; invoiceId: string | null; invoiceStatus: string | null;
+    date: string | null; customer: string; unit: string;
     role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number;
   }[];
   periods: string[];
@@ -345,7 +346,7 @@ export async function listTechnicianJobHistory(
   const invoices = wsIds.length
     ? await prisma.invoice.findMany({
         where: { tenantId, workSessionId: { in: wsIds }, docType: "INVOICE" },
-        select: { workSessionId: true, status: true, paidAt: true, issueDate: true },
+        select: { id: true, workSessionId: true, docType: true, status: true, paidAt: true, issueDate: true },
       })
     : [];
   const invoicesByWs = new Map<string, typeof invoices>();
@@ -414,6 +415,12 @@ export async function listTechnicianJobHistory(
       : "—";
     return {
       id: a.id,
+      jobId: a.jobId, // F9b: pautan pantauan kerja tempo dari riwayat
+      // F9b+: cash COMPLETED tapi BELUM LUNAS = belum tuntas → kartu riwayat
+      // memberi jalan ke halaman invoice (tombol "Tandai LUNAS" ada di sana).
+      invoiceId: wsInvoices.find((x) => x.docType === "INVOICE" && x.status !== "PAID")?.id
+        ?? wsInvoices.find((x) => x.docType === "INVOICE")?.id ?? null,
+      invoiceStatus: wsInvoices.find((x) => x.docType === "INVOICE")?.status ?? null,
       date: d ? d.toISOString() : null,
       _key: d ? monthKey(d) : "",
       _ts: d ? d.getTime() : 0,

@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { techJobHistory } from "../actions";
 
-type Row = { id: string; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number };
+type Row = { id: string; jobId: string; invoiceId: string | null; invoiceStatus: string | null; date: string | null; customer: string; unit: string; role: "TECHNICIAN" | "KERNET"; service: string; status: string; incentive: number };
 
 const SERVICE_LABEL: Record<string, string> = {
   CLEANING: "Cuci AC", REFILL_FREON: "Isi Freon", REPAIR: "Perbaikan",
@@ -18,6 +19,10 @@ const JOB_STATUS: Record<string, string> = {
   DRAFT: "Draf", ASSIGNED: "Ditugaskan", ACCEPTED: "Diterima", EN_ROUTE: "Menuju",
   ARRIVED: "Tiba", IN_PROGRESS: "Dikerjakan", WAITING: "Menunggu", COMPLETED: "Selesai", CANCELLED: "Batal",
 };
+// F9b: status yang BELUM selesai → kartu memuat tautan followup ke detail.
+// (Pola & sumber = ACTIVE_STATUSES di job-management-service; terminal =
+// COMPLETED/CANCELLED → tanpa tautan, tak ada yang dilanjutkan.)
+const ACTIVE_STATUSES = ["DRAFT", "ASSIGNED", "ACCEPTED", "EN_ROUTE", "ARRIVED", "IN_PROGRESS", "WAITING"];
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 function fmtPeriod(p: string): string {
   const [y, m] = p.split("-");
@@ -99,31 +104,60 @@ export function JobHistoryView({
         <p className="py-8 text-center text-sm text-muted-foreground">Belum ada pekerjaan{period !== "ALL" ? " pada periode ini" : ""}.</p>
       ) : (
         <ol className="space-y-2">
-          {rows.slice(0, visible).map((r, i) => (
-            <li key={r.id} className="rounded-xl border bg-background p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-foreground">{i + 1}. {r.customer}</p>
-                  <p className="text-xs text-muted-foreground">{fmtDate(r.date)} · {r.unit}</p>
-                </div>
-                {usesIncentive && (
-                  <div className="shrink-0 text-right">
-                    <p className={`font-bold tabular-nums ${r.incentive > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
-                      {r.incentive > 0 ? rp(r.incentive) : "—"}
-                    </p>
+          {rows.slice(0, visible).map((r, i) => {
+            // F9b: tiga kondisi kartu (SSOT_Alar_Teknisi 0.1/0.2):
+            //  1. job NON-terminal (TEMPO proforma terbit, cash jalan) → pantauan
+            //     ke DETAIL pekerjaan.
+            //  2. job COMPLETED tapi invoice BELUM LUNAS (cash belum tuntas) →
+            //     jalan ke halaman INVOICE (tombol "Tandai LUNAS" di sana).
+            //  3. selain itu (LUNAS/BATAL) → kartu arsip polos.
+            const followable = ACTIVE_STATUSES.includes(r.status);
+            const unpaidCash = !followable
+              && r.status === "COMPLETED"
+              && r.invoiceId != null
+              && r.invoiceStatus !== "PAID";
+            const href = followable && r.jobId
+              ? `/t/pekerjaan/${r.jobId}`
+              : unpaidCash
+                ? `/t/faktur/${r.invoiceId}`
+                : null;
+            const linkLabel = followable ? "Lihat detail →" : unpaidCash ? "Tandai LUNAS →" : null;
+            const card = (
+              <li key={r.id} className={href ? "rounded-xl border bg-background p-3 transition active:brightness-95" : "rounded-xl border bg-background p-3"}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-foreground">{i + 1}. {r.customer}</p>
+                    <p className="text-xs text-muted-foreground">{fmtDate(r.date)} · {r.unit}</p>
                   </div>
-                )}
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge variant={r.role === "KERNET" ? "secondary" : "outline"}>{r.role === "KERNET" ? "Kernet" : "Teknisi"}</Badge>
-                <Badge variant="outline">{SERVICE_LABEL[r.service] ?? r.service}</Badge>
-                <Badge variant={r.status === "COMPLETED" ? "secondary" : "outline"}>{JOB_STATUS[r.status] ?? r.status}</Badge>
-                {usesIncentive && r.incentive === 0 && r.status === "COMPLETED" && (
-                  <span className="text-xs text-muted-foreground">insentif menunggu pelunasan</span>
-                )}
-              </div>
-            </li>
-          ))}
+                  {usesIncentive && (
+                    <div className="shrink-0 text-right">
+                      <p className={`font-bold tabular-nums ${r.incentive > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                        {r.incentive > 0 ? rp(r.incentive) : "—"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge variant={r.role === "KERNET" ? "secondary" : "outline"}>{r.role === "KERNET" ? "Kernet" : "Teknisi"}</Badge>
+                  <Badge variant="outline">{SERVICE_LABEL[r.service] ?? r.service}</Badge>
+                  <Badge variant={r.status === "COMPLETED" ? "secondary" : "outline"}>{JOB_STATUS[r.status] ?? r.status}</Badge>
+                  {usesIncentive && r.incentive === 0 && r.status === "COMPLETED" && (
+                    <span className="text-xs text-muted-foreground">insentif menunggu pelunasan</span>
+                  )}
+                  {href && (
+                    <span className="ml-auto text-xs font-medium text-sky-600 dark:text-sky-400">{linkLabel}</span>
+                  )}
+                </div>
+              </li>
+            );
+            return href ? (
+              <Link key={r.id} href={href} className="block" aria-label={`${linkLabel} ${r.customer}`}>
+                {card}
+              </Link>
+            ) : (
+              card
+            );
+          })}
           {/* Sentinel lazy-load: memuat 10 baris berikutnya saat mendekati layar */}
           {visible < rows.length && (
             <div ref={sentinelRef} className="py-3 text-center text-xs text-muted-foreground">Memuat lagi…</div>

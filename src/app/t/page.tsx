@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
-import { listTechnicianJobsToday } from "@/lib/services/job-management-service";
+import { listTechnicianJobsToday, listTechnicianBacklogJobs, countTechnicianBacklogJobs, countTechnicianCompletedToday } from "@/lib/services/job-management-service";
+import type { JobStatus } from "@prisma/client";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
 import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,8 +36,14 @@ export default async function TechnicianHome() {
     );
   }
 
-  const jobs = await listTechnicianJobsToday(ctx.tenantId, tech.id);
-  const doneCount = jobs.filter((j) => j.status === "COMPLETED").length;
+  const [jobs, backlog, backlogCount, doneToday] = await Promise.all([
+    listTechnicianJobsToday(ctx.tenantId, tech.id),
+    // F9d: daftar dibatasi take=50 utk skala; count terpisah = total akurat.
+    listTechnicianBacklogJobs(ctx.tenantId, tech.id),
+    countTechnicianBacklogJobs(ctx.tenantId, tech.id),
+    countTechnicianCompletedToday(ctx.tenantId, tech.id),
+  ]);
+  const doneCount = doneToday;
 
   // NIAT EKSPLISIT tenant (bukan tebak dari nilai). Off → teknisi TAK PERNAH lihat UI insentif.
   const incentiveEnabled = tech.tenant?.incentiveEnabled ?? false;
@@ -97,6 +104,12 @@ export default async function TechnicianHome() {
                   <p className="text-xs text-white/80">Selesai</p>
                   <p className="text-2xl font-bold tabular-nums">{doneCount}</p>
                 </div>
+                {backlogCount > 0 && (
+                  <div>
+                    <p className="text-xs text-white/80">Perlu ditindaklanjuti</p>
+                    <p className="text-2xl font-bold tabular-nums">{backlogCount}{backlogCount > backlog.length ? "+" : ""}</p>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-1.5 text-sm text-white/90">
                 Riwayat
@@ -105,7 +118,7 @@ export default async function TechnicianHome() {
             </div>
           </Link>
         )}
-        {jobs.length === 0 ? (
+        {jobs.length === 0 && backlog.length === 0 ? (
           <Card className="border-dashed text-center">
             <CardContent className="p-8">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"><Icon.Success className="h-7 w-7" aria-hidden /></div>
@@ -114,41 +127,90 @@ export default async function TechnicianHome() {
             </CardContent>
           </Card>
         ) : (
-          jobs.map((job) => (
-            <Link
-              key={job.id}
-              href={`/t/pekerjaan/${job.id}`}
-              className="block rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition active:bg-muted/50"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-foreground">{job.customer.name}</p>
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {job.asset ? `${job.asset.brand ?? "AC"} ${job.asset.model ?? ""}`.trim() : "Servis AC"}
-                    {job.asset?.roomLocation ? ` · ${job.asset.roomLocation}` : ""}
-                  </p>
+          <>
+            {/* F9d: daftar kerja aktif jadwalnya SUDAH lewat — "Perlu ditindaklanjuti".
+                Pekerjaan tertunda tak boleh tersembunyi di riwayat (laporan pemilik 2026-10-15). */}
+            {backlog.length > 0 && (
+              <section aria-label="Perlu ditindaklanjuti">
+                <h2 className="mb-2 mt-4 flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
+                  <Icon.Clock className="h-4 w-4" aria-hidden /> Perlu ditindaklanjuti ({backlogCount}{backlogCount > backlog.length ? "+" : ""})
+                </h2>
+                <div className="space-y-3">
+                  {backlog.map((job) => (
+                    <JobCard key={`backlog-${job.id}`} job={job} overdue />
+                  ))}
                 </div>
-                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${JOB_STATUS_COLOR[job.status]}`}>
-                  {JOB_STATUS_LABEL[job.status]}
-                </span>
-              </div>
-              {job.customer.address && (
-                <p className="mt-2 flex items-start gap-1 text-sm text-muted-foreground">
-                  <Icon.Location className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /><span className="line-clamp-2">{job.customer.address}</span>
-                </p>
-              )}
-              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {job.windowStart
-                    ? new Date(job.windowStart).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-                    : "Waktu fleksibel"}
-                </span>
-                <span className="font-medium text-sky-600">Buka →</span>
-              </div>
-            </Link>
-          ))
+              </section>
+            )}
+            {jobs.length > 0 && (
+              <section aria-label="Tugas hari ini">
+                {backlog.length > 0 && (
+                  <h2 className="mb-2 mt-4 text-sm font-semibold text-foreground">Hari ini</h2>
+                )}
+                <div className="space-y-3">
+                  {jobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </div>
     </main>
+  );
+}
+
+/** F9d: kartu pekerjaan (dipakai "Hari ini" & "Perlu ditindaklanjuti") — pola
+ *  kartu beranda yang sudah ada; flag `overdue` menambah label telat. */
+function JobCard({ job, overdue = false }: {
+  job: {
+    id: string; status: JobStatus; windowStart: Date | null;
+    scheduledDate: Date | null;
+    customer: { name: string; address: string | null };
+    asset: { brand: string | null; model: string | null; roomLocation: string | null } | null;
+  };
+  overdue?: boolean;
+}) {
+  return (
+    <Link
+      href={`/t/pekerjaan/${job.id}`}
+      className="block rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition active:bg-muted/50"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-foreground">{job.customer.name}</p>
+          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+            {job.asset ? `${job.asset.brand ?? "AC"} ${job.asset.model ?? ""}`.trim() : "Servis AC"}
+            {job.asset?.roomLocation ? ` · ${job.asset.roomLocation}` : ""}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${JOB_STATUS_COLOR[job.status]}`}>
+            {JOB_STATUS_LABEL[job.status]}
+          </span>
+          {overdue && (
+            <p className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+              Lewat jadwal
+            </p>
+          )}
+        </div>
+      </div>
+      {job.customer.address && (
+        <p className="mt-2 flex items-start gap-1 text-sm text-muted-foreground">
+          <Icon.Location className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /><span className="line-clamp-2">{job.customer.address}</span>
+        </p>
+      )}
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          {job.scheduledDate
+            ? new Date(job.scheduledDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })
+            : job.windowStart
+              ? new Date(job.windowStart).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+              : "Waktu fleksibel"}
+        </span>
+        <span className="font-medium text-sky-600">Buka →</span>
+      </div>
+    </Link>
   );
 }
