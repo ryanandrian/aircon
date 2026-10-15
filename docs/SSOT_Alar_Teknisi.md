@@ -271,6 +271,17 @@ berisi `html.dark` di media print + `@media print`; service active; suite
 98 files / 838 tests · eslint 0 · build 0).
 ```
 
+### UJI PEMILIK END-TO-END ALUR CASH (konfirmasi 2026-10-15 16:20)
+```
+Kasus nyata Ibu Hesti (INV/2026/0032, Ryan, Rp75.000, cash):
+  ✓ kartu "Menunggu pelunasan cash" di beranda (F9d+)
+  ✓ detail job COMPLETED → kartu tagihan + "Tandai LUNAS →" (F9d++)
+  ✓ pemilik TANDAI LUNAS di HP teknisi (F9d++ → /t/faktur/{id})
+  ✓ download INVOICE + KWITANSI — PDF TERANG walau mode dark (F10)
+  ✓ kartu hilang dari beranda; pekerjaan masuk riwayat (F9c'/F9d)
+→ alur cash penuh (closing → lunas → cetak) PRODUCTION-ACCEPTED.
+```
+
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")
