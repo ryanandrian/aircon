@@ -226,6 +226,16 @@ listTechnicianUnpaidCashJobs: job COMPLETED cash BELUM lunas → kelompok
   Empty-state & angka ringkasan memperhitungkan ketiga kelompok.
   (Tanpa ini: setelah F9c', Ibu Hesti hilang dari DUA halaman — dicegah.)
 ```
+**DEPLOY F9c'+F9d+ LIVE `ffee929` (2026-10-15 malam, PASS):**
+```
+/ & /login 200 · marker live: "Menunggu pelunasan cash" ADA · "Lihat detail"
+ADA · staleTimes {dynamic:30} · log error 5 menit bersih.
+Suite: 96 files / 832 tests · tsc=0 · eslint=0 · build=0.
+UJI PEMILIK: riwayat Ryan = HANYA Ibu Hesti (tuntas, "Lihat detail");
+beranda = "Perlu ditindaklanjuti" (Effi, Wati) + "Menunggu pelunasan cash"
+(Ibu Hesti) — nol duplikasi.
+```
+
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
 ```
 F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")
