@@ -211,7 +211,15 @@ F9d  KODE SELESAI (listTechnicianBacklogJobs take:50 + count akurat terpisah;
 F9f  BELUM: fix markInvoicePaid clear cashRemitStatus utk TRANSFER/QRIS (D1)
      + test K17 (D2). Data stale 12 invoice: TERBUKA (larangan mutasi DB).
 Verifikasi: tsc=0 · eslint=0 · suite 94 files/818 tests · build=0.
-BELUM: commit+deploy (menunggu persetujuan pemilik dgn perubahan ini).
+DEPLOY LIVE `8ca1415` (2026-10-15, PASS): penanda "Perlu ditindaklanjuti" +
+"Tandai LUNAS" + "Memuat" ADA di server bundle; experimental.staleTimes
+{'dynamic': 30} terbaca di required-server-files.json; log error bersih.
+Insiden SOP: deploy pertama BLOCKED (working tree kotor — 2 dokumen F7
+tertinggal) → commit → rerun PASS. Pelajaran: git status dulu SEBELUM
+panggil SOP (gerbang tree-clean sudah benar; script TIDAK diubah).
+BELUM (utk uji pemilik): buka /t Ryan → "Perlu ditindaklanjuti" (Effi+Wati);
+riwayat Ibu Hesti → kartu "Tandai LUNAS →" → bayar → masuk Kas Belum Disetor.
+Sisa rencana: F9f (clear cashRemitStatus TRANSFER/QRIS + test K17).
 ```
 
 ---
