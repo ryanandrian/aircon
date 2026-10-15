@@ -238,6 +238,8 @@ beranda = "Perlu ditindaklanjuti" (Effi, Wati) + "Menunggu pelunasan cash"
 
 ### F9d++ — Detail job COMPLETED cash-belum-lunas BUNTU (laporan pemilik, screenshot 15:19)
 ```
+DEPLOY LIVE `f2cf589` (PASS; / + /login 200; marker "Menunggu pelunasan cash"
+ada di server bundle src_0w5y5y8; error runtime 3 menit = 0).
 GEJALA: kartu "Menunggu pelunasan cash" (beranda) → halaman detail Ibu Hesti
   hanya menampilkan "Pekerjaan selesai" + pengingat — TANPA tombol tagihan.
 AKAR (bukti kode): blok tagihan detail hanya utk ARRIVED/IN_PROGRESS/WAITING
@@ -248,7 +250,9 @@ createdById == teknisi (guard F2 selaras — teknisi tak lihat invoice admin)
   → kartu amber "Menunggu pelunasan cash · INV/xxx · Rp…" + tombol
   "Tandai LUNAS →" ke /t/faktur/{invoiceId} (PaymentPanel & sudah ada).
   Tempo (proforma) TIDAK ditampilkan — tagihan urusan admin.
-Test: tests/tech-detail-unpaid-cash.test.ts (RED 3/3 → GREEN).
+Test: tests/tech-detail-unpaid-cash.test.ts (RED 3/3→GREEN).
+Deploy live `f2cf589` (PASS; / + /login 200; marker "Menunggu pelunasan cash"
+ada di server bundle; error runtime 3 menit = 0).
 ```
 
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
