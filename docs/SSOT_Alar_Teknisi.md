@@ -324,6 +324,11 @@ PERBAIKAN (jalur YANG SAMA — sessionByJob diganti penuh, nol modul/fungsi baru
   anti-fosil: grep sessionByJob = hanya di komentar penjelasan bug.
 Test: tests/tech-history-multi-session.test.ts (RED 3/4 → GREEN 4/4) +
   15/15 lintas suite utk behavior ini.
+DEPLOY LIVE `c32ab31` (PASS; / + /login 200; service active; errors 0;
+  release source-sha = commit perbaikan; marker dual status ADA; nama
+  variabel minify → cek via source-sha, bukan grep string).
+UJI PEMILIK: riwayat Ibu Hesti kini "Selesai - Lunas" + insentif 20.000
+  (sama dgn beranda) — menunggu konfirmasi refresh tab.
 ```
 
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
