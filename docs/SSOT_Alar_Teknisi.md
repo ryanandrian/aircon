@@ -345,6 +345,9 @@ PERBAIKAN (jalur yang SUDAH ADA — work.tsx & page.tsx, nol komponen baru):
   card ringkasan "Ringkasan Pekerjaan" utk COMPLETED (layanan/unit/tanggal,
   field yg sudah dimuat getJob); copy empty-photo jujur utk arsip.
 Test: tests/tech-detail-completed-content.test.ts (RED 3/3 → GREEN 3/3).
+DEPLOY LIVE `ab2baad` (PASS; / + /login 200; marker "Ringkasan Pekerjaan" +
+"Belum ada foto bukti…" ADA; service active; errors 0; suite 101 files / 851
+tests · tsc=0 · eslint=0 · build=0).
 ```
 
 **STATUS TOTAL F9 (update 2026-10-15 akhir):**
