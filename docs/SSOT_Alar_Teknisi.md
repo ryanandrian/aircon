@@ -230,7 +230,10 @@ listTechnicianUnpaidCashJobs: job COMPLETED cash BELUM lunas → kelompok
 ```
 / & /login 200 · marker live: "Menunggu pelunasan cash" ADA · "Lihat detail"
 ADA · staleTimes {dynamic:30} · log error 5 menit bersih.
-Suite: 96 files / 832 tests · tsc=0 · eslint=0 · build=0.
+Suite 99 files / 844 tests · tsc=0 · eslint=0 · build=0.
+Deploy live `01379e1` PASS (/ + /login 200; marker dual status ADA; service
+active). Log 1 error = Server Reference ID stale tab (pola lama, bukan F11);
+tidak ada error aplikasi baru.
 UJI PEMILIK: riwayat Ryan = HANYA Ibu Hesti (tuntas, "Lihat detail");
 beranda = "Perlu ditindaklanjuti" (Effi, Wati) + "Menunggu pelunasan cash"
 (Ibu Hesti) — nol duplikasi.
