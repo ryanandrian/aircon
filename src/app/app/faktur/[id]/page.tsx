@@ -6,6 +6,7 @@ import { InvoiceActions } from "@/components/invoice-actions";
 import { PaymentPanel } from "@/components/payment-panel";
 import { ProformaConvert } from "./proforma-convert";
 import { CancelInvoiceButton } from "./cancel-button";
+import { VerifyPaymentButton } from "./verify-button";
 import { AppHeader } from "../../_components/app-header";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,11 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
   const canConvert = isProforma && inv.status !== "CANCELLED";
   const canPay = inv.docType === "INVOICE" && (inv.status === "ISSUED" || inv.status === "OVERDUE");
   const canCancel = inv.status !== "PAID" && inv.status !== "CANCELLED";
+  // L3 (K4): transfer/QRIS lunas TAPI belum diverifikasi — hanya bila yang menandai
+  // lunas teknisi (admin/owner yang menandai sudah otomatis terverifikasi).
+  const needVerify =
+    inv.docType === "INVOICE" && inv.status === "PAID" &&
+    (inv.payMethod === "TRANSFER" || inv.payMethod === "QRIS") && !inv.verifiedAt;
 
   return (
     <main className="min-h-screen pb-16 print:pb-0">
@@ -48,6 +54,7 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
           {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}
           {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />}
           {canCancel && <CancelInvoiceButton invoiceId={inv.id} isProforma={isProforma} />}
+          {needVerify && <VerifyPaymentButton invoiceId={inv.id} method={inv.payMethod!} />}
         </div>
       </div>
     </main>

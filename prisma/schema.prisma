@@ -1661,6 +1661,13 @@ model Invoice {
   remittedAt        DateTime?
   remittedById      String?
   remitProofUrl     String?
+  // L3 / K4 (keputusan pemilik 2026-10-17): VERIFIKASI transfer/QRIS oleh owner/admin
+  // tenant — memastikan dana benar-benar masuk rekening (antisipasi bukti fiktif).
+  // null = belum diverifikasi (uang transfer/QRIS belum dihitung sebagai penerimaan).
+  // Diisi otomatis bila ADMIN/OWNER sendiri yang menandai lunas; diisi lewat aksi
+  // verifikasi bila yang menandai lunas adalah TEKNISI di lapangan.
+  verifiedAt        DateTime?
+  verifiedById      String?
   // F7a (keputusan pemilik A+C): token dokumen utk tautan publik /d/{token}.
   // Acak tinggi entropi (pola technician-service: randomBytes 24 → base64url);
   // nullable + unique → dokumen LAMA (tanpa token) tetap aman (tidak merusak),

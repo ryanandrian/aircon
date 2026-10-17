@@ -426,6 +426,13 @@ PERUBAHAN L2 + K9 (2026-10-18) pada alur teknisi:
   "Tandai Disetor" di /app/laporan membuka Dialog (pustaka UI) dengan unggah wajib;
   setoran tanpa foto/penerima DITOLAK di service. Migrasi kolom jejak
   `20261018000000_cash_remit_trace` sudah dijalankan (data lama tidak disentuh).
+- **L3: transfer/QRIS kini punya TAHAP VERIFIKASI.** Penandaan lunas oleh TEKNISI
+  = "menunggu verifikasi" (belum dihitung penerimaan); oleh ADMIN/OWNER = langsung
+  terverifikasi (mereka yang menandai artinya sudah lihat dana masuk). Tombol
+  "Verifikasi" muncul di halaman faktur ADMIN BILA yang menandai lunas teknisi.
+  CASH tidak terpengaruh (verifikasinya = setoran berfoto, L2). Kolom verifikasi
+  `20261018010000_invoice_verification` sudah dijalankan — transfer/QRIS lama = null
+  (belum pernah diverifikasi), angka penerimaan LAMA tetap apa adanya sampai diverifikasi.
 
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```

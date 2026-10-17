@@ -168,8 +168,8 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | L1 | Semua penanggalan laporan memakai zona tenant | `[x]` | `tests/tenant-timezone.test.ts` (10 test RED→GREEN: bukti bug — uang 00.30 WIB tgl 1 dihitung bulan September oleh jalur lama) · `/app/laporan` & `/t` kini pakai `monthRangeInZone` — jalur lama `new Date(y,m,1)` di kedua berkas **KOSONG** (anti-fosil) · suite 104/873 · tsc=0 · eslint=0 · build=0 |
 | L2 | Kolom setoran: tanggal + admin penerima + foto bukti | `[x]` | Migrasi `20261018000000_cash_remit_trace` **dijalankan & diverifikasi**: 3 kolom nullable terpasang (`remittedAt`, `remittedById`, `remitProofUrl`) · verifikasi data lama: **71 invoice, 0 punya jejak** (tidak ada data yang disentuh) |
 | L2 | Setoran wajib bukti & penerima; atomik | `[x]` | `markCashRemitted` diperluas (jalur existing) → tulis jejak dalam 1 transaksi; **tolak tanpa foto / tanpa penerima** di SERVICE — `tests/ar-cash-remittance.test.ts` (L2, RED→GREEN) · dialog setoran pakai `Dialog` pustaka UI (confirm() bawaan terganti) · unggah via `putTenantAsset` scope `bukti` (jalur S3 existing) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
-| L3 | Transfer/QRIS oleh teknisi → menunggu verifikasi | `[ ]` | — |
-| L3 | Owner/admin verifikasi (catat siapa & kapan) | `[ ]` | — |
+| L3 | Transfer/QRIS oleh teknisi → menunggu verifikasi | `[x]` | `markInvoicePaid` diperluas (jalur existing): menandai lunas oleh **TEKNISI** → transfer/QRIS `status=PAID` **tanpa** verifikasi (nullable, tertulis null) · oleh **ADMIN/OWNER** → langsung terverifikasi + catat siapa/kapan · CASH tidak lewat verifikasi ini (jalur setoran L2) — `tests/invoice-verify.test.ts` (6 test RED→GREEN) |
+| L3 | Owner/admin verifikasi (catat siapa & kapan) | `[x]` | `verifyInvoicePayment` (service): atomik `WHERE verifiedAt=null` (verifikasi ganda tidak menimpa) · DITOLAK utk CASH / belum lunas / sudah diverifikasi / dokumen lain · aksi `actionVerifyPayment` (guard OWNER/ADMIN) + `VerifyPaymentButton` di halaman faktur admin — pola identik `CancelInvoiceButton` (Button pustaka UI) · migrasi `20261018010000_invoice_verification` **dijalankan** (2 kolom nullable; data lama aman, null = belum diverifikasi) · suite **105/891** · tsc=0 · eslint=0 · build=0 |
 | L4 | Kartu penerimaan dipisah 3 posisi | `[ ]` | — |
 | L4 | Foto bukti tampil di halaman tenant | `[ ]` | — |
 | L5 | Daftar setoran (siapa→siapa→kapan→bukti) | `[x]` | `getRemittances` + kartu "Riwayat Setoran Kas" di `/app/laporan` (pola kartu existing) — `tests/ar-cash-remittance.test.ts` (L5, RED→GREEN: jejak penerima/bukti/waktu + guard tenant) · setoran lama tanpa jejak TAMPIL "belum tercatat", tidak disembunyikan |
@@ -181,7 +181,7 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | K9 | Hapus stempel label posisi uang saat closing | `[x]` | `worksession-service.ts` — baris `cashRemitStatus: docType === "INVOICE" ? ...` **DIHAPUS** · anti-fosil: grep `cashRemitStatus` di `worksession-service.ts` = **KOSONG** · `tests/worksession.test.ts` RED→GREEN (16 test) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
 | L7 | Uji pemilik (owner/admin tenant) atas alur baru | `[ ]` | — |
 
-**Progres: 6 dari 16 butir — L1 (2), L2 (2), L5 (1), K9 (1), plus K8 tuntas sebagai keputusan (tak disentuh).**
+**Progres: 8 dari 16 butir — L1 (2), L2 (2), L3 (2), L5 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
 
 ---
 

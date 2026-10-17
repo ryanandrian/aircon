@@ -7,6 +7,7 @@ import {
   countInvoicesByBucket,
   sendInvoiceViaWa,
   sendReceiptViaWa,
+  verifyInvoicePayment,
   type InvoiceBucket,
 } from "@/lib/services/invoice-service";
 
@@ -79,5 +80,21 @@ export async function actionSendReceiptWa(
     return { ok: true, to: res.to };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };
+  }
+}
+
+/** Verifikasi dana transfer/QRIS masuk rekening (L3 / K4). Owner/admin tenant.
+ *  Menandai lunas oleh ADMIN/OWNER sendiri sudah otomatis terverifikasi — aksi ini
+ *  dipakai bila yang menandai lunas adalah teknisi di lapangan. */
+export async function actionVerifyPayment(
+  invoiceId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const ctx = await getServerContext();
+    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    await verifyInvoicePayment(ctx.tenantId, invoiceId, ctx.userId);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: toMessage(err, "Gagal memverifikasi pembayaran") };
   }
 }

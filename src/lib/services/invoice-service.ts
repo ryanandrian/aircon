@@ -345,15 +345,51 @@ export async function markInvoicePaid(
   // F9f (invariant K17 — TANPA opsi): cashRemitStatus = HELD_BY_TECH hanya utk CASH
   // (dana fisik dipegang pembuat sampai admin catat REMITTED); TRANSFER/QRIS =
   // null (dana masuk bank/kanal — tidak pernah "kas di tangan teknisi").
-  // Ini juga MEMBERSIHKAN nilai stale yang bisa diwarisi dari closing.
+  // L3 (K4): verifikasi transfer/QRIS — menandai lunas oleh ADMIN/OWNER = langsung
+  // terverifikasi (uangnya dilihat masuk kantor); oleh TEKNISI = BELUM diverifikasi,
+  // menunggu owner/admin tenant memastikan dana masuk rekening. CASH tidak diverifikasi
+  // di sini (jalurnya pencatatan setoran — L2).
+  const byAdmin = actor.role !== "TECHNICIAN";
+  const needVerify = payMethod !== "CASH";
   const res = await prisma.invoice.updateMany({
     where: { id: invoiceId, tenantId, docType: "INVOICE", status: { in: ["ISSUED", "OVERDUE"] } },
     data: {
       status: "PAID", payMethod, paymentProofUrl: paymentProofUrl ?? null, paidAt: new Date(),
       cashRemitStatus: payMethod === "CASH" ? "HELD_BY_TECH" : null,
+      verifiedAt: byAdmin && needVerify ? new Date() : null,
+      verifiedById: byAdmin && needVerify ? actor.userId : null,
     },
   });
   if (res.count !== 1) throw new ServiceError("CONFLICT", "Status invoice sudah berubah. Muat ulang halaman.");
+}
+
+/**
+ * VERIFIKASI transfer/QRIS (L3 / K4, 2026-10-17): owner/admin tenant memastikan dana
+ * benar-benar masuk rekening perusahaan (antisipasi bukti fiktif pelanggan), lalu
+ * penerimaan dihitung. CATATAN: siapa & kapan — tidak pernah ditimpa.
+ * CASH ditolak (verifikasi uang tunai = pencatatan setoran, L2); belum-lunas ditolak.
+ */
+export async function verifyInvoicePayment(
+  tenantId: string, invoiceId: string, actorId: string,
+): Promise<void> {
+  const inv = await prisma.invoice.findFirst({
+    where: { id: invoiceId, tenantId },
+    select: { id: true, docType: true, status: true, payMethod: true, verifiedAt: true },
+  });
+  if (!inv) throw new ServiceError("NOT_FOUND", "Invoice tidak ditemukan");
+  if (inv.docType !== "INVOICE") throw new ServiceError("CONFLICT", "Proforma bukan pembayaran");
+  if (inv.status !== "PAID") throw new ServiceError("CONFLICT", "Invoice belum lunas — belum ada yang diverifikasi");
+  if (inv.payMethod === "CASH") throw new ServiceError("CONFLICT", "Uang tunai diverifikasi lewat pencatatan setoran, bukan di sini");
+  if (inv.payMethod !== "TRANSFER" && inv.payMethod !== "QRIS") {
+    throw new ServiceError("CONFLICT", "Invoice belum punya metode pembayaran transfer/QRIS");
+  }
+  if (inv.verifiedAt) throw new ServiceError("CONFLICT", "Sudah diverifikasi sebelumnya");
+  // Atomik: guard verifiedAt null di WHERE — verifikasi ganda tidak menimpa catatan.
+  const res = await prisma.invoice.updateMany({
+    where: { id: invoiceId, tenantId, docType: "INVOICE", status: "PAID", verifiedAt: null },
+    data: { verifiedAt: new Date(), verifiedById: actorId },
+  });
+  if (res.count !== 1) throw new ServiceError("CONFLICT", "Verifikasi sudah dicatat pihak lain. Muat ulang halaman.");
 }
 
 /**
