@@ -38,7 +38,9 @@ BuildSpecPack_Part3 §6 "FEATURE GATING"       ARSIP-USAANG — nama paket Start
           → job COMPLETED + nextServiceDate + RepeatReminder (upsert per unit) +
             ReviewRequest + JobProgressEvent
         - create Invoice (status ISSUED) + items (harga SNAPSHOT dari WorkItem)
-        - INVOICE (cash) → cashRemitStatus="HELD_BY_TECH" (kas di tangan teknisi)
+        - K9 (2026-10-18): invoice/proforma terbit TANPA cashRemitStatus
+          (stempel "kas di tangan teknisi" saat terbit DIHAPUS — tebakan tanpa
+          cek pembayaran. Label ditulis HANYA di markInvoicePaid saat lunas)
      return { invoiceId, docType, number }
 ```
 
@@ -52,6 +54,21 @@ UI PaymentPanel (di detail invoice INVOICE berstatus ISSUED/OVERDUE):
      updateMany atomik guard status (ISSUED|OVERDUE → PAID) — anti double-mark (B4)
   → invoice PAID → tautan Kwitansi (/app/kwitansi/[id], /t/kwitansi/[id])
      Kwitansi: nomor KW/ dari nomor invoice, terbilangRupiah, cetak + Kirim WA
+
+POSISI UANG & JEJAK (2026-10-18, K1..K4, K7..K9):
+  - markInvoicePaid menulis cashRemitStatus: CASH → HELD_BY_TECH (kas di tangan
+    teknisi); TRANSFER/QRIS → null. Verifikasi (verifiedAt/verifiedById): bila
+    penanda lunas = ADMIN/OWNER → langsung terverifikasi (sudah lihat dana masuk);
+    bila TEKNISI → null (menunggu verifikasi — K4).
+  - verifyInvoicePayment (service) / actionVerifyPayment (admin): atomik guard
+    verifiedAt null; tolak utk CASH (jalurnya setoran) & invoice belum lunas.
+  - Setoran (K5): markCashRemitted TANPAWAJIB foto bukti (S3) + waktu + admin
+    penerima; dihimpun atomik; setoran tanpa bukti/penerima DITOLAK.
+  - Label POSISI UANG: SATU sumber di src/lib/copy/money-position.ts (L6) —
+    dipakai daftar faktur admin & InvoiceView.
+  - Penanggalan: zona waktu per tenant (K7) — batas "bulan ini" ikut zona tenant.
+  - Kartu penerimaan = getReceiptPositions (3 posisi): penerimaan /
+    menunggu setoran / menunggu verifikasi (L4).
 ```
 
 ### 1.3 TEMPO (proforma → invoice → tagih)
