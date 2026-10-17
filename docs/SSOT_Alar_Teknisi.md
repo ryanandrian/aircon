@@ -414,6 +414,19 @@ perbedaan hanya muncul bila ada tenant WITA/WIT (tenant baru memilih saat onboar
 Jalur lama `new Date(y,m,1)` di `src/app/t/page.tsx` sudah DIHAPUS (anti-fosil:
 grep jalur lama di 2 halaman = KOSONG).
 
+PERUBAHAN L2 + K9 (2026-10-18) pada alur teknisi:
+- **K9 (keputusan pemilik): invoice/proforma terbit TANPA label posisi uang.**
+  Dulu `closeWorkSession` menempel `cashRemitStatus=HELD_BY_TECH` sejak terbit
+  (tebakan tanpa cek pembayaran). Stempel di `worksession-service.ts` DIHAPUS —
+  anti-fosil: grep `cashRemitStatus` di file itu = KOSONG. Label kini HANYA ditulis
+  `markInvoicePaid` saat pembayaran nyata (CASH → HELD_BY_TECH; TRANSFER/QRIS → null).
+  Dampak ke teknisi: TIDAK ADA perubahan tombol/layar — teknisi tetap "Tandai LUNAS"
+  seperti biasa (K3); yang berubah hanya label datangnya, dan hanya saat benar-benar lunas.
+- **L2: setoran kas kini wajib bukti foto (S3) + waktu + admin penerima** — tombol
+  "Tandai Disetor" di /app/laporan membuka Dialog (pustaka UI) dengan unggah wajib;
+  setoran tanpa foto/penerima DITOLAK di service. Migrasi kolom jejak
+  `20261018000000_cash_remit_trace` sudah dijalankan (data lama tidak disentuh).
+
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```
 TANGGAL: 2026-10-15 malam. Sumber: probe read-only live DB + kode + git log.

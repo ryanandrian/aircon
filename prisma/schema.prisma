@@ -1655,6 +1655,12 @@ model Invoice {
   paymentProofUrl   String?
   paidAt            DateTime?
   cashRemitStatus   CashRemitStatus?
+  // L2 / K5 (keputusan pemilik 2026-10-17): JEJAK SETORAN kas — kapan disetor,
+  // admin mana yang MENERIMA (tenant bisa >1 admin), dan foto bukti di S3.
+  // Nullable: data lama (REMITTED tanpa jejak) tetap aman & tetap terbaca.
+  remittedAt        DateTime?
+  remittedById      String?
+  remitProofUrl     String?
   // F7a (keputusan pemilik A+C): token dokumen utk tautan publik /d/{token}.
   // Acak tinggi entropi (pola technician-service: randomBytes 24 → base64url);
   // nullable + unique → dokumen LAMA (tanpa token) tetap aman (tidak merusak),

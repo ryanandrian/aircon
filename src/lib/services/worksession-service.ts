@@ -320,7 +320,10 @@ export async function closeWorkSession(
         ppnPercent: totals.ppnPercent,
         ppnAmount: new Prisma.Decimal(totals.ppnAmount),
         total: new Prisma.Decimal(totals.total),
-        cashRemitStatus: docType === "INVOICE" ? "HELD_BY_TECH" : null,
+        // KEPUTUSAN 1 (pemilik 2026-10-18): invoice terbit TANPA label posisi uang.
+        // Label "uang di teknisi" hanya ditulis markInvoicePaid saat pembayaran NYATA
+        // dicatat (CASH → HELD_BY_TECH; TRANSFER/QRIS → null). Menulis di sini = tebakan
+        // tanpa dasar (pelanggan belum tentu bayar) dan sumber label basi.
         createdById,
         items: {
           create: ws.items.map((it) => ({

@@ -70,7 +70,8 @@ Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diper
 | **K5** | Bukti & identitas pada setoran | Setoran **wajib**: **foto bukti** (disimpan di penyimpanan cloud yang sudah dipakai aplikasi), **tanggal**, dan **nama admin tenant penerima** (satu bisnis bisa punya >1 admin). Metode setoran bebas — tunai, transfer, atau QRIS |
 | **K6** | Batas waktu setoran (SLA) | **TIDAK ADA.** Tidak ada konsep "terlambat", tidak ada peringatan, tidak ada penjadwalan otomatis. Tanggal dicatat hanya sebagai keterangan **"sejak X hari"** |
 | **K7** | Zona waktu | **Milik tiap tenant**, ditetapkan saat **onboarding** (bawaan: WIB). Seluruh penanggalan (bulan ini, "sejak X hari", laporan) mengikuti zona tenant. **Tenant yang ada saat ini seluruhnya WIB** → diisi langsung lewat satu pembaruan data, tanpa menanyai tenant |
-| **K8** | Data lama PT Ase (M6) | **WAJIB diperbaiki**, disesuaikan dengan struktur program & database terbaru. Sangat hati-hati: **tampilkan baris + perintah lebih dulu → izin tertulis pemilik → jalankan → buktikan sebelum/sesudah → pastikan laporan lain tidak berubah.** Nol sentuhan database sebelum izin |
+| **K8** | Data lama PT Ase (M6) | **KOREKSI 2026-10-18 — TANPA KONFIRMASI OWNER TENANT = TIDAK DISENTUH.** Audit langsung menemukan 6 baris label kas salah di PT Ase: 1 transfer lunas (INV/2026/0003) + **5 invoice berstatus belum-lunas tetap ter-stempel "uang di teknisi"** (INV/0004, 0007, 0009, 0011, 0014 — stempel itu hasil KEPUTUSAN 1 yang kini dihapus). **Data TIDAK BISA membedakan** pelanggan yang belum bayar dari yang **sudah bayar tunai tetapi teknisi belum menandai lunas** — keduanya tampil identik. Membersihkan label pada kasus kedua = **menghapus jejak uang di tangan teknisi**. **Maka: nol baris disentuh.** Penyesuaian hanya bila **owner PT Ase mengonfirmasi per invoice**; kalau ternyata sudah bayar → perbaikannya MENANDAI LUNAS, bukan membersihkan label | `[x]` (keputusan: tunda — tanpa konfirmasi tenant = tanpa perubahan) |
+| **K9** | Label posisi uang saat invoice terbit | **KEPUTUSAN PEMILIK 2026-10-18: HAPUS STEMPEL.** Invoice/proforma terbit **TANPA** label posisi uang (dulu: "uang di teknisi" ditempel saat closing tanpa cek pembayaran — tebakan tanpa dasar). Label **hanya ditulis `markInvoicePaid`** saat pembayaran nyata dicatat (CASH → di teknisi; TRANSFER/QRIS → kosong). Tidak menyentuh data lama | `[x]` |
 
 **Tafsiran yang mengikat pelaksanaan (koreksi bila salah):**
 - **Pelanggan tempo:** admin tenant menandai lunas **justru karena** sudah melihat uang masuk rekening — tindakan itu **sendiri sudah berarti terverifikasi**. Jadi tidak ada langkah verifikasi tambahan untuk tempo. Aturan verifikasi (K4) berlaku pada penandaan lunas yang dilakukan **teknisi di lapangan**.
@@ -165,21 +166,22 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 |---|---|---|---|
 | L1 | Kolom zona waktu tenant + isi WIB untuk tenant lama + onboarding | `[x]` | Migrasi `20261017090000_tenant_timezone` **dijalankan & diverifikasi** (6/6 tenant = `Asia/Jakarta`, termasuk PT Ase) · onboarding: field pilihan Zona Waktu di wizard (Select pustaka UI, default WIB) divalidasi `onboardingSchema` — `tests/onboarding-timezone.test.ts` (5 test) · client Prisma ter-regenerate |
 | L1 | Semua penanggalan laporan memakai zona tenant | `[x]` | `tests/tenant-timezone.test.ts` (10 test RED→GREEN: bukti bug — uang 00.30 WIB tgl 1 dihitung bulan September oleh jalur lama) · `/app/laporan` & `/t` kini pakai `monthRangeInZone` — jalur lama `new Date(y,m,1)` di kedua berkas **KOSONG** (anti-fosil) · suite 104/873 · tsc=0 · eslint=0 · build=0 |
-| L2 | Kolom setoran: tanggal + admin penerima + foto bukti | `[ ]` | — |
-| L2 | Setoran wajib bukti & penerima; atomik | `[ ]` | — |
+| L2 | Kolom setoran: tanggal + admin penerima + foto bukti | `[x]` | Migrasi `20261018000000_cash_remit_trace` **dijalankan & diverifikasi**: 3 kolom nullable terpasang (`remittedAt`, `remittedById`, `remitProofUrl`) · verifikasi data lama: **71 invoice, 0 punya jejak** (tidak ada data yang disentuh) |
+| L2 | Setoran wajib bukti & penerima; atomik | `[x]` | `markCashRemitted` diperluas (jalur existing) → tulis jejak dalam 1 transaksi; **tolak tanpa foto / tanpa penerima** di SERVICE — `tests/ar-cash-remittance.test.ts` (L2, RED→GREEN) · dialog setoran pakai `Dialog` pustaka UI (confirm() bawaan terganti) · unggah via `putTenantAsset` scope `bukti` (jalur S3 existing) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
 | L3 | Transfer/QRIS oleh teknisi → menunggu verifikasi | `[ ]` | — |
 | L3 | Owner/admin verifikasi (catat siapa & kapan) | `[ ]` | — |
 | L4 | Kartu penerimaan dipisah 3 posisi | `[ ]` | — |
 | L4 | Foto bukti tampil di halaman tenant | `[ ]` | — |
-| L5 | Daftar setoran (siapa→siapa→kapan→bukti) | `[ ]` | — |
+| L5 | Daftar setoran (siapa→siapa→kapan→bukti) | `[x]` | `getRemittances` + kartu "Riwayat Setoran Kas" di `/app/laporan` (pola kartu existing) — `tests/ar-cash-remittance.test.ts` (L5, RED→GREEN: jejak penerima/bukti/waktu + guard tenant) · setoran lama tanpa jejak TAMPIL "belum tercatat", tidak disembunyikan |
 | L6 | Label status jujur & seragam | `[ ]` | — |
 | L7 | Test penuh · tipe/gaya/build bersih | `[ ]` | — |
 | L7 | Deploy SOP PASS + bukti live | `[ ]` | — |
-| L7 | K8 data PT Ase diperbaiki (sesuai izin, bukti sebelum/sesudah) | `[ ]` | — |
+| L7 | K8 data PT Ase — **TIDAK DISENTUH tanpa konfirmasi owner tenant** | `[x]` | Audit read-only 2026-10-18: 6 baris label salah diidentifikasi (5 belum-lunas + 1 transfer INV/2026/0003) · **nol baris diubah** — data tidak bisa membedakan "belum bayar" vs "sudah bayar belum dicatat" · akar (K9) dihapus sehingga pola tidak terulang · tertulis di K8 |
 | L7 | Seluruh SSOT disamakan | `[ ]` | — |
+| K9 | Hapus stempel label posisi uang saat closing | `[x]` | `worksession-service.ts` — baris `cashRemitStatus: docType === "INVOICE" ? ...` **DIHAPUS** · anti-fosil: grep `cashRemitStatus` di `worksession-service.ts` = **KOSONG** · `tests/worksession.test.ts` RED→GREEN (16 test) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
 | L7 | Uji pemilik (owner/admin tenant) atas alur baru | `[ ]` | — |
 
-**Progres: 0 dari 15 butir.**
+**Progres: 6 dari 16 butir — L1 (2), L2 (2), L5 (1), K9 (1), plus K8 tuntas sebagai keputusan (tak disentuh).**
 
 ---
 

@@ -117,7 +117,15 @@ describe("closeWorkSession", () => {
     expect(r.docType).toBe("INVOICE");
     expect(r.number.startsWith("INV/")).toBe(true);
     expect(Number(created.total)).toBe(150000);
-    expect(created.cashRemitStatus).toBe("HELD_BY_TECH");
+  });
+
+  // KEPUTUSAN 1 (pemilik 2026-10-18): invoice terbit TANPA label posisi uang.
+  // Label "uang di teknisi" adalah TEBAKAN tanpa dasar — pembayaran belum tentu terjadi.
+  // Saat pembayaran BENAR dicatat, markInvoicePaid sudah menulis label yang benar sendiri
+  // (CASH → HELD_BY_TECH; TRANSFER/QRIS → null). Menulis dua kali = sumber label salah.
+  it("invoice CASH terbit TANPA label posisi uang — label ditulis hanya saat pembayaran nyata", async () => {
+    await closeWorkSession("t1", "ws1", "u1");
+    expect(created.cashRemitStatus).toBeUndefined();
   });
 
   it("Tempo → Proforma (PRO) + dueDate terisi", async () => {
@@ -126,7 +134,8 @@ describe("closeWorkSession", () => {
     expect(r.docType).toBe("PROFORMA");
     expect(r.number.startsWith("PRO/")).toBe(true);
     expect(created.dueDate).not.toBeNull();
-    expect(created.cashRemitStatus).toBeNull();
+    // Proforma juga terbit tanpa label posisi uang (KEPUTUSAN 1).
+    expect(created.cashRemitStatus).toBeUndefined();
   });
 
   it("PKP → PPN diterapkan", async () => {

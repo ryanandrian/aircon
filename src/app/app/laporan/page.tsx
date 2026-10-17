@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import {
-  getAccountsReceivable, getOverdueInvoices, getReceipts,
+  getAccountsReceivable, getOverdueInvoices, getReceipts, getRemittances,
   getUnremittedCashByTech, refreshOverdueStatus,
 } from "@/lib/services/ar-service";
 import { computeIncentives } from "@/lib/services/incentive-service";
@@ -32,11 +32,12 @@ export default async function LaporanPage() {
   });
   const { start: monthStart, end: monthEnd } = monthRangeInZone(now, tenantCfg?.timezone);
 
-  const [ar, overdue, receipts, unremitted] = await Promise.all([
+  const [ar, overdue, receipts, unremitted, remittances] = await Promise.all([
     getAccountsReceivable(ctx.tenantId, now),
     getOverdueInvoices(ctx.tenantId, now),
     getReceipts(ctx.tenantId, monthStart, monthEnd),
     getUnremittedCashByTech(ctx.tenantId),
+    getRemittances(ctx.tenantId),
   ]);
   const incentiveEnabled = tenantCfg?.incentiveEnabled ?? false;
   // computeIncentives sudah ter-gerbang di SUMBER (return [] bila tenant tak menerapkan).
@@ -108,6 +109,43 @@ export default async function LaporanPage() {
                       <div className="text-xs text-muted-foreground">{u.count} transaksi · {rp(u.total)}</div>
                     </div>
                     <RemitButton techName={u.techName} invoiceIds={u.invoiceIds} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Riwayat setoran (L5) — tracing untuk owner tenant: siapa menyetor,
+            siapa menerima, kapan, dan buktinya (bisa dibuka). */}
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="mb-1 text-sm font-bold text-foreground">Riwayat Setoran Kas</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Penelusuran uang tunai: teknisi penyetor → admin penerima → waktu → bukti setoran.
+            </p>
+            {remittances.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Belum ada setoran tercatat.</p>
+            ) : (
+              <div className="space-y-2">
+                {remittances.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {r.techName} → {r.receiverName ?? "belum tercatat"}
+                      </div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {r.number} · {rp(r.total)} · disetor {fmt(r.remittedAt)}
+                      </div>
+                    </div>
+                    {r.proofUrl ? (
+                      <a href={r.proofUrl} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex h-8 shrink-0 items-center rounded-lg px-2 text-xs font-medium text-sky-600 hover:bg-muted dark:text-sky-400">
+                        Lihat Bukti
+                      </a>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">tanpa bukti</span>
+                    )}
                   </div>
                 ))}
               </div>

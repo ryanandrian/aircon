@@ -4,6 +4,7 @@
  * Aging bucket dihitung dari dueDate (bila null → pakai issueDate) relatif tanggal acuan.
  */
 import { prisma } from "@/lib/prisma";
+import { ServiceError } from "@/lib/services/customer-service";
 
 export interface AgingBuckets {
   current: number;   // belum jatuh tempo
@@ -112,15 +113,103 @@ export async function getUnremittedCashByTech(tenantId: string) {
   return [...byTech.values()].sort((a, b) => b.total - a.total);
 }
 
-/** Tandai setoran kas: invoice HELD_BY_TECH → REMITTED (K17). Owner/admin (dijaga di action). */
-export async function markCashRemitted(tenantId: string, invoiceIds: string[]): Promise<number> {
+/**
+ * Tandai setoran kas: invoice HELD_BY_TECH → REMITTED (K17). Owner/admin (dijaga di action).
+ *
+ * L2 (keputusan K5, 2026-10-17): setoran MENINGGALKAN JEJAK dalam satu transaksi atomik —
+ * waktu setoran, admin penerima (tenant bisa punya >1 admin), dan foto bukti (S3).
+ * Setoran TANPA foto bukti / TANPA admin penerima DITOLAK di service (bukan hanya di layar).
+ * Data lama (REMITTED tanpa jejak) tetap terbaca — kolom baru nullable.
+ */
+export interface CashRemitDetails {
+  /** Admin tenant yang MENERIMA setoran (siapa di kantor yang menadah uang). */
+  receiverId: string;
+  /** URL foto bukti setoran di S3 (wajib — K5). */
+  proofUrl: string;
+  /** Waktu setoran (disediakan caller agar bisa diuji deterministik). */
+  at?: Date;
+}
+
+export async function markCashRemitted(
+  tenantId: string,
+  invoiceIds: string[],
+  details: CashRemitDetails,
+): Promise<number> {
   if (invoiceIds.length === 0) return 0;
-  const res = await prisma.invoice.updateMany({
-    where: {
-      tenantId, id: { in: invoiceIds },
-      docType: "INVOICE", status: "PAID", cashRemitStatus: "HELD_BY_TECH",
-    },
-    data: { cashRemitStatus: "REMITTED" },
+  const proofUrl = details.proofUrl?.trim() ?? "";
+  const receiverId = details.receiverId?.trim() ?? "";
+  if (!proofUrl) {
+    throw new ServiceError("CONFLICT", "Setoran wajib menyertakan foto bukti setoran.");
+  }
+  if (!receiverId) {
+    throw new ServiceError("CONFLICT", "Setoran wajib mencatat admin penerima setoran.");
+  }
+  const at = details.at ?? new Date();
+  return prisma.$transaction(async (tx) => {
+    const res = await tx.invoice.updateMany({
+      where: {
+        tenantId, id: { in: invoiceIds },
+        docType: "INVOICE", status: "PAID", cashRemitStatus: "HELD_BY_TECH",
+      },
+      data: {
+        cashRemitStatus: "REMITTED",
+        remittedAt: at,
+        remittedById: receiverId,
+        remitProofUrl: proofUrl,
+      },
+    });
+    return res.count;
   });
-  return res.count;
+}
+
+export interface RemittanceRow {
+  id: string;
+  number: string;
+  total: number;
+  paidAt: Date | null;
+  /** Waktu setoran — null = setoran lama sebelum jejak ada (tetap tampil). */
+  remittedAt: Date | null;
+  /** Teknisi yang memegang uang sebelum disetor. */
+  techName: string;
+  /** Admin tenant penerima setoran — null = setoran lama tanpa jejak. */
+  receiverName: string | null;
+  /** Foto bukti setoran (S3) yang bisa dibuka untuk audit. */
+  proofUrl: string | null;
+}
+
+/**
+ * Daftar SETORAN kas untuk laporan tracing owner tenant (L5 / K5): per invoice —
+ * siapa menyetor (teknisi) → siapa menerima (admin) → kapan → buktinya di mana.
+ * Baris setoran LAMA tanpa jejak tetap tampil (jejaknya kosong), tidak disembunyikan.
+ * Tenant-scoped: hanya invoice milik tenant ini.
+ */
+export async function getRemittances(tenantId: string): Promise<RemittanceRow[]> {
+  const rows = await prisma.invoice.findMany({
+    where: { tenantId, docType: "INVOICE", cashRemitStatus: "REMITTED" },
+    orderBy: { remittedAt: { sort: "desc", nulls: "last" } },
+    select: {
+      id: true, number: true, total: true, paidAt: true,
+      remittedAt: true, remitProofUrl: true,
+      createdById: true, remittedById: true,
+    },
+  });
+
+  // Nama teknisi pemegang & admin penerima (pola sama dengan getUnremittedCashByTech).
+  const ids = [...new Set(rows.flatMap((r) => [r.createdById, r.remittedById]).filter((v): v is string => !!v))];
+  const users = ids.length
+    ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+    : [];
+  const nameOf = new Map(users.map((u) => [u.id, u.name]));
+
+  return rows.map((r) => ({
+    id: r.id,
+    number: r.number,
+    total: Number(r.total),
+    paidAt: r.paidAt,
+    remittedAt: r.remittedAt,
+    techName: nameOf.get(r.createdById) ?? "—",
+    // Setoran lama (sebelum jejak ada) → null; tampil apa adanya, tidak dikarang.
+    receiverName: r.remittedById ? nameOf.get(r.remittedById) ?? "—" : null,
+    proofUrl: r.remitProofUrl,
+  }));
 }
