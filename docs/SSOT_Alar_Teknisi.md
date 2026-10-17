@@ -437,6 +437,10 @@ PERUBAHAN L2 + K9 (2026-10-18) pada alur teknisi:
   Setoran (di teknisi) · Menunggu Verifikasi (transfer/QRIS) · **bukti pembayaran
   kini TAMPIL** di halaman detail (termasuk halaman teknisi — satu komponen dipakai
   dua peran), lengkap dengan badge status posisi uangnya.
+- **L6: SATU sumber label posisi uang** (`src/lib/copy/money-position.ts`) dipakai oleh
+  daftar faktur admin DAN halaman detail — dua halaman tidak pernah lagi memberi label
+  berbeda. Daftar faktur admin kini memperlihatkan posisi uang per invoice, termasuk
+  "menunggu dicek" untuk transfer/QRIS yang ditandai lunas oleh teknisi (antrean L3).
 
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```
