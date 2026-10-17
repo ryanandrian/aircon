@@ -192,63 +192,29 @@ HEAD == origin/main, tree bersih.
 Sisa bukan pekerjaan rencana, melainkan item TERBUKA (Bagian 3): uji manual
 pengguna pasca-refresh, provenance row kas demo/real, dan C3 guard.
 
-### Rencana historis awal — SUPERSEDED
-Item F9a–F9f di bawah pada draf historis ini sudah digantikan oleh checklist
-status terbaru di Bagian 2. Jangan gunakan status lama "belum commit/deploy";
-catatan ini dipertahankan sebagai audit trail, bukan rencana aktif. Checkbox
-historis yang tampak kosong bukan status aktif.
-
-
-- [ ] **F9b. Kartu riwayat → PANTAUAN (bukan followup pengerjaan)**
-  - Isi: row riwayat + `jobId`; kartu status NON-terminal (TEMPO proforma
-    terbit / cash LUNAS berstatus jelas) → tautan ke detail
-    `/t/pekerjaan/{jobId}`. Label tautan **"Lihat detail →"** (pantauan),
-    BUKAN "lanjutkan" — pekerjaan tempo sudah tak lagi di beranda.
-  - HASIL: teknisi bisa membuka pekerjaan dari riwayat utk memantau/mencetak
-    tagihan; cash LUNAS tetap terlihat statusnya.
-  - STATUS: **KODE SELESAI (belum commit/deploy)** — `jobId` disisipkan di
-    `listTechnicianJobHistory` + tautan kartu riwayat utk status non-terminal.
-    Label mengikuti kontrak: kartu pantauan (bukan "lanjutkan" pengerjaan).
-
-- [ ] **F9c. Guard detail** — [DITUNDA — TIDAK dikerjakan] (lihat C3: terbukti
-  lolos utk kasus nyata; guard keamanan tidak disentuh tanpa bukti kena).
-
-- [ ] **F9c'. RIWAYAT = ARSIP + PANTAUAN (aturan 0.1/0.2)** [BARU]
-  - Isi: `listTechnicianJobHistory` difilter TUNTAS: cash → hanya invoice LUNAS;
-    tempo → sejak proforma terbit; Dibatalkan → arsip. Selain itu tampilkan
-    **badge status tagihan** per pekerjaan (data invoicesByWs SUDAH ada di query):
-    "Belum lunas cash" tdk muncul (masih di beranda) · tempo: "Invoice belum
-    terbit" / "Menunggu pembayaran" / "Lunas" (berpengaruh ke insentif).
-  - HASIL: riwayat bersih dari pekerjaan yang masih harus dikerjakan (tak ada
-    kartu jalan buntu), SEKALIGUS teknisi tetap memantau: apakah tempo sudah
-    di-invoice & sudah dibayar (insentifnya masuk saat LUNAS).
-
-- [ ] **F9d. BERANDA = semua yang BELUM TUNTAS (tulang punggung aturan)**
-  - Isi: `listTechnicianJobsToday` → daftar kerja TANPA batas "hari ini"
-    (aktif DRAFT..WAITING apa pun jadwalnya; kelompok: "Hari ini" / "Perlu
-    ditindaklanjuti") + kartu "Menunggu pelunasan" utk cash closing tapi belum
-    ditandai lunas (uang di tangan teknisi).
-  - HASIL: Effi (13 Okt) & Ibu Wati (14 Okt) MUNCUL di beranda Ryan; tak ada
-    pekerjaan tertunda yang tersembunyi; cash belum lunas tak pernah lolos
-    dari perhatian teknisi. Verifikasi: query DB Ryan (kini 0 utk hari ini) →
-    2 job tampil via kelompok backlog.
-
-- [ ] **F9f. Validasi alur kas K17 (D1 + D2)** [dari permintaan pemilik]
-  - Isi: perbaiki `markInvoicePaid` → `cashRemitStatus` hanya `HELD_BY_TECH`
-    utk `payMethod=CASH`, `null` utk TRANSFER/QRIS (uang masuk bank = tak
-    pernah di tangan teknisi); tambah test K17 (`getUnremittedCashByTech`/
-    `markCashRemitted`) — RED dulu (nol coverage → terbukti kosong).
-  - HASIL: kolom "kas di tangan teknisi" 100% akurat di seluruh query
-    (bukan cuma karena report kebetulan filter CASH); alur setoran admin
-    punya jaring pengaman test.
-  - STATUS: D1 & D2 terverifikasi dari data live; kode & test BELUM dikerjakan.
-
-- [ ] **F9e. Uji, deploy SOP, update dokumen**
-  - Isi: suite penuh hijau → deploy via `scripts/deploy-vps.sh` → verifikasi
-    live → tandai tiap item SELESAI + perbarui pointer SSOT terkait
-    (`PROJECT_STATUS.md`).
-  - HASIL: F9a–F9d hidup di produksi (bukan hanya lokal); dokumen = posisi
-    sebenarnya utk sesi berikutnya.
+### PETA COMMIT F9 (audit trail — SATU kebenaran status = KESIMPULAN STATUS di atas)
+Checklist implementasi rencana F9 lama ber-KOTAK KOSONG `[ ]` sudah DIHAPUS
+2026-10-16 (dua status hidup di satu file = fosil yang menyesatkan sesi
+berikut). Yang tersisa di dokumen ini HANYA dua jenis status, jangan tertukar:
+  1. STATUS IMPLEMENTASI F9 → HANYA di blok "KESIMPULAN STATUS" (atas).
+  2. KOTAK `[ ]` di BAGIAN 3B → SEMATA uji/konfirmasi pasca-refresh OLEH
+     PEMILIK yang belum masuk — TIDAK mengubah status implementasi.
+Isi bagian ini diganti peta commit saja (bukti `git log`, release = SHA yang live):
+```
+F9 beranda/riwayat inti : kode 7fab535 · release live 8ca1415
+F9c'/F9d/F9d+           : ffee929
+F9d++ (detail cash)     : f2cf589
+F10 (PDF terang)        : f9b41a3
+F11 (dual status)       : 01379e1
+F12 (multi-session)     : c32ab31
+F13 (detail COMPLETED)  : ab2baad
+F9f (invariant kas K17) : f1a0724
+```
+Verifikasi kode 2026-10-16: F9f benar ada — `markInvoicePaid` menulis
+`cashRemitStatus: payMethod === "CASH" ? "HELD_BY_TECH" : null`
+(src/lib/services/invoice-service.ts:345-353) + `tests/ar-cash-remittance.test.ts`
+(4 test) dan `tests/invoice-flow.test.ts`. F9c (guard detail) TIDAK dikerjakan
+(sudah ditutup alasan C3 — lihat Bagian 1.2).
 
 ### KOREKSI PALING AKHIR (2026-10-15 malam — perintah pemilik: riwayat hanya tuntas)
 ```
@@ -402,37 +368,43 @@ DEPLOY LIVE `ab2baad` (PASS; / + /login 200; marker "Ringkasan Pekerjaan" +
 tests · tsc=0 · eslint=0 · build=0).
 ```
 
-**STATUS TOTAL F9 (update 2026-10-15 akhir):**
+**DEPLOY LIVE 8ca1415 (F9a/F9b/F9d) — catatan historis, status final = KESIMPULAN STATUS Bagian 2:**
 ```
-F9a  KODE SELESAI (staleTimes dynamic:30 + label "Memuat…")
-F9b  KODE SELESAI (jobId di row riwayat; kartu NON-terminal → "Lihat detail";
-     cash COMPLETED BELUM LUNAS → jalan "Tandai LUNAS" ke /t/faktur/{invoiceId})
-     (tambahan dari laporan pemilik: card Ibu Hesti "Selesai" tapi belum lunas
-      = tuntaskan via kartu riwayat → halaman invoice)
-F9d  KODE SELESAI (listTechnicianBacklogJobs take:50 + count akurat terpisah;
-     kelompok "Perlu ditindaklanjuti"/"Hari ini"; doneCount diperbaiki — dulu
-     SELALU 0)
-F9f  BELUM: fix markInvoicePaid clear cashRemitStatus utk TRANSFER/QRIS (D1)
-     + test K17 (D2). Data stale 12 invoice: TERBUKA (larangan mutasi DB).
-Verifikasi: tsc=0 · eslint=0 · suite 94 files/818 tests · build=0.
+Verifikasi saat itu: tsc=0 · eslint=0 · suite 94 files/818 tests · build=0.
 DEPLOY LIVE `8ca1415` (2026-10-15, PASS): penanda "Perlu ditindaklanjuti" +
 "Tandai LUNAS" + "Memuat" ADA di server bundle; experimental.staleTimes
 {'dynamic': 30} terbaca di required-server-files.json; log error bersih.
 Insiden SOP: deploy pertama BLOCKED (working tree kotor — 2 dokumen F7
 tertinggal) → commit → rerun PASS. Pelajaran: git status dulu SEBELUM
 panggil SOP (gerbang tree-clean sudah benar; script TIDAK diubah).
-BELUM (utk uji pemilik): buka /t Ryan → "Perlu ditindaklanjuti" (Effi+Wati);
-riwayat Ibu Hesti → kartu "Tandai LUNAS →" → bayar → masuk Kas Belum Disetor.
-Sisa rencana: F9f (clear cashRemitStatus TRANSFER/QRIS + test K17).
+Uji pemilik saat itu: buka /t Ryan → "Perlu ditindaklanjuti" (Effi+Wati);
+riwayat Ibu Hesti → kartu "Tandai LUNAS →" → bayar → masuk Kas Belum Disetor
+(sudah dikonfirmasi pemilik — lihat Bagian 3B).
+Catatan: "Sisa rencana: F9f" pada catatan lama SUDAH SELESAI (release f1a0724).
 ```
 
 ---
 
-## BAGIAN 2B — RENCANA PERBAIKAN KAS TUNAI (AKTIF, dokumen terpisah)
-Lihat `docs/RENCANA_Kas_Tunai_Tampilan_Keuangan.md` — prinsip P1-P4,
-bukti F1-F7, fakta belum-dibaca U1-U5, item G1-G6, keputusan pemilik D1-D5,
-gate. SEMUA item beranda/riwayat teknisi (F9a-F9f, F10-F13) di dokumen ini
-SELESAI (lihat KESIMPULAN STATUS). Pekerjaan berikutnya = rencana kas tsb.
+## BAGIAN 2B — RENCANA PERBAIKAN PEMBAYARAN & PENERIMAAN (AKTIF — DOKUMEN TUNGGAL)
+Lihat **`docs/RENCANA_Keuangan_Kas_Tuntas.md`** — dokumen rencana PERBAIKAN TUNTAS
+closing pembayaran pelanggan cash (tunai/transfer/QRIS), disusun ulang penuh
+2026-10-17 (versi lama dibuang total — tambal sulam & penomoran lama).
+Isinya, sesuai urutan proses: lingkup · masalah M1-M6 · **keputusan final K1-K8**
+· aturan kerja · langkah **L1-L7** · bukti "selesai" · **tabel progres BAGIAN 7**
+(satu-satunya tempat membaca status; `[x]` wajib ber-bukti) · daftar SSOT yang
+wajib ikut diperbarui.
+DOKUMEN LAMA `RENCANA_Kas_Tunai_Tampilan_Keuangan.md` sudah **DIHAPUS**, dan
+seluruh penomoran lama (`G1-G6`, `D1-D5`, `F-01..F-17`, `DOM-*`, `C1..C6`,
+`WP0..WP7`) **SUDAH MATI** — hanya pemetaan di BAGIAN 9 dokumen baru.
+**Jangan pakai ID lama lagi; jangan menyebut WP0/C1 di mana pun.**
+SEMUA item beranda/riwayat teknisi (F9a-F9f, F10-F13) SELESAI (kode + test +
+deploy SOP LIVE, lihat KESIMPULAN STATUS) — status F9 = SATU kebenaran di blok
+tersebut; peta commit = audit trail, bukan status.
+Pekerjaan berikutnya = `docs/RENCANA_Keuangan_Kas_Tuntas.md` — mulai dari
+**BAGIAN 7, baris `[ ]` pertama (L1)**.
+CATATAN fakta live (2026-10-16): release live = `c5973c1` (memuat kode F9f
+`f1a0724`); klaim "release terakhir f1a0724" di blok lama
+di atas = usang, jangan dikutip ulang.
 
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```
@@ -469,6 +441,10 @@ Depok Jaya 2); provenance per-baris tak terverifikasi.
 
 ## BAGIAN 3B — LOG KONFIRMASI UJI PEMILIK (update SETIAP laporan uji masuk)
 ```
+SELAMATKAN STATUS DULU: kotak [ ] di sini = UJI PEMILIK pasca-deploy yang
+BELUM masuk — BUKAN status implementasi. Status kode/test/deploy SEMUA item
+di bawah sudah SELESAI (lihat "KESIMPULAN STATUS" Bagian 2). Jangan menandai
+ulang item yang sudah TERVERIFIKASI tanpa uji baru.
 TERVERIFIKASI (ucapan pemilik — jangan ditandai ulang tanpa uji baru):
   [✓] F9d/F9d+ — "sudah saya check dan kartu di berandan sudah muncul"
       (kartu "Perlu ditindaklanjuti" Effi + Ibu Wati hidup).
@@ -484,6 +460,8 @@ BELUM DIKONFIRMASI PEMILIK (deploy ADA, uji pasca-refresh belum masuk):
              (cocok beranda) setelah refresh.
   [ ] F13  — detail COMPLETED = ringkasan + foto arsip read-only + status.
   [ ] F9f  — transaksi CASH/TRANSFER BARU → perilaku Kas Belum Disetor.
+             (Implementasi F9f SENDIRI sudah SELESAI & LIVE f1a0724 — yang
+             belum dikonfirmasi hanya uji transaksi baru oleh pemilik.)
 ```
 
 ## BAGIAN 3 — BELUM DIVERIFIKASI / TERBUKA (AKTIF)
