@@ -6,6 +6,7 @@ import {
 } from "@/lib/services/ar-service";
 import { computeIncentives } from "@/lib/services/incentive-service";
 import { prisma } from "@/lib/prisma";
+import { monthRangeInZone } from "@/lib/domain/tenant-timezone";
 import { AppHeader } from "../_components/app-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { RemitButton } from "./remit-button";
@@ -22,15 +23,20 @@ export default async function LaporanPage() {
 
   const now = new Date();
   await refreshOverdueStatus(ctx.tenantId, now); // sinkron status OVERDUE saat buka laporan
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const [ar, overdue, receipts, unremitted, tenantCfg] = await Promise.all([
+  // L1 (K7): baca zona tenant lebih dulu — "bulan ini" dihitung di zona TENANT,
+  // bukan zona server (M5). Kolom masih nullable; seluruh tenant lama = WIB (bawaan).
+  const tenantCfg = await prisma.tenant.findUnique({
+    where: { id: ctx.tenantId },
+    select: { incentiveEnabled: true, timezone: true },
+  });
+  const { start: monthStart, end: monthEnd } = monthRangeInZone(now, tenantCfg?.timezone);
+
+  const [ar, overdue, receipts, unremitted] = await Promise.all([
     getAccountsReceivable(ctx.tenantId, now),
     getOverdueInvoices(ctx.tenantId, now),
     getReceipts(ctx.tenantId, monthStart, monthEnd),
     getUnremittedCashByTech(ctx.tenantId),
-    prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { incentiveEnabled: true } }),
   ]);
   const incentiveEnabled = tenantCfg?.incentiveEnabled ?? false;
   // computeIncentives sudah ter-gerbang di SUMBER (return [] bila tenant tak menerapkan).

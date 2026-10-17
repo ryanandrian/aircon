@@ -9,12 +9,20 @@
  *   aria-describedby, target sentuh >= 48px, aria-live untuk error.
  * - Bahasa ramah-teknisi: tanpa jargon software.
  */
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { completeOnboarding, type OnboardingActionState } from "./actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SubmitButton } from "@/components/submit-button";
+import { DEFAULT_TENANT_TZ, TENANT_TIMEZONE_OPTIONS } from "@/lib/validation/onboarding";
 
 const initialState: OnboardingActionState = { ok: null };
 
@@ -23,6 +31,9 @@ export default function OnboardingWizard({ initialRef = "" }: { initialRef?: str
     completeOnboarding,
     initialState,
   );
+  // Zona waktu tenant (K7): dipilih di sini, bawaan WIB. Nilai dikirim lewat hidden
+  // input agar form tetap berfungsi tanpa JS.
+  const [timezone, setTimezone] = useState<string>(DEFAULT_TENANT_TZ);
 
   const fieldErrors = state.ok === false ? (state.fieldErrors ?? {}) : {};
 
@@ -129,6 +140,45 @@ export default function OnboardingWizard({ initialRef = "" }: { initialRef?: str
             ) : (
               <p id="whatsappPhone-hint" className="text-xs text-muted-foreground">
                 Nomor untuk dihubungi pelanggan & mengirim pengingat servis.
+              </p>
+            )}
+          </div>
+
+          {/* Zona waktu usaha (K7) — penanggalan laporan dihitung di zona ini */}
+          <div className="space-y-1.5">
+            <Label htmlFor="timezone">
+              Zona Waktu Usaha <span className="text-red-500">*</span>
+            </Label>
+            <input type="hidden" name="timezone" value={timezone} />
+            <Select value={timezone} onValueChange={(v) => setTimezone(v ?? DEFAULT_TENANT_TZ)}>
+              <SelectTrigger
+                id="timezone"
+                size="default"
+                aria-required="true"
+                aria-invalid={!!fieldErrors.timezone}
+                aria-describedby={
+                  fieldErrors.timezone ? "timezone-err" : "timezone-hint"
+                }
+                className="min-h-[48px] w-full text-base"
+              >
+                <SelectValue placeholder={DEFAULT_TENANT_TZ} />
+              </SelectTrigger>
+              <SelectContent>
+                {TENANT_TIMEZONE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {fieldErrors.timezone ? (
+              <p id="timezone-err" className="text-sm text-red-600 dark:text-red-400">
+                {fieldErrors.timezone}
+              </p>
+            ) : (
+              <p id="timezone-hint" className="text-xs text-muted-foreground">
+                Menentukan hitungan bulan &amp; tanggal pada laporan Anda. Kalau bingung,
+                biarkan WIB.
               </p>
             )}
           </div>

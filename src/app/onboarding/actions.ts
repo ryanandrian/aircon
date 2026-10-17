@@ -53,6 +53,7 @@ export async function completeOnboarding(
     businessName: str(formData, "businessName"),
     city: str(formData, "city"),
     whatsappPhone: str(formData, "whatsappPhone"),
+    timezone: str(formData, "timezone"),
   });
 
   if (!parsed.success) {
@@ -79,6 +80,7 @@ export async function completeOnboarding(
         businessName: parsed.data.businessName,
         city: parsed.data.city,
         whatsappPhone: parsed.data.whatsappPhone,
+        timezone: parsed.data.timezone || undefined,
         referralCode: str(formData, "referralCode") || null,
       });
     }

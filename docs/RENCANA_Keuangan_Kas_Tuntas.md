@@ -163,8 +163,8 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 
 | # | Butir | Status | BUKTI (test / SHA / ucapan pemilik) |
 |---|---|---|---|
-| L1 | Kolom zona waktu tenant + isi WIB untuk tenant lama + onboarding | `[ ]` | — |
-| L1 | Semua penanggalan laporan memakai zona tenant | `[ ]` | — |
+| L1 | Kolom zona waktu tenant + isi WIB untuk tenant lama + onboarding | `[x]` | Migrasi `20261017090000_tenant_timezone` **dijalankan & diverifikasi** (6/6 tenant = `Asia/Jakarta`, termasuk PT Ase) · onboarding: field pilihan Zona Waktu di wizard (Select pustaka UI, default WIB) divalidasi `onboardingSchema` — `tests/onboarding-timezone.test.ts` (5 test) · client Prisma ter-regenerate |
+| L1 | Semua penanggalan laporan memakai zona tenant | `[x]` | `tests/tenant-timezone.test.ts` (10 test RED→GREEN: bukti bug — uang 00.30 WIB tgl 1 dihitung bulan September oleh jalur lama) · `/app/laporan` & `/t` kini pakai `monthRangeInZone` — jalur lama `new Date(y,m,1)` di kedua berkas **KOSONG** (anti-fosil) · suite 104/873 · tsc=0 · eslint=0 · build=0 |
 | L2 | Kolom setoran: tanggal + admin penerima + foto bukti | `[ ]` | — |
 | L2 | Setoran wajib bukti & penerima; atomik | `[ ]` | — |
 | L3 | Transfer/QRIS oleh teknisi → menunggu verifikasi | `[ ]` | — |

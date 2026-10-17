@@ -7,6 +7,7 @@
  * data usaha lain (lihat src/lib/validation/booking.ts).
  */
 import { z } from "zod";
+import { DEFAULT_TENANT_TZ } from "@/lib/domain/tenant-timezone";
 
 // Batas panjang field
 export const MIN_BUSINESS_NAME_LEN = 2;
@@ -15,6 +16,19 @@ export const MIN_CITY_LEN = 2;
 export const MAX_CITY_LEN = 60;
 export const MAX_PHONE_LEN = 20; // sebelum normalisasi
 export const MIN_PHONE_DIGITS = 8;
+
+/**
+ * Zona waktu tenant (keputusan K7, 2026-10-17) — ditetapkan saat onboarding;
+ * UI menyediakan pilihan, default-nya WIB. Nilai bawaan diambil dari
+ * src/lib/domain/tenant-timezone.ts (SATU sumber kebenaran).
+ */
+export { DEFAULT_TENANT_TZ };
+export const TENANT_TIMEZONE_OPTIONS = [
+  { value: "Asia/Jakarta", label: "WIB — Jakarta (bawaan)" },
+  { value: "Asia/Makassar", label: "WITA — Makassar" },
+  { value: "Asia/Jayapura", label: "WIT — Jayapura" },
+] as const;
+const TENANT_TZ_VALUES = TENANT_TIMEZONE_OPTIONS.map((o) => o.value);
 
 /** Normalisasi nomor ke format WA (digits only, prefix 62). Lokal, tak bergantung file lain. */
 export function normalizeWhatsappPhone(raw: string): string {
@@ -47,6 +61,18 @@ export const onboardingSchema = z.object({
     .transform((v) => normalizeWhatsappPhone(v))
     .refine((v) => v.length >= MIN_PHONE_DIGITS, {
       message: "Nomor WhatsApp tidak valid",
+    }),
+
+  /**
+   * Zona waktu tenant (K7). Opsional supaya form lama tanpa field ini tetap lolos —
+   * bila kosong, pelaksana memakai DEFAULT_TENANT_TZ (WIB). Nilai yang diterima
+   * hanya daftar di TENANT_TIMEZONE_OPTIONS (dicek manual agar pesannya ramah).
+   */
+  timezone: z
+    .string()
+    .optional()
+    .refine((v) => v === undefined || v === "" || (TENANT_TZ_VALUES as readonly string[]).includes(v), {
+      message: "Zona waktu tidak dikenal",
     }),
 });
 

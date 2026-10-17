@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
+import { monthRangeInZone } from "@/lib/domain/tenant-timezone";
 import { listTechnicianJobsToday, listTechnicianBacklogJobs, listTechnicianUnpaidCashJobs, countTechnicianCompletedToday } from "@/lib/services/job-management-service";
 import type { JobStatus } from "@prisma/client";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
@@ -21,7 +22,7 @@ export default async function TechnicianHome() {
 
   const tech = await prisma.technician.findFirst({
     where: { tenantId: ctx.tenantId, userId: ctx.userId },
-    select: { id: true, tenant: { select: { incentiveEnabled: true } } },
+    select: { id: true, tenant: { select: { incentiveEnabled: true, timezone: true } } },
   });
   if (!tech) {
     return (
@@ -51,8 +52,8 @@ export default async function TechnicianHome() {
   const incentiveEnabled = tech.tenant?.incentiveEnabled ?? false;
   // Insentif teknisi PERIODE SAAT INI (bulan berjalan) — hanya dihitung bila tenant menerapkan.
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  // L1 (K7): batas bulan menurut zona tenant (bawaan WIB), bukan zona server (M5).
+  const { start: monthStart, end: monthEnd } = monthRangeInZone(now, tech.tenant?.timezone);
   let incentiveAmount = 0;
   if (incentiveEnabled) {
     const { computeIncentives } = await import("@/lib/services/incentive-service");

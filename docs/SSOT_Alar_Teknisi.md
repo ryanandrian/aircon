@@ -401,10 +401,18 @@ SEMUA item beranda/riwayat teknisi (F9a-F9f, F10-F13) SELESAI (kode + test +
 deploy SOP LIVE, lihat KESIMPULAN STATUS) — status F9 = SATU kebenaran di blok
 tersebut; peta commit = audit trail, bukan status.
 Pekerjaan berikutnya = `docs/RENCANA_Keuangan_Kas_Tuntas.md` — mulai dari
-**BAGIAN 7, baris `[ ]` pertama (L1)**.
+**BAGIAN 7, baris `[ ]` pertama**.
 CATATAN fakta live (2026-10-16): release live = `c5973c1` (memuat kode F9f
 `f1a0724`); klaim "release terakhir f1a0724" di blok lama
 di atas = usang, jangan dikutip ulang.
+
+DAMPAK L1 (zona waktu tenant, 2026-10-17) ke alur teknisi: **periode insentif
+bulan-berjalan di `/t`** kini dihitung menurut zona waktu tenant
+(`monthRangeInZone`, `src/lib/domain/tenant-timezone.ts`) — bukan zona server.
+Semua tenant saat ini = WIB (`Asia/Jakarta`), jadi perilaku tampilan tidak berubah;
+perbedaan hanya muncul bila ada tenant WITA/WIT (tenant baru memilih saat onboarding).
+Jalur lama `new Date(y,m,1)` di `src/app/t/page.tsx` sudah DIHAPUS (anti-fosil:
+grep jalur lama di 2 halaman = KOSONG).
 
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```

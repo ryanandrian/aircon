@@ -13,6 +13,7 @@
 import { prisma } from "@/lib/prisma";
 import { seedTenantDefaults } from "@/lib/domain/provision";
 import { DEFAULT_WA_TEMPLATES } from "@/lib/domain/defaults";
+import { tenantTimeZone } from "@/lib/domain/tenant-timezone";
 import { normalizePhone } from "@/lib/wa/gateway";
 import type { User } from "@prisma/client";
 
@@ -63,6 +64,11 @@ interface CreateTenantInput {
   businessName: string;
   city: string;
   whatsappPhone: string;
+  /**
+   * Zona waktu usaha (K7, 2026-10-17) — ditetapkan saat onboarding, pilihan UI
+   * default WIB. Bila tidak diisi, memakai DEFAULT_TENANT_TZ (WIB).
+   */
+  timezone?: string | null;
   /** Kode agen/reseller (opsional) — atribusi keagenan permanen. */
   referralCode?: string | null;
 }
@@ -132,6 +138,8 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
         trialEndsAt: null,
         nextDueDate: null,
         onboardingCompleted: true,
+        // K7: zona waktu dipilih saat onboarding (UI default WIB); bila kosong → WIB.
+        timezone: tenantTimeZone(input.timezone),
         workingHoursDefault: { mon: { start: "08:00", end: "17:00" } },
         serviceArea: { cities: [city] },
       },

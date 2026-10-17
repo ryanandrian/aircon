@@ -257,6 +257,10 @@ model Tenant {
   phone                   String
   workingHoursDefault     Json
   serviceArea             Json
+  // K7 (keputusan pemilik 2026-10-17): zona waktu MILIK TENANT — seluruh penanggalan
+  // laporan tenant (batas bulan, "sejak X hari") dihitung di zona ini, bukan zona server.
+  // Bawaan WIB. Ditetapkan saat onboarding; seluruh tenant lama diisi WIB oleh migrasi L1.
+  timezone                String       @default("Asia/Jakarta")
   bufferMinutes           Int          @default(15)
   maintenanceIntervalDays Int          @default(90)
   reminderLeadDays        Int          @default(3)
