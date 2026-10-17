@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import {
-  getAccountsReceivable, getOverdueInvoices, getReceipts, getRemittances,
+  getAccountsReceivable, getOverdueInvoices, getReceiptPositions, getRemittances,
   getUnremittedCashByTech, refreshOverdueStatus,
 } from "@/lib/services/ar-service";
 import { computeIncentives } from "@/lib/services/incentive-service";
@@ -32,10 +32,10 @@ export default async function LaporanPage() {
   });
   const { start: monthStart, end: monthEnd } = monthRangeInZone(now, tenantCfg?.timezone);
 
-  const [ar, overdue, receipts, unremitted, remittances] = await Promise.all([
+  const [ar, overdue, pos, unremitted, remittances] = await Promise.all([
     getAccountsReceivable(ctx.tenantId, now),
     getOverdueInvoices(ctx.tenantId, now),
-    getReceipts(ctx.tenantId, monthStart, monthEnd),
+    getReceiptPositions(ctx.tenantId, monthStart, monthEnd),
     getUnremittedCashByTech(ctx.tenantId),
     getRemittances(ctx.tenantId),
   ]);
@@ -43,18 +43,19 @@ export default async function LaporanPage() {
   // computeIncentives sudah ter-gerbang di SUMBER (return [] bila tenant tak menerapkan).
   const incentives = await computeIncentives(ctx.tenantId, monthStart, monthEnd);
   const totalIncentive = incentives.reduce((s, i) => s + i.amount, 0);
-  const totalUnremitted = unremitted.reduce((s, u) => s + u.total, 0);
 
   return (
     <main className="min-h-screen">
       <AppHeader title="Laporan Keuangan" helpKey="laporan" />
       <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
 
-        {/* Ringkasan angka */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {/* Ringkasan posisi uang (L4 / K1): Penerimaan = HANYA uang yang sudah
+            terverifikasi masuk; sisanya tampil terpisah — tidak pernah hilang. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Total Piutang" value={rp(ar.total)} tone="sky" />
-          <Stat label="Penerimaan Bulan Ini" value={rp(receipts.total)} sub={`${receipts.count} invoice`} tone="emerald" />
-          <Stat label="Kas Belum Disetor" value={rp(totalUnremitted)} tone="amber" />
+          <Stat label="Penerimaan (sudah masuk)" value={rp(pos.penerimaan.total)} sub={`${pos.penerimaan.count} invoice`} tone="emerald" />
+          <Stat label="Menunggu Setoran (di teknisi)" value={rp(pos.menungguSetoran.total)} sub={`${pos.menungguSetoran.count} invoice`} tone="amber" />
+          <Stat label="Menunggu Verifikasi (transfer/QRIS)" value={rp(pos.menungguVerifikasi.total)} sub={`${pos.menungguVerifikasi.count} invoice`} tone="violet" />
         </div>
 
         {/* Aging piutang */}
@@ -97,7 +98,7 @@ export default async function LaporanPage() {
         <Card>
           <CardContent className="p-5">
             <h2 className="mb-1 text-sm font-bold text-foreground">Kas Belum Disetor per Teknisi</h2>
-            <p className="mb-3 text-xs text-muted-foreground">Uang tunai yang dipegang teknisi dari invoice lunas, belum disetor ke pemilik.</p>
+            <p className="mb-3 text-xs text-muted-foreground">Uang tunai dari invoice lunas yang belum disetor — terus tampil sampai admin mencatat setorannya, lintas periode (K3).</p>
             {unremitted.length === 0 ? (
               <p className="text-sm text-muted-foreground">Semua kas sudah disetor. 👍</p>
             ) : (
@@ -183,8 +184,8 @@ export default async function LaporanPage() {
   );
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone: "sky" | "emerald" | "amber" }) {
-  const toneCls = tone === "emerald" ? "text-emerald-600" : tone === "amber" ? "text-amber-600" : "text-sky-600";
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone: "sky" | "emerald" | "amber" | "violet" }) {
+  const toneCls = tone === "emerald" ? "text-emerald-600" : tone === "amber" ? "text-amber-600" : tone === "violet" ? "text-violet-600" : "text-sky-600";
   return (
     <Card><CardContent className="p-4">
       <div className="text-xs text-muted-foreground">{label}</div>

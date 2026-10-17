@@ -170,8 +170,8 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | L2 | Setoran wajib bukti & penerima; atomik | `[x]` | `markCashRemitted` diperluas (jalur existing) → tulis jejak dalam 1 transaksi; **tolak tanpa foto / tanpa penerima** di SERVICE — `tests/ar-cash-remittance.test.ts` (L2, RED→GREEN) · dialog setoran pakai `Dialog` pustaka UI (confirm() bawaan terganti) · unggah via `putTenantAsset` scope `bukti` (jalur S3 existing) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
 | L3 | Transfer/QRIS oleh teknisi → menunggu verifikasi | `[x]` | `markInvoicePaid` diperluas (jalur existing): menandai lunas oleh **TEKNISI** → transfer/QRIS `status=PAID` **tanpa** verifikasi (nullable, tertulis null) · oleh **ADMIN/OWNER** → langsung terverifikasi + catat siapa/kapan · CASH tidak lewat verifikasi ini (jalur setoran L2) — `tests/invoice-verify.test.ts` (6 test RED→GREEN) |
 | L3 | Owner/admin verifikasi (catat siapa & kapan) | `[x]` | `verifyInvoicePayment` (service): atomik `WHERE verifiedAt=null` (verifikasi ganda tidak menimpa) · DITOLAK utk CASH / belum lunas / sudah diverifikasi / dokumen lain · aksi `actionVerifyPayment` (guard OWNER/ADMIN) + `VerifyPaymentButton` di halaman faktur admin — pola identik `CancelInvoiceButton` (Button pustaka UI) · migrasi `20261018010000_invoice_verification` **dijalankan** (2 kolom nullable; data lama aman, null = belum diverifikasi) · suite **105/891** · tsc=0 · eslint=0 · build=0 |
-| L4 | Kartu penerimaan dipisah 3 posisi | `[ ]` | — |
-| L4 | Foto bukti tampil di halaman tenant | `[ ]` | — |
+| L4 | Kartu penerimaan dipisah 3 posisi | `[x]` | `getReceipts` **DIGANTI PENUH** jadi `getReceiptPositions` (3 posisi; identitas: ketiganya menjumlah tepat ke total lunas) · kartu laporan kini: Penerimaan (sudah masuk) · Menunggu Setoran (di teknisi) · Menunggu Verifikasi — pola `Stat` lokal diperluas (tone violet), 0 komponen baru · tabel per-teknisi dijelaskan lintas periode (K3) — `tests/ar-receipt-positions.test.ts` (7 test RED→GREEN) · anti-fosil: grep `getReceipts` di `src/` = KOSONG |
+| L4 | Foto bukti tampil di halaman tenant | `[x]` | `InvoiceView` menampilkan blok "Bukti & status pembayaran" (badge metode + status posisi uang + gambar bukti bila ada; pola `<img>` QRIS yang sudah ada) — bukti kini terlihat (F-10/M4), tampil di halaman teknisi & admin sekaligus (satu komponen dipakai dua peran) |
 | L5 | Daftar setoran (siapa→siapa→kapan→bukti) | `[x]` | `getRemittances` + kartu "Riwayat Setoran Kas" di `/app/laporan` (pola kartu existing) — `tests/ar-cash-remittance.test.ts` (L5, RED→GREEN: jejak penerima/bukti/waktu + guard tenant) · setoran lama tanpa jejak TAMPIL "belum tercatat", tidak disembunyikan |
 | L6 | Label status jujur & seragam | `[ ]` | — |
 | L7 | Test penuh · tipe/gaya/build bersih | `[ ]` | — |
@@ -181,7 +181,7 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | K9 | Hapus stempel label posisi uang saat closing | `[x]` | `worksession-service.ts` — baris `cashRemitStatus: docType === "INVOICE" ? ...` **DIHAPUS** · anti-fosil: grep `cashRemitStatus` di `worksession-service.ts` = **KOSONG** · `tests/worksession.test.ts` RED→GREEN (16 test) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
 | L7 | Uji pemilik (owner/admin tenant) atas alur baru | `[ ]` | — |
 
-**Progres: 8 dari 16 butir — L1 (2), L2 (2), L3 (2), L5 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
+**Progres: 10 dari 16 butir — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
 
 ---
 

@@ -61,13 +61,50 @@ export async function getOverdueInvoices(tenantId: string, asOf: Date = new Date
   }));
 }
 
-/** Total penerimaan (invoice PAID) dalam rentang [start, end]. */
-export async function getReceipts(tenantId: string, start: Date, end: Date): Promise<{ total: number; count: number }> {
+export interface ReceiptPositions {
+  /** Uang SUDAH dihitung masuk: setoran tercatat (CASH) + transfer/QRIS terverifikasi (K4). */
+  penerimaan: { total: number; count: number };
+  /** Uang tunai lunas di tangan teknisi, BELUM disetor (K3 — menunggu setoran berfoto). */
+  menungguSetoran: { total: number; count: number };
+  /** Transfer/QRIS lunas BELUM diverifikasi owner/admin (K4) — + payMethod null (belum jelas). */
+  menungguVerifikasi: { total: number; count: number };
+  /** Seluruh invoice lunas pada periode (identitas: ketiga posisi di atas menjumlah tepat ke sini). */
+  totalKotor: number;
+}
+
+/**
+ * Tiga posisi uang lunas pada periode (L4 — keputusan K1, 2026-10-17).
+ * Menggantikan `getReceipts` (F-01/M1: satu angka campur tiga posisi berbeda).
+ *
+ * Aturan:
+ *  - CASH + REMITTED                  → penerimaan (uang sudah di kantor)
+ *  - CASH lain (HELD_BY_TECH / null)  → menungguSetoran (dana fisik dipegang teknisi)
+ *  - TRANSFER/QRIS + verifiedAt       → penerimaan (sudah dipastikan masuk rekening)
+ *  - TRANSFER/QRIS tanpa verifikasi   → menungguVerifikasi (K4 — belum boleh dihitung)
+ *  - payMethod null pada invoice PAID → menungguVerifikasi (konservatif: TIDAK dihitung
+ *    masuk sebelum jelas; data live 2026-10-18: 0 kasus — dijaga tetap 0-untuk-masuk)
+ *
+ * Posisi saling lepas dan mencakup seluruh invoice lunas → identitas selalu terpenuhi.
+ */
+export async function getReceiptPositions(
+  tenantId: string, start: Date, end: Date,
+): Promise<ReceiptPositions> {
   const rows = await prisma.invoice.findMany({
     where: { tenantId, docType: "INVOICE", status: "PAID", paidAt: { gte: start, lte: end } },
-    select: { total: true },
+    select: { total: true, payMethod: true, cashRemitStatus: true, verifiedAt: true },
   });
-  return { total: rows.reduce((s, r) => s + Number(r.total), 0), count: rows.length };
+  const acc = { penerimaan: { total: 0, count: 0 }, menungguSetoran: { total: 0, count: 0 }, menungguVerifikasi: { total: 0, count: 0 }, totalKotor: 0 };
+  for (const r of rows) {
+    const amt = Number(r.total);
+    acc.totalKotor += amt;
+    let key: keyof Omit<ReceiptPositions, "totalKotor">;
+    if (r.payMethod === "CASH") key = r.cashRemitStatus === "REMITTED" ? "penerimaan" : "menungguSetoran";
+    else if (r.payMethod === "TRANSFER" || r.payMethod === "QRIS") key = r.verifiedAt ? "penerimaan" : "menungguVerifikasi";
+    else key = "menungguVerifikasi";
+    acc[key].total += amt;
+    acc[key].count += 1;
+  }
+  return acc;
 }
 
 /**

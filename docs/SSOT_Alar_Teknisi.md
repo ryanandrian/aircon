@@ -433,6 +433,10 @@ PERUBAHAN L2 + K9 (2026-10-18) pada alur teknisi:
   CASH tidak terpengaruh (verifikasinya = setoran berfoto, L2). Kolom verifikasi
   `20261018010000_invoice_verification` sudah dijalankan — transfer/QRIS lama = null
   (belum pernah diverifikasi), angka penerimaan LAMA tetap apa adanya sampai diverifikasi.
+- **L4: kartu laporan pecah 3 posisi uang** — Penerimaan (sudah masuk) · Menunggu
+  Setoran (di teknisi) · Menunggu Verifikasi (transfer/QRIS) · **bukti pembayaran
+  kini TAMPIL** di halaman detail (termasuk halaman teknisi — satu komponen dipakai
+  dua peran), lengkap dengan badge status posisi uangnya.
 
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```
