@@ -14,6 +14,8 @@ import {
 export type InvoiceListItem = {
   id: string; number: string; docType: string; status: string;
   total: number; issueDate: string | null; dueDate: string | null; customerName: string;
+  // L6 (K1/K3/K4): kolom posisi uang utk label dari satu sumber (money-position.ts).
+  payMethod: string | null; cashRemitStatus: string | null; verifiedAt: Date | null;
 };
 
 function toMessage(err: unknown, fallback: string) {

@@ -1,6 +1,7 @@
 import { TenantLogo } from "@/components/tenant-logo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { moneyPositionOf } from "@/lib/copy/money-position";
 
 /** Serialisasi longgar (Decimal → number via Number()). Komponen ini server-safe (dipakai di page server). */
 type InvItem = { assetId: string | null; descSnapshot: string; category: string; qty: unknown; unit: string; unitPrice: unknown; lineTotal: unknown };
@@ -9,8 +10,9 @@ type Inv = {
   issueDate: Date; dueDate: Date | null;
   subtotal: unknown; discountAmount: unknown; ppnPercent: number; ppnAmount: unknown; total: unknown;
   payMethod: string | null; paidAt: Date | null;
-  // L3/L4 (K1/K4): posisi uang & bukti — null = belum ada/kosong (dokumen lama aman).
+  // L3/L4/L6 (K1/K3/K4): posisi uang & bukti — null = belum ada/kosong (dokumen lama aman).
   verifiedAt: Date | null;
+  cashRemitStatus: string | null;
   paymentProofUrl: string | null;
   customer: { name: string; phone: string; address: string | null; customerType: string; npwp: string | null };
   items: InvItem[];
@@ -148,22 +150,10 @@ export function InvoiceView({ inv, tenant, assetMap, backHref, billTo }: {
             <div className="space-y-2 border-t pt-4 print:break-inside-avoid">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bukti &amp; status pembayaran</div>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="secondary">{inv.payMethod ?? "—"}</Badge>
-                {inv.payMethod === "CASH" && (
-                  <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-400">
-                    Dipegang teknisi — menunggu setoran
-                  </Badge>
-                )}
-                {(inv.payMethod === "TRANSFER" || inv.payMethod === "QRIS") &&
-                  (inv.verifiedAt ? (
-                    <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400">
-                      Terverifikasi — dana masuk rekening
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-800 dark:text-amber-400">
-                      Menunggu verifikasi kantor
-                    </Badge>
-                  ))}
+                {/* L6: SATU sumber label posisi uang — dipakai bersama daftar faktur
+                    admin, sehingga tidak ada dua halaman memberi label beda. */}
+                <Badge className={moneyPositionOf(inv).color}>{moneyPositionOf(inv).label}</Badge>
+                <span className="text-xs text-muted-foreground">{moneyPositionOf(inv).hint}</span>
               </div>
               {inv.paymentProofUrl ? (
                 <div>

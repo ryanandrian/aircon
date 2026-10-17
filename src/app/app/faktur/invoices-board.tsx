@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/icons";
 import { actionLoadInvoices, actionCountInvoices, type InvoiceListItem } from "./actions";
+import { moneyPositionOf } from "@/lib/copy/money-position";
 
 type Bucket = "proforma" | "unpaid" | "paid" | "all";
 type Counts = { proforma: number; unpaid: number; paid: number; all: number };
@@ -159,6 +160,9 @@ export function InvoicesBoard({
                         <span className="truncate font-semibold text-foreground">{inv.customerName}</span>
                         <Badge variant={isProforma ? "outline" : "secondary"} className="shrink-0">{isProforma ? "Proforma" : "Invoice"}</Badge>
                         <Badge variant={inv.status === "PAID" ? "secondary" : "outline"} className="shrink-0">{STATUS[inv.status] ?? inv.status}</Badge>
+                        {inv.status === "PAID" && inv.docType === "INVOICE" && (
+                          <Badge className={`shrink-0 ${moneyPositionOf(inv).color}`}>{moneyPositionOf(inv).label}</Badge>
+                        )}
                       </div>
                       <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{inv.number}</div>
                       <div className="text-xs text-muted-foreground">Terbit {fmt(inv.issueDate)}{inv.dueDate ? ` · Jatuh tempo ${fmt(inv.dueDate)}` : ""}</div>

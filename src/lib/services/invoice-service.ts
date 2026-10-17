@@ -281,6 +281,10 @@ export async function listInvoicesByBucket(
     select: {
       id: true, number: true, docType: true, status: true, total: true,
       issueDate: true, dueDate: true, customer: { select: { name: true } },
+      // L6 (K1/K3/K4): kolom posisi uang agar daftar bisa menampilkan labelnya
+      // dari satu sumber (src/lib/copy/money-position.ts) — perpanjangan select,
+      // BUKAN query baru.
+      payMethod: true, cashRemitStatus: true, verifiedAt: true,
     },
   });
   const hasMore = rows.length > limit;
@@ -292,6 +296,9 @@ export async function listInvoicesByBucket(
       issueDate: r.issueDate ? r.issueDate.toISOString() : null,
       dueDate: r.dueDate ? r.dueDate.toISOString() : null,
       customerName: r.customer?.name ?? "—",
+      payMethod: r.payMethod as string | null,
+      cashRemitStatus: r.cashRemitStatus as string | null,
+      verifiedAt: r.verifiedAt,
     })),
     nextCursor: hasMore ? page[page.length - 1].id : null,
   };
