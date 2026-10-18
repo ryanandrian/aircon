@@ -175,13 +175,13 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | L5 | Daftar setoran (siapa→siapa→kapan→bukti) | `[x]` | `getRemittances` + kartu "Riwayat Setoran Kas" di `/app/laporan` (pola kartu existing) — `tests/ar-cash-remittance.test.ts` (L5, RED→GREEN: jejak penerima/bukti/waktu + guard tenant) · setoran lama tanpa jejak TAMPIL "belum tercatat", tidak disembunyikan |
 | L6 | Label status jujur & seragam | `[x]` | **Satu sumber label posisi uang**: `src/lib/copy/money-position.ts` (pola `copy/job-status.ts`) — label + penjelasan + warna utk 7 keadaan · dipakai BERSAMA oleh **daftar faktur admin** (`invoices-board` — badge baru, halaman ini kini menunjukkan antrean menunggu verifikasi) dan **`InvoiceView`** (3 cabang badge inline L4 saya ganti jadi 1 fungsi) · label tunai TIDAK pernah menyebut "terverifikasi" · `listInvoicesByBucket` diperpanjang select-nya (bukan query baru) — `tests/money-position-label.test.ts` (7 test RED→GREEN) |
 | L7 | Test penuh · tipe/gaya/build bersih | `[x]` | **107 berkas / 905 test hijau** · `tsc` = 0 · `eslint` = 0 error (2 warning lama, bukan milik perbaikan ini) · `next build` = 0 |
-| L7 | Deploy SOP PASS + bukti live | `[ ]` | — |
+| L7 | Deploy SOP PASS + bukti live | `[x]` | `bash scripts/deploy-vps.sh` **PASS** — release live **`a66a01e`** (melengkapi `6c0c11c` L1 · `1a37664` L2+K9 · `11316bc` L3 · `c1e7fc1` L4+L6) · marker live: `https://app.airconet.id/` → 200 & `/login` → 200 · tree bersih · retensi 3 release |
 | L7 | K8 data PT Ase — **TIDAK DISENTUH tanpa konfirmasi owner tenant** | `[x]` | Audit read-only 2026-10-18: 6 baris label salah diidentifikasi (5 belum-lunas + 1 transfer INV/2026/0003) · **nol baris diubah** — data tidak bisa membedakan "belum bayar" vs "sudah bayar belum dicatat" · akar (K9) dihapus sehingga pola tidak terulang · tertulis di K8 |
 | L7 | Seluruh SSOT disamakan | `[x]` | `SSOT_Alar_Teknisi.md` (L1–L6, K9, L2/L3 diperbarui di commit masing-masing) · `SSOT_Alar_Invoicing.md` **baru diperbarui** (1.1 stempel closing dihapus sesuai K9; blok "POSISI UANG & JEJAK" memuat L2/L3/L4/L6/K7) · dokumen rencana BAGIAN 7 |
 | K9 | Hapus stempel label posisi uang saat closing | `[x]` | `worksession-service.ts` — baris `cashRemitStatus: docType === "INVOICE" ? ...` **DIHAPUS** · anti-fosil: grep `cashRemitStatus` di `worksession-service.ts` = **KOSONG** · `tests/worksession.test.ts` RED→GREEN (16 test) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
 | L7 | Uji pemilik (owner/admin tenant) atas alur baru | `[ ]` | — |
 
-**Progres: 14 dari 16 butir — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), L6 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
+**Progres: 15 dari 16 butir — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), L6 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
 
 ---
 
