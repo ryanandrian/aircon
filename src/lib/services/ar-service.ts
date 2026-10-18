@@ -206,7 +206,8 @@ export async function getUnremittedCashByHolder(tenantId: string) {
  * L2 (keputusan K5, 2026-10-17): setoran MENINGGALKAN JEJAK dalam satu transaksi atomik —
  * waktu setoran, admin penerima (tenant bisa punya >1 admin), dan foto bukti (S3).
  * Setoran TANPA foto bukti / TANPA admin penerima DITOLAK di service (bukan hanya di layar).
- * Data lama (REMITTED tanpa jejak) tetap terbaca — kolom baru nullable.
+ * Data lama (REMITTED tanpa jejak) tetap terbaca — kolom baru nullable; kini BISA
+ * dilengkapi lewat mode "legacy" (K14).
  */
 export interface CashRemitDetails {
   /** Admin tenant yang MENERIMA setoran (siapa di kantor yang menadah uang). */
@@ -217,10 +218,22 @@ export interface CashRemitDetails {
   at?: Date;
 }
 
+/**
+ * Dua mode pada JALUR YANG SAMA (aturan 11 — memperpanjang fungsi existing):
+ *  - "held"   (bawaan): tunai yang masih di tangan pemegang (HELD_BY_TECH) → dicatat setor.
+ *  - "legacy": MELENGKAPI jejak setoran LAMA (K14) — baris REMITTED yang jejaknya kosong
+ *              karena terjadi sebelum jejak diwajibkan (K5). Tanpa mode ini kartu
+ *              "Disetor — Belum Ada Bukti" jalan buntu dan tenant memikul beban perbaikan.
+ * Guard ketat: mode legacy hanya menyentuh baris REMITTED + remittedAt null — jejak yang
+ * sudah ada TIDAK PERNAH ditimpa, dan baris HELD_BY_TECH ditolak (urusan mode biasa).
+ */
+export type CashRemitMode = "held" | "legacy";
+
 export async function markCashRemitted(
   tenantId: string,
   invoiceIds: string[],
   details: CashRemitDetails,
+  mode: CashRemitMode = "held",
 ): Promise<number> {
   if (invoiceIds.length === 0) return 0;
   const proofUrl = details.proofUrl?.trim() ?? "";
@@ -232,10 +245,12 @@ export async function markCashRemitted(
     throw new ServiceError("CONFLICT", "Setoran wajib mencatat admin penerima setoran.");
   }
   const at = details.at ?? new Date();
+  const stateWhere = mode === "legacy"
+    ? { cashRemitStatus: "REMITTED" as const, remittedAt: null }
+    : { cashRemitStatus: "HELD_BY_TECH" as const };
   return prisma.$transaction(async (tx) => {
-    // Semuanya-atau-semua-batal: SELURUH invoice yang diminta WAJIB masih
-    // PAID + CASH + HELD_BY_TECH dalam tenant ini. Bila ada satu pun yang tidak
-    // memenuhi (sudah disetor, bukan tunai, milik tenant lain, bukan invoice) →
+    // Semuanya-atau-semua-batal: SELURUH invoice yang diminta WAJIB berada pada
+    // keadaan yang benar untuk mode ini. Bila ada satu pun yang tidak memenuhi →
     // 0 baris diubah, semuanya batal.
     //
     // PENTING (cacat yang diperbaiki): tanpa syarat `count === invoiceIds.length`
@@ -246,7 +261,7 @@ export async function markCashRemitted(
       where: {
         tenantId, id: { in: invoiceIds },
         docType: "INVOICE", status: "PAID", payMethod: "CASH",
-        cashRemitStatus: "HELD_BY_TECH",
+        ...stateWhere,
       },
       data: {
         cashRemitStatus: "REMITTED",
@@ -259,7 +274,9 @@ export async function markCashRemitted(
       // Lempar di dalam transaksi → rollback (tidak ada setoran setengah jadi).
       throw new ServiceError(
         "CONFLICT",
-        "Setoran tidak dicatat: sebagian transaksi bukan lagi uang tunai yang menunggu setoran. Muat ulang halaman.",
+        mode === "legacy"
+          ? "Bukti tidak dicatat: sebagian transaksi bukan setoran lama tanpa jejak (jejak yang sudah ada tidak ditimpa). Muat ulang halaman."
+          : "Setoran tidak dicatat: sebagian transaksi bukan lagi uang tunai yang menunggu setoran. Muat ulang halaman.",
       );
     }
     return res.count;

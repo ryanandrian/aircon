@@ -26,8 +26,13 @@ import { actionMarkCashRemitted, actionUploadRemitProof } from "./actions";
  * M9 (2026-10-18): pemegang uang BUKAN selalu teknisi (bisa pemilik) — prop pemilik
  * lama diganti `holderName` (aturan 12: nama yang menyesatkan diganti bersih, bukan
  * dibiarkan).
+ *
+ * K14 (2026-10-18, izin pemilik): `mode = "legacy"` mengubah label & mode panggilan
+ * untuk MELENGKAPI JEJAK setoran lama (baris "Disetor — Belum Ada Bukti") — memakai
+ * dialog, unggah S3, dan action yang sudah ada; tidak ada komponen atau action baru.
  */
-export function RemitButton({ holderName, invoiceIds }: { holderName: string; invoiceIds: string[] }) {
+export function RemitButton({ holderName, invoiceIds, mode = "held" }: { holderName: string; invoiceIds: string[]; mode?: "held" | "legacy" }) {
+  const legacy = mode === "legacy";
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -56,9 +61,11 @@ export function RemitButton({ holderName, invoiceIds }: { holderName: string; in
 
   function submit() {
     start(async () => {
-      const res = await actionMarkCashRemitted(invoiceIds, proofUrl);
+      const res = await actionMarkCashRemitted(invoiceIds, proofUrl, mode);
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success(`Setoran ${holderName} dicatat (${res.data!.count} transaksi)`);
+      toast.success(legacy
+        ? `Bukti setoran lama tercatat (${res.data!.count} transaksi)`
+        : `Setoran ${holderName} dicatat (${res.data!.count} transaksi)`);
       setDone(true);
       setOpen(false);
       router.refresh();
@@ -74,15 +81,17 @@ export function RemitButton({ holderName, invoiceIds }: { holderName: string; in
         disabled={done}
         className="bg-emerald-600 text-white hover:bg-emerald-700"
       >
-        {done ? "Tercatat" : "Tandai Disetor"}
+        {done ? "Tercatat" : legacy ? "Lengkapi Bukti" : "Tandai Disetor"}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Catat Setoran Kas</DialogTitle>
+            <DialogTitle>{legacy ? "Lengkapi Bukti Setoran" : "Catat Setoran Kas"}</DialogTitle>
             <DialogDescription>
-              Setoran dari {holderName} ({invoiceIds.length} transaksi).
+              {legacy
+                ? `Setoran lama tanpa jejak — ${holderName} (${invoiceIds.length} transaksi).`
+                : `Setoran dari ${holderName} (${invoiceIds.length} transaksi).`}
             </DialogDescription>
           </DialogHeader>
 
@@ -118,7 +127,7 @@ export function RemitButton({ holderName, invoiceIds }: { holderName: string; in
               disabled={pending || uploading || !proofUrl}
               className="bg-emerald-600 text-white hover:bg-emerald-700"
             >
-              <Icon.Success className="h-4 w-4" aria-hidden /> Catat Setoran
+              <Icon.Success className="h-4 w-4" aria-hidden /> {legacy ? "Simpan Bukti" : "Catat Setoran"}
             </Button>
           </DialogFooter>
         </DialogContent>

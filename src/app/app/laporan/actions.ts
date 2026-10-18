@@ -36,10 +36,15 @@ export async function actionUploadRemitProof(fd: FormData): Promise<Result<{ pub
  * Tandai setoran kas teknisi (K17 + L2/K5). Owner/admin only.
  * Setoran WAJIB berbukti (foto di S3) dan WAJIB mencatat admin penerima — ditegakkan
  * di service (`markCashRemitted`), bukan hanya di layar.
+ *
+ * K14: `mode = "legacy"` dipakai untuk melengkapi jejak setoran LAMA (baris REMITTED
+ * yang jejaknya kosong) — ditegakkan penuh di service, jadi klien tidak bisa menyentuh
+ * baris yang bukan milik mode itu.
  */
 export async function actionMarkCashRemitted(
   invoiceIds: string[],
   proofUrl: string,
+  mode: "held" | "legacy" = "held",
 ): Promise<Result<{ count: number }>> {
   try {
     const ctx = await getServerContext();
@@ -50,7 +55,7 @@ export async function actionMarkCashRemitted(
     const count = await markCashRemitted(ctx.tenantId, invoiceIds, {
       receiverId: ctx.userId,
       proofUrl,
-    });
+    }, mode);
     revalidatePath("/app/laporan");
     return { ok: true, data: { count } };
   } catch (e) {

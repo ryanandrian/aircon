@@ -169,6 +169,11 @@ dokumen ini per progress.**
   (getUnremittedCashByHolder / markCashRemitted tetap pola lama; guard
   OWNER/ADMIN tetap). Nama fungsi K17 diganti 2026-10-18 (M9) — pemegang
   uang BUKAN selalu teknisi, jadi label lama menyesatkan.
+  K14 (2026-10-18, izin pemilik): markCashRemitted dapat mode "legacy" utk
+  MELENGKAPI jejak setoran lama (baris REMITTED remittedAt=null) — tombol
+  "Lengkapi Bukti" di Riwayat Setoran. Guard: hanya baris itu yg disentuh;
+  jejak lama tidak ditimpa; baris HELD_BY_TECH tetap urusan mode biasa;
+  wajib foto + penerima (K5) berlaku sama utk kedua mode.
   D2 tertutup: `tests/ar-cash-remittance.test.ts` (4) — filter K17 exact;
   TRANSFER/QRIS tak terhitung; guard remit tenant/status/type; input kosong.
   + `invoice-flow`: CASH→HELD, TRANSFER/QRIS→null (RED 2 gagal → GREEN).

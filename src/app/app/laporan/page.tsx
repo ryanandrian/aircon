@@ -137,7 +137,7 @@ export default async function LaporanPage() {
           <CardContent className="p-5">
             <h2 className="mb-1 text-sm font-bold text-foreground">Riwayat Setoran Kas</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              Penelusuran uang tunai: teknisi penyetor → admin penerima → waktu → bukti setoran.
+              Penelusuran uang tunai: pemegang uang → admin penerima → waktu → bukti setoran.
             </p>
             {remittances.length === 0 ? (
               <p className="text-sm text-muted-foreground">Belum ada setoran tercatat.</p>
@@ -159,7 +159,10 @@ export default async function LaporanPage() {
                         Lihat Bukti
                       </a>
                     ) : (
-                      <span className="text-xs text-muted-foreground">tanpa bukti</span>
+                      // K14: setoran LAMA tanpa jejak kini punya aksi — tombol memakai
+                      // RemitButton + action + unggah S3 yang sudah ada (tanpa komponen baru).
+                      // Penerima diambil dari sesi admin yang menekan; wajib foto (K5).
+                      <RemitButton holderName={r.holderName} invoiceIds={[r.id]} mode="legacy" />
                     )}
                   </div>
                 ))}

@@ -103,6 +103,56 @@ describe("L2 — markCashRemitted: setoran meninggalkan jejak (K5)", () => {
     await expect(markCashRemitted("t1", ["cash-held"], details)).rejects.toThrow(/menunggu setoran/i);
   });
 
+  // ── K14 (2026-10-18, izin pemilik): MELENGKAPI JEJAK setoran LAMA ──────────────
+  // Transaksi 7 baris di Jaya Mandiri (Rp3.800.000) terjadi SEBELUM jejak wajib ada
+  // (K5). Kartu "Disetor — Belum Ada Bukti" tanpa aksi = jalan buntu yang membebani
+  // tenant. Jalur YANG SAMA diperpanjang (aturan 11): tanpa service/action baru.
+  describe("K14 — mode legacy: lengkapi jejak setoran lama (REMITTED tanpa jejak)", () => {
+    it("hanya baris REMITTED DENGAN jejak kosong yang boleh disentuh", async () => {
+      const n = await markCashRemitted("t1", ["cash-legacy"], details, "legacy");
+      expect(n).toBe(1);
+      const q = state.updateManyArgs.where;
+      expect(q).toMatchObject({
+        tenantId: "t1", id: { in: ["cash-legacy"] },
+        docType: "INVOICE", status: "PAID", payMethod: "CASH",
+        cashRemitStatus: "REMITTED", remittedAt: null,
+      });
+      expect(state.updateManyArgs.data).toEqual({
+        cashRemitStatus: "REMITTED",
+        remittedAt: details.at,
+        remittedById: "admin-1",
+        remitProofUrl: details.proofUrl,
+      });
+    });
+
+    it("DITOLAK bila baris masih HELD_BY_TECH (itu urusan mode biasa, bukan pelengkap jejak)", async () => {
+      state.updateManyResult = { count: 0 };
+      await expect(markCashRemitted("t1", ["cash-held"], details, "legacy"))
+        .rejects.toThrow(/jejak/i);
+    });
+
+    it("DITOLAK bila baris sudah punya jejak — jejak lama tidak boleh ditimpa", async () => {
+      state.updateManyResult = { count: 0 };
+      await expect(markCashRemitted("t1", ["cash-remitted"], details, "legacy"))
+        .rejects.toThrow(/jejak/i);
+    });
+
+    it("sebagian baris bukan tanpa jejak → semuanya batal (atomik), bukan sebagian jadi", async () => {
+      state.updateManyResult = { count: 1 };
+      await expect(markCashRemitted("t1", ["cash-legacy", "cash-held"], details, "legacy"))
+        .rejects.toThrow(/jejak/i);
+      expect(state.transactionCalls).toHaveLength(1);
+    });
+
+    it("tanpa foto bukti / tanpa penerima TETAP ditolak pada mode legacy (K5 berlaku sama)", async () => {
+      await expect(markCashRemitted("t1", ["cash-legacy"], { ...details, proofUrl: "" }, "legacy"))
+        .rejects.toThrow(/bukti/i);
+      await expect(markCashRemitted("t1", ["cash-legacy"], { ...details, receiverId: "" }, "legacy"))
+        .rejects.toThrow(/penerima/i);
+      expect(prismaModule.prisma.invoice.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   it("input kosong → tak membuat query update", async () => {
     const n = await markCashRemitted("t1", [], details);
     expect(n).toBe(0);
