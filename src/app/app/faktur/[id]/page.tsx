@@ -52,7 +52,7 @@ export default async function AppInvoicePage({ params }: { params: Promise<{ id:
         )}
         <div className="print:hidden space-y-4">
           {canConvert && <ProformaConvert proformaId={inv.id} isB2B={inv.customer.customerType === "BADAN"} />}
-          {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />}
+          {canPay && <PaymentPanel invoiceId={inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} role={ctx.role} />}
           {canCancel && <CancelInvoiceButton invoiceId={inv.id} isProforma={isProforma} />}
           {needVerify && <VerifyPaymentButton invoiceId={inv.id} method={inv.payMethod!} />}
         </div>

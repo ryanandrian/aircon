@@ -441,6 +441,11 @@ PERUBAHAN L2 + K9 (2026-10-18) pada alur teknisi:
   daftar faktur admin DAN halaman detail — dua halaman tidak pernah lagi memberi label
   berbeda. Daftar faktur admin kini memperlihatkan posisi uang per invoice, termasuk
   "menunggu dicek" untuk transfer/QRIS yang ditandai lunas oleh teknisi (antrean L3).
+- **K10 (2026-10-18, laporan pemilik): PaymentPanel SADAR PERAN.** Panel dipakai SAMA
+  oleh teknisi & admin (F-05) tapi unggah bukti diguard OWNER/ADMIN (F-06) → teknisi
+  dulu melihat kolom bukti, pilih foto, upload DITOLAK senyap, tombol LUNAS membeku
+  tanpa indikator. Kini: `role` diteruskan dari halaman → teknisi TIDAK melihat kolom
+  bukti (alur lapangan tak berubah), admin tetap; tombol menampilkan "Mengunggah…".
 
 ## BAGIAN 3A — FORENSIK: INV/2026/0003 PT ASE DWIMITRA MANDIRI (tenant REAL)
 ```

@@ -33,7 +33,7 @@ export default async function TechInvoicePage({ params }: { params: Promise<{ id
         )}
         {data.inv.docType === "INVOICE" && (data.inv.status === "ISSUED" || data.inv.status === "OVERDUE") && (
           <div className="print:hidden">
-            <PaymentPanel invoiceId={data.inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />
+            <PaymentPanel invoiceId={data.inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} role={ctx.role} />
           </div>
         )}
       </div>

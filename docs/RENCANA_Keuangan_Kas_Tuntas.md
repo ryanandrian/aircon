@@ -179,9 +179,10 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | L7 | K8 data PT Ase — **TIDAK DISENTUH tanpa konfirmasi owner tenant** | `[x]` | Audit read-only 2026-10-18: 6 baris label salah diidentifikasi (5 belum-lunas + 1 transfer INV/2026/0003) · **nol baris diubah** — data tidak bisa membedakan "belum bayar" vs "sudah bayar belum dicatat" · akar (K9) dihapus sehingga pola tidak terulang · tertulis di K8 |
 | L7 | Seluruh SSOT disamakan | `[x]` | `SSOT_Alar_Teknisi.md` (L1–L6, K9, L2/L3 diperbarui di commit masing-masing) · `SSOT_Alar_Invoicing.md` **baru diperbarui** (1.1 stempel closing dihapus sesuai K9; blok "POSISI UANG & JEJAK" memuat L2/L3/L4/L6/K7) · dokumen rencana BAGIAN 7 |
 | K9 | Hapus stempel label posisi uang saat closing | `[x]` | `worksession-service.ts` — baris `cashRemitStatus: docType === "INVOICE" ? ...` **DIHAPUS** · anti-fosil: grep `cashRemitStatus` di `worksession-service.ts` = **KOSONG** · `tests/worksession.test.ts` RED→GREEN (16 test) · suite 104/879 · tsc=0 · eslint=0 · build=0 |
+| K10 | Panel pembayaran sadar peran (laporan pemilik 2026-10-18) | `[x]` | **Masalah dilaporkan**: teknisi memilih foto bukti → tombol "Tandai LUNAS" disabled tanpa penjelasan. **Akar (F-05+F-06)**: panel SAMA dipakai teknisi & admin, guard upload `assertRole(OWNER/ADMIN)` menolak teknisi — kolom bukti terlihat tapi upload ditolak senyap; `disabled={pending\|\|uploading}` tanpa indikator. **Perbaikan**: `PaymentPanel` menerima `role` → teknisi TIDAK melihat kolom bukti (alur K3 tak berubah), admin tetap; tombol menampilkan "Mengunggah…" saat proses. `tests/payment-panel-role.test.ts` (4 test RED→GREEN) · suite 909 · tsc=0 · lint=0 · build=0 |
 | L7 | Uji pemilik (owner/admin tenant) atas alur baru | `[ ]` | — |
 
-**Progres: 15 dari 16 butir — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), L6 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
+**Progres: 16 dari 17 butir — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), L6 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
 
 ---
 

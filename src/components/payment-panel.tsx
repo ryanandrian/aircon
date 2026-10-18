@@ -10,8 +10,18 @@ import { actionMarkPaid, actionUploadPaymentProof } from "@/app/t/faktur/actions
 
 type PayMethod = "CASH" | "TRANSFER" | "QRIS";
 
-/** Panel penandaan lunas (K1 cash lapangan): pilih metode + upload bukti opsional → PAID. */
-export function PaymentPanel({ invoiceId, tenantHasQris }: { invoiceId: string; tenantHasQris: boolean }) {
+/**
+ * Panel penandaan lunas (K1 cash lapangan): pilih metode + (bukti utk kantor) → PAID.
+ *
+ * KOREKSI 2026-10-18 (laporan pemilik): panel ini dipakai SAMA oleh teknisi & admin
+ * (F-05) sementara unggah bukti dijaga guard OWNER/ADMIN (F-06) — teknisi melihat
+ * kolom bukti, memilih foto, upload DITOLAK senyap. Sekarang panel TAHU peran:
+ * teknisi TIDAK melihat kolom bukti (alur lapangan tak berubah — K3), admin tetap
+ * melihatnya. Unggah kini juga menampilkan indikator "Mengunggah…".
+ */
+export function PaymentPanel({ invoiceId, tenantHasQris, role }: {
+  invoiceId: string; tenantHasQris: boolean; role: "OWNER" | "ADMIN" | "TECHNICIAN";
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [method, setMethod] = useState<PayMethod>("CASH");
@@ -64,15 +74,20 @@ export function PaymentPanel({ invoiceId, tenantHasQris }: { invoiceId: string; 
             </button>
           ))}
         </div>
-        <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">Bukti bayar (opsional)</label>
-          <input type="file" accept="image/*" onChange={onFile} disabled={uploading}
-            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm" />
-          {proofUrl && <p className="text-xs text-emerald-600">✓ Bukti siap</p>}
-        </div>
+        {/* Kolom bukti = urusan kantor (guard OWNER/ADMIN di server). Teknisi di
+            lapangan menandai lunas TANPA unggah — alur K3 tidak berubah. */}
+        {role !== "TECHNICIAN" && (
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">Bukti bayar (opsional)</label>
+            <input type="file" accept="image/*" onChange={onFile} disabled={uploading}
+              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm" />
+            {uploading && <p className="text-xs text-sky-600">Mengunggah… tunggu sebentar</p>}
+            {proofUrl && !uploading && <p className="text-xs text-emerald-600">✓ Bukti siap</p>}
+          </div>
+        )}
         <Button type="button" onClick={markPaid} disabled={pending || uploading}
           className="w-full min-h-[44px] bg-emerald-600 text-white hover:bg-emerald-700">
-          <Icon.Success className="h-4 w-4" aria-hidden /> Tandai LUNAS
+          <Icon.Success className="h-4 w-4" aria-hidden /> {uploading ? "Mengunggah…" : "Tandai LUNAS"}
         </Button>
         <p className="text-xs text-muted-foreground">Setelah lunas, tombol kirim kwitansi WhatsApp muncul di halaman ini.</p>
       </CardContent>
