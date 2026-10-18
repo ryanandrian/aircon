@@ -72,10 +72,13 @@ Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diper
 | **K7** | Zona waktu | **Milik tiap tenant**, ditetapkan saat **onboarding** (bawaan: WIB). Seluruh penanggalan (bulan ini, "sejak X hari", laporan) mengikuti zona tenant. **Tenant yang ada saat ini seluruhnya WIB** → diisi langsung lewat satu pembaruan data, tanpa menanyai tenant |
 | **K8** | Data lama PT Ase (M6) | **KOREKSI 2026-10-18 — TANPA KONFIRMASI OWNER TENANT = TIDAK DISENTUH.** Audit langsung menemukan 6 baris label kas salah di PT Ase: 1 transfer lunas (INV/2026/0003) + **5 invoice berstatus belum-lunas tetap ter-stempel "uang di teknisi"** (INV/0004, 0007, 0009, 0011, 0014 — stempel itu hasil KEPUTUSAN 1 yang kini dihapus). **Data TIDAK BISA membedakan** pelanggan yang belum bayar dari yang **sudah bayar tunai tetapi teknisi belum menandai lunas** — keduanya tampil identik. Membersihkan label pada kasus kedua = **menghapus jejak uang di tangan teknisi**. **Maka: nol baris disentuh.** Penyesuaian hanya bila **owner PT Ase mengonfirmasi per invoice**; kalau ternyata sudah bayar → perbaikannya MENANDAI LUNAS, bukan membersihkan label | `[x]` (keputusan: tunda — tanpa konfirmasi tenant = tanpa perubahan) |
 | **K9** | Label posisi uang saat invoice terbit | **KEPUTUSAN PEMILIK 2026-10-18: HAPUS STEMPEL.** Invoice/proforma terbit **TANPA** label posisi uang (dulu: "uang di teknisi" ditempel saat closing tanpa cek pembayaran — tebakan tanpa dasar). Label **hanya ditulis `markInvoicePaid`** saat pembayaran nyata dicatat (CASH → di teknisi; TRANSFER/QRIS → kosong). Tidak menyentuh data lama | `[x]` |
+| **K12** | Bukti dari teknisi | **PERINTAH PEMILIK 2026-10-18: teknisi WAJIB bisa & diwajibkan mengirim bukti** — bukti terima uang tunai, bukti transfer, bukti QRIS — khususnya pelanggan TOP CASH. Membatalkan guard B-2 lama dan pembatasan K10 (yang saya jalankan tanpa persetujuan). Guard server dibuka utk semua peran; kolom bukti tampil semua peran | `[x]` |
+| **K11** | Konsistensi angka laporan | **Dari laporan pemilik 2026-10-18**: kartu "Menunggu Setoran" dan tabel "Kas Belum Disetor per Teknisi" **harus menampilkan angka yang sama** dalam satu layar. Maka posisi "menunggu" = keadaan seluruh waktu; "Penerimaan" = arus menurut waktu diterima (setoran/verifikasi tercatat di rentang) | `[x]` |
+| **K10** | Panel pembayaran | **Dari laporan pemilik 2026-10-18**: tombol "Tandai LUNAS" tidak boleh membeku senyap — indikator "Mengunggah…" wajib selama proses unggah | `[x]` (penyembunyian kolom dari teknisi dicabut oleh K12) |
 
 **Tafsiran yang mengikat pelaksanaan (koreksi bila salah):**
 - **Pelanggan tempo:** admin tenant menandai lunas **justru karena** sudah melihat uang masuk rekening — tindakan itu **sendiri sudah berarti terverifikasi**. Jadi tidak ada langkah verifikasi tambahan untuk tempo. Aturan verifikasi (K4) berlaku pada penandaan lunas yang dilakukan **teknisi di lapangan**.
-- **Teknisi tidak perlu mengunggah bukti apa pun.** Aturan lama yang melarang teknisi mengunggah bukti **tetap berlaku dan tidak dibuka**.
+- ~~**Teknisi tidak perlu mengunggah bukti apa pun.** Aturan lama yang melarang teknisi mengunggah bukti **tetap berlaku dan tidak dibuka**.~~ **DIBATALKAN oleh K12 (perintah pemilik, 2026-10-18): teknisi WAJIB bisa mengirim bukti** (terima uang tunai / transfer / QRIS), khususnya pelanggan TOP CASH. Guard B-2 dibuka; kolom bukti tampil semua peran. Kalimat lama di atas hanya riwayat — **jangan diikuti**.
 
 ---
 
@@ -114,7 +117,7 @@ Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diper
 
 ### L3 — Verifikasi transfer/QRIS oleh owner/admin tenant
 - **Kerja:** tandai lunas oleh **teknisi** untuk transfer/QRIS → status **"menunggu verifikasi"** (belum masuk Penerimaan). **Owner/admin tenant** menekan "sudah masuk rekening" → tercatat siapa & kapan → baru masuk Penerimaan. Tandai lunas oleh admin/owner langsung dianggap terverifikasi.
-- **Jangan:** mewajibkan bukti pada teknisi, atau membuka larangan lama.
+- **(DIBATALKAN K12, 2026-10-18)** dulu: "Jangan mewajibkan bukti pada teknisi, atau membuka larangan lama" — kini teknisi **WAJIB bisa & diwajibkan** unggah bukti (K12). Verifikasi (L3) tetap berlaku: **bukti ≠ verifikasi** — bukti di tangan teknisi; verifikasi = admin memastikan dana masuk rekening.
 - **Test:** transfer/QRIS oleh teknisi belum masuk Penerimaan · setelah diverifikasi baru masuk · uang tunai tidak terpengaruh · pengaman lama tetap hijau.
 - **SSOT:** `SSOT_Alar_Invoicing.md` + dokumen ini.
 
