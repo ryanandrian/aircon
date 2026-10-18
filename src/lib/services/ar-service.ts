@@ -62,13 +62,16 @@ export async function getOverdueInvoices(tenantId: string, asOf: Date = new Date
 }
 
 export interface ReceiptPositions {
-  /** Uang SUDAH dihitung masuk: setoran tercatat (CASH) + transfer/QRIS terverifikasi (K4). */
+  /** ARUS periode: uang yang benar-benar DITERIMA kantor pada rentang ini
+   *  (setoran tercatat / verifikasi tercatat dalam rentang). */
   penerimaan: { total: number; count: number };
-  /** Uang tunai lunas di tangan teknisi, BELUM disetor (K3 — menunggu setoran berfoto). */
+  /** KEADAAN saat ini (seluruh waktu): uang tunai lunas yang BELUM disetor —
+   *  uang fisik di tangan teknisi tidak kedaluwarsa di akhir bulan (K3). */
   menungguSetoran: { total: number; count: number };
-  /** Transfer/QRIS lunas BELUM diverifikasi owner/admin (K4) — + payMethod null (belum jelas). */
+  /** KEADAAN saat ini (seluruh waktu): transfer/QRIS lunas BELUM diverifikasi (K4). */
   menungguVerifikasi: { total: number; count: number };
-  /** Seluruh invoice lunas pada periode (identitas: ketiga posisi di atas menjumlah tepat ke sini). */
+  /** KEADAAN saat ini: seluruh invoice lunas — identitas snapshot:
+   *  totalKotor = penerimaan(all) + menungguSetoran + menungguVerifikasi. */
   totalKotor: number;
 }
 
@@ -89,20 +92,36 @@ export interface ReceiptPositions {
 export async function getReceiptPositions(
   tenantId: string, start: Date, end: Date,
 ): Promise<ReceiptPositions> {
+  // TANPA filter paidAt (KOREKSI K11, 2026-10-18): dua posisi "menunggu" adalah
+  // KEADAAN, jadi seluruh waktu — selaras dengan tabel "Kas Belum Disetor per
+  // Teknisi" (juga seluruh waktu). Kartu berperiode menyembunyikan uang yang SEDANG
+  // dipegang teknisi (laporan pemilik: kartu Rp225.000 vs tabel Rp2.855.000).
   const rows = await prisma.invoice.findMany({
-    where: { tenantId, docType: "INVOICE", status: "PAID", paidAt: { gte: start, lte: end } },
-    select: { total: true, payMethod: true, cashRemitStatus: true, verifiedAt: true },
+    where: { tenantId, docType: "INVOICE", status: "PAID" },
+    select: {
+      total: true, payMethod: true, cashRemitStatus: true,
+      remittedAt: true, verifiedAt: true,
+    },
   });
   const acc = { penerimaan: { total: 0, count: 0 }, menungguSetoran: { total: 0, count: 0 }, menungguVerifikasi: { total: 0, count: 0 }, totalKotor: 0 };
+  const inRange = (d: Date | null) => d !== null && d >= start && d <= end;
   for (const r of rows) {
     const amt = Number(r.total);
     acc.totalKotor += amt;
-    let key: keyof Omit<ReceiptPositions, "totalKotor">;
-    if (r.payMethod === "CASH") key = r.cashRemitStatus === "REMITTED" ? "penerimaan" : "menungguSetoran";
-    else if (r.payMethod === "TRANSFER" || r.payMethod === "QRIS") key = r.verifiedAt ? "penerimaan" : "menungguVerifikasi";
-    else key = "menungguVerifikasi";
-    acc[key].total += amt;
-    acc[key].count += 1;
+    if (r.payMethod === "CASH") {
+      if (r.cashRemitStatus === "REMITTED") {
+        // Arus: diterima pada rentang KETIKA setoran dicatat.
+        if (inRange(r.remittedAt)) { acc.penerimaan.total += amt; acc.penerimaan.count += 1; }
+      } else { acc.menungguSetoran.total += amt; acc.menungguSetoran.count += 1; }
+    } else {
+      // Transfer/QRIS (dan payMethod null — konservatif, tidak diklaim masuk).
+      if (r.payMethod === "TRANSFER" || r.payMethod === "QRIS") {
+        if (r.verifiedAt) {
+          // Arus: diterima pada rentang KETIKA verifikasi dicatat.
+          if (inRange(r.verifiedAt)) { acc.penerimaan.total += amt; acc.penerimaan.count += 1; }
+        } else { acc.menungguVerifikasi.total += amt; acc.menungguVerifikasi.count += 1; }
+      } else { acc.menungguVerifikasi.total += amt; acc.menungguVerifikasi.count += 1; }
+    }
   }
   return acc;
 }

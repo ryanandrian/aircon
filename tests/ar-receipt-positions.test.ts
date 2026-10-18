@@ -21,9 +21,6 @@ vi.mock("@/lib/prisma", () => {
             if (where?.tenantId && i.tenantId !== where.tenantId) return false;
             if (where?.docType && i.docType !== where.docType) return false;
             if (where?.status && i.status !== where.status) return false;
-            // Periode: paidAt dalam rentang [gte, lte].
-            if (where?.paidAt?.gte && i.paidAt < where.paidAt.gte) return false;
-            if (where?.paidAt?.lte && i.paidAt > where.paidAt.lte) return false;
             return true;
           })),
       },
@@ -35,6 +32,7 @@ import * as prismaModule from "@/lib/prisma";
 import { getReceiptPositions } from "@/lib/services/ar-service";
 
 const state = (prismaModule as any).__state;
+
 const t0 = new Date("2026-10-01T00:00:00Z");
 const t1 = new Date("2026-10-31T23:59:59Z");
 
@@ -57,7 +55,7 @@ describe("L4 — getReceiptPositions (3 posisi uang)", () => {
   });
 
   it("uang tunai SUDAH disetor (REMITTED) → penerimaan", async () => {
-    state.invoices = [inv({ id: "b", payMethod: "CASH", cashRemitStatus: "REMITTED", total: 70000 })];
+    state.invoices = [inv({ id: "b", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: new Date("2026-10-15T00:00:00Z"), total: 70000 })];
     const r = await getReceiptPositions("t1", t0, t1);
     expect(r.penerimaan.total).toBe(70000);
     expect(r.menungguSetoran.total).toBe(0);
@@ -72,7 +70,7 @@ describe("L4 — getReceiptPositions (3 posisi uang)", () => {
   });
 
   it("TRANSFER lunas SUDAH diverifikasi → penerimaan", async () => {
-    state.invoices = [inv({ id: "d", payMethod: "TRANSFER", verifiedAt: new Date(), total: 110000 })];
+    state.invoices = [inv({ id: "d", payMethod: "TRANSFER", verifiedAt: new Date("2026-10-15T00:00:00Z"), total: 110000 })];
     const r = await getReceiptPositions("t1", t0, t1);
     expect(r.penerimaan.total).toBe(110000);
     expect(r.menungguVerifikasi.total).toBe(0);
@@ -81,9 +79,9 @@ describe("L4 — getReceiptPositions (3 posisi uang)", () => {
   it("identitas rekonsiliasi: total kotor = penerimaan + menunggu setoran + menunggu verifikasi", async () => {
     state.invoices = [
       inv({ id: "1", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 10000 }),
-      inv({ id: "2", payMethod: "CASH", cashRemitStatus: "REMITTED", total: 20000 }),
+      inv({ id: "2", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: new Date("2026-10-15T00:00:00Z"), total: 20000 }),
       inv({ id: "3", payMethod: "QRIS", verifiedAt: null, total: 30000 }),
-      inv({ id: "4", payMethod: "QRIS", verifiedAt: new Date(), total: 40000 }),
+      inv({ id: "4", payMethod: "QRIS", verifiedAt: new Date("2026-10-15T00:00:00Z"), total: 40000 }),
       inv({ id: "5", payMethod: "TRANSFER", verifiedAt: null, total: 50000 }),
     ];
     const r = await getReceiptPositions("t1", t0, t1);
@@ -99,16 +97,34 @@ describe("L4 — getReceiptPositions (3 posisi uang)", () => {
     await getReceiptPositions("t1", t0, t1);
     const q = vi.mocked(prismaModule.prisma.invoice.findMany).mock.calls[0][0] as any;
     expect(q.where).toMatchObject({ tenantId: "t1", docType: "INVOICE", status: "PAID" });
-    expect(q.where.paidAt).toMatchObject({ gte: t0, lte: t1 });
+    // KOREKSI K11: TANPA filter periode — posisi uang adalah KEADAAN SEKARANG
+    // (uang fisik di tangan teknisi tidak kedaluwarsa di akhir bulan).
+    expect(q.where.paidAt).toBeUndefined();
   });
 
   it("jumlah invoice ikut tiap posisi (untuk sub-label kartu)", async () => {
     state.invoices = [
       inv({ id: "a", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 1000 }),
-      inv({ id: "b", payMethod: "CASH", cashRemitStatus: "REMITTED", total: 2000 }),
+      inv({ id: "b", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: new Date("2026-10-15T00:00:00Z"), total: 2000 }),
     ];
     const r = await getReceiptPositions("t1", t0, t1);
     expect(r.menungguSetoran.count).toBe(1);
     expect(r.penerimaan.count).toBe(1);
+  });
+
+  it("KOREKSI K11: uang lunas BULAN LALU yang belum disetor TETAP tampil di Menunggu Setoran", () => {
+    // Regression langsung dari laporan pemilik 2026-10-18: kartu (berperiode bulan)
+    // menampilkan Rp225.000 sedangkan tabel (seluruh waktu) Rp2.855.000 — satu layar,
+    // satu frasa, dua angka. Kartu menyembunyikan uang yang SEDANG dipegang teknisi.
+    state.invoices = [
+      inv({ id: "lama", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 2780000,
+            paidAt: new Date("2026-07-10T00:00:00Z") }), // lunas 3 bulan lalu, belum disetor
+      inv({ id: "baru", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 75000,
+            paidAt: new Date("2026-10-16T00:00:00Z") }),
+    ];
+    return getReceiptPositions("t1", t0, t1).then((r) => {
+      expect(r.menungguSetoran.total).toBe(2855000); // = tabel "Kas Belum Disetor per Teknisi"
+      expect(r.menungguSetoran.count).toBe(2);
+    });
   });
 });

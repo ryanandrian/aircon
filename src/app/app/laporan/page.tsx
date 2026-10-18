@@ -53,9 +53,12 @@ export default async function LaporanPage() {
             terverifikasi masuk; sisanya tampil terpisah — tidak pernah hilang. */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Total Piutang" value={rp(ar.total)} tone="sky" />
-          <Stat label="Penerimaan (sudah masuk)" value={rp(pos.penerimaan.total)} sub={`${pos.penerimaan.count} invoice`} tone="emerald" />
-          <Stat label="Menunggu Setoran (di teknisi)" value={rp(pos.menungguSetoran.total)} sub={`${pos.menungguSetoran.count} invoice`} tone="amber" />
-          <Stat label="Menunggu Verifikasi (transfer/QRIS)" value={rp(pos.menungguVerifikasi.total)} sub={`${pos.menungguVerifikasi.count} invoice`} tone="violet" />
+          {/* K11 (2026-10-18): Penerimaan = ARUS bulan ini (diterima bulan ini);
+              dua posisi "menunggu" = KEADAAN seluruh waktu — identik dengan tabel
+              di bawah, jadi tak pernah lagi angka beda dalam satu layar. */}
+          <Stat label="Penerimaan Bulan Ini (sudah masuk)" value={rp(pos.penerimaan.total)} sub={`${pos.penerimaan.count} invoice`} tone="emerald" />
+          <Stat label="Menunggu Setoran (di teknisi)" value={rp(pos.menungguSetoran.total)} sub={`${pos.menungguSetoran.count} invoice · seluruh waktu`} tone="amber" />
+          <Stat label="Menunggu Verifikasi (transfer/QRIS)" value={rp(pos.menungguVerifikasi.total)} sub={`${pos.menungguVerifikasi.count} invoice · seluruh waktu`} tone="violet" />
         </div>
 
         {/* Aging piutang */}
