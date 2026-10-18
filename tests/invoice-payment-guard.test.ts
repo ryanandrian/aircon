@@ -77,13 +77,17 @@ beforeEach(() => {
   state.updated = { count: 1 };
 });
 
-describe("F2 — actionUploadPaymentProof: role guard (B-2)", () => {
-  it("TEKNISI ditolak (B-2) — teknisi tak perlu upload bukti", async () => {
+describe("F2 → KEPUTUSAN BARU K12 (2026-10-18): actionUploadPaymentProof — teknisi DIPERBOLEHKAN", () => {
+  // KEPUTUSAN PEMILIK 2026-10-18 MEMBATALKAN guard lama: teknisi WAJIB bisa
+  // mengirimkan bukti (terima uang tunai / transfer / QRIS) — khususnya pelanggan
+  // TOP CASH. Guard B-2 lama (hanya OWNER/ADMIN) kini DIBUKA utk semua peran
+  // yang berhak menandai lunas (semua peran aktor punya hak yang sama di sini).
+  it("TEKNISI kini DIPERBOLEHKAN mengunggah bukti (keputusan K12, membatalkan B-2)", async () => {
     mockCtx.mockResolvedValueOnce(TECH);
     const fd = new FormData();
     fd.set("file", new File([new Uint8Array([1, 2, 3])], "b.jpg", { type: "image/jpeg" }));
     const r = await actionUploadPaymentProof(fd);
-    expect(r.ok).toBe(false);
+    expect(r.ok).toBe(true);
   });
 
   it("ADMIN diperbolehkan (hak tidak hilang)", async () => {

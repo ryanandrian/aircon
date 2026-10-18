@@ -11,16 +11,21 @@ import { actionMarkPaid, actionUploadPaymentProof } from "@/app/t/faktur/actions
 type PayMethod = "CASH" | "TRANSFER" | "QRIS";
 
 /**
- * Panel penandaan lunas (K1 cash lapangan): pilih metode + (bukti utk kantor) → PAID.
+ * Panel penandaan lunas (K1 cash lapangan): pilih metode + unggah bukti → PAID.
  *
- * KOREKSI 2026-10-18 (laporan pemilik): panel ini dipakai SAMA oleh teknisi & admin
- * (F-05) sementara unggah bukti dijaga guard OWNER/ADMIN (F-06) — teknisi melihat
- * kolom bukti, memilih foto, upload DITOLAK senyap. Sekarang panel TAHU peran:
- * teknisi TIDAK melihat kolom bukti (alur lapangan tak berubah — K3), admin tetap
- * melihatnya. Unggah kini juga menampilkan indikator "Mengunggah…".
+ * Latar (terbaca urut, supaya tak tertukar sesi berikut):
+ *  - Panel ini dipakai SAMA oleh halaman teknisi & admin (F-05).
+ *  - Dulu unggah bukti diguard OWNER/ADMIN (F-06) → teknisi melihat kolom, memilih
+ *    foto, upload DITOLAK senyap, tombol LUNAS membeku tanpa indikator (laporan
+ *    pemilik 2026-10-18). K10 lalu menyembunyikan kolom dari teknisi.
+ *  - KEPUTUSAN PEMILIK 2026-10-18 (K12) MEMBATALKAN pembatasan itu: teknisi
+ *    DIPERBOLEHKAN (diwajibkan) mengunggah bukti — tunai/transfer/QRIS — khususnya
+ *    pelanggan TOP CASH. Guard server dibuka utk SEMUA peran; kolom bukti tampil
+ *    di semua peran; indikator "Mengunggah…" tetap ada (tombol tak senyap).
+ *  - prop `role` yang sempat ditambahkan K10 sudah DIHAPUS bersih (anti-fosil).
  */
-export function PaymentPanel({ invoiceId, tenantHasQris, role }: {
-  invoiceId: string; tenantHasQris: boolean; role: "OWNER" | "ADMIN" | "TECHNICIAN";
+export function PaymentPanel({ invoiceId, tenantHasQris }: {
+  invoiceId: string; tenantHasQris: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -74,17 +79,16 @@ export function PaymentPanel({ invoiceId, tenantHasQris, role }: {
             </button>
           ))}
         </div>
-        {/* Kolom bukti = urusan kantor (guard OWNER/ADMIN di server). Teknisi di
-            lapangan menandai lunas TANPA unggah — alur K3 tidak berubah. */}
-        {role !== "TECHNICIAN" && (
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Bukti bayar (opsional)</label>
-            <input type="file" accept="image/*" onChange={onFile} disabled={uploading}
-              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm" />
-            {uploading && <p className="text-xs text-sky-600">Mengunggah… tunggu sebentar</p>}
-            {proofUrl && !uploading && <p className="text-xs text-emerald-600">✓ Bukti siap</p>}
-          </div>
-        )}
+        {/* KEPUTUSAN PEMILIK 2026-10-18 (K12): teknisi DIPERBOLEHKAN (bahkan diwajibkan)
+            mengunggah bukti — terima uang tunai / transfer / QRIS — khususnya pelanggan
+            TOP CASH. Kolom bukti tampil untuk SEMUA peran (membalikkan keputusan K10). */}
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Bukti bayar (opsional)</label>
+          <input type="file" accept="image/*" onChange={onFile} disabled={uploading}
+            className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm" />
+          {uploading && <p className="text-xs text-sky-600">Mengunggah… tunggu sebentar</p>}
+          {proofUrl && !uploading && <p className="text-xs text-emerald-600">✓ Bukti siap</p>}
+        </div>
         <Button type="button" onClick={markPaid} disabled={pending || uploading}
           className="w-full min-h-[44px] bg-emerald-600 text-white hover:bg-emerald-700">
           <Icon.Success className="h-4 w-4" aria-hidden /> {uploading ? "Mengunggah…" : "Tandai LUNAS"}

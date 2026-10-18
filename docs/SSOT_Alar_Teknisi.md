@@ -447,6 +447,11 @@ PERUBAHAN L2 + K9 (2026-10-18) pada alur teknisi:
   Kini: `menungguSetoran` & `menungguVerifikasi` = **KEADAAN seluruh waktu** (sama
   dengan tabelnya), `penerimaan` = **ARUS bulan ini menurut waktu diterima**
   (setoran/verifikasi dicatat di rentang). Sub-label kartu menyebut sifat angkanya.
+- **K12 (2026-10-18, PERINTAH PEMILIK): teknisi DIPERBOLEHKAN mengunggah bukti** —
+  tunai/transfer/QRIS, khususnya pelanggan TOP CASH. Guard B-2 lama (`assertRole
+  OWNER/ADMIN`) DIBUKA utk `TECHNICIAN`; kolom bukti tampil semua peran. K10
+  (menyembunyikan kolom dari teknisi) DIBATALKAN — itu keputusan saya tanpa izin
+  dan sudah dibatalkan. prop `role` di panel dihapus bersih (anti-fosil).
 - **K10 (2026-10-18, laporan pemilik): PaymentPanel SADAR PERAN.** Panel dipakai SAMA
   oleh teknisi & admin (F-05) tapi unggah bukti diguard OWNER/ADMIN (F-06) → teknisi
   dulu melihat kolom bukti, pilih foto, upload DITOLAK senyap, tombol LUNAS membeku

@@ -16,9 +16,10 @@ const msg = (e: unknown, fb: string) => (e instanceof Error ? e.message : fb);
 export async function actionUploadPaymentProof(fd: FormData): Promise<Result<{ publicUrl: string }>> {
   try {
     const ctx = await getServerContext();
-    // F2 (B-2): upload bukti = urusan kantor (OWNER/ADMIN). Teknisi menandai lunas
-    // di lapangan TANPA upload (penandaan cukup tunai/transfer/QRIS).
-    assertRole(ctx.role, ["OWNER", "ADMIN"]);
+    // KEPUTUSAN PEMILIK 2026-10-18 (K12): MEMBATALKAN guard B-2 — teknisi DIPERBOLEHKAN
+    // (bahkan diwajibkan) mengunggah bukti terima uang / transfer / QRIS, khususnya
+    // pelanggan TOP CASH. Semua peran yang berhak menandai lunas kini boleh unggah.
+    assertRole(ctx.role, ["OWNER", "ADMIN", "TECHNICIAN"]);
     const file = fd.get("file");
     if (!(file instanceof File)) return { ok: false, error: "File tidak ditemukan" };
     const ct = file.type || "image/jpeg";

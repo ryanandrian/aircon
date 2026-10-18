@@ -24,13 +24,17 @@ import { describe, it, expect } from "vitest";
 const src = readFileSync(resolve(process.cwd(), "src/components/payment-panel.tsx"), "utf8");
 
 describe("PaymentPanel — peran & indikator unggah", () => {
-  it("menerima prop `role` (panel dipakai teknisi & admin — arsitektur F-05)", () => {
-    expect(src).toMatch(/role:\s*("OWNER"|"ADMIN"|"TECHNICIAN")/);
+  it("ANTI-FOSIL K12: panel TIDAK membawa prop peran yang tak terpakai lagi", () => {
+    // Setelah K12 guard dibuka, prop `role` jadi mubazir (lint: unused) —
+    // dipastikan dihapus bersih, bukan dibiarkan jadi kode mati.
+    expect(src).not.toMatch(/role:\s*("OWNER"|"ADMIN"|"TECHNICIAN")/);
+    expect(src).not.toContain("role,");
   });
 
-  it("kolom unggah bukti HANYA untuk peran kantor (OWNER/ADMIN) — teknisi tak melihatnya", () => {
-    // Guard terlihat: kolom bukti di dalam cabang role kantor.
-    expect(src).toMatch(/role\s*(!==\s*"TECHNICIAN"|===\s*"ADMIN"|===\s*"OWNER")/);
+  it("K12 (keputusan pemilik 2026-10-18): kolom bukti TAMPIL untuk semua peran", () => {
+    // Guard B-2 lama DIBUKA — teknisi diwajibkan bisa mengirim bukti (tunai/transfer/QRIS).
+    // Tidak boleh ada lagi cabang yang menyembunyikan kolom dari peran tertentu.
+    expect(src).not.toMatch(/role\s*!==\s*"TECHNICIAN"/);
   });
 
   it("menampilkan indikator saat unggah berlangsung (tombol tak lagi senyap)", () => {
