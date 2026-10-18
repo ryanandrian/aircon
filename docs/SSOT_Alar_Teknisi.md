@@ -375,6 +375,25 @@ DEPLOY LIVE `ab2baad` (PASS; / + /login 200; marker "Ringkasan Pekerjaan" +
 tests · tsc=0 · eslint=0 · build=0).
 ```
 
+**L11 (2026-10-18, laporan pemilik) — isi kartu "Ringkasan Pekerjaan" DIKOREKSI:**
+```
+MASALAH: kartu hanya menampilkan job.serviceType (1 nilai jenis = "INSTALL"),
+padahal job Ibu Wati (cmtebahnp009lnn723gte607n) punya 3 item — Cuci AC ¾–1 PK +
+Cuci AC 1,5–2 PK + Isi Freon R32 = Rp325.000 (INV/2026/0034). Pemilik: "ringkasan
+hanya 1 pekerjaan, padahal 3". Baris itu juga membawa ternary fosil (kedua cabang
+sama-sama job.serviceType).
+PERBAIKAN (jalur existing, nol query & nol komponen baru):
+  getJobCost (jalur biaya resmi, sudah dipakai /app/pekerjaan/[id]) DIPERLUAS —
+  ikut mengembalikan items {descSnapshot, qty, unit, lineTotal} dari kolom DB
+  (nilai TIDAK dikarang); halaman /t/pekerjaan/[id] memanggilnya dan merender
+  daftar item + "Jumlah pekerjaan (N)".
+  Baris "Layanan" (job.serviceType) tetap sbg CADANGAN bila belum ada item tercatat.
+  Ternary fosil DIHAPUS; helper rp disatukan (baris "Menunggu pelunasan" ikut rp).
+Test: tests/job-cost.test.ts (+4 RED→GREEN; akurasi 3 item = Rp325.000) +
+      tests/tech-detail-completed-content.test.ts (+4 kontrak halaman).
+Gate: suite 109 files / 974 tests · tsc=0 · eslint=0 error · build=0.
+```
+
 **DEPLOY LIVE 8ca1415 (F9a/F9b/F9d) — catatan historis, status final = KESIMPULAN STATUS Bagian 2:**
 ```
 Verifikasi saat itu: tsc=0 · eslint=0 · suite 94 files/818 tests · build=0.

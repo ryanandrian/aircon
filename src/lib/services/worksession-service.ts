@@ -362,7 +362,10 @@ export async function getJobCost(tenantId: string, jobId: string) {
     select: {
       id: true,
       status: true,
-      items: { select: { qty: true, unitPriceSnapshot: true } },
+      // L11 (laporan pemilik 2026-10-18 — "ringkasan hanya 1 pekerjaan, padahal 3"):
+      // ikut ambil deskripsi + total baris agar Ringkasan Pekerjaan teknisi bisa
+      // menampilkan APA YANG DIKERJAKAN (bukan hanya jenis job.serviceType).
+      items: { select: { qty: true, unitPriceSnapshot: true, descSnapshot: true, lineTotal: true, unit: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -397,6 +400,17 @@ export async function getJobCost(tenantId: string, jobId: string) {
 
   return {
     subtotal,
+    // L11: daftar item yang benar-benar dikerjakan (urut sesi terbaru → terlama).
+    // `lineTotal` = nilai baris tersimpan di WorkItem (jalur snapshot — bukan dihitung ulang).
+    // Semua nilai diambil dari kolom DB apa adanya — TIDAK ada nilai yang dikarang.
+    items: sessions.flatMap((ws) =>
+      ws.items.map((it) => ({
+        descSnapshot: it.descSnapshot,
+        qty: Number(it.qty),
+        unit: it.unit,
+        lineTotal: Number(it.lineTotal),
+      })),
+    ),
     invoice: latestInvoice
       ? {
           id: latestInvoice.id,

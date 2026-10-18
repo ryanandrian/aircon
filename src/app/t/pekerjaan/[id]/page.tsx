@@ -3,6 +3,7 @@ import Link from "next/link";
 import { tryGetServerContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { getJob } from "@/lib/services/job-management-service";
+import { getJobCost } from "@/lib/services/worksession-service";
 import { isStorageConfigured } from "@/lib/storage/s3";
 import { normalizePhone } from "@/lib/wa/gateway";
 import { JOB_STATUS_LABEL, JOB_STATUS_COLOR } from "@/lib/copy/job-status";
@@ -13,6 +14,10 @@ import { Icon } from "@/components/icons";
 import { Card, CardContent } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
+
+// Format rupiah — SATU sumber untuk seluruh halaman ini (sebelumnya baris "Menunggu
+// pelunasan" memakai format inline yang sama di tempat lain — disatukan, L11).
+const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 
 export default async function TechJobDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,6 +32,12 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
 
   const job = await getJob(ctx.tenantId, id);
   if (!job || job.technicianId !== tech.id) notFound();
+
+  // L11 (laporan pemilik 2026-10-18 — "ringkasan hanya 1 pekerjaan, padahal 3"):
+  // baca jalur biaya RESMI yang sudah ada (getJobCost — dipakai halaman admin) agar
+  // Ringkasan Pekerjaan menampilkan APA YANG DIKERJAKAN (item sesi), bukan hanya
+  // jenis job (job.serviceType = 1 nilai) — nol query baru, nol komponen baru.
+  const cost = await getJobCost(ctx.tenantId, id);
 
   // F9d++ (laporan pemilik 2026-10-15 — detail Ibu Hesti buntu): job COMPLETED
   // cash BELUM lunas → tautkan ke halaman invoice (tombol Tandai LUNAS di sana).
@@ -113,10 +124,32 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
           <Card>
             <CardContent className="space-y-2 p-4">
               <h2 className="text-sm font-semibold text-foreground">Ringkasan Pekerjaan</h2>
-              <div className="flex justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Layanan</span>
-                <span className="text-right font-medium text-foreground">{JOB_STATUS_LABEL[job.status] === "Selesai" ? job.serviceType : job.serviceType}</span>
-              </div>
+              {/* L11: tampilkan APA YANG DIKERJAKAN (item sesi, jalur getJobCost yang
+                  sudah ada) — sebelumnya hanya job.serviceType (1 nilai jenis), padahal
+                  satu job bisa berisi banyak pekerjaan. Ternary fosil yang kedua-duanya
+                  job.serviceType ikut dihapus. */}
+              {cost && cost.items.length > 0 ? (
+                <ul className="space-y-1.5 text-sm">
+                  {cost.items.map((it, i) => (
+                    <li key={i} className="flex justify-between gap-3">
+                      <span className="min-w-0 text-foreground">
+                        {it.descSnapshot}
+                        {it.unit ? ` · ${it.qty} ${it.unit}` : ` · ${it.qty}`}
+                      </span>
+                      <span className="shrink-0 font-medium text-foreground">{rp(it.lineTotal)}</span>
+                    </li>
+                  ))}
+                  <li className="flex justify-between gap-3 border-t pt-1.5 font-semibold">
+                    <span className="text-foreground">Jumlah pekerjaan ({cost.items.length})</span>
+                    <span className="text-foreground">{rp(cost.invoice ? cost.invoice.total : cost.subtotal)}</span>
+                  </li>
+                </ul>
+              ) : (
+                <div className="flex justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Layanan</span>
+                  <span className="text-right font-medium text-foreground">{job.serviceType}</span>
+                </div>
+              )}
               <div className="flex justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">Tanggal</span>
                 <span className="text-right text-foreground">{job.completedAt ? new Date(job.completedAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" }) : "—"}</span>
@@ -157,7 +190,7 @@ export default async function TechJobDetail({ params }: { params: Promise<{ id: 
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Menunggu pelunasan cash</p>
                   <p className="mt-0.5 truncate text-xs text-amber-700 dark:text-amber-400">
-                    {unpaidCash.number} · Rp{Number(unpaidCash.total).toLocaleString("id-ID")}
+                    {unpaidCash.number} · {rp(Number(unpaidCash.total))}
                   </p>
                 </div>
                 <a

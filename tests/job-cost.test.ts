@@ -142,3 +142,50 @@ describe("getJobCost — biaya resmi pekerjaan (keputusan #1)", () => {
     expect(r!.invoice).toBeNull();
   });
 });
+
+// ── L11/BUG ringkasan teknisi (laporan pemilik 2026-10-18, Ibu Wati) ──────────────
+// Kartu "Ringkasan Pekerjaan" di /t/pekerjaan hanya menampilkan job.serviceType
+// (1 nilai jenis) — padahal job itu punya 3 item (Cuci ¾–1PK, Cuci 1,5–2PK,
+// Isi Freon R32 = Rp325.000). Akar: kartu tidak membaca WorkItem.
+// Perbaikan: perpanjang getJobCost (jalur existing — bukan query baru di page)
+// agar ikut mengembalikan daftar item, sehingga ringkasan menampilkan APA YANG
+// DIKERJAKAN, bukan hanya jenis pekerjaan.
+describe("getJobCost — daftar item pekerjaan (utk Ringkasan Pekerjaan teknisi)", () => {
+  it("mengembalikan item (deskripsi + qty + lineTotal) dari seluruh sesi", async () => {
+    store.sessions = [
+      {
+        id: "ws1", tenantId: "t1", jobId: "j1", status: "CLOSED",
+        items: [
+          { qty: 1, unitPriceSnapshot: 75000, descSnapshot: "Cuci AC Split ¾–1 PK", lineTotal: 75000 },
+          { qty: 1, unitPriceSnapshot: 100000, descSnapshot: "Cuci AC Split 1,5–2 PK", lineTotal: 100000 },
+          { qty: 1, unitPriceSnapshot: 150000, descSnapshot: "Isi Freon R32", lineTotal: 150000 },
+        ],
+      },
+    ];
+    const r = await getJobCost("t1", "j1");
+    expect(r!.items).toHaveLength(3); // "padahal 3 pekerjaan"
+    expect(r!.items.map((i) => i.descSnapshot)).toEqual([
+      "Cuci AC Split ¾–1 PK", "Cuci AC Split 1,5–2 PK", "Isi Freon R32",
+    ]);
+    expect(r!.items.reduce((s, i) => s + i.lineTotal, 0)).toBe(325000); // = total invoice
+  });
+
+  it("sesi tanpa item → items = [] (ringkasan kosong, bukan undefined yang mematikan render)", async () => {
+    store.sessions = [{ id: "ws9", tenantId: "t1", jobId: "j1", status: "CLOSED", items: [] }];
+    const r = await getJobCost("t1", "j1");
+    expect(r!.items).toEqual([]);
+  });
+
+  it("tanpa sesi → null tetap (jalur lama tidak diubah — halaman yang menangani)", async () => {
+    expect(await getJobCost("t1", "j-none")).toBeNull();
+  });
+
+  it("items mengikuti SESI yang sama dengan subtotal (satu sumber — tidak ada query terpisah)", async () => {
+    store.sessions = [
+      { id: "wsA", tenantId: "t1", jobId: "j1", status: "CLOSED", items: [{ qty: 1, unitPriceSnapshot: 1000, descSnapshot: "A", lineTotal: 1000 }] },
+      { id: "wsB", tenantId: "t1", jobId: "j-lain", status: "CLOSED", items: [{ qty: 1, unitPriceSnapshot: 500, descSnapshot: "B", lineTotal: 500 }] },
+    ];
+    const r = await getJobCost("t1", "j1");
+    expect(r!.items.map((i) => i.descSnapshot)).toEqual(["A"]); // sesi lain tidak ikut
+  });
+});
