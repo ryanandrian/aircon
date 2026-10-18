@@ -68,6 +68,18 @@ describe("L6 — sumber label DIPAKAI oleh halaman (bukan label bertebaran)", ()
     expect(s).toContain("getReceiptPositions");
   });
 
+  // M7/koreksi (2026-10-18): kartu "Disetor — Belum Ada Bukti" adalah tujuan akhir
+  // K14 — begitu semua setoran lama dilengkapi, angkanya 0. Sub-labelnya WAJIB
+  // mengikuti kondisi; tanpa itu kartu membaca "jejak setoran lama belum tercatat"
+  // di saat 0 = kalimat menyesatkan (kacamata kuda: hanya diuji pada kondisi penuh).
+  it("sub-label kartu disetor-tanpa-jejak kondisional — 0 invoice tidak menyebut 'belum tercatat'", () => {
+    const s = read("src/app/app/laporan/page.tsx");
+    expect(s).toContain("disetorTanpaJejak.count");
+    expect(s).toContain("belum tercatat");
+    // Ada cabang untuk kondisi kosong (kata kunci yang hanya boleh muncul di cabang 0).
+    expect(s).toMatch(/disetorTanpaJejak\.count\s*>\s*0/);
+  });
+
   it("daftar faktur admin memakai moneyPositionOf + menampilkan labelnya", () => {
     const s = read("src/app/app/faktur/invoices-board.tsx");
     expect(s).toContain("moneyPositionOf");

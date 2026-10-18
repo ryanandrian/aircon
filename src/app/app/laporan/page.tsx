@@ -64,8 +64,19 @@ export default async function LaporanPage() {
           <Stat label="Menunggu Verifikasi (transfer/QRIS)" value={rp(pos.menungguVerifikasi.total)} sub={`${pos.menungguVerifikasi.count} invoice · seluruh waktu`} tone="violet" />
           {/* M7/K13: tunai SUDAH ditandai disetor tapi jejak buktinya kosong (data
               setoran lama). Tampil terpisah — bukan hilang, bukan diklaim masuk kantor
-              tanpa bukti (K5). */}
-          <Stat label="Disetor — Belum Ada Bukti" value={rp(pos.disetorTanpaJejak.total)} sub={`${pos.disetorTanpaJejak.count} invoice · jejak setoran lama belum tercatat`} tone="amber" />
+              tanpa bukti (K5).
+              K14 (2026-10-18, koreksi setelah pemilik menunjuk): sub-label KONDISIONAL —
+              begitu semua setoran lama dilengkapi (tujuan akhir K14), angka 0 dan kalimat
+              "belum tercatat" harus ikut hilang; kartu TETAP tampil agar tata letak grid
+              tidak berpindah dan posisi tetap bisa diaudit (identitas 4 posisi). */}
+          <Stat
+            label="Disetor — Belum Ada Bukti"
+            value={rp(pos.disetorTanpaJejak.total)}
+            sub={pos.disetorTanpaJejak.count > 0
+              ? `${pos.disetorTanpaJejak.count} invoice · jejak setoran lama belum tercatat`
+              : "semua setoran sudah tercatat berbukti"}
+            tone="amber"
+          />
         </div>
 
         {/* Aging piutang */}
