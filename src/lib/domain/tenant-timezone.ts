@@ -83,6 +83,15 @@ function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/** Kunci bulan (`YYYY-MM`) sebuah instan MENURUT ZONA TENANT (K7 + L9).
+ *  Dipakai mengelompokkan jejak penerimaan per bulan pada riwayat laporan —
+ *  tanpa ini pengelompokan memakai zona server dan kesalahan M5 (uang subuh
+ *  tanggal 1 masuk bulan sebelumnya) muncul lagi di riwayat. */
+export function monthKeyInZone(instant: Date, tz?: string | null): string {
+  const { year, month } = zoneParts(instant, tenantTimeZone(tz));
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
 export interface ZoneRange {
   /** Instan UTC awal bulan (pukul 00.00.00.000 di zona tenant). */
   start: Date;

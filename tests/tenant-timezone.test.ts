@@ -5,6 +5,7 @@ import {
   DEFAULT_TENANT_TZ,
   tenantTimeZone,
   monthRangeInZone,
+  monthKeyInZone,
   daysSinceInZone,
 } from "@/lib/domain/tenant-timezone";
 
@@ -91,5 +92,37 @@ describe("daysSinceInZone — keterangan 'sejak X hari' menurut zona tenant (K6)
     const dibayar = new Date("2026-09-28T10:00:00+07:00");
     const kini = new Date("2026-10-01T11:00:00+07:00");
     expect(daysSinceInZone(dibayar, kini, "Asia/Jakarta")).toBe(3);
+  });
+});
+// Riwayat penerimaan per bulan (L9, 2026-10-18): kartu "Penerimaan Bulan Ini" terkunci
+// pada bulan berjalan; tenant tidak bisa melihat bulan lalu. Helper kunci bulan dibutuhkan
+// agar pengelompokan jejak (remittedAt/verifiedAt) mengikuti zona TENANT, bukan zona server
+// (kesalahan yang sama dengan M5).
+describe("monthKeyInZone — kunci bulan (YYYY-MM) menurut zona tenant", () => {
+  it("jejak setoran 00.30 WIB tanggal 1 = bulan berjalan, bukan bulan sebelumnya", () => {
+    const jejak = new Date("2026-10-01T00:30:00+07:00"); // 30 Sep 17:30Z
+    expect(monthKeyInZone(jejak, "Asia/Jakarta")).toBe("2026-10");
+    // Kesalahan zona server (UTC) yang sama dengan M5: memasukkannya ke September.
+    expect(jejak.toISOString().slice(0, 7)).toBe("2026-09");
+  });
+
+  it("zona berbeda bisa menghasilkan kunci bulan berbeda untuk instan yang sama", () => {
+    const jejak = new Date("2026-10-31T20:00:00+07:00"); // 31 Okt WIB = 31 Okt WITA
+    expect(monthKeyInZone(jejak, "Asia/Jakarta")).toBe("2026-10");
+    const jayapura = new Date("2026-10-31T20:00:00+09:00"); // 31 Okt WIT
+    expect(monthKeyInZone(jayapura, "Asia/Jayapura")).toBe("2026-10");
+  });
+
+  it("zona kosong/tak dikenal jatuh ke WIB (tidak membuat riwayat rusak)", () => {
+    const jejak = new Date("2026-09-30T18:00:00+07:00"); // 30 Sep 18.00 WIB
+    expect(monthKeyInZone(jejak, null)).toBe("2026-09");
+    expect(monthKeyInZone(jejak, "Bukan/Zona")).toBe("2026-09");
+  });
+
+  it("kunci cocok dengan monthRangeInZone yang sama (satu sumber zona)", () => {
+    const jejak = new Date("2026-07-15T09:00:00+07:00");
+    const { start, end } = monthRangeInZone(jejak, "Asia/Jakarta");
+    expect(jejak >= start && jejak <= end).toBe(true);
+    expect(monthKeyInZone(jejak, "Asia/Jakarta")).toBe("2026-07");
   });
 });

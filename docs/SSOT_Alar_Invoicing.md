@@ -62,13 +62,25 @@ POSISI UANG & JEJAK (2026-10-18, K1..K4, K7..K9):
     bila TEKNISI → null (menunggu verifikasi — K4).
   - verifyInvoicePayment (service) / actionVerifyPayment (admin): atomik guard
     verifiedAt null; tolak utk CASH (jalurnya setoran) & invoice belum lunas.
-  - Setoran (K5): markCashRemitted TANPAWAJIB foto bukti (S3) + waktu + admin
+  - Setoran (K5): markCashRemitted WAJIB foto bukti (S3) + waktu + admin
     penerima; dihimpun atomik; setoran tanpa bukti/penerima DITOLAK.
+    (Koreksi 2026-10-18: teks lama "TANPAWAJIB" adalah typo menyesatkan —
+    fakta di service: TANPA bukti = DITOLAK.)
+  - K14 (2026-10-18, izin pemilik): markCashRemitted punya mode "legacy" utk
+    MELENGKAPI jejak setoran LAMA (REMITTED + remittedAt null — tombol "Lengkapi
+    Bukti"). Guard: hanya baris itu; jejak lama tidak ditimpa; HELD_BY_TECH tetap
+    urusan mode biasa; foto+penerima tetap WAJIB di kedua mode.
   - Label POSISI UANG: SATU sumber di src/lib/copy/money-position.ts (L6) —
-    dipakai daftar faktur admin & InvoiceView.
-  - Penanggalan: zona waktu per tenant (K7) — batas "bulan ini" ikut zona tenant.
-  - Kartu penerimaan = getReceiptPositions (3 posisi): penerimaan /
-    menunggu setoran / menunggu verifikasi (L4).
+    dipakai daftar faktur admin & InvoiceView. Termasuk CASH_REMITTED_NO_TRACE
+    (M7/K13): tunai REMITTED tanpa jejak diberi label sendiri.
+  - Penanggalan: zona waktu per tenant (K7) — batas "bulan ini" ikut zona tenant;
+    kunci bulan riwayat (monthKeyInZone) juga ikut zona tenant (L9).
+  - Kartu penerimaan = getReceiptPositions (4 POSISI — L4 diperluas M7/K13):
+    penerimaan / menunggu setoran / menunggu verifikasi / disetor-tanpa-jejak.
+    Identitas: ketiganya + tanpa-jejak = total lunas.
+  - Riwayat penerimaan per bulan (K15/L9): getReceiptHistory — kelompok jejak
+    (remittedAt / verifiedAt) per bulan ZONA TENANT + detail invoice; baris tanpa
+    jejak TIDAK ditempatkan ke bulan mana pun (mengarang bulan = dilarang).
 ```
 
 ### 1.3 TEMPO (proforma → invoice → tagih)

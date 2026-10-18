@@ -4,6 +4,7 @@
  * Aging bucket dihitung dari dueDate (bila null → pakai issueDate) relatif tanggal acuan.
  */
 import { prisma } from "@/lib/prisma";
+import { monthKeyInZone } from "@/lib/domain/tenant-timezone";
 import { ServiceError } from "@/lib/services/customer-service";
 
 export interface AgingBuckets {
@@ -337,4 +338,72 @@ export async function getRemittances(tenantId: string): Promise<RemittanceRow[]>
     receiverName: r.remittedById ? nameOf.get(r.remittedById) ?? "—" : null,
     proofUrl: r.remitProofUrl,
   }));
+}
+
+export interface ReceiptMonthRow {
+  /** Kunci bulan `YYYY-MM` MENURUT ZONA TENANT (K7). */
+  month: string;
+  /** Total uang diterima pada bulan itu (arus K1 — dihitung dari jejak penerimaan). */
+  total: number;
+  /** Jumlah invoice pada bulan itu. */
+  count: number;
+  /** Detail invoice penyusun bulan ini (untuk "klik → detail"). */
+  items: ReceiptMonthItem[];
+}
+
+export interface ReceiptMonthItem {
+  id: string;
+  number: string;
+  customerName: string;
+  total: number;
+  /** Metode pembayaran apa adanya (CASH/TRANSFER/QRIS). */
+  payMethod: string;
+  /** Waktu diterima (jejak setoran/verifikasi) — selalu terisi: baris tanpa jejak dibuang. */
+  receivedAt: Date;
+}
+
+/**
+ * Riwayat PENERIMAAN per bulan (L9, 2026-10-18) — menjawab kebutuhan pemilik:
+ * kartu "Penerimaan Bulan Ini" terkunci pada bulan berjalan, sehingga bulan-bulan
+ * sebelumnya tidak pernah bisa dilihat (total maupun detailnya).
+ *
+ * Aturan (K1/K11 — sama persis dengan kartu, satu sumber definisi):
+ *  - tunai + REMITTED + remittedAt → bulan `remittedAt`
+ *  - transfer/QRIS + verifiedAt     → bulan `verifiedAt`
+ *  - TANPA jejak (HELD / menunggu verifikasi / REMITTED tanpa jejak) → TIDAK masuk.
+ *    Baris tanpa tanggal tidak boleh ditempatkan ke bulan mana pun — mengarang
+ *    bulan = kebohongan angka (semangat K8).
+ * Kelompok menurut ZONA TENANT lewat `monthKeyInZone` — kartu dan riwayat satu zona.
+ * Tenant-scoped; urut terlama → terbaru.
+ */
+export async function getReceiptHistory(tenantId: string, timezone?: string | null): Promise<ReceiptMonthRow[]> {
+  const rows = await prisma.invoice.findMany({
+    where: { tenantId, docType: "INVOICE", status: "PAID" },
+    select: {
+      id: true, number: true, total: true,
+      payMethod: true, cashRemitStatus: true, remittedAt: true, verifiedAt: true,
+      customer: { select: { name: true } },
+    },
+  });
+  const byMonth = new Map<string, ReceiptMonthRow>();
+  for (const r of rows) {
+    // Waktu DITERIMA (arus penerimaan): setoran tercatat, atau verifikasi tercatat.
+    const receivedAt =
+      r.cashRemitStatus === "REMITTED" && r.remittedAt ? r.remittedAt
+      : (r.payMethod === "TRANSFER" || r.payMethod === "QRIS") && r.verifiedAt ? r.verifiedAt
+      : null;
+    if (!receivedAt) continue; // tanpa jejak → bukan penerimaan yang bisa dipertanggungjawabkan
+    const key = monthKeyInZone(receivedAt, timezone);
+    const g = byMonth.get(key) ?? { month: key, total: 0, count: 0, items: [] };
+    g.total += Number(r.total); g.count += 1;
+    g.items.push({
+      id: r.id, number: r.number, customerName: r.customer?.name ?? "—",
+      total: Number(r.total), payMethod: r.payMethod ?? "—", receivedAt,
+    });
+    byMonth.set(key, g);
+  }
+  const out = [...byMonth.values()].sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0));
+  // Detail terbaru dulu di dalam tiap bulan (konsisten dengan riwayat setoran).
+  for (const m of out) m.items.sort((a, b) => +b.receivedAt - +a.receivedAt);
+  return out;
 }

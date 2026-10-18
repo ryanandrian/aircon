@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import {
-  getAccountsReceivable, getOverdueInvoices, getReceiptPositions, getRemittances,
+  getAccountsReceivable, getOverdueInvoices, getReceiptPositions, getReceiptHistory, getRemittances,
   getUnremittedCashByHolder, refreshOverdueStatus,
 } from "@/lib/services/ar-service";
 import { computeIncentives } from "@/lib/services/incentive-service";
@@ -17,6 +17,12 @@ const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const fmt = (d: Date | null) => d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 // M9: peran pemegang uang ditulis menurut apa adanya — bukan selalu "teknisi".
 const HOLDER_ROLE: Record<string, string> = { OWNER: "pemilik", ADMIN: "admin", TECHNICIAN: "teknisi" };
+// L9: kunci bulan riwayat (YYYY-MM zona tenant) → "Juli 2026".
+const fmtMonth = (k: string) => {
+  const [y, m] = k.split("-");
+  const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+};
 
 export default async function LaporanPage() {
   const ctx = await tryGetServerContext();
@@ -34,12 +40,15 @@ export default async function LaporanPage() {
   });
   const { start: monthStart, end: monthEnd } = monthRangeInZone(now, tenantCfg?.timezone);
 
-  const [ar, overdue, pos, unremitted, remittances] = await Promise.all([
+  const [ar, overdue, pos, unremitted, remittances, history] = await Promise.all([
     getAccountsReceivable(ctx.tenantId, now),
     getOverdueInvoices(ctx.tenantId, now),
     getReceiptPositions(ctx.tenantId, monthStart, monthEnd),
     getUnremittedCashByHolder(ctx.tenantId),
     getRemittances(ctx.tenantId),
+    // L9: riwayat penerimaan SELURUH bulan (zona tenant sama dengan kartu) —
+    // sebelumnya hanya bulan berjalan yang bisa dilihat (celah yang ditanyakan pemilik).
+    getReceiptHistory(ctx.tenantId, tenantCfg?.timezone),
   ]);
   const incentiveEnabled = tenantCfg?.incentiveEnabled ?? false;
   // computeIncentives sudah ter-gerbang di SUMBER (return [] bila tenant tak menerapkan).
@@ -59,7 +68,16 @@ export default async function LaporanPage() {
               posisi "menunggu" & "disetor tanpa jejak" = KEADAAN seluruh waktu —
               identik dengan tabel di bawah, jadi tak pernah lagi angka beda dalam
               satu layar. */}
-          <Stat label="Penerimaan Bulan Ini (sudah masuk)" value={rp(pos.penerimaan.total)} sub={`${pos.penerimaan.count} invoice`} tone="emerald" />
+          {/* Aturan 15: saat Rp0 sub-label harus menjelaskan KENAPA (belum ada
+              setoran/verifikasi tercatat bulan ini) — bukan sekadar "0 invoice". */}
+          <Stat
+            label="Penerimaan Bulan Ini (sudah masuk)"
+            value={rp(pos.penerimaan.total)}
+            sub={pos.penerimaan.count > 0
+              ? `${pos.penerimaan.count} invoice`
+              : "0 · belum ada setoran/verifikasi tercatat bulan ini"}
+            tone="emerald"
+          />
           <Stat label="Menunggu Setoran (di tangan pemegang)" value={rp(pos.menungguSetoran.total)} sub={`${pos.menungguSetoran.count} invoice · seluruh waktu`} tone="amber" />
           <Stat label="Menunggu Verifikasi (transfer/QRIS)" value={rp(pos.menungguVerifikasi.total)} sub={`${pos.menungguVerifikasi.count} invoice · seluruh waktu`} tone="violet" />
           {/* M7/K13: tunai SUDAH ditandai disetor tapi jejak buktinya kosong (data
@@ -78,6 +96,55 @@ export default async function LaporanPage() {
             tone="amber"
           />
         </div>
+
+        {/* Riwayat Penerimaan per bulan (L9, 2026-10-18) — total + detail per bulan,
+            urut terbaru. Baris pakai <details> (pola src/app/app/pengingat/inbox.tsx):
+            tanpa komponen client baru (aturan 11) dan tanpa query tambahan.
+            Hanya bulan yang PUNYA jejak penerimaan — baris tanpa jejak tidak pernah
+            ditempatkan ke bulan mana pun (mengarang tanggal = dilarang). */}
+        <Card>
+          <CardContent className="p-5">
+            <h2 className="mb-1 text-sm font-bold text-foreground">Riwayat Penerimaan</h2>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Total &amp; rincian penerimaan per bulan (menurut waktu uang diterima — setoran
+              tercatat / verifikasi tercatat). Klik satu bulan untuk melihat invoice penyusunnya.
+            </p>
+            {history.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Belum ada penerimaan tercatat — riwayat mulai terisi sejak setoran/verifikasi
+                dicatat lewat aplikasi.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {[...history].reverse().map((m) => (
+                  <details key={m.month} className="rounded-xl border p-3 [&_summary]:cursor-pointer">
+                    <summary className="flex items-center justify-between gap-3 text-sm font-medium text-foreground marker:content-none">
+                      <span>{fmtMonth(m.month)}</span>
+                      <span className="shrink-0 text-right">
+                        <span className="font-bold text-emerald-600">{rp(m.total)}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{m.count} invoice</span>
+                      </span>
+                    </summary>
+                    <div className="mt-2 space-y-1.5 border-t pt-2">
+                      {m.items.map((it) => (
+                        <a key={it.id} href={`/app/faktur/${it.id}`}
+                          className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 hover:border-emerald-300">
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm text-foreground">{it.customerName}</span>
+                            <span className="block font-mono text-xs text-muted-foreground">
+                              {it.number} · {it.payMethod} · diterima {fmt(it.receivedAt)}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-sm font-bold text-foreground">{rp(it.total)}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Aging piutang */}
         <Card>
