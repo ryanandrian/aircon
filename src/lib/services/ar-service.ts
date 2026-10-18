@@ -4,7 +4,8 @@
  * Aging bucket dihitung dari dueDate (bila null → pakai issueDate) relatif tanggal acuan.
  */
 import { prisma } from "@/lib/prisma";
-import { monthKeyInZone } from "@/lib/domain/tenant-timezone";
+import { csvRow } from "@/lib/csv";
+import { monthKeyInZone, monthKeyLabel, shiftMonthKey, tenantTimeZone } from "@/lib/domain/tenant-timezone";
 import { ServiceError } from "@/lib/services/customer-service";
 
 export interface AgingBuckets {
@@ -363,8 +364,8 @@ export interface ReceiptMonthItem {
 }
 
 /**
- * Riwayat PENERIMAAN per bulan (L9, 2026-10-18) — menjawab kebutuhan pemilik:
- * kartu "Penerimaan Bulan Ini" terkunci pada bulan berjalan, sehingga bulan-bulan
+ * Riwayat PENERIMAAN per bulan (L9/K15, 2026-10-18) — menjawab kebutuhan pemilik:
+ * kartu penerimaan sebelumnya terkunci pada bulan berjalan, sehingga bulan-bulan
  * sebelumnya tidak pernah bisa dilihat (total maupun detailnya).
  *
  * Aturan (K1/K11 — sama persis dengan kartu, satu sumber definisi):
@@ -406,4 +407,96 @@ export async function getReceiptHistory(tenantId: string, timezone?: string | nu
   // Detail terbaru dulu di dalam tiap bulan (konsisten dengan riwayat setoran).
   for (const m of out) m.items.sort((a, b) => +b.receivedAt - +a.receivedAt);
   return out;
+}
+
+export interface ReceiptSummary {
+  /** Total penerimaan pada TAHUN bulan terpilih (Jan–Des tahun itu). */
+  totalYear: number;
+  /** Penerimaan bulan terpilih. */
+  thisMonth: number;
+  /** Penerimaan bulan sebelum bulan terpilih (dihitung lintas tahun: 2026-01 → 2025-12). */
+  prevMonth: number;
+  /** Persen perubahan vs bulan sebelumnya — NULL bila bulan lalu 0 (pembagian nol
+   *  ditolak eksplisit: 0 → Infinity/NaN yang bocor ke layar sebagai angka palsu). */
+  changePct: number | null;
+}
+
+/**
+ * Ringkasan RIWAYAT penerimaan untuk bulan terpilih (L10/K16b).
+ * Murni — membaca hasil `getReceiptHistory` yang sudah diambil halaman (nol query baru).
+ * Kunci bulan SUDAH berasal dari zona tenant (`monthKeyInZone`), jadi ringkasan ini
+ * murni pencocokan kunci — tanpa perhitungan zona tambahan (parameter zona tidak perlu
+ * dan sengaja TIDAK ada agar tidak menyesatkan seolah ada perhitungan waktu).
+ */
+export function summarizeReceiptHistory(
+  history: ReceiptMonthRow[],
+  monthKey: string,
+): ReceiptSummary {
+  const year = monthKey.slice(0, 4);
+  // Dijumlahkan per kunci (bukan .find()) — tahan bila riwayat suatu saat membawa
+  // lebih dari satu baris per kunci bulan; angka tak pernah "ketinggalan" diam-diam.
+  const thisMonth = history.filter((r) => r.month === monthKey).reduce((s, r) => s + r.total, 0);
+  const prevKey = shiftMonthKey(monthKey, -1);
+  const prevMonth = history.filter((r) => r.month === prevKey).reduce((s, r) => s + r.total, 0);
+  const totalYear = history
+    .filter((r) => r.month.slice(0, 4) === year)
+    .reduce((s, r) => s + r.total, 0);
+  const changePct = prevMonth > 0 ? Math.round(((thisMonth - prevMonth) / prevMonth) * 1000) / 10 : null;
+  return { totalYear, thisMonth, prevMonth, changePct };
+}
+
+/**
+ * Titik grafik tren penerimaan 12 bulan berakhir pada `monthKey` (L10/K16d, murni).
+ * Aturan: setiap bulan jendela selalu punya titik — tanpa jejak = 0 penerimaan
+ * tercatat (fakta pada bulan itu), BUKAN "baris tanpa jejak ditempatkan di bulan".
+ * Label sumbu pendek ("Mar"); Januari membawa tahun 2 digit ("Jan 26") sebagai
+ * penanda lintas tahun. Bulan di LUAR jendela tidak ikut.
+ */
+export function receiptTrendPoints(
+  history: ReceiptMonthRow[],
+  monthKey: string,
+  timezone?: string | null,
+): { month: string; label: string; value: number }[] {
+  const byMonth = new Map<string, number>();
+  for (const r of history) byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + r.total);
+  const zone = tenantTimeZone(timezone);
+  const points: { month: string; label: string; value: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const key = shiftMonthKey(monthKey, -i);
+    const [y, m] = key.split("-").map(Number);
+    const label = new Intl.DateTimeFormat("id-ID", {
+      timeZone: zone,
+      month: "short",
+      ...(m === 1 ? { year: "2-digit" } : {}), // Januari = penanda awal tahun
+    }).format(new Date(Date.UTC(y, m - 1, 2)));
+    points.push({ month: key, label: label.replace(/\./g, ""), value: byMonth.get(key) ?? 0 });
+  }
+  return points;
+}
+
+/**
+ * Ekspor CSV riwayat penerimaan (L10/K16c) — pola `exportCatalogCsv` yang sudah ada:
+ * header Indonesia, `join("\r\n")`, escaping lewat `csvCell` (SATU sumber: src/lib/csv.ts).
+ * `detail: true` menambah baris rincian per invoice di bawah tiap bulan (untuk
+ * akuntansi/pajak: nomor · pelanggan · metode · waktu diterima · jumlah).
+ * Waktu ditulis MENURUT ZONA TENANT (K7) — bukan zona server.
+ */
+export function exportReceiptHistoryCsv(
+  history: ReceiptMonthRow[],
+  timezone: string | null | undefined,
+  opts: { detail?: boolean } = {},
+): string {
+  const fmtDate = (d: Date) =>
+    new Intl.DateTimeFormat("id-ID", { timeZone: tenantTimeZone(timezone), day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+  const lines = [csvRow(["Bulan", "Total", "Jumlah Invoice"])];
+  // Terbaru dulu (berlawanan dengan urutan internal getReceiptHistory).
+  for (const m of [...history].reverse()) {
+    lines.push(csvRow([monthKeyLabel(m.month), m.total, m.count]));
+    if (opts.detail) {
+      for (const it of m.items) {
+        lines.push(csvRow([it.number, it.customerName, it.payMethod, fmtDate(it.receivedAt), it.total]));
+      }
+    }
+  }
+  return lines.join("\r\n");
 }

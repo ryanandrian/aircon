@@ -6,6 +6,7 @@
 import type { ServiceCatalog } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { csvCell } from "@/lib/csv";
 import { ServiceError } from "@/lib/services/customer-service";
 
 export type IncentiveType = "PERCENT" | "VALUE";
@@ -284,11 +285,8 @@ export async function effectivePriceMap(
   return out;
 }
 
-/** Escape 1 sel CSV (RFC4180): bungkus dgn kutip bila ada koma/kutip/newline. */
-function csvCell(v: string | number): string {
-  const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
+/** Escape sel CSV — SATU SUMBER di src/lib/csv.ts (L10/K16c; definisi lokal dihapus
+ *  agar tidak ada dua aturan escaping yang bisa berbeda jalur — anti-fosil). */
 
 const CSV_CATEGORY_LABEL: Record<string, string> = {
   MAINTENANCE: "Perawatan", SERVICE: "Servis", CONSUMABLE: "Consumable", SPAREPART: "Sparepart",

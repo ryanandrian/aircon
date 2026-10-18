@@ -7,6 +7,10 @@ import {
   monthRangeInZone,
   monthKeyInZone,
   daysSinceInZone,
+  parseMonthKey,
+  monthRangeForKey,
+  shiftMonthKey,
+  monthKeyLabel,
 } from "@/lib/domain/tenant-timezone";
 
 describe("tenantTimeZone (K7)", () => {
@@ -124,5 +128,47 @@ describe("monthKeyInZone — kunci bulan (YYYY-MM) menurut zona tenant", () => {
     const { start, end } = monthRangeInZone(jejak, "Asia/Jakarta");
     expect(jejak >= start && jejak <= end).toBe(true);
     expect(monthKeyInZone(jejak, "Asia/Jakarta")).toBe("2026-07");
+  });
+});
+
+// ── L10/K16(a) — helper bulan untuk pemilih bulan (membangun jalur existing) ────────
+describe("helper bulan (parseMonthKey / monthRangeForKey / shiftMonthKey / monthKeyLabel)", () => {
+  it("parseMonthKey: valid diterima, tidak valid DITOLAK (null) — bukan diam-diam jatuh ke bulan ini", () => {
+    expect(parseMonthKey("2026-07")).toBe("2026-07");
+    expect(parseMonthKey("2026-00")).toBeNull();
+    expect(parseMonthKey("2026-13")).toBeNull();
+    expect(parseMonthKey("2026-7")).toBeNull();
+    expect(parseMonthKey("2026-07-01")).toBeNull();
+    expect(parseMonthKey("")).toBeNull();
+    expect(parseMonthKey("Juli")).toBeNull();
+  });
+
+  it("monthRangeForKey: batas bulan menurut ZONA TENANT (konsisten monthRangeInZone)", () => {
+    const r = monthRangeForKey("2026-10", "Asia/Jakarta");
+    expect(r.start.toISOString()).toBe("2026-09-30T17:00:00.000Z");
+    expect(r.end.toISOString()).toBe("2026-10-31T16:59:59.999Z");
+    // identik dengan monthRangeInZone untuk instan dalam bulan itu
+    const cmp = monthRangeInZone(new Date("2026-10-15T10:00:00+07:00"), "Asia/Jakarta");
+    expect(r.start.getTime()).toBe(cmp.start.getTime());
+    expect(r.end.getTime()).toBe(cmp.end.getTime());
+  });
+
+  it("shiftMonthKey: geser ±1 termasuk melintasi tahun; Des→Jan dan Jan→Des", () => {
+    expect(shiftMonthKey("2026-07", 1)).toBe("2026-08");
+    expect(shiftMonthKey("2026-07", -1)).toBe("2026-06");
+    expect(shiftMonthKey("2026-12", 1)).toBe("2027-01");
+    expect(shiftMonthKey("2026-01", -1)).toBe("2025-12");
+    expect(shiftMonthKey("2026-07", 0)).toBe("2026-07");
+    expect(shiftMonthKey("2026-07", 5)).toBe("2026-12");
+  });
+
+  it("monthKeyLabel: bulan Indonesia kapital + tahun", () => {
+    expect(monthKeyLabel("2026-07")).toBe("Juli 2026");
+    expect(monthKeyLabel("2026-10")).toBe("Oktober 2026");
+  });
+
+  it("monthKeyInZone(monthRangeForKey(...).start) = kunci yang sama (satu sumber zona)", () => {
+    const r = monthRangeForKey("2026-03", "Asia/Makassar");
+    expect(monthKeyInZone(r.start, "Asia/Makassar")).toBe("2026-03");
   });
 });

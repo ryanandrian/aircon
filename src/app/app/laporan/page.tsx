@@ -3,13 +3,18 @@ import { tryGetServerContext } from "@/lib/auth/context";
 import {
   getAccountsReceivable, getOverdueInvoices, getReceiptPositions, getReceiptHistory, getRemittances,
   getUnremittedCashByHolder, refreshOverdueStatus,
+  summarizeReceiptHistory, receiptTrendPoints,
 } from "@/lib/services/ar-service";
 import { computeIncentives } from "@/lib/services/incentive-service";
 import { prisma } from "@/lib/prisma";
-import { monthRangeInZone } from "@/lib/domain/tenant-timezone";
+import {
+  monthRangeForKey, monthKeyLabel, monthKeyInZone, parseMonthKey,
+} from "@/lib/domain/tenant-timezone";
 import { AppHeader } from "../_components/app-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { RemitButton } from "./remit-button";
+import { MonthNav } from "./month-nav";
+import { ReceiptTrendChart } from "../_components/receipt-trend-chart";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +22,12 @@ const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const fmt = (d: Date | null) => d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 // M9: peran pemegang uang ditulis menurut apa adanya — bukan selalu "teknisi".
 const HOLDER_ROLE: Record<string, string> = { OWNER: "pemilik", ADMIN: "admin", TECHNICIAN: "teknisi" };
-// L9: kunci bulan riwayat (YYYY-MM zona tenant) → "Juli 2026".
-const fmtMonth = (k: string) => {
-  const [y, m] = k.split("-");
-  const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-};
 
-export default async function LaporanPage() {
+export default async function LaporanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/laporan");
   if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") redirect("/app");
@@ -32,24 +35,35 @@ export default async function LaporanPage() {
   const now = new Date();
   await refreshOverdueStatus(ctx.tenantId, now); // sinkron status OVERDUE saat buka laporan
 
-  // L1 (K7): baca zona tenant lebih dulu — "bulan ini" dihitung di zona TENANT,
+  // L1 (K7): baca zona tenant lebih dulu — penanggalan dihitung di zona TENANT,
   // bukan zona server (M5). Kolom masih nullable; seluruh tenant lama = WIB (bawaan).
   const tenantCfg = await prisma.tenant.findUnique({
     where: { id: ctx.tenantId },
     select: { incentiveEnabled: true, timezone: true },
   });
-  const { start: monthStart, end: monthEnd } = monthRangeInZone(now, tenantCfg?.timezone);
+  const tz = tenantCfg?.timezone;
+
+  // L10/K16a: pemilih bulan + deep-link `?bulan=YYYY-MM` — PENERIMAAN & INSENTIF
+  // mengikuti bulan terpilih. Nilai tidak valid → bulan ini (parseMonthKey menolak).
+  const rawParams = await searchParams;
+  const rawBulan = Array.isArray(rawParams.bulan) ? rawParams.bulan[0] : rawParams.bulan;
+  const monthKey = parseMonthKey(rawBulan) ?? monthKeyInZone(now, tz);
+  const { start: monthStart, end: monthEnd } = monthRangeForKey(monthKey, tz);
 
   const [ar, overdue, pos, unremitted, remittances, history] = await Promise.all([
     getAccountsReceivable(ctx.tenantId, now),
     getOverdueInvoices(ctx.tenantId, now),
+    // K11: penerimaan = ARUS bulan terpilih; posisi "menunggu"/"disetor-tanpa-jejak"
+    // adalah KEADAAN seluruh waktu di DALAM getReceiptPositions → tidak perlu filter.
     getReceiptPositions(ctx.tenantId, monthStart, monthEnd),
     getUnremittedCashByHolder(ctx.tenantId),
     getRemittances(ctx.tenantId),
-    // L9: riwayat penerimaan SELURUH bulan (zona tenant sama dengan kartu) —
-    // sebelumnya hanya bulan berjalan yang bisa dilihat (celah yang ditanyakan pemilik).
-    getReceiptHistory(ctx.tenantId, tenantCfg?.timezone),
+    // Riwayat SELURUH bulan — sumber kartu riwayat, ringkasan, dan grafik (nol query ganda).
+    getReceiptHistory(ctx.tenantId, tz),
   ]);
+  const summary = summarizeReceiptHistory(history, monthKey);
+  const trend = receiptTrendPoints(history, monthKey, tz);
+
   const incentiveEnabled = tenantCfg?.incentiveEnabled ?? false;
   // computeIncentives sudah ter-gerbang di SUMBER (return [] bila tenant tak menerapkan).
   const incentives = await computeIncentives(ctx.tenantId, monthStart, monthEnd);
@@ -61,17 +75,26 @@ export default async function LaporanPage() {
       <div className="mx-auto max-w-4xl space-y-5 px-5 py-6">
 
         {/* Ringkasan posisi uang (L4 / K1): Penerimaan = HANYA uang yang sudah
-            terverifikasi masuk; sisanya tampil terpisah — tidak pernah hilang. */}
+            terverifikasi masuk; sisanya tampil terpisah — tidak pernah hilang.
+            L10/K16a: pemilih bulan — Penerimaan mengikuti bulan terpilih (arus),
+            posisi "menunggu"/"disetor" TETAP seluruh waktu (K11 — keadaan tak
+            kedaluwarsa walau pindah bulan). */}
+        <MonthNav
+          monthKey={monthKey}
+          timezone={tz}
+          exportHref={`/app/laporan/export?bulan=${monthKey}&detail=1`}
+          exportAllHref="/app/laporan/export"
+        />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="Total Piutang" value={rp(ar.total)} tone="sky" />
-          {/* K11 (2026-10-18): Penerimaan = ARUS bulan ini (diterima bulan ini);
+          {/* K11 (2026-10-18): Penerimaan = ARUS bulan terpilih (diterima bulan itu);
               posisi "menunggu" & "disetor tanpa jejak" = KEADAAN seluruh waktu —
               identik dengan tabel di bawah, jadi tak pernah lagi angka beda dalam
               satu layar. */}
           {/* Aturan 15: saat Rp0 sub-label harus menjelaskan KENAPA (belum ada
               setoran/verifikasi tercatat bulan ini) — bukan sekadar "0 invoice". */}
           <Stat
-            label="Penerimaan Bulan Ini (sudah masuk)"
+            label={`Penerimaan ${monthKeyLabel(monthKey)} (sudah masuk)`}
             value={rp(pos.penerimaan.total)}
             sub={pos.penerimaan.count > 0
               ? `${pos.penerimaan.count} invoice`
@@ -101,14 +124,42 @@ export default async function LaporanPage() {
             urut terbaru. Baris pakai <details> (pola src/app/app/pengingat/inbox.tsx):
             tanpa komponen client baru (aturan 11) dan tanpa query tambahan.
             Hanya bulan yang PUNYA jejak penerimaan — baris tanpa jejak tidak pernah
-            ditempatkan ke bulan mana pun (mengarang tanggal = dilarang). */}
+            ditempatkan ke bulan mana pun (mengarang tanggal = dilarang).
+            L10/K16(b,d): ditambah ringkasan (total tahun + vs bulan lalu) dan grafik
+            tren 12 bulan — keduanya turunan dari `history` yang sudah dibaca (0 query). */}
         <Card>
           <CardContent className="p-5">
-            <h2 className="mb-1 text-sm font-bold text-foreground">Riwayat Penerimaan</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Total &amp; rincian penerimaan per bulan (menurut waktu uang diterima — setoran
-              tercatat / verifikasi tercatat). Klik satu bulan untuk melihat invoice penyusunnya.
-            </p>
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Riwayat Penerimaan</h2>
+                <p className="text-xs text-muted-foreground">
+                  Total &amp; rincian penerimaan per bulan (menurut waktu uang diterima — setoran
+                  tercatat / verifikasi tercatat). Klik satu bulan untuk melihat invoice penyusunnya.
+                </p>
+              </div>
+              {/* Ringkasan tahun terpilih + arah vs bulan sebelumnya (K16b).
+                  changePct null = bulan lalu tanpa jejak → TIDAK menampilkan persen
+                  (pembagian nol ditolak di summarizeReceiptHistory). */}
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground">Total {monthKeyLabel(monthKey).slice(-4)}</div>
+                <div className="text-lg font-bold tabular-nums text-emerald-600">{rp(summary.totalYear)}</div>
+                <div className="text-xs text-muted-foreground">
+                  Bulan ini {rp(summary.thisMonth)}
+                  {summary.changePct !== null && (
+                    <span className={summary.changePct >= 0 ? "text-emerald-600" : "text-red-600"}>
+                      {" "}· {summary.changePct >= 0 ? "▲" : "▼"} {Math.abs(summary.changePct)}% vs bln lalu
+                    </span>
+                  )}
+                  {summary.changePct === null && summary.prevMonth === 0 && summary.thisMonth > 0 && " · bln lalu Rp0"}
+                </div>
+              </div>
+            </div>
+
+            {/* Tren 12 bulan (K16d) — komponen chart existing, data dari `history`. */}
+            <div className="mb-4">
+              <ReceiptTrendChart data={trend} monthKey={monthKeyLabel(monthKey)} />
+            </div>
+
             {history.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Belum ada penerimaan tercatat — riwayat mulai terisi sejak setoran/verifikasi
@@ -119,7 +170,7 @@ export default async function LaporanPage() {
                 {[...history].reverse().map((m) => (
                   <details key={m.month} className="rounded-xl border p-3 [&_summary]:cursor-pointer">
                     <summary className="flex items-center justify-between gap-3 text-sm font-medium text-foreground marker:content-none">
-                      <span>{fmtMonth(m.month)}</span>
+                      <span>{monthKeyLabel(m.month)}</span>
                       <span className="shrink-0 text-right">
                         <span className="font-bold text-emerald-600">{rp(m.total)}</span>
                         <span className="ml-2 text-xs text-muted-foreground">{m.count} invoice</span>
@@ -253,7 +304,7 @@ export default async function LaporanPage() {
         {incentiveEnabled && (
         <Card>
           <CardContent className="p-5">
-            <h2 className="mb-1 text-sm font-bold text-foreground">Insentif Personel Bulan Ini</h2>
+            <h2 className="mb-1 text-sm font-bold text-foreground">Insentif Personel {monthKeyLabel(monthKey)}</h2>
             <p className="mb-3 text-xs text-muted-foreground">Total {rp(totalIncentive)} · acuan & mode diatur di Pengaturan.</p>
             {incentives.length === 0 ? (
               <p className="text-sm text-muted-foreground">Belum ada insentif periode ini.</p>

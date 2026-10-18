@@ -81,6 +81,14 @@ POSISI UANG & JEJAK (2026-10-18, K1..K4, K7..K9):
   - Riwayat penerimaan per bulan (K15/L9): getReceiptHistory — kelompok jejak
     (remittedAt / verifiedAt) per bulan ZONA TENANT + detail invoice; baris tanpa
     jejak TIDAK ditempatkan ke bulan mana pun (mengarang bulan = dilarang).
+  - Naik kelas riwayat (K16/L10, 2026-10-18): pemilih bulan + deep-link
+    ?bulan=YYYY-MM (parseMonthKey menolak nilai tidak valid) — kartu Penerimaan &
+    Insentif mengikuti bulan terpilih, posisi "menunggu"/"disetor" TETAP seluruh
+    waktu (K11); ringkasan total tahun + vs bulan lalu (pembagian nol → changePct
+    null); ekspor CSV /app/laporan/export?bulan=&detail=1 (pola /app/layanan/export;
+    csvCell kini SATU SUMBER di src/lib/csv.ts — service-catalog memakainya);
+    grafik tren 12 bulan ReceiptTrendChart (pola serviced-trend-chart, ui/chart +
+    recharts) — bulan tanpa jejak = 0 penerimaan tercatat (fakta).
 ```
 
 ### 1.3 TEMPO (proforma → invoice → tagih)

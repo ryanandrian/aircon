@@ -9,8 +9,11 @@ import { NextResponse } from "next/server";
 import { getPartnerSession } from "@/lib/partner/partner-session";
 import { resellerBreakdown } from "@/lib/partner/partner-portal-service";
 
-/** Amankan satu sel CSV: netralkan formula + quoting standar. */
-function csvCell(value: string | number): string {
+/** Amankan satu sel CSV: netralkan formula + quoting standar.
+ *  INI BUKAN csvCell biasa (src/lib/csv.ts) — sengaja SELALU mengutip dan
+ *  mem-prefix apostrof (CWE-1236 anti formula-injection). Diberi nama lain
+ *  (aturan 12: beda makna = beda nama; menyatukannya akan MENGHAPUS proteksi). */
+function csvCellFormulaSafe(value: string | number): string {
   let s = String(value);
   // Anti formula-injection: karakter pemicu rumus di awal → prefix apostrof.
   if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
@@ -26,11 +29,11 @@ export async function GET() {
   const rows = await resellerBreakdown(sess.id, now);
 
   const header = ["Nama Reseller", "Bank", "No Rekening", "Atas Nama", "Total Komisi (Rp)"];
-  const csvLines = [header.map(csvCell).join(",")];
+  const csvLines = [header.map(csvCellFormulaSafe).join(",")];
   for (const r of rows) {
     // Nomor rekening: prefix ' menjaga nol-depan + netralkan formula.
     const account = r.account ? "'" + r.account : "";
-    csvLines.push([csvCell(r.name), csvCell(r.bankName), csvCell(account), csvCell(r.holder), csvCell(r.total)].join(","));
+    csvLines.push([csvCellFormulaSafe(r.name), csvCellFormulaSafe(r.bankName), csvCellFormulaSafe(account), csvCellFormulaSafe(r.holder), csvCellFormulaSafe(r.total)].join(","));
   }
   const csv = "\uFEFF" + csvLines.join("\r\n"); // BOM utk Excel Indonesia
 

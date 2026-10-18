@@ -92,6 +92,50 @@ export function monthKeyInZone(instant: Date, tz?: string | null): string {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
+// ── Helper bulan untuk PEMILIH BULAN laporan (L10/K16a) ───────────────────────────
+// Semua membangun aturan zona yang sudah ada (fromZone/zoneParts/tenantTimeZone) —
+// bukan perhitungan tanggal baru. Modul ini tetap MURNI (tanpa DB, tanpa jaringan).
+
+/** Validasi & normalisasi kunci bulan `YYYY-MM`. Nilai tidak valid → null
+ *  (DITOLAK, bukan diam-diam jatuh ke bulan ini — pemilik harus tahu URL rusak). */
+export function parseMonthKey(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const m = /^(\d{4})-(\d{2})$/.exec(v);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return null;
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+/** Rentang bulan `YYYY-MM` MENURUT ZONA TENANT — pasangan `monthRangeInZone`
+ *  tetapi berangkat dari kunci bulan (bukan instan), jadi keduanya tak pernah beda. */
+export function monthRangeForKey(key: string, tz?: string | null): ZoneRange {
+  const [y, m] = key.split("-").map(Number);
+  const timeZone = tenantTimeZone(tz);
+  const lastDay = daysInMonth(y, m);
+  return {
+    start: fromZone(y, m, 1, 0, 0, 0, 0, timeZone),
+    end: fromZone(y, m, lastDay, 23, 59, 59, 999, timeZone),
+  };
+}
+
+/** Geser kunci bulan ±n bulan (lintas tahun: 2026-12 +1 → 2027-01). */
+export function shiftMonthKey(key: string, delta: number): string {
+  const [y, m] = key.split("-").map(Number);
+  const idx = y * 12 + (m - 1) + delta; // indeks bulan absolut
+  const ny = Math.floor(idx / 12);
+  const nm = (idx % 12 + 12) % 12;
+  return `${ny}-${String(nm + 1).padStart(2, "0")}`;
+}
+
+/** Label bulan `YYYY-MM` → "Juli 2026" (id-ID, kapital awal) — SATU sumber label bulan. */
+export function monthKeyLabel(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  const label = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 export interface ZoneRange {
   /** Instan UTC awal bulan (pukul 00.00.00.000 di zona tenant). */
   start: Date;
