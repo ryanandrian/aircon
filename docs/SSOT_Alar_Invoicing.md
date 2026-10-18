@@ -48,9 +48,14 @@ BuildSpecPack_Part3 §6 "FEATURE GATING"       ARSIP-USAANG — nama paket Start
 ```
 UI PaymentPanel (di detail invoice INVOICE berstatus ISSUED/OVERDUE):
   pilih metode {CASH, TRANSFER, QRIS*} (*QRIS hanya bila tenant.qrisImageUrl terisi)
-  upload bukti OPSIONAL (actionUploadPaymentProof → S3) 
+  upload bukti (actionUploadPaymentProof → S3) — K17 (2026-10-18):
+     TEKNISI + TRANSFER/QRIS → foto WAJIB (tanpa foto = DITOLAK di service)
+     TEKNISI + CASH → opsional (K3, alur lapangan tidak berubah)
+     ADMIN/OWNER → semua metode opsional (K4: sudah otomatis terverifikasi)
+     Layar: prop requireProof (halaman /t kirim, /app tidak) → label "wajib"/"opsional"
   → actionMarkPaid → markInvoicePaid:
      tolak bila docType=PROFORMA / sudah PAID / CANCELLED
+     tolak bila teknisi non-tunai tanpa bukti (K17)
      updateMany atomik guard status (ISSUED|OVERDUE → PAID) — anti double-mark (B4)
   → invoice PAID → tautan Kwitansi (/app/kwitansi/[id], /t/kwitansi/[id])
      Kwitansi: nomor KW/ dari nomor invoice, terbilangRupiah, cetak + Kirim WA
@@ -62,6 +67,8 @@ POSISI UANG & JEJAK (2026-10-18, K1..K4, K7..K9):
     bila TEKNISI → null (menunggu verifikasi — K4).
   - verifyInvoicePayment (service) / actionVerifyPayment (admin): atomik guard
     verifiedAt null; tolak utk CASH (jalurnya setoran) & invoice belum lunas.
+    K17 (2026-10-18, keputusan pemilik): verifikasi transfer/QRIS oleh owner/admin
+    TANPA unggah foto rekening — cukup catat siapa & kapan (jejak tetap utuh).
   - Setoran (K5): markCashRemitted WAJIB foto bukti (S3) + waktu + admin
     penerima; dihimpun atomik; setoran tanpa bukti/penerima DITOLAK.
     (Koreksi 2026-10-18: teks lama "TANPAWAJIB" adalah typo menyesatkan —
