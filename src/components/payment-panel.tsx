@@ -23,15 +23,23 @@ type PayMethod = "CASH" | "TRANSFER" | "QRIS";
  *    pelanggan TOP CASH. Guard server dibuka utk SEMUA peran; kolom bukti tampil
  *    di semua peran; indikator "Mengunggah…" tetap ada (tombol tak senyap).
  *  - prop `role` yang sempat ditambahkan K10 sudah DIHAPUS bersih (anti-fosil).
+ *
+ * K17 (keputusan pemilik 2026-10-18 — audit INV/2026/0034): penandaan lunas
+ * TRANSFER/QRIS oleh TEKNISI TIDAK BISA tanpa foto. Dipakai lewat `requireProof`
+ * (boolean semantik — BUKAN prop peran, konsisten anti-fosil K12): halaman teknisi
+ * mengirim `requireProof`, halaman admin tidak (opsional, K4/K17).
+ * Kewajiban berlaku pada metode NON-TUNAI saja; CASH tetap opsional (K3).
  */
-export function PaymentPanel({ invoiceId, tenantHasQris }: {
-  invoiceId: string; tenantHasQris: boolean;
+export function PaymentPanel({ invoiceId, tenantHasQris, requireProof = false }: {
+  invoiceId: string; tenantHasQris: boolean; requireProof?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [method, setMethod] = useState<PayMethod>("CASH");
   const [proofUrl, setProofUrl] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+  // K17: bukti wajib bila diminta pemanggil DAN metodenya non-tunai.
+  const needsProof = requireProof && method !== "CASH";
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -81,15 +89,23 @@ export function PaymentPanel({ invoiceId, tenantHasQris }: {
         </div>
         {/* KEPUTUSAN PEMILIK 2026-10-18 (K12): teknisi DIPERBOLEHKAN (bahkan diwajibkan)
             mengunggah bukti — terima uang tunai / transfer / QRIS — khususnya pelanggan
-            TOP CASH. Kolom bukti tampil untuk SEMUA peran (membalikkan keputusan K10). */}
+            TOP CASH. Kolom bukti tampil untuk SEMUA peran (membalikkan keputusan K10).
+            K17: label ikut kewajiban — teknisi non-tunai TIDAK dibiarkan mengira opsional. */}
         <div className="space-y-1.5">
-          <label className="text-xs text-muted-foreground">Bukti bayar (opsional)</label>
+          <label className="text-xs text-muted-foreground">Bukti bayar ({needsProof ? "wajib" : "opsional"})</label>
           <input type="file" accept="image/*" onChange={onFile} disabled={uploading}
             className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm" />
           {uploading && <p className="text-xs text-sky-600">Mengunggah… tunggu sebentar</p>}
           {proofUrl && !uploading && <p className="text-xs text-emerald-600">✓ Bukti siap</p>}
+          {needsProof && !proofUrl && !uploading && (
+            <p className="text-xs text-amber-600">
+              Transfer/QRIS wajib menyertakan foto bukti — minta dari pelanggan, atau pilih Tunai bila uang diterima langsung.
+            </p>
+          )}
         </div>
-        <Button type="button" onClick={markPaid} disabled={pending || uploading}
+        {/* K17: tombol terkunci saat bukti wajib belum ada — guard service tetap jadi
+            penegak utama (layar hanya memperjelas, bukan satu-satunya pengaman). */}
+        <Button type="button" onClick={markPaid} disabled={pending || uploading || needsProof}
           className="w-full min-h-[44px] bg-emerald-600 text-white hover:bg-emerald-700">
           <Icon.Success className="h-4 w-4" aria-hidden /> {uploading ? "Mengunggah…" : "Tandai LUNAS"}
         </Button>

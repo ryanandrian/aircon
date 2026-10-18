@@ -145,3 +145,55 @@ describe("F2 — markInvoicePaid: scope pembuat (B-3)", () => {
     await expect(markInvoicePaid("t1", "inv-1", "CASH", undefined, null)).rejects.toThrow();
   });
 });
+
+// ── K17 (keputusan pemilik 2026-10-18) — bukti WAJIB utk teknisi non-tunai ─────────
+// AKAR (audit INV/2026/0034, 2026-10-18): teknisi menandai lunas TRANSFER dgn
+// paymentProofUrl = null — K12 lama hanya membuka kolom, K5 hanya mewajibkan foto
+// utk SETORAN tunai. K17 menutup celah di SERVICE (bukan hanya layar).
+// Aturan (keputusan pemilik):
+//  - TEKNISI + TRANSFER/QRIS  → bukti WAJIB (tanpa foto → DITOLAK).
+//  - TEKNISI + CASH           → tetap boleh tanpa foto (alur lapangan K3).
+//  - ADMIN/OWNER (semua metode) → bukti OPSIONAL (mereka sudah otomatis terverifikasi K4).
+describe("K17 — markInvoicePaid: bukti wajib utk teknisi non-tunai", () => {
+  it("TEKNISI + TRANSFER tanpa bukti → DITOLAK (bukan sukses senyap)", async () => {
+    state.invoice = inv({ createdById: "tech-1" });
+    const t = { tenantId: "t1", userId: "tech-1", role: "TECHNICIAN" } as any;
+    await expect(markInvoicePaid("t1", "inv-1", "TRANSFER", undefined, t))
+      .rejects.toThrow(/bukti/i);
+  });
+
+  it("TEKNISI + QRIS tanpa bukti → DITOLAK", async () => {
+    state.invoice = inv({ createdById: "tech-1" });
+    const t = { tenantId: "t1", userId: "tech-1", role: "TECHNICIAN" } as any;
+    await expect(markInvoicePaid("t1", "inv-1", "QRIS", undefined, t))
+      .rejects.toThrow(/bukti/i);
+  });
+
+  it("TEKNISI + TRANSFER DENGAN bukti → DITERIMA (guard lain tidak terpengaruh)", async () => {
+    state.invoice = inv({ createdById: "tech-1" });
+    const t = { tenantId: "t1", userId: "tech-1", role: "TECHNICIAN" } as any;
+    await expect(markInvoicePaid("t1", "inv-1", "TRANSFER", "https://s3/b.jpg", t)).resolves.toBeUndefined();
+  });
+
+  it("TEKNISI + CASH tanpa bukti → TETAP DITERIMA (alur lapangan K3 tidak berubah)", async () => {
+    state.invoice = inv({ createdById: "tech-1" });
+    const t = { tenantId: "t1", userId: "tech-1", role: "TECHNICIAN" } as any;
+    await expect(markInvoicePaid("t1", "inv-1", "CASH", undefined, t)).resolves.toBeUndefined();
+  });
+
+  it("ADMIN/OWNER + TRANSFER tanpa bukti → TETAP DITERIMA (opsional, K4/K17)", async () => {
+    state.invoice = inv({ createdById: "tech-2" });
+    await expect(markInvoicePaid("t1", "inv-1", "TRANSFER", undefined, ADMIN)).resolves.toBeUndefined();
+    const OWNER = { tenantId: "t1", userId: "own-1", role: "OWNER" } as any;
+    state.invoice = inv({ createdById: "tech-2" });
+    await expect(markInvoicePaid("t1", "inv-1", "TRANSFER", undefined, OWNER)).resolves.toBeUndefined();
+  });
+
+  it("konteks null (jalur internal tanpa peran) → TETAP DITOLAK (aman default)", async () => {
+    // Guard !actor melempar lebih dulu — yang dikunci: tanpa konteks peran,
+    // penandaan lunas TRANSFER tidak pernah lolos (bukan "lolos sebagai admin").
+    state.invoice = inv({ createdById: "tech-1" });
+    await expect(markInvoicePaid("t1", "inv-1", "TRANSFER", undefined, null))
+      .rejects.toThrow();
+  });
+});

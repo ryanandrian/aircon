@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 
@@ -41,10 +41,51 @@ describe("PaymentPanel — peran & indikator unggah", () => {
     expect(src).toContain("Mengunggah");
   });
 
-  it("teknisi tetap bisa menandai lunas tanpa bukti (K3 — alur lapangan tidak berubah)", () => {
-    // Tombol lunas tidak pernah meminta bukti sebagai syarat.
-    expect(src).toMatch(/disabled=\{\s*pending\s*\|\|\s*uploading\s*\}/);
-    // Dan tetap memanggil actionMarkPaid tanpa ketergantungan bukti.
+  // ── K17 (keputusan pemilik 2026-10-18) — MENGGUGURKAN kontrak K3 lama ────────────
+  // K3 lama: "teknisi tetap bisa menandai lunas TANPA bukti" — itulah yang membuat
+  // INV/2026/0034 tercatat lunas TRANSFER tanpa bukti apa pun (audit 2026-10-18).
+  // K17 membaliknya: penandaan lunas TRANSFER/QRIS oleh TEKNISI wajib foto —
+  // bila teknisi tak punya bukti, jalannya = minta bukti / biarkan menunggu verifikasi.
+  it("K17: panel punya pemicu kewajiban bukti (requireProof) — bukan tombol yang selalu bebas", () => {
+    expect(src).toContain("requireProof");
+  });
+
+  it("K17: tombol LUNAS non-tunai wajib bukti saat requireProof (bukan disabled={pending||uploading} saja)", () => {
+    // variabel turunan wajib bukti = requireProof DAN metode non-tunai
+    expect(src).toMatch(/const\s+needsProof\s*=\s*requireProof\s*&&\s*method\s*!==\s*"CASH"/);
+    // tombol memakainya — konsisten dgn guard service K17
+    expect(src).toMatch(/disabled=\{[\s\S]{0,160}needsProof/);
     expect(src).toContain("actionMarkPaid");
+  });
+
+  it("K17: label bukti berubah menurut kewajiban (wajib vs opsional) — tidak menyesatkan", () => {
+    expect(src).toContain("wajib");
+    expect(src).toContain("opsional");
+  });
+
+  it("indikator Mengunggah tetap ada (K12 tidak digugurkan oleh K17)", () => {
+    expect(src).toContain("Mengunggah…");
+  });
+});
+
+// Kontrak pemakaian panel: halaman TEKNISI mewajibkan bukti (K17); halaman ADMIN tidak
+// (opsional, K4/K17). Dibaca dari sumber (pola test ini) — tanpa render.
+describe("K17 — pemakaian PaymentPanel per halaman", () => {
+  const techPage = (() => {
+    const p = resolve(process.cwd(), "src/app/t/faktur/[id]/page.tsx");
+    return existsSync(p) ? readFileSync(p, "utf8") : "";
+  })();
+  const adminPage = (() => {
+    const p = resolve(process.cwd(), "src/app/app/faktur/[id]/page.tsx");
+    return existsSync(p) ? readFileSync(p, "utf8") : "";
+  })();
+
+  it("halaman teknisi mengirim requireProof", () => {
+    expect(techPage).toMatch(/<PaymentPanel[^>]*requireProof/);
+  });
+
+  it("halaman admin TIDAK mengirim requireProof (opsional, K4)", () => {
+    expect(adminPage).toContain("<PaymentPanel");
+    expect(adminPage).not.toMatch(/<PaymentPanel[^>]*requireProof/);
   });
 });

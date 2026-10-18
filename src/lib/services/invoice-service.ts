@@ -349,6 +349,19 @@ export async function markInvoicePaid(
   }
   if (inv.status === "PAID") throw new ServiceError("CONFLICT", "Invoice sudah lunas");
   if (inv.status === "CANCELLED") throw new ServiceError("CONFLICT", "Invoice sudah dibatalkan");
+  // K17 (keputusan pemilik 2026-10-18): TEKNISI + TRANSFER/QRIS → bukti WAJIB.
+  // Audit INV/2026/0034: teknisi menandai lunas TRANSFER tanpa bukti apa pun.
+  // Bila teknisi tak punya bukti, jalannya = minta bukti / biarkan "Menunggu
+  // Verifikasi" — bukan menandai lunas tanpa bukti. ADMIN/OWNER tetap opsional
+  // (K4: penandaan lunas oleh mereka sudah otomatis terverifikasi). CASH = K3
+  // (alur lapangan tidak berubah — tanpa foto tetap boleh utk teknisi).
+  if (payMethod !== "CASH" && actor.role === "TECHNICIAN" && !paymentProofUrl?.trim()) {
+    throw new ServiceError(
+      "CONFLICT",
+      "Penandaan lunas transfer/QRIS oleh teknisi WAJIB menyertakan foto bukti. " +
+      "Minta bukti transfer dari pelanggan, atau biarkan statusnya menunggu verifikasi.",
+    );
+  }
   // B4 fix: update ATOMIK dengan guard status di WHERE — cegah double-mark pada race.
   // Hanya ISSUED/OVERDUE yang boleh jadi PAID; bila 0 baris, status sudah berubah proses lain.
   // F9f (invariant K17 — TANPA opsi): cashRemitStatus = HELD_BY_TECH hanya utk CASH

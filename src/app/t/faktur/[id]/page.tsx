@@ -33,7 +33,9 @@ export default async function TechInvoicePage({ params }: { params: Promise<{ id
         )}
         {data.inv.docType === "INVOICE" && (data.inv.status === "ISSUED" || data.inv.status === "OVERDUE") && (
           <div className="print:hidden">
-            <PaymentPanel invoiceId={data.inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} />
+            {/* K17: halaman TEKNISI mewajibkan bukti utk metode non-tunai (guard
+                service menegakkan hal yang sama — layar hanya memperjelas). */}
+            <PaymentPanel invoiceId={data.inv.id} tenantHasQris={Boolean(data.tenant?.qrisImageUrl)} requireProof />
           </div>
         )}
       </div>

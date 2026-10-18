@@ -45,15 +45,19 @@ beforeEach(() => {
 });
 
 describe("L3 — penandaan lunas oleh TEKNISI (transfer/QRIS) belum terverifikasi", () => {
-  it("teknisi + TRANSFER → status lunas TAPI belum terverifikasi (menunggu verifikasi)", async () => {
-    await markInvoicePaid("t1", "inv-1", "TRANSFER", undefined, TECH);
+  // K17 (keputusan pemilik 2026-10-18): teknisi non-tunai wajib menyertakan bukti —
+  // jalur positif kini memakai bukti. Kasus TANPA bukti (ditolak) dikunci terpisah
+  // di tests/invoice-payment-guard.test.ts (K17).
+  it("teknisi + TRANSFER (dgn bukti) → status lunas TAPI belum terverifikasi (menunggu verifikasi)", async () => {
+    await markInvoicePaid("t1", "inv-1", "TRANSFER", "https://s3/b.jpg", TECH);
     expect(state.updateManyArgs.data.status).toBe("PAID");
     expect(state.updateManyArgs.data.verifiedAt).toBeNull();
     expect(state.updateManyArgs.data.verifiedById).toBeNull();
+    expect(state.updateManyArgs.data.paymentProofUrl).toBe("https://s3/b.jpg"); // K17: bukti tersimpan
   });
 
-  it("teknisi + QRIS → belum terverifikasi", async () => {
-    await markInvoicePaid("t1", "inv-1", "QRIS", undefined, TECH);
+  it("teknisi + QRIS (dgn bukti) → belum terverifikasi", async () => {
+    await markInvoicePaid("t1", "inv-1", "QRIS", "https://s3/b.jpg", TECH);
     expect(state.updateManyArgs.data.verifiedAt).toBeNull();
   });
 
