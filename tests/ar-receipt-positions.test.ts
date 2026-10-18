@@ -123,8 +123,64 @@ describe("L4 — getReceiptPositions (3 posisi uang)", () => {
             paidAt: new Date("2026-10-16T00:00:00Z") }),
     ];
     return getReceiptPositions("t1", t0, t1).then((r) => {
-      expect(r.menungguSetoran.total).toBe(2855000); // = tabel "Kas Belum Disetor per Teknisi"
+      expect(r.menungguSetoran.total).toBe(2855000); // = tabel "Kas Belum Disetor per Pemegang Uang"
       expect(r.menungguSetoran.count).toBe(2);
     });
+  });
+});
+
+// M7 / K13 (audit data live tenant Jaya Mandiri, 2026-10-18) — aturan kerja 13:
+// bug ini LOLOS karena semua test sebelumnya memakai data jejak yang selalu terisi.
+// Data nyata di produksi: invoice CASH berstatus REMITTED dengan remittedAt = null
+// (disetor sebelum kolom jejak L2 ada; kolom nullable, migrasi tidak mengisi data lama).
+describe("M7/K13 — tunai REMITTED tanpa jejak TIDAK boleh hilang dari laporan", () => {
+  it("REMITTED tanpa remittedAt → masuk disetorTanpaJejak, BUKAN hilang, BUKAN penerimaan", async () => {
+    state.invoices = [inv({ id: "lama", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: null, total: 500000 })];
+    const r = await getReceiptPositions("t1", t0, t1);
+    expect(r.disetorTanpaJejak.total).toBe(500000);
+    expect(r.disetorTanpaJejak.count).toBe(1);
+    expect(r.penerimaan.total).toBe(0);
+    expect(r.menungguSetoran.total).toBe(0);
+    expect(r.menungguVerifikasi.total).toBe(0);
+  });
+
+  it("identitas 4 posisi: penerimaan + menunggu setoran + menunggu verifikasi + tanpa jejak = total lunas", async () => {
+    state.invoices = [
+      inv({ id: "1", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 10000 }),
+      inv({ id: "2", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: new Date("2026-10-15T00:00:00Z"), total: 20000 }),
+      inv({ id: "3", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: null, total: 30000 }),
+      inv({ id: "4", payMethod: "QRIS", verifiedAt: null, total: 40000 }),
+      inv({ id: "5", payMethod: "TRANSFER", verifiedAt: new Date("2026-10-15T00:00:00Z"), total: 50000 }),
+    ];
+    const r = await getReceiptPositions("t1", t0, t1);
+    expect(r.totalKotor).toBe(150000);
+    expect(r.penerimaan.total + r.menungguSetoran.total + r.menungguVerifikasi.total + r.disetorTanpaJejak.total).toBe(r.totalKotor);
+    expect(r.disetorTanpaJejak.total).toBe(30000);
+  });
+
+  it("angka kasus live Jaya Mandiri 2026-10-18: Rp3.800.000 tanpa jejak tampil (bukan Rp0)", async () => {
+    // 7 invoice REMITTED tanpa jejak di produksi: 75.000 · 350.000 · 2.050.000 ·
+    // 730.000 · 65.000 · 130.000 · 400.000 = Rp3.800.000
+    const noTrace = [75000, 350000, 2050000, 730000, 65000, 130000, 400000];
+    state.invoices = [
+      ...noTrace.map((total, i) => inv({ id: `n${i}`, payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: null, total })),
+      inv({ id: "held1", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 2780000 }),
+      inv({ id: "held2", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH", total: 75000 }),
+      ...Array.from({ length: 17 }, (_, i) => inv({ id: `v${i}`, payMethod: "TRANSFER", verifiedAt: null, total: 100 })),
+    ];
+    const r = await getReceiptPositions("t1", t0, t1);
+    expect(r.disetorTanpaJejak.total).toBe(3800000);
+    expect(r.disetorTanpaJejak.count).toBe(7);
+    expect(r.menungguSetoran.total).toBe(2855000);
+    expect(r.menungguVerifikasi.total).toBe(1700);
+    expect(r.penerimaan.total).toBe(0);
+    expect(r.penerimaan.total + r.menungguSetoran.total + r.menungguVerifikasi.total + r.disetorTanpaJejak.total).toBe(r.totalKotor);
+  });
+
+  it("tunai dengan jejak lengkap TIDAK ikut posisi tanpa jejak (tidak dobel)", async () => {
+    state.invoices = [inv({ id: "berjejak", payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: new Date("2026-10-15T00:00:00Z"), total: 80000 })];
+    const r = await getReceiptPositions("t1", t0, t1);
+    expect(r.disetorTanpaJejak.total).toBe(0);
+    expect(r.penerimaan.total).toBe(80000);
   });
 });

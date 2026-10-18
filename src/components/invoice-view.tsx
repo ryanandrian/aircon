@@ -11,8 +11,10 @@ type Inv = {
   subtotal: unknown; discountAmount: unknown; ppnPercent: number; ppnAmount: unknown; total: unknown;
   payMethod: string | null; paidAt: Date | null;
   // L3/L4/L6 (K1/K3/K4): posisi uang & bukti — null = belum ada/kosong (dokumen lama aman).
+  // M7/K13: remittedAt → label tunai disetor tanpa jejak (money-position.ts).
   verifiedAt: Date | null;
   cashRemitStatus: string | null;
+  remittedAt: Date | null;
   paymentProofUrl: string | null;
   customer: { name: string; phone: string; address: string | null; customerType: string; npwp: string | null };
   items: InvItem[];

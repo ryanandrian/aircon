@@ -78,7 +78,7 @@ Report K17 filter PAID+CASH+HELD_BY_TECH → benar TIDAK memuatnya.
   setelah teknisi MENANDAI LUNAS. Status sekarang = tindak lanjut teknisi
   (persis yang diangkat F9d), BUKAN kas disetor.
 → Tindakan operasional: teknisi tekan "Tandai LUNAS" utk INV/2026/0032 →
-  otomatis masuk "Kas Belum Disetor per Teknisi".
+  otomatis masuk "Kas Belum Disetor per Pemegang Uang".
 Pembanding (alur SEHAT): 5 invoice cash tenant tsb yg PAID → 4 HELD_BY_TECH
 masuk report, REMITTED keluar.
 CONTOH NYATA D1 (di data sama): INV/2026/0013 payMethod=TRANSFER tapi
@@ -105,9 +105,10 @@ hanya CASH boleh HELD_BY_TECH; TRANSFER/QRIS harus null, plus tes K17.
 Row tenant real tetap perlu ditinjau lewat sumber/audit transaksi yang sah
 sebelum tindakan data; tidak termasuk perubahan kode ini.
 D2 (coverage): test service K17 ditambahkan pada F9f.
-D3 (label): judul "Kas Belum Disetor per Teknisi" mengelompokkan createdById
-(pembuat sesi); perlu pastikan bahasa UI sesuai kasus admin/teknisi — bukan
-anomali data tanpa provenance.
+D3 (label): judul "Kas Belum Disetor per Pemegang Uang" mengelompokkan createdById
+(pembuat sesi). **DITUTUP 2026-10-18 (M9):** nama baris kini ikut peran asli
+pemegang dari `User.role` — kasus admin/teknisi/pemilik tampil apa adanya
+(7 dari 8 baris Jaya Mandiri = pemilik) — bukan anomali data tanpa provenance.
 ```
 
 ### 1.2 Kesenjangan riwayat↔beranda (Bukti DB Ryan 2026-10-15)
@@ -165,8 +166,9 @@ dokumen ini per progress.**
   `cashRemitStatus` — CASH → `HELD_BY_TECH` (fisik dipegang pembuat sampai
   setor); TRANSFER/QRIS → `null` (dana bank/kanal, tak pernah "kas teknisi") —
   membersihkan nilai stale bila ada. Jalur K17 EXISTING tidak diubah
-  (getUnremittedCashByTech / markCashRemitted tetap pola lama; guard
-  OWNER/ADMIN tetap).
+  (getUnremittedCashByHolder / markCashRemitted tetap pola lama; guard
+  OWNER/ADMIN tetap). Nama fungsi K17 diganti 2026-10-18 (M9) — pemegang
+  uang BUKAN selalu teknisi, jadi label lama menyesatkan.
   D2 tertutup: `tests/ar-cash-remittance.test.ts` (4) — filter K17 exact;
   TRANSFER/QRIS tak terhitung; guard remit tenant/status/type; input kosong.
   + `invoice-flow`: CASH→HELD, TRANSFER/QRIS→null (RED 2 gagal → GREEN).
@@ -478,11 +480,12 @@ AKAR MASALAH = KODE BUKAN KESALAHAN PETUGAS:
   markInvoicePaid LAMA tidak mengubah kolom ini → nilai tetap STALE
   setelah lunas TRANSFER. (F9f memperbaiki jalur ini — live.)
 DAMPAK — TIDAK ADA ANGKA SALAH YG TERLIHAT OLEH PELANGGAN:
-  Laporan "Kas Belum Disetor per Teknisi" filter payMethod=CASH
+  Laporan "Kas Belum Disetor per Pemegang Uang" filter payMethod=CASH
   (ar-service.ts:94) → invoice INI TIDAK MUNCUL → Rp85.000 TIDAK dihitung
   kas teknisi. Total/item/status PAID = benar.
-  Konsumen cashRemitStatus HANYA K17 (getUnremittedCashByTech +
+  Konsumen cashRemitStatus HANYA K17 (getUnremittedCashByHolder +
   markCashRemitted) — tidak ada laporan lain yg membaca kolom ini.
+  (Nama fungsi K17 diganti 2026-10-18 sesuai M9: pemegang bisa pemilik.)
 KEPUTUSAN PEMILIK (satu-satunya baris stale di tenant REAL):
   Opsi A: biarkan — laporan sudah benar; kolom salah hanya utk query mentah.
   Opsi B: koreksi 1 baris (cashRemitStatus→null) via SQL sekali — BUTUH

@@ -37,7 +37,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 import * as prismaModule from "@/lib/prisma";
-import { getUnremittedCashByTech, getRemittances, markCashRemitted } from "@/lib/services/ar-service";
+import { getUnremittedCashByHolder, getRemittances, markCashRemitted } from "@/lib/services/ar-service";
 
 const state = (prismaModule as any).__state;
 
@@ -58,14 +58,14 @@ beforeEach(() => {
   state.transactionCalls = [];
 });
 
-describe("F9f — getUnremittedCashByTech (K17)", () => {
+describe("F9f/M9 — getUnremittedCashByHolder (K17)", () => {
   it("hanya PAID+CASH+HELD_BY_TECH INVOICE tenant itu dihitung — TRANSFER/QRIS tak pernah tampil", async () => {
-    const r = await getUnremittedCashByTech("t1");
-    expect(r).toEqual([{ techId: "tech-1", techName: "Ryan", total: 50000, count: 1, invoiceIds: ["cash-held"] }]);
+    const r = await getUnremittedCashByHolder("t1");
+    expect(r).toEqual([{ holderId: "tech-1", holderName: "Ryan", holderRole: null, total: 50000, count: 1, invoiceIds: ["cash-held"] }]);
   });
 
   it("query K17 punya filter tenant+INVOICE+PAID+CASH+HELD_BY_TECH (guard di DB query)", async () => {
-    await getUnremittedCashByTech("t1");
+    await getUnremittedCashByHolder("t1");
     const q = vi.mocked(prismaModule.prisma.invoice.findMany).mock.calls[0][0] as any;
     expect(q.where).toMatchObject({ tenantId: "t1", docType: "INVOICE", status: "PAID", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH" });
   });
@@ -75,17 +75,32 @@ describe("L2 — markCashRemitted: setoran meninggalkan jejak (K5)", () => {
   // Jejak setoran: admin penerima (admin tenant bisa >1) + foto bukti + waktu.
   const details = { receiverId: "admin-1", proofUrl: "https://s3.example/tenants/t1/bukti/x.jpg", at: new Date("2026-10-17T10:00:00Z") };
 
-  it("ditandai REMITTED + MENULIS jejak (penerima, bukti, waktu) hanya row PAID+HELD_BY_TECH dalam tenant", async () => {
-    const n = await markCashRemitted("t1", ["cash-held", "transfer-stale"], details);
+  it("ditandai REMITTED + MENULIS jejak (penerima, bukti, waktu) hanya row PAID+CASH+HELD_BY_TECH dalam tenant", async () => {
+    const n = await markCashRemitted("t1", ["cash-held"], details);
     expect(n).toBe(1);
     const q = state.updateManyArgs.where;
-    expect(q).toMatchObject({ tenantId: "t1", id: { in: ["cash-held", "transfer-stale"] }, docType: "INVOICE", status: "PAID", cashRemitStatus: "HELD_BY_TECH" });
+    expect(q).toMatchObject({ tenantId: "t1", id: { in: ["cash-held"] }, docType: "INVOICE", status: "PAID", payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH" });
     expect(state.updateManyArgs.data).toEqual({
       cashRemitStatus: "REMITTED",
       remittedAt: details.at,
       remittedById: "admin-1",
       remitProofUrl: details.proofUrl,
     });
+  });
+
+  // M7/koreksi (2026-10-18): SEBELUM diperbaiki, 0 baris kembali 0 DIAM-DIAM dan
+  // action melaporkan sukses → pemilik mengira setoran tercatat, ternyata tidak ada
+  // data berubah. Sekarang: jumlah yang berubah ≠ jumlah yang diminta → DITOLAK.
+  it("sebagian id tidak memenuhi syarat (sudah disetor / bukan tunai) → DITOLAK, bukan sukses senyap", async () => {
+    state.updateManyResult = { count: 1 }; // 1 dari 2 id yang diminta terkena
+    await expect(markCashRemitted("t1", ["cash-held", "cash-remitted"], details))
+      .rejects.toThrow(/menunggu setoran/i);
+    expect(state.transactionCalls).toHaveLength(1); // dibuka lalu dibatalkan (rollback)
+  });
+
+  it("nol baris terkena (semua id sudah punya jejak) → DITOLAK, bukan kembali 0", async () => {
+    state.updateManyResult = { count: 0 };
+    await expect(markCashRemitted("t1", ["cash-held"], details)).rejects.toThrow(/menunggu setoran/i);
   });
 
   it("input kosong → tak membuat query update", async () => {
@@ -130,7 +145,7 @@ describe("L5 — getRemittances (laporan tracing setoran untuk owner tenant, K5)
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       number: "INV/1", total: 50000,
-      receiverName: "Budi", techName: "Ryan",
+      receiverName: "Budi", holderName: "Ryan",
       proofUrl: "https://s3.example/tenants/t1/bukti/x.jpg",
     });
     expect(rows[0].remittedAt).toBeInstanceOf(Date);
@@ -145,5 +160,57 @@ describe("L5 — getRemittances (laporan tracing setoran untuk owner tenant, K5)
     await getRemittances("t1");
     const q = vi.mocked(prismaModule.prisma.invoice.findMany).mock.calls.at(-1)![0] as any;
     expect(q.where).toMatchObject({ tenantId: "t1", cashRemitStatus: "REMITTED" });
+  });
+
+  // M8 (audit 2026-10-18): query hanya menyaring cashRemitStatus REMITTED — TANPA
+  // filter metode. Nilai REMITTED pada invoice transfer/QRIS = sisa kode lama
+  // (markInvoicePaid kini menulis null utk non-CASH) → 8 invoice transfer/QRIS
+  // ikut tampil sebagai baris "Riwayat Setoran Kas" (Rp4.340.000 pada Jaya Mandiri).
+  it("M8 — TRANSFER/QRIS ber-REMITTED (sisa kode lama) TIDAK tampil di Riwayat Setoran Kas", async () => {
+    state.invoices = [
+      { id: "c1", tenantId: "t1", docType: "INVOICE", status: "PAID", payMethod: "CASH",
+        cashRemitStatus: "REMITTED", createdById: "tech-1", number: "INV/1", total: 50000,
+        remittedAt: new Date("2026-10-17T10:00:00Z"), remittedById: null, remitProofUrl: null },
+      { id: "t1", tenantId: "t1", docType: "INVOICE", status: "PAID", payMethod: "TRANSFER",
+        cashRemitStatus: "REMITTED", createdById: "tech-1", number: "INV/2", total: 70000,
+        remittedAt: null, remittedById: null, remitProofUrl: null },
+      { id: "q1", tenantId: "t1", docType: "INVOICE", status: "PAID", payMethod: "QRIS",
+        cashRemitStatus: "REMITTED", createdById: "tech-1", number: "INV/3", total: 80000,
+        remittedAt: null, remittedById: null, remitProofUrl: null },
+    ];
+    const rows = await getRemittances("t1");
+    expect(rows.map((r) => r.number)).toEqual(["INV/1"]);
+  });
+
+  it("M8 — query riwayat setoran menyaring TUNAI (guard di query)", async () => {
+    state.invoices = [];
+    await getRemittances("t1");
+    const q = vi.mocked(prismaModule.prisma.invoice.findMany).mock.calls.at(-1)![0] as any;
+    expect(q.where).toMatchObject({ tenantId: "t1", cashRemitStatus: "REMITTED", payMethod: "CASH" });
+  });
+});
+
+// M9 (audit 2026-10-18): pengelompokan per createdById TIDAK memeriksa peran.
+// Kasus live Jaya Mandiri: 7 dari 8 baris "Kas Belum Disetor" dipegang Pak Budi
+// yang rolenya OWNER — kartu menyebutnya "teknisi".
+describe("M9 — pemegang uang dijuluki menurut PERAN sebenarnya (bukan selalu teknisi)", () => {
+  it("pemegang OWNER tampil berperan — bukan disebut teknisi", async () => {
+    state.invoices = [
+      { id: "a", tenantId: "t1", docType: "INVOICE", status: "PAID", payMethod: "CASH",
+        cashRemitStatus: "HELD_BY_TECH", createdById: "owner-1", number: "INV/A", total: 100000 },
+    ];
+    state.users = [{ id: "owner-1", name: "Pak Budi", role: "OWNER" }];
+    const r = await getUnremittedCashByHolder("t1");
+    expect(r).toEqual([{ holderId: "owner-1", holderName: "Pak Budi", holderRole: "OWNER", total: 100000, count: 1, invoiceIds: ["a"] }]);
+  });
+
+  it("peran ikut diminta dari User (guard di query)", async () => {
+    state.invoices = [
+      { id: "a", tenantId: "t1", docType: "INVOICE", status: "PAID", payMethod: "CASH",
+        cashRemitStatus: "HELD_BY_TECH", createdById: "owner-1", number: "INV/A", total: 100000 },
+    ];
+    await getUnremittedCashByHolder("t1");
+    const q = vi.mocked(prismaModule.prisma.user.findMany).mock.calls.at(-1)![0] as any;
+    expect(q.select).toMatchObject({ id: true, name: true, role: true });
   });
 });

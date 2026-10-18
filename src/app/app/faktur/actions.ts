@@ -15,7 +15,9 @@ export type InvoiceListItem = {
   id: string; number: string; docType: string; status: string;
   total: number; issueDate: string | null; dueDate: string | null; customerName: string;
   // L6 (K1/K3/K4): kolom posisi uang utk label dari satu sumber (money-position.ts).
+  // M7/K13: `remittedAt` ikut dipilih agar tunai disetor TANPA jejak diberi label jujur.
   payMethod: string | null; cashRemitStatus: string | null; verifiedAt: Date | null;
+  remittedAt: Date | null;
 };
 
 function toMessage(err: unknown, fallback: string) {

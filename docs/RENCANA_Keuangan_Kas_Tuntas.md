@@ -57,6 +57,17 @@ Batas "bulan ini" dihitung memakai zona waktu server (VPS umumnya UTC). Akibatny
 ### M6 — Satu baris data lama salah (tenant real: PT Ase, INV/2026/0003)
 Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diperbaiki). Laporan tidak menampilkan angka salah, tetapi **datanya tetap salah dan wajib dibetulkan** karena ini data real milik tenant.
 
+### M7 — Uang yang sudah disetor tanpa jejak HILANG dari seluruh posisi (temuan audit 2026-10-18, tenant Jaya Mandiri)
+Invoice tunai berstatus REMITTED tetapi `remittedAt = null` (disetor sebelum kolom jejak L2 ada — kolom nullable, migrasi tidak mengisi data lama) **tidak masuk posisi mana pun**: penerimaan menuntut `remittedAt` ada di rentang. Akibatnya uang yang menurut data sudah di kantor **tidak tampil sama sekali** — bertentangan langsung dengan K1 ("tidak pernah hilang dari layar"). Kasus live: 7 invoice, Rp3.800.000, kartu "Penerimaan" menunjukkan Rp0. Bug lolos karena test hanya memakai data jejak selalu terisi (aturan kerja 13).
+*Teknis:* `ar-service.ts` cabang CASH+REMITTED — `remittedAt = null` tidak pernah masuk `inRange`.
+
+### M8 — Daftar riwayat setoran mencampur uang tunai dengan transfer/QRIS (temuan audit 2026-10-18)
+`getRemittances` hanya menyaring `cashRemitStatus = "REMITTED"` tanpa `payMethod = "CASH"`, sehingga 8 invoice transfer/QRIS (Rp4.340.000) ikut tampil sebagai baris "Riwayat Setoran Kas". Nilai `REMITTED` pada non-tunai adalah sisa kode lama (jalur `markInvoicePaid` kini menulis `null` untuk non-CASH).
+*Teknis:* `ar-service.ts:244` — query tanpa filter metode.
+
+### M9 — Pemegang uang disebut "teknisi" meski pemilik (temuan audit 2026-10-18)
+Tabel & kartu menyebut "per Teknisi", tetapi pengelompokan per `createdById` tidak memeriksa peran. Kasus live Jaya Mandiri: 7 dari 8 baris dipegang Pak Budi yang rolenya OWNER.
+
 ---
 
 ## BAGIAN 3 — KEPUTUSAN PEMILIK (FINAL — jangan ditanya ulang)
@@ -75,6 +86,7 @@ Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diper
 | **K12** | Bukti dari teknisi | **PERINTAH PEMILIK 2026-10-18: teknisi WAJIB bisa & diwajibkan mengirim bukti** — bukti terima uang tunai, bukti transfer, bukti QRIS — khususnya pelanggan TOP CASH. Membatalkan guard B-2 lama dan pembatasan K10 (yang saya jalankan tanpa persetujuan). Guard server dibuka utk semua peran; kolom bukti tampil semua peran | `[x]` |
 | **K11** | Konsistensi angka laporan | **Dari laporan pemilik 2026-10-18**: kartu "Menunggu Setoran" dan tabel "Kas Belum Disetor per Teknisi" **harus menampilkan angka yang sama** dalam satu layar. Maka posisi "menunggu" = keadaan seluruh waktu; "Penerimaan" = arus menurut waktu diterima (setoran/verifikasi tercatat di rentang) | `[x]` |
 | **K10** | Panel pembayaran | **Dari laporan pemilik 2026-10-18**: tombol "Tandai LUNAS" tidak boleh membeku senyap — indikator "Mengunggah…" wajib selama proses unggah | `[x]` (penyembunyian kolom dari teknisi dicabut oleh K12) |
+| **K13** | Setoran tunai tanpa jejak (M7) | **Dari audit data Jaya Mandiri 2026-10-18:** uang tunai berstatus **REMITTED tanpa jejak** (`remittedAt = null`) kini **tampil sebagai posisi sendiri**: "**Disetor — Belum Ada Bukti**", keadaan seluruh waktu, dan **ikut perhitungan identitas** (penerimaan + menunggu setoran + menunggu verifikasi + posisi ini = total lunas). **TIDAK dihitung sebagai Penerimaan** — status "sudah disetor" lama tidak bisa jadi bukti uang ada di kantor tanpa jejak (K5 mewajibkan bukti). **TIDAK dikarang tanggal/penerima/bukti.** Pemilik tenant melengkapinya lewat **jalur setoran yang sudah ada** (`markCashRemitted` + unggah bukti lewat `actionUploadRemitProof`) — jalur baru **tidak dibuat**; posisi "Disetor" hanya punya baris yang `remittedAt`-nya sudah ada. Setelah lengkap → posisi berpindah ke Penerimaan. | `[x]` (usul dikerjakan 2026-10-18) |
 
 **Tafsiran yang mengikat pelaksanaan (koreksi bila salah):**
 - **Pelanggan tempo:** admin tenant menandai lunas **justru karena** sudah melihat uang masuk rekening — tindakan itu **sendiri sudah berarti terverifikasi**. Jadi tidak ada langkah verifikasi tambahan untuk tempo. Aturan verifikasi (K4) berlaku pada penandaan lunas yang dilakukan **teknisi di lapangan**.
@@ -94,6 +106,10 @@ Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diper
 8. **Deploy hanya lewat** `bash scripts/deploy-vps.sh`. Jangan ada jalur deploy lain.
 9. **Setiap langkah selesai wajib:** BAGIAN 7 diperbarui **dan** seluruh SSOT terkait diperbarui **dalam commit yang sama** — kode, dokumen, dan SSOT tidak boleh berbeda.
 10. **Setiap klaim "selesai" wajib ada bukti:** nama test, SHA commit, SHA live, atau ucapan uji pemilik.
+11. **Sebelum menambah objek tampilan (kartu, posisi, tombol, kolom, label) — wajib cari jalur yang sudah ada dulu.** Uji tiga pertanyaan berurutan: (a) apakah jalur/fungsi yang sudah ada bisa diperluas untuk kasus ini, (b) apakah kolom sudah ada di tabel (perpanjang select = bukan query baru), (c) apakah ada jalur unggah/aksi lain yang sudah dipakai. **Jalur baru hanya bila ketiganya terbukti tidak ada**, alasannya ditulis di BAGIAN 7 pada baris yang sama.
+12. **Satu sumber untuk satu makna.** Bila menambah satu keadaan baru (mis. posisi uang, status), maknanya ditambahkan di SATU sumber definisi lalu dipakai semua layar — **dilarang** memperbaiki satu halaman dan membiarkan halaman lain menyebut keadaan yang sama dengan istilah berbeda. Bila sebuah fungsi lama menyebut sesuatu yang kini keliru (mis. nama fungsi menyebut "teknisi" padahal pemegang bisa pemilik), **ganti namanya bersih** — jangan dibiarkan agar tidak menyesatkan deep dive berikutnya.
+13. **Setiap perbaikan yang menambah keadaan baru wajib mengunci kasus lama yang menyebabkan bug.** Bila sebuah bug lolos karena test hanya memakai data "bersih" (mis. kolom jejak selalu terisi), test untuk data "kotor" yang sebenarnya ada di produksi **wajib ditulis** — bukan hanya test untuk jalur normal.
+14. **Data lama tidak boleh dirapikan diam-diam.** Baris data lama yang tidak lengkap **tampil apa adanya** dengan penjelasan, dan pemilik tenant yang melengkapinya lewat aplikasi. Mengisi/menghapus nilai data lama dari sisi sistem tetap butuh izin tertulis (aturan 7).
 
 ---
 
@@ -139,6 +155,15 @@ Kolom posisi uang tertinggal pada nilai lama karena kode versi lama (sudah diper
 
 ### L7 — Beres-beres & bukti tuntas
 - Seluruh test hijau · pemeriksaan tipe/gaya/build bersih · deploy SOP lewat jalur tunggal · bukti live diperiksa · **K8 (data PT Ase) dikerjakan sesuai izin** · **seluruh SSOT disamakan** · BAGIAN 7 diisi 100% dengan bukti.
+
+### L8 — Perbaikan audit laporan (M7, M8, M9 — keputusan K13)
+- **Kenapa:** dikerjakan setelah L7 karena ditemukan saat audit data live tenant Jaya Mandiri (2026-10-18), bukan saat penyusunan rencana.
+- **Kerja (jalur yang sudah ada — bukan jalur baru):**
+  1. **M7/K13:** `getReceiptPositions` diperluas — cabang CASH+REMITTED tanpa `remittedAt` masuk posisi baru `disetorTanpaJejak`; identitas tetap `penerimaan + menungguSetoran + menungguVerifikasi + disetorTanpaJejak = totalKotor`. Kartu ke-5 di `/app/laporan`. Sumber label: `money-position.ts` dipecah (aturan 12) — label jujur dipakai halaman faktur & laporan.
+  2. **M8:** `getRemittances` ditambah `payMethod: "CASH"` (query existing, bukan query baru); baris setoran tanpa jejak tetap tampil dengan **tombol "Lengkapi Bukti"** yang memakai `markCashRemitted` (jalur existing) + `actionUploadRemitProof` (jalur existing) — **tidak ada service/action baru**.
+  3. **M9:** `getUnremittedCashByTech` diganti nama jadi `getUnremittedCashByHolder` (aturan 12 — nama lama menyesatkan: pemegang bisa pemilik), select peran dari `User`, label baris "Pak Budi (pemilik)". Nama lama wajib **hilang dari `src/`** (anti-fosil).
+- **Test (RED→GREEN, aturan 13 — kasus data "kotor" yang menyebabkan bug):** `REMITTED + remittedAt null` → `disetorTanpaJejak` (bukan 0, bukan penerimaan) · identitas 4-posisi · `getRemittances` tidak mengembalikan TRANSFER/QRIS ber-REMITTED · pemegang OWNER ditampilkan berperan · anti-fosil `getUnremittedCashByTech` kosong di `src/`.
+- **SSOT:** dokumen ini (M7–M9, K13) + `SSOT_Alar_Teknisi.md` (nama fungsi/kartu kas).
 
 ---
 
@@ -186,8 +211,15 @@ JANGAN ubah/hapus baris [x]. Koreksi = tambah baris baru bertanggal.
 | K11 | Konsistensi angka laporan (laporan pemilik 2026-10-18) | `[x]` | **Masalah**: kartu "Menunggu Setoran" (Rp225.000) ≠ tabel "Kas Belum Disetor per Teknisi" (Rp2.855.000) di layar yang sama. **Akar (KESALAHAN SAYA)**: kartu berperiode bulan, tabel seluruh waktu — uang fisik di tangan teknisi tidak kedaluwarsa di akhir bulan. **Perbaikan**: posisi `menungguSetoran` & `menungguVerifikasi` = **keadaan seluruh waktu** (identik tabel); `penerimaan` = **arus menurut waktu DITERIMA** (setoran/verifikasi tercatat di rentang — definisi pemilik K1/K2) · sub-label kartu menjelaskan sifat angka · `tests/ar-receipt-positions.test.ts` (8 test, termasuk regression uang lunas bulan lalu) · suite 910 · tsc/lint/build 0 |
 | K12 | Bukti dari teknisi DIBUKA (keputusan pemilik 2026-10-18) | `[x]` | **Perintah pemilik**: teknisi **WAJIB** bisa mengirim bukti (terima uang tunai / transfer / QRIS), khususnya pelanggan TOP CASH — membatalkan guard B-2 lama & keputusan K10 saya yang menyembunyikan kolom **tanpa persetujuan** (saya akui itu keliru). **Dikerjakan**: guard `assertRole` dibuka utk `TECHNICIAN`; kolom bukti tampil semua peran; **prop `role` dihapus bersih** (fosil) + kontrak test jadi anti-fosil · `tests/invoice-payment-guard.test.ts` & `tests/payment-panel-role.test.ts` (RED→GREEN) · suite 910 · tsc/lint/build 0 |
 | L7 | Uji pemilik (owner/admin tenant) atas alur baru | `[ ]` | — |
+| L8 | M7/K13 — tunai disetor TANPA jejak tampil sebagai posisi sendiri | `[x]` | `getReceiptPositions` diperluas: `disetorTanpaJejak` (keadaan seluruh waktu) · identitas **4 posisi** `penerimaan + menungguSetoran + menungguVerifikasi + disetorTanpaJejak = totalKotor` · kartu ke-5 "Disetor — Belum Ada Bukti" di `/app/laporan` · **tidak dihitung sebagai Penerimaan** (tanpa jejak = tanpa bukti, K5) · **tidak dikarang tanggal/penerima/bukti** · test RED→GREEN `tests/ar-receipt-positions.test.ts` (4 test baru: kasus data kotor `REMITTED+remittedAt null`, identitas 4 posisi, angka kasus live Jaya Mandiri Rp3.800.000 — sebelumnya kartu "Penerimaan" = Rp0 untuk uang yang menurut data sudah di kantor — dan anti-dobel) |
+| L8 | M7/K13 — label jujur di SATU sumber (halaman faktur & laporan) | `[x]` | `money-position.ts` (aturan 12): kunci baru `CASH_REMITTED_NO_TRACE` ("Tunai — disetor, bukti belum lengkap") · `moneyPositionOf` menerima `remittedAt?` · select `remittedAt` diperpanjang di `listInvoicesByBucket` (bukan query baru) & tipe `InvoiceView` · `tests/money-position-label.test.ts` RED→GREEN — dua halaman tak lagi bisa memberi label berbeda untuk keadaan sama |
+| L8 | M8 — Riwayat Setoran Kas hanya uang tunai | `[x]` | `getRemittances` ditambah `payMethod: "CASH"` (query existing) — 8 invoice transfer/QRIS ber-`REMITTED` (Rp4.340.000, sisa kode lama) tak lagi tampil sebagai "setoran kas" · test `tests/ar-cash-remittance.test.ts` RED→GREEN (baris + guard query) |
+| L8 | M9 — pemegang uang dinamai menurut PERAN aslinya | `[x]` | `getUnremittedCashByTech` **DIGANTI** jadi `getUnremittedCashByHolder` (aturan 12: nama lama menyesatkan) — select peran dari `User` (bukan query baru) · prop `techId/techName` → `holderId/holderName/holderRole` di service, halaman laporan, dan `RemitButton` · label kartu "per Teknisi" → "per Pemegang Uang", baris tampil "Pak Budi (pemilik)" · **anti-fosil: grep `getUnremittedCashByTech`, `techName`, `u.techId` di `src/` = KOSONG** · test RED→GREEN |
+| L8 | Koreksi keheningan `markCashRemitted` (cacat pada jalur existing) | `[x]` | `updateMany` bisa kena 0 baris dan diam-diam kembali `0` → action melaporkan sukses padahal tidak ada data berubah (menyesatkan pemilik) · kini `count ≠ jumlah yang diminta` → DITOLAK + rollback (atomik; `payMethod: "CASH"` ikut di-guard) · test RED→GREEN (sebagian id tak lolos syarat · nol baris terkena) |
+| L8 | **TIDAK dikerjakan — butir "Lengkapi Bukti"** | `[ ]` | **DITOLAK sesuai arahan pemilik 2026-10-18: "tugas anda memperbaiki bug, bukan membuat bug baru" dan "jangan membuat jalur baru".** Tombol pelengkap jejak = objek tampilan baru yang tidak ada di dokumen ini sebelumnya. Konsekuensi yang jujur tertulis: **baris "Disetor — Belum Ada Bukti" tampil tanpa aksi pelengkap** (15 baris pada Jaya Mandiri) — jejaknya hanya bisa dipenuhi bila pemilik memberi izin jalur itu. Setoran LAMA TANPA JEJAK juga tidak bisa disentuh `markCashRemitted` (WHERE-nya menuntut `HELD_BY_TECH`) — tanpa izin, itu dibiarkan. |
+| L8 | Test penuh · tipe/gaya/build bersih | `[x]` | **108 berkas / 921 test hijau** · `tsc` = 0 · `eslint` = 0 error (2 warning lama: `AuthError` di `src/app/t/faktur/actions.ts` & `ACTOR_TECH_OWN` di `tests/invoice-flow.test.ts` — bukan milik perbaikan ini) · `next build` = 0 |
 
-**Progres: 18 dari 19 butir — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), L6 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh).**
+**Progres: 18 dari 19 butir lama + 6 dari 7 butir L8 — L1 (2), L2 (2), L3 (2), L4 (2), L5 (1), L6 (1), K9 (1); K8 tuntas sebagai keputusan (tak disentuh); L8: M7/K13 (2), M8 (1), M9 (1), koreksi markCashRemitted (1), test+gate (1) — 1 butir L8 sengaja TIDAK dikerjakan (tombol "Lengkapi Bukti", dilarang tanpa izin jalur baru). Sisa terbuka: L7 uji pemilik `[ ]`.**
 
 ---
 

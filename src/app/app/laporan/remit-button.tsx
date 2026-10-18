@@ -16,14 +16,18 @@ import { Icon } from "@/components/icons";
 import { actionMarkCashRemitted, actionUploadRemitProof } from "./actions";
 
 /**
- * Tombol "Tandai Sudah Disetor" untuk kumpulan kas 1 teknisi (K17).
+ * Tombol "Tandai Sudah Disetor" untuk kumpulan kas satu pemegang uang (K17 + M9).
  *
  * L2 / K5 (2026-10-17): setoran kini MENINGGALKAN JEJAK — dialog unggah foto bukti
  * (diunggah lewat server → S3, scope yang sama dengan bukti bayar) + admin penerima
  * diisi otomatis dari sesi perekam. Setoran tanpa bukti TIDAK BISA dicatat.
  * Mengganti confirm() bawaan browser → memakai Dialog dari pustaka UI yang ada.
+ *
+ * M9 (2026-10-18): pemegang uang BUKAN selalu teknisi (bisa pemilik) — prop pemilik
+ * lama diganti `holderName` (aturan 12: nama yang menyesatkan diganti bersih, bukan
+ * dibiarkan).
  */
-export function RemitButton({ techName, invoiceIds }: { techName: string; invoiceIds: string[] }) {
+export function RemitButton({ holderName, invoiceIds }: { holderName: string; invoiceIds: string[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -54,7 +58,7 @@ export function RemitButton({ techName, invoiceIds }: { techName: string; invoic
     start(async () => {
       const res = await actionMarkCashRemitted(invoiceIds, proofUrl);
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success(`Setoran ${techName} dicatat (${res.data!.count} transaksi)`);
+      toast.success(`Setoran ${holderName} dicatat (${res.data!.count} transaksi)`);
       setDone(true);
       setOpen(false);
       router.refresh();
@@ -78,7 +82,7 @@ export function RemitButton({ techName, invoiceIds }: { techName: string; invoic
           <DialogHeader>
             <DialogTitle>Catat Setoran Kas</DialogTitle>
             <DialogDescription>
-              Setoran dari {techName} ({invoiceIds.length} transaksi).
+              Setoran dari {holderName} ({invoiceIds.length} transaksi).
             </DialogDescription>
           </DialogHeader>
 

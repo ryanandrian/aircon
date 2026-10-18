@@ -14,7 +14,8 @@
 
 export type MoneyPositionKey =
   | "CASH_HELD"        // tunai lunas, belum disetor ke kantor
-  | "CASH_REMITTED"    // tunai sudah disetor (tercatat + berbukti)
+  | "CASH_REMITTED"    // tunai sudah disetor + jejak bukti lengkap
+  | "CASH_REMITTED_NO_TRACE" // tunai ditandai disetor TANPA jejak bukti (M7/K13, data lama)
   | "TRANSFER_UNVERIFIED"
   | "TRANSFER_VERIFIED"
   | "QRIS_UNVERIFIED"
@@ -43,6 +44,12 @@ export const MONEY_POSITION: Record<MoneyPositionKey, MoneyPosition> = {
     label: "Tunai — sudah disetor",
     hint: "Uang tunai sudah disetor ke kantor dan tercatat.",
     color: "bg-emerald-100 text-emerald-700",
+  },
+  CASH_REMITTED_NO_TRACE: {
+    key: "CASH_REMITTED_NO_TRACE",
+    label: "Tunai — disetor, bukti belum lengkap",
+    hint: "Status sudah disetor, tetapi jejak buktinya belum ada (data setoran lama). Uang tetap tampil agar tidak hilang dari laporan.",
+    color: "bg-amber-100 text-amber-700",
   },
   TRANSFER_UNVERIFIED: {
     key: "TRANSFER_UNVERIFIED",
@@ -79,14 +86,21 @@ export const MONEY_POSITION: Record<MoneyPositionKey, MoneyPosition> = {
 /**
  * Tentukan posisi uang dari kolom invoice. HANYA berlaku untuk invoice LUNAS;
  * pemanggil wajib memastikan statusnya PAID (invoice belum lunas bukan "posisi uang").
+ *
+ * M7/K13 (2026-10-18): tunai REMITTED TANPA `remittedAt` (data setoran lama, jejak
+ * belum ada) dibedakan dari tunai REMITTED berjejak lengkap — status "sudah disetor"
+ * saja tidak cukup untuk mengklaim uangnya sudah di kantor dengan bukti.
  */
 export function moneyPositionOf(inv: {
   payMethod: string | null;
   cashRemitStatus: string | null;
   verifiedAt: Date | null;
+  /** Waktu setoran (jejak L2) — null = setoran lama tanpa jejak (M7/K13). */
+  remittedAt?: Date | null;
 }): MoneyPosition {
   if (inv.payMethod === "CASH") {
-    return inv.cashRemitStatus === "REMITTED" ? MONEY_POSITION.CASH_REMITTED : MONEY_POSITION.CASH_HELD;
+    if (inv.cashRemitStatus !== "REMITTED") return MONEY_POSITION.CASH_HELD;
+    return inv.remittedAt ? MONEY_POSITION.CASH_REMITTED : MONEY_POSITION.CASH_REMITTED_NO_TRACE;
   }
   if (inv.payMethod === "TRANSFER") {
     return inv.verifiedAt ? MONEY_POSITION.TRANSFER_VERIFIED : MONEY_POSITION.TRANSFER_UNVERIFIED;

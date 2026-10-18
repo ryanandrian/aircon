@@ -283,8 +283,9 @@ export async function listInvoicesByBucket(
       issueDate: true, dueDate: true, customer: { select: { name: true } },
       // L6 (K1/K3/K4): kolom posisi uang agar daftar bisa menampilkan labelnya
       // dari satu sumber (src/lib/copy/money-position.ts) — perpanjangan select,
-      // BUKAN query baru.
-      payMethod: true, cashRemitStatus: true, verifiedAt: true,
+      // BUKAN query baru. M7/K13: remittedAt dibutuhkan untuk membedakan tunai
+      // disetor berjejak lengkap vs tanpa jejak (label jujur di satu sumber).
+      payMethod: true, cashRemitStatus: true, verifiedAt: true, remittedAt: true,
     },
   });
   const hasMore = rows.length > limit;
@@ -299,6 +300,7 @@ export async function listInvoicesByBucket(
       payMethod: r.payMethod as string | null,
       cashRemitStatus: r.cashRemitStatus as string | null,
       verifiedAt: r.verifiedAt,
+      remittedAt: r.remittedAt,
     })),
     nextCursor: hasMore ? page[page.length - 1].id : null,
   };

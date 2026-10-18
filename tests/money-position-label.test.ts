@@ -14,10 +14,24 @@ describe("L6 — kontrak sumber label posisi uang", () => {
 
   it("CASH: belum disetor vs sudah disetor dibedakan tegas", () => {
     expect(moneyPositionOf({ ...base, payMethod: "CASH", cashRemitStatus: "HELD_BY_TECH" }).label).toBe("Tunai — di teknisi");
-    expect(moneyPositionOf({ ...base, payMethod: "CASH", cashRemitStatus: "REMITTED" }).label).toBe("Tunai — sudah disetor");
+    expect(moneyPositionOf({ ...base, payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: new Date() }).label).toBe("Tunai — sudah disetor");
     // CASH tanpa label juga = belum disetor (K9: label baru ada setelah pembayaran dicatat;
     // cashRemitStatus null pada cash lunas = belum pernah disetor)
     expect(moneyPositionOf({ ...base, payMethod: "CASH", cashRemitStatus: null }).label).toBe("Tunai — di teknisi");
+  });
+
+  // M7/K13 (audit 2026-10-18): tunai REMITTED TANPA jejak (`remittedAt` null) — data
+  // setoran lama. SATU sumber label (aturan 12) → halaman faktur dan laporan tidak boleh
+  // memberi label berbeda untuk keadaan yang sama. Kasus live: 7 invoice, Rp3.800.000.
+  it("M7/K13: tunai disetor TANPA jejak punya label SENDIRI — bukan 'sudah disetor', bukan 'di teknisi'", () => {
+    const noTrace = moneyPositionOf({ ...base, payMethod: "CASH", cashRemitStatus: "REMITTED", remittedAt: null });
+    expect(noTrace.key).toBe("CASH_REMITTED_NO_TRACE");
+    expect(noTrace.label).not.toBe(MONEY_POSITION.CASH_REMITTED.label);
+    expect(noTrace.label).not.toBe(MONEY_POSITION.CASH_HELD.label);
+    // Jangan pernah mengklaim bukti lengkap untuk baris yang jejaknya kosong.
+    expect(noTrace.label.toLowerCase()).not.toContain("sudah disetor");
+    expect(noTrace.hint.length).toBeGreaterThan(0);
+    expect(noTrace.color.length).toBeGreaterThan(0);
   });
 
   it("TRANSFER/QRIS: terverifikasi vs menunggu dicek dibedakan tegas", () => {
@@ -40,7 +54,7 @@ describe("L6 — kontrak sumber label posisi uang", () => {
   });
 
   it("label tak pernah menyebut 'terverifikasi' untuk tunai (verifikasi = urusan transfer/QRIS)", () => {
-    for (const p of [MONEY_POSITION.CASH_HELD, MONEY_POSITION.CASH_REMITTED]) {
+    for (const p of [MONEY_POSITION.CASH_HELD, MONEY_POSITION.CASH_REMITTED, MONEY_POSITION.CASH_REMITTED_NO_TRACE]) {
       expect(p.label.toLowerCase()).not.toContain("terverifikasi");
     }
   });

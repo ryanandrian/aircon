@@ -518,10 +518,10 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 4,
     whatIsIt:
-      "Ringkasan keuangan usaha: pendapatan, kas yang belum disetor per teknisi, dan insentif personel bulan ini.",
+      "Ringkasan keuangan usaha: pendapatan, kas yang belum disetor per pemegang uang, dan insentif personel bulan ini.",
     steps: [
       "Lihat ringkasan pendapatan usaha Anda.",
-      "Periksa 'Kas Belum Disetor per Teknisi' untuk menagih setoran dari teknisi lapangan.",
+      "Periksa 'Kas Belum Disetor per Pemegang Uang' untuk menagih setoran dari orang yang memegang uang (teknisi lapangan atau pemilik).",
       "Lihat 'Insentif Personel Bulan Ini' bila usaha Anda menerapkan insentif.",
     ],
     tips: [

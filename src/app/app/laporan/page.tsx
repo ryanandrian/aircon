@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
 import {
   getAccountsReceivable, getOverdueInvoices, getReceiptPositions, getRemittances,
-  getUnremittedCashByTech, refreshOverdueStatus,
+  getUnremittedCashByHolder, refreshOverdueStatus,
 } from "@/lib/services/ar-service";
 import { computeIncentives } from "@/lib/services/incentive-service";
 import { prisma } from "@/lib/prisma";
@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 
 const rp = (n: number) => "Rp" + n.toLocaleString("id-ID");
 const fmt = (d: Date | null) => d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+// M9: peran pemegang uang ditulis menurut apa adanya — bukan selalu "teknisi".
+const HOLDER_ROLE: Record<string, string> = { OWNER: "pemilik", ADMIN: "admin", TECHNICIAN: "teknisi" };
 
 export default async function LaporanPage() {
   const ctx = await tryGetServerContext();
@@ -36,7 +38,7 @@ export default async function LaporanPage() {
     getAccountsReceivable(ctx.tenantId, now),
     getOverdueInvoices(ctx.tenantId, now),
     getReceiptPositions(ctx.tenantId, monthStart, monthEnd),
-    getUnremittedCashByTech(ctx.tenantId),
+    getUnremittedCashByHolder(ctx.tenantId),
     getRemittances(ctx.tenantId),
   ]);
   const incentiveEnabled = tenantCfg?.incentiveEnabled ?? false;
@@ -51,14 +53,19 @@ export default async function LaporanPage() {
 
         {/* Ringkasan posisi uang (L4 / K1): Penerimaan = HANYA uang yang sudah
             terverifikasi masuk; sisanya tampil terpisah — tidak pernah hilang. */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Stat label="Total Piutang" value={rp(ar.total)} tone="sky" />
           {/* K11 (2026-10-18): Penerimaan = ARUS bulan ini (diterima bulan ini);
-              dua posisi "menunggu" = KEADAAN seluruh waktu — identik dengan tabel
-              di bawah, jadi tak pernah lagi angka beda dalam satu layar. */}
+              posisi "menunggu" & "disetor tanpa jejak" = KEADAAN seluruh waktu —
+              identik dengan tabel di bawah, jadi tak pernah lagi angka beda dalam
+              satu layar. */}
           <Stat label="Penerimaan Bulan Ini (sudah masuk)" value={rp(pos.penerimaan.total)} sub={`${pos.penerimaan.count} invoice`} tone="emerald" />
-          <Stat label="Menunggu Setoran (di teknisi)" value={rp(pos.menungguSetoran.total)} sub={`${pos.menungguSetoran.count} invoice · seluruh waktu`} tone="amber" />
+          <Stat label="Menunggu Setoran (di tangan pemegang)" value={rp(pos.menungguSetoran.total)} sub={`${pos.menungguSetoran.count} invoice · seluruh waktu`} tone="amber" />
           <Stat label="Menunggu Verifikasi (transfer/QRIS)" value={rp(pos.menungguVerifikasi.total)} sub={`${pos.menungguVerifikasi.count} invoice · seluruh waktu`} tone="violet" />
+          {/* M7/K13: tunai SUDAH ditandai disetor tapi jejak buktinya kosong (data
+              setoran lama). Tampil terpisah — bukan hilang, bukan diklaim masuk kantor
+              tanpa bukti (K5). */}
+          <Stat label="Disetor — Belum Ada Bukti" value={rp(pos.disetorTanpaJejak.total)} sub={`${pos.disetorTanpaJejak.count} invoice · jejak setoran lama belum tercatat`} tone="amber" />
         </div>
 
         {/* Aging piutang */}
@@ -100,19 +107,23 @@ export default async function LaporanPage() {
         {/* Setoran kas teknisi (K17) */}
         <Card>
           <CardContent className="p-5">
-            <h2 className="mb-1 text-sm font-bold text-foreground">Kas Belum Disetor per Teknisi</h2>
+            <h2 className="mb-1 text-sm font-bold text-foreground">Kas Belum Disetor per Pemegang Uang</h2>
             <p className="mb-3 text-xs text-muted-foreground">Uang tunai dari invoice lunas yang belum disetor — terus tampil sampai admin mencatat setorannya, lintas periode (K3).</p>
             {unremitted.length === 0 ? (
               <p className="text-sm text-muted-foreground">Semua kas sudah disetor. 👍</p>
             ) : (
               <div className="space-y-2">
                 {unremitted.map((u) => (
-                  <div key={u.techId} className="flex items-center justify-between gap-3 rounded-xl border p-3">
+                  <div key={u.holderId} className="flex items-center justify-between gap-3 rounded-xl border p-3">
                     <div>
-                      <div className="text-sm font-medium text-foreground">{u.techName}</div>
+                      {/* M9: pemegang uang BUKAN selalu teknisi — tampil menurut peran
+                          aslinya (kasus live: pemilik memegang kas lapangan). */}
+                      <div className="text-sm font-medium text-foreground">
+                        {u.holderName}{u.holderRole ? <span className="ml-1 text-xs font-normal text-muted-foreground">({HOLDER_ROLE[u.holderRole] ?? u.holderRole})</span> : null}
+                      </div>
                       <div className="text-xs text-muted-foreground">{u.count} transaksi · {rp(u.total)}</div>
                     </div>
-                    <RemitButton techName={u.techName} invoiceIds={u.invoiceIds} />
+                    <RemitButton holderName={u.holderName} invoiceIds={u.invoiceIds} />
                   </div>
                 ))}
               </div>
@@ -136,7 +147,7 @@ export default async function LaporanPage() {
                   <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium text-foreground">
-                        {r.techName} → {r.receiverName ?? "belum tercatat"}
+                        {r.holderName} → {r.receiverName ?? "belum tercatat"}
                       </div>
                       <div className="font-mono text-xs text-muted-foreground">
                         {r.number} · {rp(r.total)} · disetor {fmt(r.remittedAt)}

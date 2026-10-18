@@ -63,24 +63,31 @@ export async function getOverdueInvoices(tenantId: string, asOf: Date = new Date
 
 export interface ReceiptPositions {
   /** ARUS periode: uang yang benar-benar DITERIMA kantor pada rentang ini
-   *  (setoran tercatat / verifikasi tercatat dalam rentang). */
+   * (setoran tercatat / verifikasi tercatat dalam rentang). */
   penerimaan: { total: number; count: number };
   /** KEADAAN saat ini (seluruh waktu): uang tunai lunas yang BELUM disetor —
    *  uang fisik di tangan teknisi tidak kedaluwarsa di akhir bulan (K3). */
   menungguSetoran: { total: number; count: number };
   /** KEADAAN saat ini (seluruh waktu): transfer/QRIS lunas BELUM diverifikasi (K4). */
   menungguVerifikasi: { total: number; count: number };
+  /** KEADAAN saat ini (seluruh waktu): tunai SUDAH ditandai REMITTED tetapi TANPA jejak
+   *  (`remittedAt` null) — setoran terjadi sebelum kolom jejak L2 ada (data lama).
+   *  M7/K13: baris ini TIDAK masuk posisi mana pun → uang hilang dari layar (melanggar K1).
+   *  BUKAN penerimaan: tanpa jejak (waktu/penerima/bukti, K5) tidak bisa dipastikan
+   *  uangnya benar ada di kantor — tampil terpisah, tidak pernah hilang, tidak dikarang. */
+  disetorTanpaJejak: { total: number; count: number };
   /** KEADAAN saat ini: seluruh invoice lunas — identitas snapshot:
-   *  totalKotor = penerimaan(all) + menungguSetoran + menungguVerifikasi. */
+   *  totalKotor = penerimaan(all) + menungguSetoran + menungguVerifikasi + disetorTanpaJejak. */
   totalKotor: number;
 }
 
 /**
- * Tiga posisi uang lunas pada periode (L4 — keputusan K1, 2026-10-17).
+ * Empat posisi uang lunas (L4 — keputusan K1, 2026-10-17; diperluas M7/K13, 2026-10-18).
  * Menggantikan `getReceipts` (F-01/M1: satu angka campur tiga posisi berbeda).
  *
  * Aturan:
- *  - CASH + REMITTED                  → penerimaan (uang sudah di kantor)
+ *  - CASH + REMITTED + jejak lengkap  → penerimaan (uang sudah di kantor, ada buktinya)
+ *  - CASH + REMITTED tanpa jejak      → disetorTanpaJejak (M7/K13: data lama tanpa bukti)
  *  - CASH lain (HELD_BY_TECH / null)  → menungguSetoran (dana fisik dipegang teknisi)
  *  - TRANSFER/QRIS + verifiedAt       → penerimaan (sudah dipastikan masuk rekening)
  *  - TRANSFER/QRIS tanpa verifikasi   → menungguVerifikasi (K4 — belum boleh dihitung)
@@ -92,10 +99,10 @@ export interface ReceiptPositions {
 export async function getReceiptPositions(
   tenantId: string, start: Date, end: Date,
 ): Promise<ReceiptPositions> {
-  // TANPA filter paidAt (KOREKSI K11, 2026-10-18): dua posisi "menunggu" adalah
-  // KEADAAN, jadi seluruh waktu — selaras dengan tabel "Kas Belum Disetor per
-  // Teknisi" (juga seluruh waktu). Kartu berperiode menyembunyikan uang yang SEDANG
-  // dipegang teknisi (laporan pemilik: kartu Rp225.000 vs tabel Rp2.855.000).
+  // TANPA filter paidAt (KOREKSI K11, 2026-10-18): posisi "menunggu" & "disetor tanpa
+  // jejak" adalah KEADAAN, jadi seluruh waktu — selaras dengan tabel "Kas Belum Disetor
+  // per Pemegang Uang" (juga seluruh waktu). Kartu berperiode menyembunyikan uang yang
+  // SEDANG dipegang orang (laporan pemilik: kartu Rp225.000 vs tabel Rp2.855.000).
   const rows = await prisma.invoice.findMany({
     where: { tenantId, docType: "INVOICE", status: "PAID" },
     select: {
@@ -103,15 +110,27 @@ export async function getReceiptPositions(
       remittedAt: true, verifiedAt: true,
     },
   });
-  const acc = { penerimaan: { total: 0, count: 0 }, menungguSetoran: { total: 0, count: 0 }, menungguVerifikasi: { total: 0, count: 0 }, totalKotor: 0 };
+  const acc = {
+    penerimaan: { total: 0, count: 0 },
+    menungguSetoran: { total: 0, count: 0 },
+    menungguVerifikasi: { total: 0, count: 0 },
+    disetorTanpaJejak: { total: 0, count: 0 },
+    totalKotor: 0,
+  };
   const inRange = (d: Date | null) => d !== null && d >= start && d <= end;
   for (const r of rows) {
     const amt = Number(r.total);
     acc.totalKotor += amt;
     if (r.payMethod === "CASH") {
       if (r.cashRemitStatus === "REMITTED") {
-        // Arus: diterima pada rentang KETIKA setoran dicatat.
-        if (inRange(r.remittedAt)) { acc.penerimaan.total += amt; acc.penerimaan.count += 1; }
+        if (!r.remittedAt) {
+          // M7/K13: setoran lama tanpa jejak — tampil TERPISAH (bukan hilang, bukan
+          // diklaim masuk kantor tanpa bukti).
+          acc.disetorTanpaJejak.total += amt; acc.disetorTanpaJejak.count += 1;
+        } else if (inRange(r.remittedAt)) {
+          // Arus: diterima pada rentang KETIKA setoran dicatat.
+          acc.penerimaan.total += amt; acc.penerimaan.count += 1;
+        }
       } else { acc.menungguSetoran.total += amt; acc.menungguSetoran.count += 1; }
     } else {
       // Transfer/QRIS (dan payMethod null — konservatif, tidak diklaim masuk).
@@ -138,13 +157,22 @@ export async function refreshOverdueStatus(tenantId: string, asOf: Date = new Da
   return res.count;
 }
 
-// ─────────── Setoran Kas Teknisi (K17) ───────────
+// ─────────── Setoran Kas — Pemegang Uang (K17) ───────────
+
+/** Peran pemegang uang (M9): diambil dari kolom User.role — pemegang BUKAN selalu
+ *  teknisi. Kasus live 2026-10-18: 7 dari 8 baris dipegang pemilik (Pak Budi). */
+export type CashHolderRole = "OWNER" | "ADMIN" | "TECHNICIAN";
 
 /**
- * Laporan kas belum disetor per teknisi (K17): invoice CASH lunas, cashRemitStatus HELD_BY_TECH.
- * Dikelompokkan per createdById (teknisi yang menutup sesi & memegang uang).
+ * Laporan kas belum disetor per PEMEGANG UANG (K17 + M9): invoice CASH lunas,
+ * cashRemitStatus HELD_BY_TECH. Dikelompokkan per createdById (orang yang menutup
+ * sesi & memegang uang fisik — teknisi di lapangan, atau pemilik yang menutup sesi).
+ * Nama + PERAN diambil dari User sehingga laporan menamai pemegang apa adanya (M9).
+ *
+ * Catatan anti-fosil (aturan kerja 12): nama fungsi sebelum 2026-10-18 ("per
+ * teknisi") dihapus bersama-sama — istilahnya menyesatkan ketika pemegangnya pemilik.
  */
-export async function getUnremittedCashByTech(tenantId: string) {
+export async function getUnremittedCashByHolder(tenantId: string) {
   const rows = await prisma.invoice.findMany({
     where: {
       tenantId, docType: "INVOICE", status: "PAID",
@@ -152,21 +180,24 @@ export async function getUnremittedCashByTech(tenantId: string) {
     },
     select: { id: true, number: true, total: true, paidAt: true, createdById: true },
   });
-  // Nama personel dari User.
+  // Nama + peran pemegang dari User (M9: role ikut dipilih agar tampilan jujur).
   const ids = [...new Set(rows.map((r) => r.createdById))];
   const users = ids.length
-    ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+    ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, role: true } })
     : [];
-  const nameOf = new Map(users.map((u) => [u.id, u.name]));
+  const userOf = new Map(users.map((u) => [u.id, u]));
 
-  const byTech = new Map<string, { techId: string; techName: string; total: number; count: number; invoiceIds: string[] }>();
+  const byHolder = new Map<string, { holderId: string; holderName: string; holderRole: CashHolderRole | null; total: number; count: number; invoiceIds: string[] }>();
   for (const r of rows) {
     const key = r.createdById;
-    if (!byTech.has(key)) byTech.set(key, { techId: key, techName: nameOf.get(key) ?? "—", total: 0, count: 0, invoiceIds: [] });
-    const g = byTech.get(key)!;
+    const u = userOf.get(key);
+    if (!byHolder.has(key)) {
+      byHolder.set(key, { holderId: key, holderName: u?.name ?? "—", holderRole: u?.role ?? null, total: 0, count: 0, invoiceIds: [] });
+    }
+    const g = byHolder.get(key)!;
     g.total += Number(r.total); g.count += 1; g.invoiceIds.push(r.id);
   }
-  return [...byTech.values()].sort((a, b) => b.total - a.total);
+  return [...byHolder.values()].sort((a, b) => b.total - a.total);
 }
 
 /**
@@ -202,10 +233,20 @@ export async function markCashRemitted(
   }
   const at = details.at ?? new Date();
   return prisma.$transaction(async (tx) => {
+    // Semuanya-atau-semua-batal: SELURUH invoice yang diminta WAJIB masih
+    // PAID + CASH + HELD_BY_TECH dalam tenant ini. Bila ada satu pun yang tidak
+    // memenuhi (sudah disetor, bukan tunai, milik tenant lain, bukan invoice) →
+    // 0 baris diubah, semuanya batal.
+    //
+    // PENTING (cacat yang diperbaiki): tanpa syarat `count === invoiceIds.length`
+    // ini, `updateMany` bisa mengenai 0 baris dan diam-diam kembali 0 — action
+    // melaporkan "sukses" padahal tidak ada data berubah (menyesatkan pemilik).
+    // Kini 0 baris tertangkap dan ditolak dengan pesan jelas.
     const res = await tx.invoice.updateMany({
       where: {
         tenantId, id: { in: invoiceIds },
-        docType: "INVOICE", status: "PAID", cashRemitStatus: "HELD_BY_TECH",
+        docType: "INVOICE", status: "PAID", payMethod: "CASH",
+        cashRemitStatus: "HELD_BY_TECH",
       },
       data: {
         cashRemitStatus: "REMITTED",
@@ -214,6 +255,13 @@ export async function markCashRemitted(
         remitProofUrl: proofUrl,
       },
     });
+    if (res.count !== invoiceIds.length) {
+      // Lempar di dalam transaksi → rollback (tidak ada setoran setengah jadi).
+      throw new ServiceError(
+        "CONFLICT",
+        "Setoran tidak dicatat: sebagian transaksi bukan lagi uang tunai yang menunggu setoran. Muat ulang halaman.",
+      );
+    }
     return res.count;
   });
 }
@@ -225,8 +273,8 @@ export interface RemittanceRow {
   paidAt: Date | null;
   /** Waktu setoran — null = setoran lama sebelum jejak ada (tetap tampil). */
   remittedAt: Date | null;
-  /** Teknisi yang memegang uang sebelum disetor. */
-  techName: string;
+  /** Pemegang uang sebelum disetor (M9: bisa teknisi, bisa pemilik). */
+  holderName: string;
   /** Admin tenant penerima setoran — null = setoran lama tanpa jejak. */
   receiverName: string | null;
   /** Foto bukti setoran (S3) yang bisa dibuka untuk audit. */
@@ -235,13 +283,17 @@ export interface RemittanceRow {
 
 /**
  * Daftar SETORAN kas untuk laporan tracing owner tenant (L5 / K5): per invoice —
- * siapa menyetor (teknisi) → siapa menerima (admin) → kapan → buktinya di mana.
+ * siapa menyetor (pemegang uang) → siapa menerima (admin) → kapan → buktinya di mana.
  * Baris setoran LAMA tanpa jejak tetap tampil (jejaknya kosong), tidak disembunyikan.
  * Tenant-scoped: hanya invoice milik tenant ini.
+ *
+ * HANYA UANG TUNAI (M8, 2026-10-18): transfer/QRIS bukan "setoran kas" — jalurnya
+ * verifikasi (K4), dan nilai `REMITTED` pada non-tunai adalah sisa kode lama yang
+ * kini tidak pernah lagi ditulis (`markInvoicePaid` menulis null utk non-CASH).
  */
 export async function getRemittances(tenantId: string): Promise<RemittanceRow[]> {
   const rows = await prisma.invoice.findMany({
-    where: { tenantId, docType: "INVOICE", cashRemitStatus: "REMITTED" },
+    where: { tenantId, docType: "INVOICE", payMethod: "CASH", cashRemitStatus: "REMITTED" },
     orderBy: { remittedAt: { sort: "desc", nulls: "last" } },
     select: {
       id: true, number: true, total: true, paidAt: true,
@@ -250,7 +302,7 @@ export async function getRemittances(tenantId: string): Promise<RemittanceRow[]>
     },
   });
 
-  // Nama teknisi pemegang & admin penerima (pola sama dengan getUnremittedCashByTech).
+  // Nama pemegang uang & admin penerima (pola sama dengan getUnremittedCashByHolder).
   const ids = [...new Set(rows.flatMap((r) => [r.createdById, r.remittedById]).filter((v): v is string => !!v))];
   const users = ids.length
     ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
@@ -263,7 +315,7 @@ export async function getRemittances(tenantId: string): Promise<RemittanceRow[]>
     total: Number(r.total),
     paidAt: r.paidAt,
     remittedAt: r.remittedAt,
-    techName: nameOf.get(r.createdById) ?? "—",
+    holderName: nameOf.get(r.createdById) ?? "—",
     // Setoran lama (sebelum jejak ada) → null; tampil apa adanya, tidak dikarang.
     receiverName: r.remittedById ? nameOf.get(r.remittedById) ?? "—" : null,
     proofUrl: r.remitProofUrl,
