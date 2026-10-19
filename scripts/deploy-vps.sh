@@ -26,6 +26,7 @@ cd "$ROOT_DIR"
 [ -z "$(git status --porcelain --untracked-files=all)" ] || { echo "FAIL: working tree tidak bersih" >&2; exit 1; }
 COMMIT="$(git rev-parse "$REF^{commit}")"
 [ "$(git rev-parse HEAD)" = "$COMMIT" ] || { echo "FAIL: ref harus sama dengan HEAD" >&2; exit 1; }
+git fetch -q origin main && [ "$(git rev-parse origin/main)" = "$COMMIT" ] || { echo "FAIL: HEAD harus == origin/main (push dulu)" >&2; exit 1; }
 [ -f "$KEY" ] || { echo "FAIL: SSH key tidak ada: $KEY" >&2; exit 1; }
 
 # Idempoten: commit sudah live & sehat -> tidak ada yang perlu dilakukan.
