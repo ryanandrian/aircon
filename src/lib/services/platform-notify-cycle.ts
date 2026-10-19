@@ -17,6 +17,9 @@ import { notifyPlatform } from "@/lib/services/platform-notification-service";
 const DAY_MS = 86_400_000;
 const fmtDate = (d: Date) => d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
 const dayStamp = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD utk dedupe harian
+// Base URL dari env (pola sama dgn src/lib/unit-code/urls.ts); fallback = domain produksi kanonik.
+const appBase = () =>
+  (process.env.NEXT_PUBLIC_APP_URL || "https://app.airconet.id").replace(/\/$/, "");
 
 export interface PlatformNotifySummary {
   due: number; overdue: number; trialEnding: number; queued: number;
@@ -44,7 +47,7 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
       // Sudah lewat jatuh tempo.
       const r = await notifyPlatform({
         tenantId: t.id, templateKey: "subscription_overdue",
-        vars: { link: "https://app.aircon.web.id/app/langganan" },
+        vars: { link: `${appBase()}/app/langganan` },
         dedupeKey: `subscription_overdue:${t.id}:${stamp}`,
       });
       queued += r.created; overdue += 1;
@@ -53,14 +56,14 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
       if (t.status === "TRIAL") {
         const r = await notifyPlatform({
           tenantId: t.id, templateKey: "trial_ending",
-          vars: { tanggal: fmtDate(dueDate), link: "https://app.aircon.web.id/app/langganan" },
+          vars: { tanggal: fmtDate(dueDate), link: `${appBase()}/app/langganan` },
           dedupeKey: `trial_ending:${t.id}:${stamp}`,
         });
         queued += r.created; trialEnding += 1;
       } else {
         const r = await notifyPlatform({
           tenantId: t.id, templateKey: "subscription_due",
-          vars: { tanggal: fmtDate(dueDate), link: "https://app.aircon.web.id/app/langganan" },
+          vars: { tanggal: fmtDate(dueDate), link: `${appBase()}/app/langganan` },
           dedupeKey: `subscription_due:${t.id}:${stamp}`,
         });
         queued += r.created; due += 1;
