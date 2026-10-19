@@ -92,8 +92,8 @@ export function InvoicesBoard({
   return (
     <div className="space-y-4">
       {/* Tab bar */}
-      <div className="overflow-x-auto rounded-xl bg-muted p-1">
-        <div className="flex min-w-[30rem] gap-1">
+      <div className="rounded-xl bg-muted p-1">
+        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
         {TABS.map((t) => {
           const active = bucket === t.key;
           const n = counts[t.key];
