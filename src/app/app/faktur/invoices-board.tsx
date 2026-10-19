@@ -145,29 +145,39 @@ export function InvoicesBoard({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 pb-20">
           {items.map((inv) => {
             const isProforma = inv.docType === "PROFORMA";
             return (
               <Link key={inv.id} href={`/app/faktur/${inv.id}`} className="block">
                 <Card className="interactive py-0">
-                  <CardContent className="flex items-center gap-3 p-4">
+                  <CardContent className="flex items-start gap-3 p-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
                       <Icon.Billing className="h-5 w-5" aria-hidden />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-semibold text-foreground">{inv.customerName}</span>
-                        <Badge variant={isProforma ? "outline" : "secondary"} className="shrink-0">{isProforma ? "Proforma" : "Invoice"}</Badge>
-                        <Badge variant={inv.status === "PAID" ? "secondary" : "outline"} className="shrink-0">{STATUS[inv.status] ?? inv.status}</Badge>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      {/* Baris 1: nama pelanggan + nominal (nominal tidak pernah ikut turun) */}
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0 truncate font-semibold leading-6 text-foreground">{inv.customerName}</span>
+                        <span className="shrink-0 whitespace-nowrap font-bold tabular-nums leading-6 text-foreground">{rp(inv.total)}</span>
                       </div>
-                      <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{inv.number}</div>
-                      <div className="text-xs text-muted-foreground">Terbit {fmt(inv.issueDate)}{inv.dueDate ? ` · Jatuh tempo ${fmt(inv.dueDate)}` : ""}</div>
+                      {/* Baris 2: badge tipe + status, urutan dan ukuran tetap */}
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge variant={isProforma ? "outline" : "secondary"} className="whitespace-nowrap">{isProforma ? "Proforma" : "Invoice"}</Badge>
+                        <Badge variant={inv.status === "PAID" ? "secondary" : "outline"} className="whitespace-nowrap">{STATUS[inv.status] ?? inv.status}</Badge>
+                      </div>
+                      {/* Baris 3: posisi uang (selebar kartu, boleh bungkus) */}
                       {inv.status === "PAID" && inv.docType === "INVOICE" && (
-                        <Badge className={`mt-1.5 max-w-full whitespace-normal text-left ${moneyPositionOf(inv).color}`}>{moneyPositionOf(inv).label}</Badge>
+                        <Badge className={`block w-full whitespace-normal text-left ${moneyPositionOf(inv).color}`}>{moneyPositionOf(inv).label}</Badge>
                       )}
+                      {/* Baris 4: nomor dokumen */}
+                      <div className="truncate font-mono text-xs text-muted-foreground">{inv.number}</div>
+                      {/* Baris 5: tanggal, tiap bagian boleh pindah baris tanpa memecah kata */}
+                      <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                        <span className="whitespace-nowrap">Terbit {fmt(inv.issueDate)}</span>
+                        {inv.dueDate && <span className="whitespace-nowrap">Jatuh tempo {fmt(inv.dueDate)}</span>}
+                      </div>
                     </div>
-                    <div className="shrink-0 whitespace-nowrap pl-1 text-right font-bold text-foreground">{rp(inv.total)}</div>
                   </CardContent>
                 </Card>
               </Link>
