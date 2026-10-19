@@ -160,14 +160,14 @@ export function InvoicesBoard({
                         <span className="truncate font-semibold text-foreground">{inv.customerName}</span>
                         <Badge variant={isProforma ? "outline" : "secondary"} className="shrink-0">{isProforma ? "Proforma" : "Invoice"}</Badge>
                         <Badge variant={inv.status === "PAID" ? "secondary" : "outline"} className="shrink-0">{STATUS[inv.status] ?? inv.status}</Badge>
-                        {inv.status === "PAID" && inv.docType === "INVOICE" && (
-                          <Badge className={`shrink-0 ${moneyPositionOf(inv).color}`}>{moneyPositionOf(inv).label}</Badge>
-                        )}
                       </div>
                       <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{inv.number}</div>
                       <div className="text-xs text-muted-foreground">Terbit {fmt(inv.issueDate)}{inv.dueDate ? ` · Jatuh tempo ${fmt(inv.dueDate)}` : ""}</div>
+                      {inv.status === "PAID" && inv.docType === "INVOICE" && (
+                        <Badge className={`mt-1.5 max-w-full whitespace-normal text-left ${moneyPositionOf(inv).color}`}>{moneyPositionOf(inv).label}</Badge>
+                      )}
                     </div>
-                    <div className="shrink-0 text-right font-bold text-foreground">{rp(inv.total)}</div>
+                    <div className="shrink-0 whitespace-nowrap pl-1 text-right font-bold text-foreground">{rp(inv.total)}</div>
                   </CardContent>
                 </Card>
               </Link>
