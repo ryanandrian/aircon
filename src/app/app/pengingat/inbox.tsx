@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Icon } from "@/components/icons";
 import { actionCloseReminder, actionMarkReminderSentManual, actionLoadReminderInbox } from "./actions";
 import type { ReminderInboxSendStatus } from "@/lib/services/reminder-service";
@@ -79,6 +80,7 @@ export function ReminderInbox({
   initialCursor,
   initialTotal,
   sendStatus,
+  initialQ,
 }: {
   initialItems: ReminderInboxItem[];
   showClosed: boolean;
@@ -88,6 +90,8 @@ export function ReminderInbox({
   /** G-A10: pemetaan status filter aktif dari server — WAJIB ikut lazy-load,
    *  agar batch berikutnya tetap terfilter (dulu dikirim tanpa ini -> bocor). */
   sendStatus?: ReminderInboxSendStatus[];
+  /** G-A10+: pencarian nama pelanggan dari URL (server sudah menerapkannya ke daftar). */
+  initialQ?: string;
 }) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
@@ -95,22 +99,66 @@ export function ReminderInbox({
   const [loadingMore, setLoadingMore] = useState(false);
   const [total, setTotal] = useState(initialTotal);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState(initialQ ?? "");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // React docs pattern (pola persis agenda-board): sinkronkan state lokal saat
+  // props server berubah — hasil debounce pencarian & back/forward. Tanpa blok ini
+  // useState(*) mengabaikan props baru sehingga daftar tidak ikut berubah.
+  const serverQ = initialQ ?? "";
+  const [previousServerData, setPreviousServerData] = useState({
+    items: initialItems,
+    cursor: initialCursor,
+    total: initialTotal,
+    q: serverQ,
+  });
+  if (
+    previousServerData.items !== initialItems ||
+    previousServerData.cursor !== initialCursor ||
+    previousServerData.total !== initialTotal ||
+    previousServerData.q !== serverQ
+  ) {
+    setPreviousServerData({ items: initialItems, cursor: initialCursor, total: initialTotal, q: serverQ });
+    setItems(initialItems);
+    setCursor(initialCursor);
+    setTotal(initialTotal);
+    if (q !== serverQ) setQ(serverQ);
+  }
+
+  // Bangun URL pengingat dari keadaan saat ini — pencarian q SELALU ikut supaya
+  // ketikan tidak hilang saat pengguna mengganti filter/riwayat.
+  const inboxUrl = useCallback(
+    (nextFilter: Filter, nextQ: string) => {
+      const params = new URLSearchParams();
+      if (showClosed) params.set("riwayat", "1");
+      if (nextFilter !== "SEMUA") params.set("filter", nextFilter);
+      const trimmed = nextQ.trim();
+      if (trimmed) params.set("q", trimmed);
+      const qs = params.toString();
+      return qs ? `/app/pengingat?${qs}` : "/app/pengingat";
+    },
+    [showClosed],
+  );
 
   // G-A10: ganti filter = navigasi URL (searchParams) — server yang memilah.
   function selectFilter(id: Filter) {
-    const params = new URLSearchParams();
-    if (showClosed) params.set("riwayat", "1");
-    if (id !== "SEMUA") params.set("filter", id);
-    const qs = params.toString();
-    router.push(qs ? `/app/pengingat?${qs}` : "/app/pengingat");
+    router.push(inboxUrl(id, q));
   }
+
+  // Pencarian nama pelanggan: debounce 350ms → URL (pola persis agenda-board).
+  // Guard q === serverQ: perubahan berasal dari sinkronisasi server (back/forward /
+  // navigasi lain), bukan ketikan pengguna → tidak navigasi balik ke teks lama.
+  useEffect(() => {
+    if (q === serverQ) return;
+    const t = setTimeout(() => router.replace(inboxUrl(activeFilter, q), { scroll: false }), 350);
+    return () => clearTimeout(t);
+  }, [q, serverQ, activeFilter, inboxUrl, router]);
 
   // G-A10: muat batch berikutnya (pola persis customer-manager: cursor + sentinel).
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
-    const res = await actionLoadReminderInbox({ cursor, includeClosed: showClosed, sendStatus });
+    const res = await actionLoadReminderInbox({ cursor, includeClosed: showClosed, sendStatus, q: q.trim() || undefined });
     if (res.ok && res.rows) {
       // action sudah mengirim tipe ReminderInboxActionItem: tanggal string,
       // waLinkPesan sudah dihitung di server — tinggal pakai apa adanya.
@@ -122,7 +170,7 @@ export function ReminderInbox({
       toast.error(res.error ?? "Gagal memuat pengingat berikutnya.");
     }
     setLoadingMore(false);
-  }, [cursor, loadingMore, showClosed, sendStatus]);
+  }, [cursor, loadingMore, showClosed, sendStatus, q]);
 
   // Infinite scroll via IntersectionObserver (pola customer-manager).
   useEffect(() => {
@@ -182,6 +230,15 @@ export function ReminderInbox({
 
   return (
     <div className="space-y-4">
+      {/* Pencarian nama pelanggan — Input seragam dgn halaman pekerjaan/pelanggan
+          (ukuran sentuh 44px di HP). Hasil = server-side via URL (debounce 350ms). */}
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Cari nama pelanggan…"
+        aria-label="Cari pengingat berdasarkan nama pelanggan"
+        className="min-h-[44px] rounded-xl sm:min-h-9"
+      />
       <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter pengingat">
         {FILTERS.filter((f) => f.id !== "DITUTUP" || showClosed).map((f) => (
           <Button key={f.id} type="button" size="sm" variant={activeFilter === f.id ? "default" : "outline"}
@@ -193,7 +250,11 @@ export function ReminderInbox({
 
       {items.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {total === 0 ? "Belum ada unit yang masuk jadwal pengingat." : "Tidak ada pengingat pada filter ini."}
+          {total === 0
+            ? q.trim()
+              ? "Tidak ada pengingat yang cocok dengan pencarian."
+              : "Belum ada unit yang masuk jadwal pengingat."
+            : "Tidak ada pengingat pada filter ini."}
         </div>
       ) : (
         <div className="space-y-3">

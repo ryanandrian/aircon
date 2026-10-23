@@ -29,31 +29,37 @@ const FILTER_SENDSTATUS: Record<string, ReminderInboxSendStatus[] | undefined> =
 export default async function PengingatPage({
   searchParams,
 }: {
-  searchParams: Promise<{ riwayat?: string; filter?: string; cursor?: string }>;
+  searchParams: Promise<{ riwayat?: string; filter?: string; cursor?: string; q?: string }>;
 }) {
   const ctx = await tryGetServerContext();
   if (!ctx) redirect("/login?next=/app/pengingat");
   if (ctx.role === "TECHNICIAN") redirect("/t");
 
-  const { riwayat, filter, cursor } = await searchParams;
+  const { riwayat, filter, cursor, q: qParam } = await searchParams;
   const includeClosed = riwayat === "1";
   const activeFilter = (filter ?? "SEMUA") as InboxFilter;
+  const q = (qParam ?? "").trim();
 
   // G-A10: filter dikirim sebagai daftar status (kelompok "Terkirim" = 4 status),
   // persis dgn pemetaan Filter UI di inbox.tsx — diproses di SERVER, bukan useMemo.
-  const res = await listReminderInbox(ctx.tenantId, {
-    includeClosed,
-    sendStatus: FILTER_SENDSTATUS[activeFilter],
-    cursor,
-  });
+  // G-A10+: q = pencarian nama pelanggan, juga server-side (sebelum pagination).
+  // Ketiga query di bawah INDEPENDEN -> dijalankan paralel (hemat RTT; semantik identik).
+  const [res, tenant, template] = await Promise.all([
+    listReminderInbox(ctx.tenantId, {
+      includeClosed,
+      sendStatus: FILTER_SENDSTATUS[activeFilter],
+      q: q || undefined,
+      cursor,
+    }),
+    prisma.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { name: true },
+    }),
+    prisma.messageTemplate.findUnique({
+      where: { tenantId_key: { tenantId: ctx.tenantId, key: "reminder" } },
+    }),
+  ]);
   const rows = res.rows;
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: ctx.tenantId },
-    select: { name: true },
-  });
-  const template = await prisma.messageTemplate.findUnique({
-    where: { tenantId_key: { tenantId: ctx.tenantId, key: "reminder" } },
-  });
   const body = template?.body ??
     "Halo {{customer}}, saatnya servis AC {{unit}}. Balas untuk jadwalkan. — {{usaha}}";
 
@@ -91,6 +97,7 @@ export default async function PengingatPage({
           activeFilter={activeFilter}
           initialCursor={res.nextCursor}
           initialTotal={res.totalCount}
+          initialQ={q}
           sendStatus={FILTER_SENDSTATUS[activeFilter]}
         />
       </div>

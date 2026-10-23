@@ -36,6 +36,8 @@ export async function actionLoadReminderInbox(params: {
   cursor?: string | null;
   includeClosed?: boolean;
   sendStatus?: ReminderInboxSendStatus[];
+  /** Pencarian nama pelanggan — diteruskan apa adanya ke listReminderInbox. */
+  q?: string;
 }): Promise<{ ok: boolean; error?: string } & Partial<{ rows: ReminderInboxActionItem[]; nextCursor: string | null; totalCount: number }>> {
   const ctx = await tryGetServerContext();
   if (!ctx?.tenantId) return { ok: false, error: "Sesi tidak valid" };
@@ -46,15 +48,19 @@ export async function actionLoadReminderInbox(params: {
     throw e;
   }
   try {
-    const res = await listReminderInbox(ctx.tenantId, {
-      includeClosed: params.includeClosed,
-      sendStatus: params.sendStatus,
-      cursor: params.cursor ?? undefined,
-    });
-    const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true } });
-    const template = await prisma.messageTemplate.findUnique({
-      where: { tenantId_key: { tenantId: ctx.tenantId, key: "reminder" } },
-    });
+    // Dua query di bawah INDEPENDEN dari listReminderInbox -> paralel (hemat RTT).
+    const [res, tenant, template] = await Promise.all([
+      listReminderInbox(ctx.tenantId, {
+        includeClosed: params.includeClosed,
+        sendStatus: params.sendStatus,
+        q: params.q,
+        cursor: params.cursor ?? undefined,
+      }),
+      prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true } }),
+      prisma.messageTemplate.findUnique({
+        where: { tenantId_key: { tenantId: ctx.tenantId, key: "reminder" } },
+      }),
+    ]);
     const body = template?.body ?? "Halo {{customer}}, saatnya servis AC {{unit}}. Balas untuk jadwalkan. — {{usaha}}";
     const rows = res.rows.map((r) => {
       const unitLabel = [r.brand, r.roomLocation].filter(Boolean).join(" ").trim() || "AC";

@@ -172,3 +172,50 @@ describe("listReminderInbox — regresi aturan lama TETAP UTUH", () => {
     expect(r.rows.map((x) => x.assetId)).toEqual(["a2", "a3", "a1"]);
   });
 });
+
+describe("listReminderInbox — pencarian q (nama pelanggan, server-side)", () => {
+  it("q mencocokkan nama pelanggan case-insensitive dan memangkas totalCount", async () => {
+    state.units = [unit("a1", -1, "Budi Santoso"), unit("a2", -2, "Siti Aminah"), unit("a3", -3, "budi wijaya")];
+    const r = await listReminderInbox("t1", { q: "BUDI" });
+    // urutan baku: overdue terbesar dulu (a3=3 hari, a1=1 hari)
+    expect(r.rows.map((x) => x.assetId)).toEqual(["a3", "a1"]);
+    expect(r.totalCount).toBe(2); // totalCount = hasil pencarian, bukan semua
+  });
+
+  it("q hanya di-trim; whitespace kosong = tanpa pencarian (perilaku default utuh)", async () => {
+    state.units = [unit("a1", -1, "Budi"), unit("a2", -2, "Siti")];
+    const r = await listReminderInbox("t1", { q: "   " });
+    expect(r.totalCount).toBe(2);
+    expect(r.rows).toHaveLength(2);
+  });
+
+  it("q tanpa cocokan = kosong (rows 0, totalCount 0, nextCursor null)", async () => {
+    state.units = [unit("a1", -1, "Budi")];
+    const r = await listReminderInbox("t1", { q: "zaki" });
+    expect(r.rows).toHaveLength(0);
+    expect(r.totalCount).toBe(0);
+    expect(r.nextCursor).toBeNull();
+  });
+
+  it("q BERKOMBINASI dgn filter sendStatus (dua filter aktif bersamaan)", async () => {
+    const at = new Date();
+    state.units = [unit("a1", -1, "Budi"), unit("a2", -2, "Siti")];
+    state.reminders = [
+      { id: "r2", assetId: "a2", status: "SENT", sentAt: at, manualSentAt: at, dueDate: at, leadTimeDays: 0 },
+    ];
+    const r = await listReminderInbox("t1", { sendStatus: ["BELUM_DIKIRIM"], q: "Budi" });
+    expect(r.rows.map((x) => x.assetId)).toEqual(["a1"]);
+    expect(r.totalCount).toBe(1);
+  });
+
+  it("cursor pagination melanjut di DALAM hasil pencarian", async () => {
+    state.units = Array.from({ length: 25 }, (_, i) =>
+      unit(`a${String(i).padStart(2, "0")}`, -(i + 1), `Budi ${i}`),
+    );
+    const p1 = await listReminderInbox("t1", { q: "budi", limit: 20 });
+    expect(p1.totalCount).toBe(25);
+    const p2 = await listReminderInbox("t1", { q: "budi", cursor: p1.nextCursor ?? undefined });
+    expect(p2.rows).toHaveLength(5);
+    expect(p2.totalCount).toBe(25);
+  });
+});

@@ -299,22 +299,28 @@ export async function listReminderInbox(
      *  ARRAY karena filter "Terkirim" mencakup 4 status
      *  (TERKIRIM_OTOMATIS, TERKIRIM_MANUAL, DITERIMA, DIBACA) — sama dgn Filter UI. */
     sendStatus?: ReminderInboxSendStatus[];
+    /** G-A10+: pencarian server-side berdasarkan NAMA PELANGGAN (case-insensitive,
+     *  sudah di-trim pemanggil) — dipanggil SEBELUM pagination supaya totalCount
+     *  dan cursor mengikuti hasil pencarian, bukan seluruh daftar. */
+    q?: string;
     limit?: number;
     cursor?: string;
   } = {},
 ): Promise<ListReminderInboxResult> {
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: { reminderLeadDays: true },
-  });
+  // Dua query di bawah INDEPENDEN (asset tidak butuh lead) -> paralel (hemat RTT).
+  const [tenant, units] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { reminderLeadDays: true },
+    }),
+    prisma.asset.findMany({
+      where: { tenantId, deletedAt: null, nextServiceDate: { not: null } },
+      include: { customer: true },
+    }),
+  ]);
   if (!tenant) throw new ServiceError("NOT_FOUND", "Usaha tidak ditemukan");
   const lead = tenant.reminderLeadDays;
   const now = new Date();
-
-  const units = await prisma.asset.findMany({
-    where: { tenantId, deletedAt: null, nextServiceDate: { not: null } },
-    include: { customer: true },
-  });
 
   const unitsDue = units.filter((u) => {
     if (!u.nextServiceDate) return false;
@@ -423,10 +429,15 @@ export async function listReminderInbox(
     return a.customerName.localeCompare(b.customerName, "id");
   });
 
-  // ── G-A10: filter server-side (pengganti useMemo filter di client) ──
+  // ── G-A10: filter server-side (pengganti useMemo filter di inbox.tsx) ──
   // Komposisi persis dgn Filter di inbox.tsx: SEMUA tanpa filter; selain itu
   // filter sendStatus (array utk kelompok multi-status, mis. "Terkirim").
-  const filtered = opts.sendStatus?.length ? rows.filter((r) => opts.sendStatus!.includes(r.sendStatus)) : rows;
+  const byStatus = opts.sendStatus?.length ? rows.filter((r) => opts.sendStatus!.includes(r.sendStatus)) : rows;
+
+  // G-A10+: pencarian q menyusul setelah filter status — keduanya menumpuk
+  // (mis. filter "Gagal" + ketik "budi" → hanya Gagal milik pelanggan bernama budi).
+  const q = opts.q?.trim().toLowerCase();
+  const filtered = q ? byStatus.filter((r) => r.customerName.toLowerCase().includes(q)) : byStatus;
 
   // ── G-A10: cursor + limit (pola persis pelanggan: take limit+1, skip+cursor) ──
   // Karena urutan baku dihitung di JS, cursor = assetId baris terakhir;
