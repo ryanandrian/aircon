@@ -83,8 +83,16 @@ describe("F7c — tautan dokumen di pesan WA (A+C pemilik)", () => {
 
   it("kontrak teks-only gateway TIDAK berubah (gatewayRelay tak menyentuh media)", () => {
     const relay = readFileSync(resolve(process.cwd(), "src/lib/wa/gateway-relay.ts"), "utf8");
-    expect(relay).toContain('body: JSON.stringify({ externalId, toPhone, message })');
+    // PENGAWAL ASLI DIPERTAHANKAN: relay tidak boleh menyentuh media.
     expect(relay).not.toContain("mediaBase64");
+    // Satu-satunya penambahan sejak 2026-10-23: `idempotencyKey` OPSIONAL —
+    // dikirim hanya bila pemanggil punya dedupeKey. Tanpa itu gateway
+    // menurunkan kunci dari ISI PESAN (gateway-engine delivery-contract.js:54),
+    // sehingga dua notifikasi berbeda yang kebetulan berteks sama dianggap
+    // duplikat dan yang kedua ditekan. Payload tetap teks-only; tidak ada
+    // field media yang masuk.
+    expect(relay).toContain("externalId, toPhone, message,");
+    expect(relay).toContain("idempotencyKey: opts.idempotencyKey");
   });
 });
 

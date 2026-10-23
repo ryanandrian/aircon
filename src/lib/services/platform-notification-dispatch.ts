@@ -39,13 +39,45 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
     if (claim.count === 0) { skipped += 1; continue; }
 
     const res = n.channel === "WA"
-      ? await gatewaySendAs(PLATFORM_WA_SESSION, n.toAddress, n.body)
+      ? await gatewaySendAs(PLATFORM_WA_SESSION, n.toAddress, n.body,
+          // dedupeKey = idempotensi per-EVENT milik row. Meneruskannya membuat
+          // gateway berhenti menebak dari isi pesan (lihat catatan di relay).
+          { idempotencyKey: n.dedupeKey ?? null })
       : await sendEmail(n.toAddress, n.subject ?? "Pemberitahuan Lumite", n.body);
 
     if (res.ok) {
       await prisma.platformNotification.update({
         where: { id: n.id },
         data: { status: "SENT", sentAt: new Date(), gatewayMessageId: res.messageId ?? null, error: null },
+      }).catch(() => {});
+      sent += 1;
+    } else if ("duplicate" in res && res.duplicate && res.messageId) {
+      // ---------------------------------------------------------------------
+      // 409 DUPLICATE = pesan identik SUDAH PERNAH terkirim (bukan kegagalan).
+      //
+      // Gateway mengembalikan `duplicate:true` + `messageId` (job yang
+      // benar-benar mengirimkannya). Menyimpannya sebagai FAILED/QUEUED adalah
+      // KEBOHONAN DATA: penerimanya memang sudah menerima pesan itu, sementara
+      // kartu admin akan menampilkan "Gagal" dan antrean berputar sia-sia
+      // selama MAX_ATTEMPTS karena gateway akan terus menjawab 409.
+      //
+      // Tanpa `messageId` kita TIDAK punya bukti — jalur retry lama tetap
+      // dipakai (lihat test "duplicate TANPA messageId tetap gagal").
+      //
+      // Ini seharusnya hanya terjadi pada notifikasi lama yang dibuat sebelum
+      // dispatcher meneruskan dedupeKey ke gateway. Baris BARU membawa
+      // `dedupeKey` per-event, sehingga tidak lagi bertabrakan hanya karena
+      // teks pesannya sama. Kasus duplicate+messageId ini adalah migrasi aman
+      // untuk data antrean lama yang masih memakai kunci legacy berbasis isi.
+      //
+      // Kenapa idempoten dua lapisan bisa bertabrakan: aircon punya `dedupeKey`
+      // (unik per EVENT), gateway memakai kunci berbasis ISI PESAN. Dua lapisan
+      // itu tidak saling kenal, sehingga notifikasi event yang berbeda tetapi
+      // berisi teks sama dianggap duplikat oleh gateway.
+      // ---------------------------------------------------------------------
+      await prisma.platformNotification.update({
+        where: { id: n.id },
+        data: { status: "SENT", sentAt: new Date(), gatewayMessageId: res.messageId, error: null },
       }).catch(() => {});
       sent += 1;
     } else {

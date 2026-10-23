@@ -22,7 +22,7 @@ export async function isGatewayConfigured(): Promise<boolean> {
 }
 
 /** Kirim pesan WA via gateway. externalId = tenantId (jalur tenant → pelanggan, TAK BERUBAH). */
-export async function gatewaySend(tenantId: string, toPhone: string, message: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+export async function gatewaySend(tenantId: string, toPhone: string, message: string): Promise<GatewaySendResult> {
   return gatewaySendAs(tenantId, toPhone, message);
 }
 
@@ -30,7 +30,25 @@ export async function gatewaySend(tenantId: string, toPhone: string, message: st
  * Kirim WA dengan externalId eksplisit (sesi mana). Dipakai gatewaySend (tenant) DAN
  * jalur platform (externalId="lumite-platform"). Guard anti-spam berlaku untuk SEMUA.
  */
-export async function gatewaySendAs(externalId: string, toPhone: string, message: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
+export type GatewaySendResult = {
+  ok: boolean;
+  messageId?: string;
+  error?: string;
+  /**
+   * true bila gateway menolak sebagai DUPLIKAT (HTTP 409). Artinya pesan identik
+   * sudah pernah dikirim — BUKAN kegagalan. Pemanggil wajib menanganinya
+   * terpisah dari `ok:false` biasa (lihat platform-notification-dispatch).
+   * Dibawa bersama `messageId` = job yang sudah mengirimkannya.
+   */
+  duplicate?: boolean;
+};
+
+export async function gatewaySendAs(
+  externalId: string,
+  toPhone: string,
+  message: string,
+  opts: { idempotencyKey?: string | null } = {},
+): Promise<GatewaySendResult> {
   const cfg = await resolve();
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
 
@@ -49,10 +67,32 @@ export async function gatewaySendAs(externalId: string, toPhone: string, message
     const r = await fetch(`${cfg.url}/v1/wa/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Api-Key": cfg.key },
-      body: JSON.stringify({ externalId, toPhone, message }),
+      // KUNCI IDEMPOTENSI DIMILIKI PEMANGGIL, bukan ditebak dari isi pesan.
+      //
+      // Tanpa ini gateway menurunkan kuncinya sendiri
+      // (gateway-engine delivery-contract.js:54):
+      //   legacy:<externalId>:<toPhone>:<message>
+      // sehingga DUA notifikasi berbeda yang kebetulan berteks sama dianggap
+      // duplikat — yang kedua ditekan (409) dan penerimanya TIDAK PERNAH
+      // menerimanya. Dengan mengirim `dedupeKey` milik row, idempotensi jadi
+      // per-EVENT (semantik yang benar), bukan per-teks.
+      body: JSON.stringify({
+        externalId, toPhone, message,
+        ...(opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}),
+      }),
     });
-    const data = (await r.json().catch(() => ({}))) as { messageId?: string; error?: string };
-    if (!r.ok) return { ok: false, error: data.error ?? `gateway ${r.status}` };
+    const data = (await r.json().catch(() => ({}))) as {
+      messageId?: string; error?: string; duplicate?: boolean;
+    };
+    if (!r.ok) {
+      // 409 dedup: kontrak gateway menyertakan `duplicate:true` + `messageId`
+      // (job yang SUDAH mengirim). Meneruskan keduanya adalah syarat supaya
+      // dispatcher bisa membedakan "sudah terkirim" dari "benar-benar gagal".
+      if (data.duplicate) {
+        return { ok: false, duplicate: true, messageId: data.messageId, error: data.error ?? `gateway ${r.status}` };
+      }
+      return { ok: false, error: data.error ?? `gateway ${r.status}` };
+    }
     return { ok: true, messageId: data.messageId };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "gateway error" };
