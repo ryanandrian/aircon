@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Icon } from "@/components/icons";
 import { actionCloseReminder, actionMarkReminderSentManual, actionLoadReminderInbox } from "./actions";
+import type { ReminderInboxSendStatus } from "@/lib/services/reminder-service";
 
 export type ReminderInboxItem = {
   assetId: string;
@@ -77,12 +78,16 @@ export function ReminderInbox({
   activeFilter,
   initialCursor,
   initialTotal,
+  sendStatus,
 }: {
   initialItems: ReminderInboxItem[];
   showClosed: boolean;
   activeFilter: Filter;
   initialCursor: string | null;
   initialTotal: number;
+  /** G-A10: pemetaan status filter aktif dari server — WAJIB ikut lazy-load,
+   *  agar batch berikutnya tetap terfilter (dulu dikirim tanpa ini -> bocor). */
+  sendStatus?: ReminderInboxSendStatus[];
 }) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
@@ -105,7 +110,7 @@ export function ReminderInbox({
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
-    const res = await actionLoadReminderInbox({ cursor, includeClosed: showClosed });
+    const res = await actionLoadReminderInbox({ cursor, includeClosed: showClosed, sendStatus });
     if (res.ok && res.rows) {
       // action sudah mengirim tipe ReminderInboxActionItem: tanggal string,
       // waLinkPesan sudah dihitung di server — tinggal pakai apa adanya.
@@ -117,7 +122,7 @@ export function ReminderInbox({
       toast.error(res.error ?? "Gagal memuat pengingat berikutnya.");
     }
     setLoadingMore(false);
-  }, [cursor, loadingMore, showClosed]);
+  }, [cursor, loadingMore, showClosed, sendStatus]);
 
   // Infinite scroll via IntersectionObserver (pola customer-manager).
   useEffect(() => {

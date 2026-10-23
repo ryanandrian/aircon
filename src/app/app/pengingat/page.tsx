@@ -82,11 +82,16 @@ export default async function PengingatPage({
           Kirim pengingat, konversi jadi pekerjaan, atau tutup bila tidak jadi.
         </p>
         <ReminderInbox
+          // Reset state lokal (items/cursor/total) saat filter/riwayat berubah —
+          // tanpa key, useState(initial*) di inbox.tsx mempertahankan daftar lama
+          // sehingga klik filter tidak mengganti isi daftar (perilaku React).
+          key={`${activeFilter}:${includeClosed}`}
           initialItems={items}
           showClosed={includeClosed}
           activeFilter={activeFilter}
           initialCursor={res.nextCursor}
           initialTotal={res.totalCount}
+          sendStatus={FILTER_SENDSTATUS[activeFilter]}
         />
       </div>
     </main>
