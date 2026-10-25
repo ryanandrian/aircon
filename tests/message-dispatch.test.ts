@@ -22,9 +22,10 @@ vi.mock("@/lib/prisma", () => ({
 
 let gatewayConfigured = true;
 let sendResult: any = { ok: true, messageId: "gw-1" };
+const sendCalls: any[] = [];
 vi.mock("@/lib/wa/gateway-relay", () => ({
   isGatewayConfigured: vi.fn(async () => gatewayConfigured),
-  gatewaySend: vi.fn(async () => sendResult),
+  gatewaySend: vi.fn(async (...args: any[]) => { sendCalls.push(args); return sendResult; }),
 }));
 
 import { flushQueuedMessages } from "../src/lib/services/message-dispatch-service";
@@ -33,6 +34,7 @@ beforeEach(() => {
   store.rows = [];
   gatewayConfigured = true;
   sendResult = { ok: true, messageId: "gw-1" };
+  sendCalls.length = 0;
 });
 
 describe("flushQueuedMessages", () => {
@@ -87,5 +89,29 @@ describe("flushQueuedMessages", () => {
     const r = await flushQueuedMessages();
     expect(r.failed).toBe(1);
     expect(store.rows[0].status).toBe("FAILED");
+  });
+
+  // REGRESSION (2026-10-25): identitas antrean HARUS per-pesan (id baris),
+  // BUKAN isi pesan. Tanpa idempotencyKey, gateway memakai isi pesan sebagai
+  // kunci dan menyimpannya PERMANEN di durable queue — pengingat dengan teks
+  // yang sama ditolak 409 selamanya (bukti live: job SENT 2 Okt memblokir
+  // pesan identik pada 25 Okt). Kontrak: kunci = id pesan,Unique per event.
+  it("mengirim idempotencyKey per-pesan (id baris), bukan isi pesan", async () => {
+    store.rows = [{ id: "m-unik-1", tenantId: "t1", channel: "WA", direction: "OUTBOUND", status: "QUEUED", toPhone: "628", body: "Halo Pak, waktunya servis AC" }];
+    await flushQueuedMessages();
+    expect(sendCalls.length).toBe(1);
+    const opts = sendCalls[0][3];
+    expect(opts?.idempotencyKey).toBe("aircon:m-unik-1");
+  });
+
+  it("dua pesan berbeda dengan teks sama → kunci BERBEDA (tidak saling blokir)", async () => {
+    store.rows = [
+      { id: "m-a", tenantId: "t1", channel: "WA", direction: "OUTBOUND", status: "QUEUED", toPhone: "628", body: "teks sama" },
+      { id: "m-b", tenantId: "t1", channel: "WA", direction: "OUTBOUND", status: "QUEUED", toPhone: "628", body: "teks sama" },
+    ];
+    await flushQueuedMessages();
+    const keys = sendCalls.map((c) => c[3]?.idempotencyKey);
+    expect(keys).toEqual(["aircon:m-a", "aircon:m-b"]);
+    expect(new Set(keys).size).toBe(2);
   });
 });

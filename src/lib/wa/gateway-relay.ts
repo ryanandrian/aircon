@@ -22,8 +22,8 @@ export async function isGatewayConfigured(): Promise<boolean> {
 }
 
 /** Kirim pesan WA via gateway. externalId = tenantId (jalur tenant → pelanggan, TAK BERUBAH). */
-export async function gatewaySend(tenantId: string, toPhone: string, message: string): Promise<GatewaySendResult> {
-  return gatewaySendAs(tenantId, toPhone, message);
+export async function gatewaySend(tenantId: string, toPhone: string, message: string, opts: { idempotencyKey?: string | null } = {}): Promise<GatewaySendResult> {
+  return gatewaySendAs(tenantId, toPhone, message, opts);
 }
 
 /**

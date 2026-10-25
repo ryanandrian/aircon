@@ -36,7 +36,19 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
     });
     if (claim.count === 0) { skipped += 1; continue; } // sudah diklaim proses lain
 
-    const res = await gatewaySend(m.tenantId, m.toPhone, m.body);
+    // IDENTITAS PER-PESAN, BUKAN ISI PESAN (fix 2026-10-25).
+    //
+    // Tanpa `idempotencyKey`, gateway menurunkan kunci dari ISI pesan
+    // (`legacy:<externalId>:<toPhone>:<message>`) dan menyimpannya PERMANEN di
+    // durable queue. Akibatnya pengingat dengan teks yang sama (mis. unit AC
+    // sama, siklus perawatan berikutnya) ditolak 409 selamanya — pengingat
+    // TIDAK PERNAH terkirim dua kali. Bukti live: job SENT 2 Okt 2026
+    // (`1790968107708-174`) masih memblokir pesan identik pada 25 Okt.
+    //
+    // `m.id` = id baris MessageLog = identitas EVENT, unik per pengiriman.
+    // Dengan begitu: (a) retry pesan yang sama tetap idempoten, (b) pengingat
+    // untuk siklus berikutnya (baris MessageLog baru) tetap terkirim.
+    const res = await gatewaySend(m.tenantId, m.toPhone, m.body, { idempotencyKey: `aircon:${m.id}` });
     if (res.ok) {
       await prisma.messageLog.update({
         where: { id: m.id },
