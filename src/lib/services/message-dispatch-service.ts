@@ -10,10 +10,10 @@
 import { prisma } from "@/lib/prisma";
 import { gatewaySend, isGatewayConfigured } from "@/lib/wa/gateway-relay";
 
-export async function flushQueuedMessages(limit = 100): Promise<{ configured: boolean; sent: number; failed: number; skipped: number }> {
+export async function flushQueuedMessages(limit = 100): Promise<{ configured: boolean; sent: number; failed: number; skipped: number; deferred: number }> {
   if (!(await isGatewayConfigured())) {
     // Gateway belum dikonfigurasi → jangan sentuh antrean (biarkan QUEUED untuk dikirim nanti).
-    return { configured: false, sent: 0, failed: 0, skipped: 0 };
+    return { configured: false, sent: 0, failed: 0, skipped: 0, deferred: 0 };
   }
 
   const queued = await prisma.messageLog.findMany({
@@ -22,7 +22,7 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
     take: limit,
   });
 
-  let sent = 0, failed = 0, skipped = 0;
+  let sent = 0, failed = 0, skipped = 0, deferred = 0;
   for (const m of queued) {
     if (!m.toPhone || !m.body) {
       await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED" } }).catch(() => {});
@@ -43,11 +43,18 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
         data: { status: "SENT", gatewayMessageId: res.messageId ?? null },
       }).catch(() => {});
       sent += 1;
+    } else if (res.deferred) {
+      // TRANSIENT (kapasitas sesi penuh / tekanan memori / karantina sementara):
+      // kembalikan ke antrean. Menandainya FAILED = pesan hilang permanen dan
+      // pengingat tenant hilang tanpa jejak — bug 2026-10-25.
+      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "QUEUED" } }).catch(() => {});
+      deferred += 1;
+      console.warn(`[dispatch] tahan message=${m.id} tenant=${m.tenantId} (${res.error}); menunggu slot`);
     } else {
       await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED" } }).catch(() => {});
       failed += 1;
       console.error(`[dispatch] gagal kirim message=${m.id} tenant=${m.tenantId}: ${res.error}`);
     }
   }
-  return { configured: true, sent, failed, skipped };
+  return { configured: true, sent, failed, skipped, deferred };
 }

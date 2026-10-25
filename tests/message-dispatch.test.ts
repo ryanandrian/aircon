@@ -66,4 +66,26 @@ describe("flushQueuedMessages", () => {
     expect(r.failed).toBe(1);
     expect(store.rows[0].status).toBe("FAILED");
   });
+
+  // REGRESSION (2026-10-25): gateway menolak SESAAT karena kapasitas sesi penuh
+  // (SEMPENA, bukan nomor rusak). Menandainya FAILED = pesan hilang permanen,
+  // bukan tertunda — pengingat tenant hilang tanpa jejak. Pesan harus KEMBALI
+  // ke antrean (QUEUED) agar terkirim begitu slot tersedia.
+  // Flag `deferred` dibentuk oleh gateway-relay (klasifikasi error transient).
+  it("gateway menolak sementara (deferred) → pesan DIJAGA di antrean, bukan FAILED", async () => {
+    sendResult = { ok: false, deferred: true, error: "batas sesi aktif tercapai (60)" };
+    store.rows = [{ id: "m1", tenantId: "t1", channel: "WA", direction: "OUTBOUND", status: "QUEUED", toPhone: "628", body: "hi" }];
+    const r = await flushQueuedMessages();
+    expect(r.failed).toBe(0);
+    expect(r.deferred).toBe(1);
+    expect(store.rows[0].status).toBe("QUEUED");
+  });
+
+  it("kirim gagal permanen (nomor tidak terdaftar) → tetap FAILED", async () => {
+    sendResult = { ok: false, error: "nomor tidak terdaftar" };
+    store.rows = [{ id: "m1", tenantId: "t1", channel: "WA", direction: "OUTBOUND", status: "QUEUED", toPhone: "628", body: "hi" }];
+    const r = await flushQueuedMessages();
+    expect(r.failed).toBe(1);
+    expect(store.rows[0].status).toBe("FAILED");
+  });
 });

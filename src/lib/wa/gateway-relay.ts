@@ -41,6 +41,8 @@ export type GatewaySendResult = {
    * Dibawa bersama `messageId` = job yang sudah mengirimkannya.
    */
   duplicate?: boolean;
+  /** true = retryable transport/capacity condition; caller must keep queued */
+  deferred?: boolean;
 };
 
 export async function gatewaySendAs(
@@ -91,7 +93,16 @@ export async function gatewaySendAs(
       if (data.duplicate) {
         return { ok: false, duplicate: true, messageId: data.messageId, error: data.error ?? `gateway ${r.status}` };
       }
-      return { ok: false, error: data.error ?? `gateway ${r.status}` };
+      const error = data.error ?? `gateway ${r.status}`;
+      // Retryable / kapasitas sementara bukan kegagalan kirim permanen:
+      // jaga MessageLog tetap antre agar dikirim lagi ketika slot/sesi pulih.
+      // Format error berasal dari _initSession (SESSION_CAPACITY) dan
+      // memoryProbe/backpressure (tekanan memori); jangan menelan error
+      // permanen seperti kredensial/nomor invalid.
+      if (/batas sesi aktif tercapai|tekanan memori|sesi dikarantina sampai/i.test(error)) {
+        return { ok: false, deferred: true, error };
+      }
+      return { ok: false, error };
     }
     return { ok: true, messageId: data.messageId };
   } catch (e) {
