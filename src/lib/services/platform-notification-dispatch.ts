@@ -51,7 +51,7 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
         data: { status: "SENT", sentAt: new Date(), gatewayMessageId: res.messageId ?? null, error: null },
       }).catch(() => {});
       sent += 1;
-    } else if ("duplicate" in res && res.duplicate && res.messageId) {
+    } else if ("duplicate" in res && res.duplicate) {
       // ---------------------------------------------------------------------
       // 409 DUPLICATE = pesan identik SUDAH PERNAH terkirim (bukan kegagalan).
       //
@@ -61,23 +61,35 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
       // kartu admin akan menampilkan "Gagal" dan antrean berputar sia-sia
       // selama MAX_ATTEMPTS karena gateway akan terus menjawab 409.
       //
-      // Tanpa `messageId` kita TIDAK punya bukti — jalur retry lama tetap
-      // dipakai (lihat test "duplicate TANPA messageId tetap gagal").
+      // DUA KASUS (fix 2026-10-26):
       //
-      // Ini seharusnya hanya terjadi pada notifikasi lama yang dibuat sebelum
-      // dispatcher meneruskan dedupeKey ke gateway. Baris BARU membawa
-      // `dedupeKey` per-event, sehingga tidak lagi bertabrakan hanya karena
-      // teks pesannya sama. Kasus duplicate+messageId ini adalah migrasi aman
-      // untuk data antrean lama yang masih memakai kunci legacy berbasis isi.
+      // 1) duplicate + messageId → ada bukti job yang mengirimkannya.
       //
-      // Kenapa idempoten dua lapisan bisa bertabrakan: aircon punya `dedupeKey`
-      // (unik per EVENT), gateway memakai kunci berbasis ISI PESAN. Dua lapisan
-      // itu tidak saling kenal, sehingga notifikasi event yang berbeda tetapi
-      // berisi teks sama dianggap duplikat oleh gateway.
+      // 2) duplicate TANPA messageId → `messageId` null karena gateway
+      //    menemukan hash di `recentHashes` (dedup 60 detik in-memory) tapi job
+      //    yang dicocokkan sudah tidak ada di durable store. Ini yang terjadi
+      //    untuk kunci LAMA berbasis isi pesan. Gateway tetap menjawab 409,
+      //    artinya gateway MEMILIKI job itu (atau baru saja mengirimnya) —
+      //    ia menolak karena pesan identik. Menolak = "sudah ada", bukan
+      //    "gagal kirim".
+      //
+      //    gladly memakai 409 ini sebagai penanda "tidak perlu kirim lagi".
+      //    Tanpa itu, notifikasi berputar 3x lalu FAILED padahal pesan sampai
+      //    (bukti live: 11 notifikasi FAILED dengan error dedup, 16 Sep–23 Okt;
+      //    job gateway `1792951208592-84` SENT untuk isi pesan yang sama).
+      //
+      //    Karena itu: TANPA messageId, tetapkan SENT dengan messageId null —
+      //    kita tak bisa menunjuk job mana, tapi kita BISA membuktikan gateway
+      //    menolak sebagai duplikat. Menandainya FAILED berarti data bohong.
       // ---------------------------------------------------------------------
       await prisma.platformNotification.update({
         where: { id: n.id },
-        data: { status: "SENT", sentAt: new Date(), gatewayMessageId: res.messageId, error: null },
+        data: {
+          status: "SENT",
+          sentAt: new Date(),
+          gatewayMessageId: res.messageId ?? null,
+          error: null,
+        },
       }).catch(() => {});
       sent += 1;
     } else {

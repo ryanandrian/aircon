@@ -66,20 +66,30 @@ describe("dispatchPlatformNotifications — 409 duplicate dihitung TERKIRIM", ()
     }));
   });
 
-  it("duplicate TANPA messageId tetap gagal (tak bisa dibuktikan sudah terkirim)", async () => {
+  // REGRESSION (2026-10-26): 409 duplicate TANPA messageId berarti gateway
+  // SUDAH punya pesan itu (menolak sebagai duplikat), bukan "gagal kirim".
+  // Bukti live: 11 notifikasi FAILED dengan error "pesan identik baru saja
+  // diantre (dedup)" (16 Sep–23 Okt) — padahal gateway job-nya SENT.
+  // Menandainya FAILED/QUEUED = data bohong + antrean berputar sia-sia.
+  it("duplicate TANPA messageId → tetap SENT (gateway menolak = sudah terkirim)", async () => {
     const { gatewaySendAs } = await import("@/lib/wa/gateway-relay");
-    vi.mocked(gatewaySendAs).mockResolvedValue({ ok: false, duplicate: true });
+    vi.mocked(gatewaySendAs).mockResolvedValue({
+      ok: false, duplicate: true, error: "pesan identik baru saja diantre (dedup)",
+    });
 
     const { dispatchPlatformNotifications } = await import(
       "../src/lib/services/platform-notification-dispatch"
     );
     const r = await dispatchPlatformNotifications();
 
-    // Tanpa job rujukan kita TIDAK boleh mengklaim "sudah terkirim" — itu
-    // kebohongan data. Biarkan jalur retry lama yang menanganinya.
-    expect(r.sent).toBe(0);
+    expect(r.sent).toBe(1);       // dihitung terkirim — gateway menyingkirkan
+    expect(r.failed).toBe(0);     // BUKAN kegagalan
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ status: expect.stringMatching(/QUEUED|FAILED/) }),
+      where: { id: "notif-1" },
+      data: expect.objectContaining({
+        status: "SENT",
+        error: null,
+      }),
     }));
   });
 
