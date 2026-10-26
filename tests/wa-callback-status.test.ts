@@ -13,6 +13,7 @@ type LogRow = {
   [k: string]: unknown;
 };
 const store: { rows: LogRow[] } = { rows: [] };
+const mockPlatformStore: { rows: any[] } = { rows: [] };
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     messageLog: {
@@ -31,6 +32,20 @@ vi.mock("@/lib/prisma", () => ({
       findFirst: vi.fn(async ({ where }: any) =>
         store.rows.find((r) => r.gatewayMessageId === where.gatewayMessageId && r.tenantId === where.tenantId) ?? null),
     },
+    platformNotification: {
+      findFirst: vi.fn(async ({ where }: any) =>
+        mockPlatformStore.rows.find((r: any) => r.gatewayMessageId === where.gatewayMessageId) ?? null),
+      updateMany: vi.fn(async ({ where, data }: any) => {
+        let n = 0;
+        for (const r of mockPlatformStore.rows) {
+          if ((where.gatewayMessageId === undefined || r.gatewayMessageId === where.gatewayMessageId) &&
+              (where.channel === undefined || r.channel === where.channel)) {
+            Object.assign(r, data); n++;
+          }
+        }
+        return { count: n };
+      }),
+    },
   },
 }));
 vi.mock("@/lib/services/infra-config-service", () => ({
@@ -47,6 +62,11 @@ beforeEach(() => {
     { id: "m1", tenantId: "t1", direction: "OUTBOUND", status: "SENT", gatewayMessageId: "gw-1", toPhone: "628", body: "hi" },
     { id: "m2", tenantId: "t1", direction: "OUTBOUND", status: "DELIVERED", gatewayMessageId: "gw-2", toPhone: "628", body: "yo" },
     { id: "m3", tenantId: "t1", direction: "OUTBOUND", status: "READ_CONFIRMED", gatewayMessageId: "gw-3", toPhone: "628", body: "ok" },
+  ];
+  // Notifikasi platform (sesi "lumite-platform") — butuh callback agar statusnya naik.
+  mockPlatformStore.rows = [
+    { id: "pn-wa", tenantId: "t-abc", channel: "WA", status: "SENT", gatewayMessageId: "pgw-1", toAddress: "628" },
+    { id: "pn-mail", tenantId: "t-abc", channel: "EMAIL", status: "SENT", gatewayMessageId: "pgw-2", toAddress: "a@b.c" },
   ];
   vi.clearAllMocks();
 });
@@ -105,5 +125,55 @@ describe("Aircon callback — delivery_status dari gateway", () => {
   it("secret salah → 401 (auth tetap ditegakkan)", async () => {
     const res = await POST(req({ type: "delivery_status", externalId: "t1", messageId: "gw-1", status: "DELIVERED" }, "salah"));
     expect(res.status).toBe(401);
+  });
+});
+
+// REGRESSION (2026-10-26): notifikasi PLATFORM (sesi "lumite-platform") harus
+// ikut naik statusnya dari callback yang sama. Sebelumnya callback hanya
+// memperbarui `messageLog`, sehingga notifikasi platform terkirim lewat sesi
+// platform SELALU "SENT" walau gateway sudah DELIVERED/READ_CONFIRMED.
+// Bukti live: job 1793026292127-87 READ_CONFIRMED di gateway, baris
+// PlatformNotification-nya tetap SENT.
+describe("Aircon callback — notifikasi platform naik status", () => {
+  it("DELIVERED menaikkan notifikasi platform SENT → DELIVERED", async () => {
+    const res = await POST(req({
+      type: "delivery_status", externalId: "lumite-platform",
+      messageId: "pgw-1", status: "DELIVERED", ack: 2,
+    }));
+    expect(res.status).toBe(200);
+    expect(mockPlatformStore.rows[0].status).toBe("DELIVERED");
+  });
+
+  it("READ_CONFIRMED menaikkan notifikasi platform → READ_CONFIRMED", async () => {
+    await POST(req({
+      type: "delivery_status", externalId: "lumite-platform",
+      messageId: "pgw-1", status: "READ_CONFIRMED", ack: 3,
+    }));
+    expect(mockPlatformStore.rows[0].status).toBe("READ_CONFIRMED");
+  });
+
+  it("status tidak MENURUN (out-of-order: DELIVERED setelah READ)", async () => {
+    await POST(req({
+      type: "delivery_status", externalId: "lumite-platform",
+      messageId: "pgw-1", status: "READ_CONFIRMED", ack: 3,
+    }));
+    await POST(req({
+      type: "delivery_status", externalId: "lumite-platform",
+      messageId: "pgw-1", status: "DELIVERED", ack: 2,
+    }));
+    expect(mockPlatformStore.rows[0].status, "status tidak boleh turun").toBe("READ_CONFIRMED");
+  });
+
+  it("notifikasi EMAIL tidak disentuh (email tak punya ACK WhatsApp)", async () => {
+    await POST(req({
+      type: "delivery_status", externalId: "lumite-platform",
+      messageId: "pgw-2", status: "DELIVERED", ack: 2,
+    }));
+    expect(mockPlatformStore.rows[1].status).toBe("SENT");
+  });
+
+  it("sesi tenant biasa TIDAK menyentuh notifikasi platform", async () => {
+    await POST(req({ type: "delivery_status", externalId: "t1", messageId: "pgw-1", status: "DELIVERED", ack: 2 }));
+    expect(mockPlatformStore.rows[0].status).toBe("SENT");
   });
 });

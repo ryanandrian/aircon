@@ -8,6 +8,8 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getInfraSecrets } from "@/lib/services/infra-config-service";
 
+const PLATFORM_SESSION = "lumite-platform";
+
 async function authorized(req: NextRequest): Promise<boolean> {
   const { callbackSecret } = await getInfraSecrets();
   const secret = callbackSecret || process.env.WA_GATEWAY_CALLBACK_SECRET;
@@ -68,11 +70,39 @@ export async function POST(req: NextRequest) {
           where: { tenantId, gatewayMessageId: messageId },
           data: { status },
         }).catch(() => {});
+
+        // -------------------------------------------------------------------
+        // NOTIFIKASI PLATFORM (Lumite → tenant, sesi "lumite-platform").
+        //
+        // Callback ini SEBELUMNYA hanya memperbarui `messageLog`, sehingga
+        // notifikasi platform terkirim lewat sesi platform TIDAK PERNAH naik
+        // statusnya: kartu admin selamanya "SENT" walau gateway sudah
+        // melaporkan DELIVERED / READ_CONFIRMED. Bukti live 26 Okt 2026:
+        // job `1793026292127-87` (welcome → ABC Teknik) READ_CONFIRMED di
+        // gateway, sementara baris PlatformNotification-nya tetap SENT.
+        //
+        // Diperbarui di SINI (callback yang sudah ada) — bukan jalur baru:
+        // koreksi yang sama untuk sesi platform, dengan aturan monotonic
+        // yang sama, dan HANYA untuk baris channel WA (email tak punya ACK).
+        // -------------------------------------------------------------------
+        if (tenantId === PLATFORM_SESSION) {
+          const curNotif = await prisma.platformNotification.findFirst({
+            where: { gatewayMessageId: messageId },
+            select: { status: true, channel: true },
+          });
+          const curNotifRank = rank[curNotif?.status as string] ?? 0;
+          if (curNotif && curNotif.channel === "WA" && rank[target] > curNotifRank) {
+            await prisma.platformNotification.updateMany({
+              where: { gatewayMessageId: messageId, channel: "WA" },
+              data: { status },
+            }).catch(() => {});
+          }
+        }
       }
     } else if (type === "disconnected") {
       // AUTOPILOT: WA tenant putus → beri tahu tenant agar hubungkan ulang (pulihkan money-loop).
       // Sesi platform (lumite-platform) TAK memicu ini — hanya sesi tenant nyata.
-      if (tenantId !== "lumite-platform") {
+      if (tenantId !== PLATFORM_SESSION) {
         const stamp = new Date().toISOString().slice(0, 10);
         const { notifyPlatform } = await import("@/lib/services/platform-notification-service");
         await notifyPlatform({
