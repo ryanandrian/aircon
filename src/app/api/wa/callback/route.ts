@@ -100,15 +100,20 @@ export async function POST(req: NextRequest) {
         }
       }
     } else if (type === "disconnected") {
-      // AUTOPILOT: WA tenant putus → beri tahu tenant agar hubungkan ulang (pulihkan money-loop).
-      // Sesi platform (lumite-platform) TAK memicu ini — hanya sesi tenant nyata.
-      if (tenantId !== PLATFORM_SESSION) {
+      // Paket tanpa otomasi WA tidak boleh menerima pesan bahwa pengingat otomatis berhenti.
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { plan: true },
+      });
+      if (tenant && tenant.plan !== "TRIAL" && tenantId !== PLATFORM_SESSION) {
         const stamp = new Date().toISOString().slice(0, 10);
-        const { notifyPlatform } = await import("@/lib/services/platform-notification-service");
-        await notifyPlatform({
-          tenantId, templateKey: "wa_disconnected",
-          dedupeKey: `wa_disconnected:${tenantId}:${stamp}`, // maks 1x/hari
-        }).catch(() => {});
+        const { notifyPlatform, isAutoReminderPlan } = await import("@/lib/services/platform-notification-service");
+        if (await isAutoReminderPlan(tenant.plan)) {
+          await notifyPlatform({
+            tenantId, templateKey: "wa_disconnected",
+            dedupeKey: `wa_disconnected:${tenantId}:${stamp}`,
+          }).catch(() => {});
+        }
       }
     }
     // type qr/ready: informasi sesi — diproses UI (polling). Ack 200.

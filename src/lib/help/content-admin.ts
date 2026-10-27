@@ -92,9 +92,9 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     audience: "admin",
     order: 4,
     whatIsIt:
-      "Atur aturan penagihan: pajak, masa trial, masa tenggang sebelum suspend/hapus, jadwal reminder, dan template pesan penagihan. Semua configurable.",
+      "Atur aturan penagihan: pajak, masa tenggang sebelum suspend/hapus, jadwal reminder, dan template pesan penagihan. Paket Basic gratis selamanya; tidak ada masa trial.",
     steps: [
-      "Atur persentase pajak & masa trial.",
+      "Atur persentase pajak.",
       "Atur 'grace' sebelum suspend dan sebelum hapus data (hari).",
       "Atur jadwal reminder (mis. 0,3,7,14,30) & hari peringatan hapus.",
       "Sesuaikan template pesan reminder & peringatan. Simpan.",

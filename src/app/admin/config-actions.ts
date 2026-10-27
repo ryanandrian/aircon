@@ -64,7 +64,6 @@ export async function actionUpdatePolicy(fd: FormData): Promise<ActionResult> {
     const admin = await requirePlatformAdmin();
     const parsed = billingPolicySchema.safeParse({
       taxPercent: num(fd, "taxPercent"),
-      trialDays: num(fd, "trialDays"),
       graceDaysBeforeSuspend: num(fd, "graceDaysBeforeSuspend"),
       daysBeforeDelete: num(fd, "daysBeforeDelete"),
       dunningReminderDays: String(fd.get("dunningReminderDays") ?? ""),

@@ -44,7 +44,7 @@ export default async function TenantDetailPage({
   const tenant = await getTenantDetail(id);
   if (!tenant) notFound();
 
-  const health = tenantHealth(tenant.status, tenant.trialEndsAt);
+  const health = tenantHealth(tenant.status);
 
   return (
     <div className="space-y-6">
@@ -76,7 +76,6 @@ export default async function TenantDetailPage({
           <h2 className="mb-4 text-lg font-medium text-foreground">Langganan</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             <Field label="Paket" value={tenant.plan} />
-            <Field label="Masa Coba Berakhir" value={fmtDate(tenant.trialEndsAt)} />
             <Field label="Periode Berakhir" value={fmtDate(tenant.currentPeriodEnd)} />
             <Field label="Bergabung" value={fmtDate(tenant.createdAt)} />
             <Field label="Jumlah User" value={String(tenant._count.users)} />

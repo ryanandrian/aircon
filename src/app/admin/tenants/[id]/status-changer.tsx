@@ -14,7 +14,7 @@ import {
 import { Loader2 } from "lucide-react";
 
 const OPTIONS: { value: TenantStatus; label: string }[] = [
-  { value: "TRIAL", label: "Masa Coba" },
+  { value: "TRIAL", label: "Basic (Gratis)" },
   { value: "ACTIVE", label: "Aktif" },
   { value: "PAST_DUE", label: "Menunggak" },
   { value: "SUSPENDED", label: "Ditangguhkan" },

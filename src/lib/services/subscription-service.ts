@@ -66,6 +66,71 @@ export async function resumeIpaymuPayment(params: {
   return { kind: "resume", redirectUrl: fresh.redirectUrl, orderId: fresh.orderId };
 }
 
+/**
+ * Nama tampilan paket dari PlanConfig; fallback ke enum bila konfig hilang.
+ * Untuk payment outcome, paket yang dimaksud adalah PAKET YANG DIBELI
+ * (payment.plan), bukan paket saat ini — pembayaran gagal tidak mengubah paket.
+ */
+async function planDisplayName(plan: TenantPlan): Promise<string> {
+  try {
+    const cfg = await prisma.planConfig.findUnique({ where: { plan } });
+    if (cfg?.displayName) return cfg.displayName;
+  } catch { /* konfig tak terbaca → pakai nama enum */ }
+  return plan;
+}
+
+const rupiah = (n: number) => new Intl.NumberFormat("id-ID", {
+  style: "currency", currency: "IDR", maximumFractionDigits: 0,
+}).format(n);
+
+const tanggalID = (d: Date) => d.toLocaleDateString("id-ID", {
+  day: "numeric", month: "long", year: "numeric",
+});
+
+/**
+ * G7 — notifikasi pembayaran GAGAL / KEDALUWARSA.
+ *
+ * Tiga aturan yang diuji (tests/payment-outcome-notify.test.ts):
+ *  1. Terbit hanya pada TRANSISI nyata ke FAILED/EXPIRED — bukan saat baris
+ *     sudah berstatus itu (webhook boleh diulang berkali-kali).
+ *  2. `paket` berasal dari payment.plan (paket yang DIBELI). Tenant bisa saja
+ *     masih TRIAL/Basic saat upgrade gagal — menyebut paket saat ini akan
+ *     menyesatkan.
+ *  3. Dedupe per (orderId, status) sehingga retry gateway tak menggandakan.
+ *
+ * Copy menegaskan status paket TIDAK berubah; link menunjuk halaman Langganan
+ * yang memuat riwayat transaksi + tombol ulangi bayar untuk order yang sama.
+ *
+ * CATATAN KEBIJAKAN (dicatat di tracker, bukan diam-diam):
+ *  - Cakupan: SEMUA tenant yang transaksinya gagal, termasuk yang masih Basic.
+ *    Matriks F0 menuliskan "n/a" untuk kolom Basic, tetapi kolom itu menjelaskan
+ *    tagihan BERULANG — sedangkan `startIpaymuPayment` menolak paket berharga 0,
+ *    sehingga setiap Payment yang gagal SELALU milik paket berbayar. Menahan
+ *    pesan dari pemilik yang baru saja mencoba upgrade justru meninggalkan
+ *    kebingungan. Keputusan: gate-nya adalah pembayaran itu sendiri, bukan
+ *    paket saat ini.
+ *  - Kanal EMAIL saja, sesuai matriks ("email + halaman Langganan"). Kanal
+ *    kedua = halaman Langganan, yang selalu menampilkan transaksi + tombol
+ *    ulangi bayar tanpa perlu SMTP terkonfigurasi.
+ */
+async function notifyPaymentOutcome(
+  payment: { tenantId: string; orderId: string; plan: TenantPlan; amount: number },
+  status: "FAILED" | "EXPIRED",
+): Promise<void> {
+  const { notifyPlatform } = await import("@/lib/services/platform-notification-service");
+  await notifyPlatform({
+    tenantId: payment.tenantId,
+    templateKey: status === "EXPIRED" ? "payment_expired" : "payment_failed",
+    channels: ["EMAIL"],
+    vars: {
+      paket: await planDisplayName(payment.plan),
+      nominal: rupiah(payment.amount),
+      tanggal: tanggalID(new Date()),
+    },
+    dedupeKey: `payment:${payment.orderId}:${status}`,
+  });
+}
+
 export async function processIpaymuNotification(notif: {
   referenceId: string; status?: string; statusCode?: number; transactionId?: string; paymentType?: string; amount?: number; raw: unknown;
 }): Promise<{ status: PaymentStatus; tenantId: string | null }> {
@@ -75,8 +140,73 @@ export async function processIpaymuNotification(notif: {
   if (!isPaymentStatusUpdateAllowed(payment.status, next)) return { status: payment.status, tenantId: payment.tenantId };
   if (notif.amount != null && notif.amount !== payment.amount) return { status: "FAILED", tenantId: payment.tenantId };
   const transitionedToPaid = next === "PAID" && payment.status !== "PAID";
-  await prisma.payment.updateMany({ where: { orderId: payment.orderId, status: payment.status }, data: { status: next, providerTransactionId: notif.transactionId ?? payment.providerTransactionId, providerPaymentType: notif.paymentType ?? payment.providerPaymentType, paidAt: next === "PAID" ? new Date() : payment.paidAt, rawNotif: notif.raw as never } });
-  if (transitionedToPaid) await activateSubscription(payment.tenantId, payment.plan, payment.periodMonths, payment.amount);
+  // G7: notifikasi outcome hanya pada TRANSISI PENDING → FAILED/EXPIRED,
+  // yaitu satu-satunya jalur terminal pertama untuk order ini. Syarat
+  // `payment.status === "PENDING"` menjamin tepat SATU pesan outcome per order
+  // walau gateway mengirim ulang atau status berpindah antar-terminal.
+  const transitionedToFailure = payment.status === "PENDING" && (next === "FAILED" || next === "EXPIRED");
+  // GATE IDEMPOTENSI. `updateMany` dengan predicate status lama = gerbang atomik
+  // transisi: count=1 berarti PEMANGGIL INI yang memenangkan transisi; count=0
+  // berarti callback lain sudah menerapkannya lebih dulu. Tanpa gerbang ini,
+  // dua webhook paralel yang sama-sama membaca PENDING akan sama-sama menghitung
+  // transisi dan berdua mencoba enqueue. (dedupeKey tetap jaring pengaman
+  // kedua, tapi tidak boleh menjadi satu-satunya.)
+  const applied = await prisma.payment.updateMany({ where: { orderId: payment.orderId, status: payment.status }, data: { status: next, providerTransactionId: notif.transactionId ?? payment.providerTransactionId, providerPaymentType: notif.paymentType ?? payment.providerPaymentType, paidAt: next === "PAID" ? new Date() : payment.paidAt, rawNotif: notif.raw as never } });
+  const wonTransition = applied.count > 0;
+  if (transitionedToPaid && wonTransition) {
+    await activateSubscription(payment.tenantId, payment.plan, payment.periodMonths, payment.amount);
+    // G2 — Konfirmasi paket aktif setelah pembayaran benar-benar lunas.
+    // Sekali per transisi (transitionedToPaid), idempoten per orderId, gagal-jujur:
+    // kegagalan antre tidak membatalkan aktivasi langganan yang sudah commit.
+    try {
+      const platform = await import("@/lib/services/platform-notification-service");
+      const periodEnd = await prisma.tenant.findUnique({
+        where: { id: payment.tenantId },
+        select: { currentPeriodEnd: true },
+      });
+      const sub = await prisma.subscription.findUnique({
+        where: { tenantId: payment.tenantId },
+        select: { currentPeriodEnd: true },
+      });
+      // Tanggal periode WAJIB dari data periode yang benar-benar ditulis aktivasi.
+      // `activateSubscription` menulis kolom yang sama di Tenant DAN Subscription;
+      // keduanya dibaca karena satu bisa null walau aktivasi berhasil. `new Date()`
+      // TIDAK PERNAH dipakai sebagai fallback — itu memalsukan batas periode.
+      // Tanpa tanggal sama sekali, konfirmasi dilewati: lebih jujur daripada
+      // mengarang, dan kasus ini tercatat sebagai error untuk ditindak.
+      const periodEndDate = periodEnd?.currentPeriodEnd ?? sub?.currentPeriodEnd ?? null;
+      if (!periodEndDate) {
+        console.error(`[subscription-activated] lewati: tenant=${payment.tenantId} order=${payment.orderId} tidak punya currentPeriodEnd di Tenant maupun Subscription (periode tidak tertulis) — konfirmasi tidak dikirim agar tidak menyebut tanggal salah`);
+      } else {
+        // CTA sambung WA HANYA bila paket yang DIBELI mengizinkan autoReminder.
+        // Tanpa gerbang ini, tenant yang membeli paket tanpa otomasi akan menerima
+        // ajakan mengaktifkan fitur yang tidak tersedia bagi mereka.
+        const allowAuto = await platform.isAutoReminderPlan(payment.plan);
+        await platform.notifyPlatform({
+          tenantId: payment.tenantId,
+          templateKey: "subscription_activated",
+          vars: {
+            tanggal: periodEndDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }),
+            nominal: new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(payment.amount),
+            cta: allowAuto
+              ? "Untuk mengaktifkan pengingat servis otomatis, sambungkan WhatsApp usaha di Pengaturan → Hubungkan WhatsApp. Pengiriman otomatis dimulai setelah status koneksi tersambung. "
+              : "Paket ini tidak memiliki pengiriman otomatis; kelola pengingat Anda dari menu Pengingat. ",
+          },
+          dedupeKey: `payment:${payment.orderId}:PAID`, // idempoten: webhook boleh ulang, pesan tetap 1
+        });
+      }
+    } catch (err) {
+      console.error(`[subscription-activated] gagal antre (aktivasi tetap sukses) tenant=${payment.tenantId}:`, err);
+    }
+  }
+  if (transitionedToFailure && wonTransition) {
+    // Kegagalan notifikasi TIDAK boleh membatalkan pemrosesan pembayaran yang sudah commit.
+    try {
+      await notifyPaymentOutcome(payment, next as "FAILED" | "EXPIRED");
+    } catch (err) {
+      console.error(`[payment-outcome] gagal antre tenant=${payment.tenantId} order=${payment.orderId} status=${next}:`, err);
+    }
+  }
   if (next === "PAID") {
     try { const { accrueCommission } = await import("@/lib/partner/partner-service"); await accrueCommission({ orderId: payment.orderId, tenantId: payment.tenantId, plan: payment.plan, grossIdr: payment.commissionBaseIdr ?? payment.amount, monthsPaid: payment.periodMonths, settledAt: new Date() }); }
     catch (err) { console.error("[commission] accrue gagal:", err); }

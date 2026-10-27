@@ -10,14 +10,13 @@ export default async function AdminKebijakanPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Kebijakan Billing</h1>
         <p className="text-sm text-muted-foreground">
-          Pajak, masa trial, tenggang penangguhan & penghapusan, serta jadwal pengingat.
+          Pajak, masa tenggang sebelum suspend/hapus, jadwal pengingat, dan template pesan penagihan.
           Semua tanpa hardcode — perubahan langsung berlaku pada siklus penagihan berikutnya.
         </p>
       </div>
       <PolicyEditor
         initial={{
           taxPercent: p.taxPercent,
-          trialDays: p.trialDays,
           graceDaysBeforeSuspend: p.graceDaysBeforeSuspend,
           daysBeforeDelete: p.daysBeforeDelete,
           dunningReminderDays: p.dunningReminderDays,

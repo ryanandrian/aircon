@@ -26,7 +26,6 @@ export type PlanConfigInput = z.infer<typeof planConfigSchema>;
 export const billingPolicySchema = z
   .object({
     taxPercent: z.number().min(0).max(100),
-    trialDays: z.number().int().min(0),
     graceDaysBeforeSuspend: z.number().int().min(0),
     daysBeforeDelete: z.number().int().min(1),
     dunningReminderDays: z

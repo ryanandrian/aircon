@@ -8,7 +8,7 @@ import type { TenantStatus, PaymentStatus } from "@prisma/client";
 export type TenantHealth = "sehat" | "perhatian" | "bermasalah";
 
 const TENANT_STATUS_LABEL: Record<TenantStatus, string> = {
-  TRIAL: "Masa Coba",
+  TRIAL: "Basic (Gratis)",
   ACTIVE: "Aktif",
   PAST_DUE: "Menunggak",
   SUSPENDED: "Ditangguhkan",
@@ -33,23 +33,16 @@ export function formatPaymentStatus(status: PaymentStatus): string {
   return PAYMENT_STATUS_LABEL[status];
 }
 
-/** Ambang "masa coba hampir habis" dalam hari. */
-const TRIAL_WARNING_DAYS = 3;
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 /**
  * Ringkas kesehatan langganan untuk badge:
  * - ACTIVE => sehat
+ * - TRIAL (Basic gratis selamanya) => sehat
  * - PAST_DUE => perhatian
  * - SUSPENDED / CANCELLED => bermasalah
- * - TRIAL => sehat bila masih > TRIAL_WARNING_DAYS lagi; selain itu perhatian
- *   (termasuk bila trialEndsAt null/tidak lengkap).
  */
-export function tenantHealth(
-  status: TenantStatus,
-  trialEndsAt: Date | null,
-  now: Date = new Date(),
-): TenantHealth {
+// Parameter kedua & ketiga dipertahankan agar kompatibel dengan pemanggil lama;
+// keputusan kesehatan kini murni dari status, bukan dari masa coba yang tidak ada.
+export function tenantHealth(status: TenantStatus): TenantHealth {
   switch (status) {
     case "ACTIVE":
       return "sehat";
@@ -58,11 +51,10 @@ export function tenantHealth(
     case "SUSPENDED":
     case "CANCELLED":
       return "bermasalah";
-    case "TRIAL": {
-      if (!trialEndsAt) return "perhatian";
-      const daysLeft = (trialEndsAt.getTime() - now.getTime()) / MS_PER_DAY;
-      return daysLeft > TRIAL_WARNING_DAYS ? "sehat" : "perhatian";
-    }
+    case "TRIAL":
+      // Basic = paket gratis selamanya; tidak ada masa coba, jadi tidak ada
+      // "perhatian" yang menyesatkan pada akun gratis yang justru sehat.
+      return "sehat";
     default: {
       // Exhaustiveness guard (TS strict).
       const _exhaustive: never = status;

@@ -10,7 +10,6 @@ import { Loader2 } from "lucide-react";
 
 interface Initial {
   taxPercent: number;
-  trialDays: number;
   graceDaysBeforeSuspend: number;
   daysBeforeDelete: number;
   dunningReminderDays: string;
@@ -48,10 +47,6 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
         <div>
           <Label htmlFor="taxPercent">Pajak (%)</Label>
           <Input id="taxPercent" type="number" step="0.1" name="taxPercent" defaultValue={initial.taxPercent} className="mt-1" />
-        </div>
-        <div>
-          <Label htmlFor="trialDays">Masa trial (hari)</Label>
-          <Input id="trialDays" type="number" name="trialDays" defaultValue={initial.trialDays} className="mt-1" />
         </div>
         <div>
           <Label htmlFor="graceDaysBeforeSuspend">Tenggang suspend (hari)</Label>

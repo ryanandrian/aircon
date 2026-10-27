@@ -5,7 +5,7 @@
  */
 import type { TenantPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getPlanConfig, getBillingPolicy } from "@/lib/billing/config";
+import { getPlanConfig } from "@/lib/billing/config";
 import {
   quotaLimit,
   type QuotaKind,
@@ -72,8 +72,11 @@ export async function checkQuota(
   return { allowed, limit, current, kind };
 }
 
-/** Ambil trialDays terkini dari policy. */
+/**
+ * @deprecated Tidak dipakai. Basic Aircon gratis selamanya dan tidak memiliki
+ * masa trial. Dipertahankan sementara untuk kompatibilitas API internal; hapus
+ * bersama BillingPolicy.trialDays setelah pencarian consumer lintas repo lulus.
+ */
 export async function trialDays(): Promise<number> {
-  const policy = await getBillingPolicy();
-  return policy.trialDays;
+  return 0;
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { tryGetServerContext } from "@/lib/auth/context";
+import { prisma } from "@/lib/prisma";
 import { getTenantProfile, getMaintenanceInterval, getReminderLeadDays } from "@/lib/services/tenant-profile-service";
 import { AppHeader } from "../_components/app-header";
 import { SettingsForm } from "./settings-form";
@@ -18,10 +19,17 @@ export default async function PengaturanPage({
   const { baru } = await searchParams;
   const isNew = baru === "1";
 
-  const [p, maintenanceIntervalDays, reminderLeadDays] = await Promise.all([
+  const [p, maintenanceIntervalDays, reminderLeadDays, planAutoReminder] = await Promise.all([
     getTenantProfile(ctx.tenantId),
     getMaintenanceInterval(ctx.tenantId),
     getReminderLeadDays(ctx.tenantId),
+    prisma.tenant
+      .findUnique({ where: { id: ctx.tenantId }, select: { plan: true } })
+      .then(async (t) => {
+        if (!t) return false;
+        const cfg = await prisma.planConfig.findUnique({ where: { plan: t.plan } });
+        return cfg?.autoReminder === true;
+      }),
   ]);
   const profile = {
     name: p.name,
@@ -54,7 +62,7 @@ export default async function PengaturanPage({
     <main className="min-h-screen">
       <AppHeader title="Pengaturan Usaha" helpKey="pengaturan" />
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
-        {isNew && (
+        {isNew && planAutoReminder && (
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-200">
             <p className="font-semibold">Usaha Anda siap! Satu langkah lagi 🎉</p>
             <p className="mt-1 text-sm text-sky-800/80 dark:text-sky-200/70">

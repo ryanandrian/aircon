@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
     template: "%s · Aircon",
   },
   description:
-    "Aplikasi manajemen usaha servis AC dari HP: terima booking online, atur teknisi & jadwal, buat invoice profesional, pantau piutang, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis selamanya untuk mulai.",
+    "Aplikasi manajemen usaha servis AC: booking online, teknisi, invoice, pelanggan, dan pengingat servis — manual di Basic, otomatis di Professional/Business setelah WhatsApp tersambung. Gratis selamanya.",
   keywords: [
     "software usaha AC", "aplikasi servis AC", "manajemen teknisi AC", "aplikasi cuci AC",
     "invoice servis AC", "kasir usaha AC", "reminder servis AC WhatsApp", "aplikasi HVAC Indonesia",
@@ -44,14 +44,14 @@ export async function generateMetadata(): Promise<Metadata> {
     siteName: "Aircon",
     title: "Aircon — Software Usaha Servis AC dari HP",
     description:
-      "Terima booking online, atur teknisi, buat invoice profesional, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis selamanya untuk mulai.",
+      "Pengingat servis manual via WhatsApp pada Basic; otomatis di Professional/Business setelah nomor usaha tersambung. Gratis selamanya untuk mulai.",
     images: [{ url: "/brand/aircon-logo.png", width: 512, height: 512, alt: "Aircon" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Aircon — Software Usaha Servis AC dari HP",
     description:
-      "Kasir, invoice, jadwal teknisi, dan pengingat servis WhatsApp — semua dari HP. Gratis selamanya untuk mulai.",
+      "Pengingat servis manual melalui WhatsApp pada Basic; otomatis di Professional/Business setelah nomor usaha tersambung.",
     images: ["/brand/aircon-logo.png"],
   },
   robots: {

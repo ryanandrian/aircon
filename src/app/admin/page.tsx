@@ -43,7 +43,7 @@ export default async function AdminDashboardPage() {
       <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <StatCard label="Total Usaha" value={stats.total} />
         <StatCard label="Aktif" value={stats.active} />
-        <StatCard label="Masa Coba" value={stats.trial} />
+        <StatCard label="Paket Basic (Gratis)" value={stats.trial} />
         <StatCard label="Menunggak" value={stats.pastDue} />
         <StatCard label="Ditangguhkan" value={stats.suspended} />
       </section>

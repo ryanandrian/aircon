@@ -15,27 +15,27 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 0,
     whatIsIt:
-      "Langkah pertama memakai Aircon: buat usaha Anda. Cukup isi 3 hal, lalu Anda diajak menghubungkan WhatsApp agar pengingat otomatis langsung aktif.",
+      "Langkah pertama memakai Aircon: buat usaha Anda. Paket Basic gratis selamanya; Anda bisa langsung memakai fitur inti dan mengirim pengingat secara manual dari menu Pengingat.",
     steps: [
       "Masuk dengan Google (tombol 'Lanjutkan dengan Google').",
       "Isi Nama Usaha, Kota/Area Layanan, dan Nomor WhatsApp Usaha.",
       "Punya kode agen? Isi di 'Kode Agen / Referral' (opsional).",
       "Ketuk 'Mulai Pakai Aircon'.",
-      "Anda diarahkan ke Pengaturan — segera 'Hubungkan WhatsApp' (scan QR) agar pengingat aktif.",
+      "Setelah daftar, Anda masuk ke Ringkasan. Jika memakai paket berbayar, Hubungkan WhatsApp tersedia di Pengaturan setelah upgrade untuk mengaktifkan pengiriman otomatis.",
     ],
     tips: [
       "Nomor WhatsApp yang Anda isi = identitas usaha; menautkannya ke gateway dilakukan lewat scan QR di Pengaturan.",
-      "Belum pegang HP WhatsApp usaha saat daftar? Lewati dulu — banner di beranda akan mengingatkan sampai tersambung.",
+      "Belum pegang HP WhatsApp usaha saat daftar? Tidak masalah — paket Basic mengirim pengingat secara manual dari menu Pengingat. Sambungkan WhatsApp setelah upgrade ke paket berbayar bila ingin pengiriman otomatis.",
       "Semua data ini bisa diubah kapan saja di menu Pengaturan.",
     ],
     faqs: [
       {
         q: "Apakah gratis?",
-        a: "Ada masa coba (trial). Paket Basic gratis untuk fitur inti; paket berbayar membuka kapasitas & fitur lebih.",
+        a: "Paket Basic gratis selamanya untuk fitur inti dan dibatasi kuota paket. Pengingat servis bisa dikirim manual dari menu Pengingat. Upgrade ke Professional atau Business membuka kapasitas lebih besar dan pengiriman otomatis via WhatsApp.",
       },
       {
-        q: "Kenapa setelah daftar diminta hubungkan WhatsApp?",
-        a: "Pengingat servis otomatis ke pelanggan adalah inti Aircon. Tanpa WhatsApp tersambung, pengingat tak bisa terkirim.",
+        q: "Kenapa ada pilihan nomor WhatsApp saat daftar?",
+        a: "Nomor tersebut dicatat sebagai nomor usaha Anda. Pengiriman otomatis baru tersedia di paket berbayar setelah nomor disambungkan melalui Pengaturan → Hubungkan WhatsApp.",
       },
     ],
   },
@@ -58,7 +58,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     ],
     tips: [
       "'Peluang IoT' berubah kuning bila ada peringatan dari perangkat — sinyal untuk menawarkan servis.",
-      "Kartu 'Pelanggan Datang Lagi' menjelaskan inti Aircon: servis berulang otomatis lewat pengingat WhatsApp.",
+      "Kartu 'Pelanggan Datang Lagi' menjelaskan bahwa pengingat otomatis tersedia setelah nomor WhatsApp tersambung pada paket berbayar.",
     ],
     faqs: [
       {
@@ -108,7 +108,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
       "Punya banyak pelanggan sekaligus? Ketuk 'Impor' → 'Unduh Template' Excel → isi → unggah kembali. Aplikasi memeriksa & menampilkan pratinjau sebelum menyimpan.",
     ],
     tips: [
-      "Nomor WhatsApp yang benar adalah kunci — di situlah pengingat servis otomatis dikirim.",
+      "Nomor WhatsApp pelanggan dipakai untuk pengingat manual pada Basic dan untuk pengingat otomatis setelah nomor usaha tersambung pada paket Professional/Business.",
       "PIC Keuangan (nama/HP/email) dipakai sebagai tujuan pengiriman tagihan & kwitansi untuk pelanggan badan. Bila kosong, tagihan dikirim ke WhatsApp utama.",
       "Email bersifat opsional. Bila dikosongkan, tagihan & dokumen dikirim lewat WhatsApp.",
     ],
@@ -192,7 +192,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     tips: [
       "Unit muncul otomatis sesuai 'Jadwal Servis Berikutnya' dan jarak pengingat di Pengaturan Usaha (mis. 3 hari sebelum hari-H).",
       "Status pengiriman dibaca langsung dari gateway WhatsApp — bila tertulis 'Gagal', kirim ulang lewat tombol 'Kirim Pengingat'.",
-      "Paket tanpa pengingat otomatis (mis. Trial): unit tetap muncul dengan status 'Belum dikirim' dan Anda mengirim manual lewat tombol tersebut.",
+      "Paket tanpa pengingat otomatis (Basic): unit tetap muncul dengan status 'Belum dikirim' dan Anda mengirim manual lewat tombol tersebut.",
       "Pengingat yang dikonversi jadi pekerjaan atau ditutup otomatis keluar dari daftar — tidak akan menumpuk selamanya.",
     ],
     faqs: [
@@ -361,7 +361,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     faqs: [
       {
         q: "Apa yang terjadi jika telat bayar?",
-        a: "Ada masa tenggang. Bila terus menunggak, akun sementara dinonaktifkan; Anda akan diingatkan lewat WhatsApp sebelum itu.",
+        a: "Paket Basic gratis selamanya; pengingat jatuh tempo dikirim manual melalui WhatsApp Anda. Pengiriman otomatis tersedia di Professional dan Business setelah nomor WhatsApp tersambung.",
       },
     ],
   },
@@ -374,7 +374,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
     audience: "owner",
     order: 1,
     whatIsIt:
-      "Sambungkan nomor WhatsApp usaha ke Aircon agar pengingat servis dan notifikasi terkirim otomatis ke pelanggan. Ada dua cara: QR untuk laptop/PC, atau kode tautan untuk Anda yang hanya memakai satu HP.",
+      "Di paket Professional/Business, sambungkan nomor WhatsApp usaha di sini untuk mengaktifkan pengiriman otomatis. Paket Basic mengirim pengingat secara manual dari menu Pengingat. Ada dua cara: QR, atau kode tautan bila Anda hanya memakai satu HP.",
     steps: [
       "Siapkan HP dengan WhatsApp usaha (bukan WA pribadi).",
       "Untuk cara QR: di Pengaturan Usaha, ketuk 'Hubungkan dengan QR'.",
@@ -426,7 +426,7 @@ export const OWNER_TOPICS: HelpTopic[] = [
       "Isi data rekening bank (Nama Bank & Atas Nama) bila perlu ditampilkan ke pelanggan.",
       "Aktifkan 'Terapkan program insentif tim' bila usaha Anda memberi insentif ke teknisi.",
       "Ketuk 'Simpan Profil Usaha' untuk menyimpan perubahan.",
-      "Pengingat dapat dikirim dari menu Pengingat (kirim manual via WhatsApp Anda). Koneksi WhatsApp otomatis tersedia pada paket berbayar — lihat bantuan 'Hubungkan WhatsApp'.",
+      "Pengingat dapat dikirim dari menu Pengingat (kirim manual via WhatsApp Anda). Pengiriman otomatis tersedia pada paket Professional dan Business setelah nomor usaha tersambung.",
     ],
     tips: [
       "Bila pesan sudah Diterima perangkat tetapi tidak muncul Dibaca terkonfirmasi, itu bukan berarti pengiriman gagal atau penerima belum membaca. WhatsApp tidak selalu mengirim ACK_READ.",

@@ -16,7 +16,7 @@ type Row = {
   createdAt: string; sentAt: string | null;
 };
 type Tenant = { id: string; name: string };
-type Template = { key: string; label: string };
+type Template = { key: string; label: string; manualAllowed: boolean };
 
 const statusColor: Record<string, string> = {
   SENT: "bg-emerald-600 hover:bg-emerald-600",
@@ -32,6 +32,8 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
   const [templateKey, setTemplateKey] = useState(templates[0]?.key ?? "");
   const [channel, setChannel] = useState<"WA" | "EMAIL">("WA");
   const [pending, start] = useTransition();
+  const selectedTemplate = templates.find((t) => t.key === templateKey);
+  const canSendManually = selectedTemplate?.manualAllowed === true;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string; info?: string }>) =>
     start(async () => {
@@ -87,10 +89,11 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={pending || !tenantId}
+            <Button size="sm" disabled={pending || !tenantId || !canSendManually}
               onClick={() => run(() => actionSendPlatformNotif(tenantId, templateKey as never, channel))}>
               Kirim ke Tenant Ini
             </Button>
+            {!canSendManually && selectedTemplate && <p className="self-center text-xs text-muted-foreground">Template ini terbit otomatis setelah transaksi terkait, bukan untuk kirim manual.</p>}
             <Button size="sm" variant="outline" disabled={pending}
               onClick={() => run(() => actionRunPlatformNotifyNow())}>
               Jalankan Siklus Event Sekarang
@@ -101,8 +104,8 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            &quot;Siklus Event&quot; mendeteksi tenant jatuh tempo/trial habis lalu mengirim otomatis (sama seperti cron harian).
-            Guard anti-spam aktif — nomor tak valid otomatis diblokir.
+            &quot;Siklus Event&quot; memeriksa pengingat tagihan tenant berbayar yang mendekati atau melewati jatuh tempo. Paket Basic gratis selamanya, tidak memiliki masa trial atau tagihan langganan.
+            Status Terkirim, Diterima, dan Dibaca dibedakan berdasarkan bukti callback yang tersedia.
           </p>
         </CardContent>
       </Card>

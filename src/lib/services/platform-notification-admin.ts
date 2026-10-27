@@ -51,9 +51,25 @@ export async function listPlatformNotifs(limit = 50): Promise<PlatformNotifRow[]
   }));
 }
 
-/** Daftar template (untuk dropdown UI). */
-export function platformTemplateOptions(): { key: PlatformTemplateKey; label: string }[] {
+/**
+ * Template yang boleh dikirim manual dari panel admin.
+ * `subscription_activated` TIDAK termasuk: isinya mengikat transaksi (nominal,
+ * periode, paket) sehingga hanya sah bila terbit dari webhook pembayaran.
+ */
+const MANUAL_TEMPLATE_KEYS: readonly PlatformTemplateKey[] = [
+  "welcome_basic",
+  "welcome_paid",
+  "subscription_due",
+  "subscription_overdue",
+  "wa_disconnected",
+];
+
+export function platformTemplateOptions(): {
+  key: PlatformTemplateKey; label: string; manualAllowed: boolean;
+}[] {
   return (Object.keys(PLATFORM_TEMPLATES) as PlatformTemplateKey[]).map((key) => ({
-    key, label: PLATFORM_TEMPLATES[key].label,
+    key,
+    label: PLATFORM_TEMPLATES[key].label,
+    manualAllowed: MANUAL_TEMPLATE_KEYS.includes(key),
   }));
 }

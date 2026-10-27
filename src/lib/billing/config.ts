@@ -31,7 +31,6 @@ export async function getBillingPolicy(): Promise<BillingPolicy> {
     data: {
       id: "singleton",
       taxPercent: 11,
-      trialDays: 14,
       graceDaysBeforeSuspend: 1,
       daysBeforeDelete: 7,
       dunningReminderDays: "0,1,3",

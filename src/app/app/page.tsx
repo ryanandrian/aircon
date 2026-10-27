@@ -108,7 +108,7 @@ export default async function AppDashboard() {
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-foreground">Pelanggan Datang Lagi</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Setiap pekerjaan selesai otomatis membuat pengingat servis berikutnya. Saat waktunya tiba, pelanggan dikabari lewat WhatsApp — servis berulang tanpa Anda harus mengingat-ingat.
+                  Di Basic, pengingat servis jatuh tempo tersedia untuk Anda kirim manual melalui WhatsApp. Di Professional dan Business, setelah nomor usaha tersambung, Aircon mengirim pengingat otomatis saat waktunya tiba.
                 </p>
               </div>
             </div>

@@ -12,7 +12,7 @@ export const LANDING_DEFAULTS = {
   heroTitle: "Pelanggan servis AC Anda",
   heroTitleAccent: "datang lagi otomatis",
   heroSubtitle:
-    "Terima booking online, atur pekerjaan teknisi, dan ingatkan pelanggan servis berkala lewat WhatsApp — semua otomatis. Fokus kerja, biar Aircon yang jaga usaha Anda tetap ramai.",
+    "Terima booking online dan atur pekerjaan teknisi. Pengingat servis dikirim manual dari WhatsApp Anda pada paket Basic; pengiriman otomatis lewat WhatsApp tersedia pada paket Professional dan Business setelah nomor usaha tersambung.",
   heroCtaPrimary: "Mulai Sekarang — Gratis Selamanya",
   heroCtaSecondary: "Lihat Pratinjau",
   heroMicrocopy: "Tanpa kartu kredit · Bisa langsung dipakai · Berhenti kapan saja",
@@ -22,7 +22,7 @@ export const LANDING_DEFAULTS = {
   howTitle: "Cara kerjanya sederhana",
   howSubtitle: "Dirancang untuk teknisi & pemilik usaha.",
   featuresTitle: "Semua yang usaha AC Anda butuhkan, dalam satu aplikasi",
-  featuresSubtitle: "Dari mencatat pekerjaan sampai uang masuk — rapi, otomatis, dan terlihat profesional.",
+  featuresSubtitle: "Dari mencatat pekerjaan sampai uang masuk — rapi, terpantau, dan profesional.",
   ctaTitle: "Siap bikin usaha AC Anda lebih ramai?",
   ctaSubtitle: "Coba gratis, tak perlu kartu kredit. Bisa langsung dipakai hari ini.",
   ctaButton: "Mulai Sekarang — Gratis Selamanya",

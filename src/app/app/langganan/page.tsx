@@ -17,7 +17,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
-  TRIAL: "Masa Coba",
+  TRIAL: "Basic (Gratis)",
   ACTIVE: "Aktif",
   PAST_DUE: "Menunggu Pembayaran",
   SUSPENDED: "Dinonaktifkan",

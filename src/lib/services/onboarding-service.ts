@@ -178,11 +178,16 @@ export async function createTenantForOwner(input: CreateTenantInput): Promise<{
     }
   }
 
-  // AUTOPILOT: sambutan platform (Lumite → tenant baru), gagal-jujur — tak mengganggu onboarding.
+  // AUTOPILOT: sambutan platform, gagal-jujur — tak mengganggu onboarding.
+  // Template welcome dipilih DARI PAKET (policy): Basic = varian manual
+  // (tanpa CTA sambung WA, tanpa klaim otomatis). Lihat platform-templates.ts.
   try {
-    const { notifyPlatform } = await import("@/lib/services/platform-notification-service");
+    const { notifyPlatform, resolveWelcomeTemplateKey } = await import(
+      "@/lib/services/platform-notification-service"
+    );
     await notifyPlatform({
-      tenantId, templateKey: "welcome",
+      tenantId,
+      templateKey: await resolveWelcomeTemplateKey(tenantId),
       dedupeKey: `welcome:${tenantId}`, // sekali seumur hidup tenant
     });
   } catch (err) {

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Semua Status" },
-  { value: "TRIAL", label: "Masa Coba" },
+  { value: "TRIAL", label: "Basic (Gratis)" },
   { value: "ACTIVE", label: "Aktif" },
   { value: "PAST_DUE", label: "Menunggak" },
   { value: "SUSPENDED", label: "Ditangguhkan" },
@@ -87,7 +87,7 @@ export default async function TenantsPage({
                 <th className="px-5 py-3 font-medium">Nama Usaha</th>
                 <th className="px-5 py-3 font-medium">Paket</th>
                 <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Masa Coba Berakhir</th>
+                <th className="px-5 py-3 font-medium">Periode Berakhir</th>
                 <th className="px-5 py-3 font-medium text-right">User</th>
                 <th className="px-5 py-3 font-medium text-right">Pekerjaan</th>
               </tr>
@@ -105,7 +105,7 @@ export default async function TenantsPage({
                   <td className="px-5 py-3">
                     <TenantStatusBadge status={t.status} />
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground">{fmtDate(t.trialEndsAt)}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{fmtDate(t.currentPeriodEnd ?? t.trialEndsAt)}</td>
                   <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{t.userCount}</td>
                   <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{t.jobCount}</td>
                 </tr>

@@ -20,8 +20,8 @@ export default async function AdminNotifikasiPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Notifikasi Platform</h1>
         <p className="text-sm text-muted-foreground">
-          Pesan otomatis Lumite → tenant (tagihan langganan, masa coba, WhatsApp terputus, sambutan).
-          Terkirim via WhatsApp (nomor Lumite) &amp; email. Idempoten — aman dari kirim ganda.
+          Pesan platform Aircon ke tenant: sambutan sesuai paket, tagihan langganan, dan koneksi WhatsApp yang terputus.
+          Terkirim via WhatsApp (nomor platform) &amp; email. Status delivery mengikuti bukti callback yang tersedia.
         </p>
       </div>
       <LumiteWaConnect />

@@ -10,18 +10,50 @@
  */
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { renderTemplate, normalizePhone } from "@/lib/wa/gateway";
-import { PLATFORM_TEMPLATES, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
+import { normalizePhone } from "@/lib/wa/gateway";
+import type { TenantPlan } from "@prisma/client";
+import {
+  PLATFORM_TEMPLATES,
+  renderPlatformTemplate,
+  type PlatformTemplateKey,
+} from "@/lib/domain/platform-templates";
 
 export { PLATFORM_TEMPLATES };
 export type { PlatformTemplateKey };
 
 export interface NotifyInput {
   tenantId: string;
-  templateKey: PlatformTemplateKey;
+  /** null = welcome: dipilih otomatis berdasar PlanConfig.autoReminder. */
+  templateKey: PlatformTemplateKey | null;
   channels?: ("WA" | "EMAIL")[]; // default: keduanya bila tersedia
   vars?: Record<string, string>;
   dedupeKey?: string;            // idempotensi; bila kosong → tak dedupe
+}
+
+const appBase = () =>
+  (process.env.NEXT_PUBLIC_APP_URL || "https://app.airconet.id").replace(/\/+$/, "");
+
+/**
+ * Pilih template sambutan dari PLAN (policy), bukan dari copy:
+ * paket autoReminder=false → varian manual (tanpa CTA sambung WA / tanpa klaim otomatis).
+ * Kunci disimpan pada dedupeKey `welcome:<tenantId>` agar tetap sekali seumur hidup
+ * walaupun nama template berubah.
+ */
+export async function resolveWelcomeTemplateKey(tenantId: string): Promise<PlatformTemplateKey> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { plan: true },
+  });
+  if (!tenant) throw new Error(`tenant ${tenantId} tidak ditemukan saat memilih template welcome`);
+  const planConfig = await prisma.planConfig.findUnique({ where: { plan: tenant.plan } });
+  return planConfig?.autoReminder === true ? "welcome_paid" : "welcome_basic";
+}
+
+/** Apakah paket tenant diizinkan otomasi WhatsApp (CTA sambung WA & klaim otomatis). */
+export async function isAutoReminderPlan(plan: TenantPlan): Promise<boolean> {
+  const planConfig = await prisma.planConfig.findUnique({ where: { plan } });
+  if (!planConfig) return false;
+  return planConfig.autoReminder === true;
 }
 
 /**
@@ -29,20 +61,48 @@ export interface NotifyInput {
  * Return jumlah baris yang dibuat (0 bila dedupe menahan / penerima tak tersedia).
  */
 export async function notifyPlatform(input: NotifyInput): Promise<{ created: number; skipped: string[] }> {
-  const { tenantId, templateKey } = input;
-  const tpl = PLATFORM_TEMPLATES[templateKey];
+  const { tenantId } = input;
   const skipped: string[] = [];
-  if (!tpl) return { created: 0, skipped: [`template tak dikenal: ${templateKey}`] };
-
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, phone: true } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, phone: true, plan: true } });
   if (!tenant) return { created: 0, skipped: ["tenant tak ditemukan"] };
   const owner = await prisma.user.findFirst({
     where: { tenantId, role: "OWNER" }, select: { email: true, phone: true },
   });
 
-  const vars = { app: "Aircon", tenant: tenant.name, ...(input.vars ?? {}) };
-  const subject = renderTemplate(tpl.subject, vars);
-  const body = renderTemplate(tpl.body, vars);
+  const templateKey = input.templateKey ?? (await resolveWelcomeTemplateKey(tenantId));
+  const tpl = PLATFORM_TEMPLATES[templateKey];
+  if (!tpl) return { created: 0, skipped: [`template tak dikenal: ${templateKey}`] };
+  const planConfig = await prisma.planConfig.findUnique({ where: { plan: tenant.plan } });
+  const langganan = `${appBase()}/app/langganan`;
+  const pengaturan = `${appBase()}/app/pengaturan`;
+  const DEFAULT_LINK: Record<PlatformTemplateKey, string> = {
+    welcome_basic: langganan,
+    welcome_paid: pengaturan,
+    subscription_activated: pengaturan,
+    subscription_due: langganan,
+    subscription_overdue: langganan,
+    // Gagal/kedaluwarsa: tautan yang masih berlaku = halaman Langganan
+    // (menampilkan riwayat transaksi + tombol Bayar Lagi untuk order tsb).
+    payment_failed: langganan,
+    payment_expired: langganan,
+    wa_disconnected: pengaturan,
+  };
+  const vars = {
+    app: "Aircon",
+    tenant: tenant.name,
+    paket: planConfig?.displayName ?? tenant.plan,
+    link: DEFAULT_LINK[templateKey],
+    ...(input.vars ?? {}),
+  };
+  let rendered: { subject: string; body: string };
+  try {
+    rendered = renderPlatformTemplate(templateKey, vars);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "template gagal dirender";
+    console.error(`[platform-notification] render gagal tenant=${tenantId} template=${templateKey}: ${message}`);
+    return { created: 0, skipped: [message] };
+  }
+  const { subject, body } = rendered;
   const channels = input.channels ?? ["WA", "EMAIL"];
 
   let created = 0;

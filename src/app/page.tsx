@@ -20,7 +20,7 @@ import { CustomerServiceFab } from "@/components/customer-service-fab";
 export const metadata = {
   title: "Aircon — Software Usaha Servis AC: Pelanggan Datang Lagi Otomatis",
   description:
-    "Aplikasi kasir & manajemen usaha AC dari HP. Terima booking online, atur teknisi, buat invoice profesional, dan buat pelanggan servis ulang otomatis lewat WhatsApp. Gratis selamanya.",
+    "Aplikasi manajemen usaha servis AC dari HP: booking online, atur teknisi & jadwal, invoice profesional, pantau piutang, insentif teknisi, dan pengingat WhatsApp — manual di Basic, otomatis di Professional dan Business. Gratis selamanya.",
 };
 
 export const dynamic = "force-dynamic";
@@ -61,7 +61,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web, Android, iOS (PWA)",
         description:
-          "Aplikasi manajemen usaha servis AC: booking online, atur teknisi & jadwal, invoice profesional, pantau piutang, insentif teknisi, dan pengingat servis otomatis lewat WhatsApp.",
+          "Aplikasi manajemen usaha servis AC: booking online, atur teknisi & jadwal, invoice profesional, pantau piutang, insentif teknisi, dan pengingat servis via WhatsApp — manual di Basic, otomatis di Professional dan Business.",
         inLanguage: "id-ID",
         url: siteUrl,
         publisher: { "@id": `${siteUrl}/#org` },
@@ -74,7 +74,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         featureList: [
           "Booking online", "Manajemen teknisi & jadwal", "Invoice & kwitansi profesional",
           "Pemantauan piutang", "Insentif teknisi otomatis", "Kartu riwayat AC online",
-          "Pengingat servis via WhatsApp",
+          "Pengingat servis via WhatsApp (otomatis di Professional & Business; manual di Basic)",
         ],
       },
       {
@@ -82,7 +82,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         mainEntity: [
           { "@type": "Question", name: "Apakah Aircon ribet dipakai?", acceptedAnswer: { "@type": "Answer", text: "Tidak. Aircon dibuat untuk teknisi & pemilik usaha AC. Semua dari HP, bahasa Indonesia, langsung bisa dipakai tanpa pelatihan khusus." } },
           { "@type": "Question", name: "Apakah Aircon gratis?", acceptedAnswer: { "@type": "Answer", text: "Ya, paket Basic gratis selamanya. Anda hanya membayar bila memilih upgrade ke paket berbayar saat usaha tumbuh." } },
-          { "@type": "Question", name: "Bagaimana pelanggan tahu waktunya servis lagi?", acceptedAnswer: { "@type": "Answer", text: "Otomatis. Setiap pekerjaan selesai membuat pengingat, dan saat waktunya tiba pelanggan dikabari lewat WhatsApp." } },
+          { "@type": "Question", name: "Bagaimana pelanggan tahu waktunya servis lagi?", acceptedAnswer: { "@type": "Answer", text: "Di paket Professional dan Business, otomatis: setiap pekerjaan selesai membuat pengingat, dan saat waktunya tiba pelanggan dikabari lewat WhatsApp. Di paket Basic, pengingat sudah tersedia di menu Pengingat dan Anda kirim sendiri lewat WhatsApp Anda." } },
         ],
       },
     ],
@@ -202,7 +202,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         <div className="mt-12 grid gap-6 sm:grid-cols-3">
           <Step n="1" icon={Icon.Note} title="Catat pekerjaan" desc="Terima booking online atau catat sendiri. Tugaskan ke teknisi, pantau dari HP." />
           <Step n="2" icon={Icon.Wrench} title="Teknisi kerjakan" desc="Teknisi buka job di HP: navigasi, checklist, foto bukti, selesai — semua tercatat." />
-          <Step n="3" icon={Icon.Repeat} title="Pelanggan datang lagi" desc="Aircon otomatis ingatkan pelanggan saat waktunya servis lagi, lewat WhatsApp." />
+          <Step n="3" icon={Icon.Repeat} title="Pelanggan datang lagi" desc="Di Professional dan Business, Aircon otomatis mengingatkan pelanggan saat waktunya servis, lewat WhatsApp setelah nomor usaha tersambung. Di Basic, pengingat dikirim manual lewat WhatsApp Anda." />
         </div>
         {c.showPreview && (
           <div className="mt-10 text-center">

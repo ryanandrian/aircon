@@ -1,36 +1,99 @@
 import { describe, it, expect } from "vitest";
-import { PLATFORM_TEMPLATES } from "../src/lib/domain/platform-templates";
-import { renderTemplate } from "../src/lib/wa/gateway";
+import { PLATFORM_TEMPLATES, platformTemplateVariables, renderPlatformTemplate } from "../src/lib/domain/platform-templates";
 
-describe("PLATFORM_TEMPLATES — notifikasi platform Lumite→tenant", () => {
-  it("semua template punya subject, body, label", () => {
-    for (const [key, t] of Object.entries(PLATFORM_TEMPLATES)) {
-      expect(t.subject, `${key}.subject`).toBeTruthy();
-      expect(t.body, `${key}.body`).toBeTruthy();
-      expect(t.label, `${key}.label`).toBeTruthy();
+describe("PLATFORM_TEMPLATES — Aircon → tenant", () => {
+  it("semua template punya subject/body/label dan known required vars", () => {
+    for (const [key, tpl] of Object.entries(PLATFORM_TEMPLATES)) {
+      expect(tpl.subject, `${key}.subject`).toBeTruthy();
+      expect(tpl.body, `${key}.body`).toBeTruthy();
+      expect(tpl.label, `${key}.label`).toBeTruthy();
+      expect(tpl.requiredVars.length, `${key}.requiredVars`).toBeGreaterThan(0);
+      expect(tpl.requiredVars.every((v) => platformTemplateVariables(tpl).includes(v))).toBe(true);
     }
   });
 
-  it("render subscription_due mengisi placeholder", () => {
-    const t = PLATFORM_TEMPLATES.subscription_due;
-    const body = renderTemplate(t.body, {
-      app: "Aircon", tenant: "AC Jaya", paket: "Pro", tanggal: "5 September 2026",
-      nominal: "Rp99.000", link: "https://x",
+  it("Basic welcome menerangkan manual; tidak meminta sambung WA", () => {
+    const { body } = renderPlatformTemplate("welcome_basic", {
+      app: "Aircon", tenant: "Sejuk Abadi", link: "https://app.airconet.id/app/langganan",
     });
-    expect(body).toContain("AC Jaya");
-    expect(body).toContain("5 September 2026");
-    expect(body).not.toContain("{{"); // tak ada placeholder tersisa
-  });
-
-  it("wa_disconnected mengarahkan ke Pengaturan (money-loop recovery)", () => {
-    const body = renderTemplate(PLATFORM_TEMPLATES.wa_disconnected.body, { app: "Aircon", tenant: "AC Jaya" });
-    expect(body.toLowerCase()).toContain("hubungkan");
+    expect(body).toContain("gratis selamanya");
+    expect(body).toContain("manual");
+    expect(body).toContain("Professional dan Business");
+    expect(body).not.toMatch(/sambungkan nomor WhatsApp/i);
     expect(body).not.toContain("{{");
   });
 
-  it("welcome menyapa tenant + ajak connect WA", () => {
-    const body = renderTemplate(PLATFORM_TEMPLATES.welcome.body, { app: "Aircon", tenant: "Sejuk Abadi" });
-    expect(body).toContain("Sejuk Abadi");
-    expect(body.toLowerCase()).toContain("whatsapp");
+  it("paid welcome meminta sambung WA dan menyebut otomatis setelah koneksi ready", () => {
+    const { body } = renderPlatformTemplate("welcome_paid", {
+      app: "Aircon", tenant: "Sejuk Abadi", paket: "Professional", link: "https://app.airconet.id/app/pengaturan/wa-connect",
+    });
+    expect(body).toContain("Professional");
+    expect(body).toContain("otomatis");
+    expect(body).toContain("tersambung");
+    expect(body).not.toContain("{{");
+  });
+
+  it("subscription_due memerlukan paket, nominal, tanggal, dan link — tak ada placeholder kosong", () => {
+    const { body } = renderPlatformTemplate("subscription_due", {
+      app: "Aircon", tenant: "AC Jaya", paket: "Professional", tanggal: "5 Oktober 2026",
+      nominal: "Rp149.000", link: "https://app.airconet.id/app/langganan",
+    });
+    expect(body).toContain("Professional");
+    expect(body).toContain("Rp149.000");
+    expect(body).toContain("5 Oktober 2026");
+    expect(body).not.toContain("{{");
+  });
+
+  it("subscription_overdue berisi paket, nominal, tanggal, link", () => {
+    const { body } = renderPlatformTemplate("subscription_overdue", {
+      app: "Aircon", tenant: "AC Jaya", paket: "Business", tanggal: "5 Oktober 2026",
+      nominal: "Rp499.000", link: "https://app.airconet.id/app/langganan",
+    });
+    expect(body).toContain("Business");
+    expect(body).toContain("Rp499.000");
+    expect(body).toContain("5 Oktober 2026");
+    expect(body).not.toContain("{{");
+  });
+
+  it("render ditolak saat placeholder wajib kosong", () => {
+    expect(() => renderPlatformTemplate("subscription_due", {
+      app: "Aircon", tenant: "AC Jaya", paket: "Professional", tanggal: "5 Oktober 2026", link: "https://x",
+    })).toThrow(/nominal/);
+  });
+
+  it("Basic tidak punya template trial ending", () => {
+    expect(PLATFORM_TEMPLATES).not.toHaveProperty("trial_ending");
+  });
+
+  it("payment_failed menegaskan paket TIDAK berubah aktif", () => {
+    const { body } = renderPlatformTemplate("payment_failed", {
+      app: "Aircon", tenant: "AC Jaya", paket: "Professional",
+      nominal: "Rp149.000", tanggal: "27 Oktober 2026",
+      link: "https://app.airconet.id/app/langganan",
+    });
+    expect(body).toContain("tidak berubah menjadi aktif");
+    expect(body).toContain("Rp149.000");
+    expect(body).toContain("https://app.airconet.id/app/langganan");
+    expect(body).not.toMatch(/paket.*aktif\.|lunas|berhasil/i);
+    expect(body).not.toContain("{{");
+  });
+
+  it("payment_expired tidak mengklaim pembayaran lunas", () => {
+    const { body } = renderPlatformTemplate("payment_expired", {
+      app: "Aircon", tenant: "AC Jaya", paket: "Business",
+      nominal: "Rp499.000", tanggal: "27 Oktober 2026",
+      link: "https://app.airconet.id/app/langganan",
+    });
+    expect(body).toContain("kedaluwarsa");
+    expect(body).toContain("tidak berubah menjadi aktif");
+    expect(body).toContain("Business");
+    expect(body).not.toContain("{{");
+  });
+
+  it("payment_failed/expired menolak render tanpa nominal", () => {
+    expect(() => renderPlatformTemplate("payment_failed", {
+      app: "Aircon", tenant: "AC Jaya", paket: "Professional",
+      tanggal: "27 Oktober 2026", link: "https://x",
+    })).toThrow(/nominal/);
   });
 });
