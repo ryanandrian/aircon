@@ -19,6 +19,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { notifyPlatform } from "@/lib/services/platform-notification-service";
+import { getBillingPolicy } from "@/lib/billing/config";
+import { overdueMilestoneDue, overdueDedupeKey } from "@/lib/domain/overdue-milestone";
 import { formatIDR } from "@/lib/billing/plans";
 import type { TenantPlan } from "@prisma/client";
 
@@ -63,6 +65,7 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
   const soon = new Date(now.getTime() + 3 * DAY_MS);
   const stamp = dayStamp(now);
   let due = 0, overdue = 0, skippedFreePlan = 0, queued = 0;
+  const policy = await getBillingPolicy();
 
   // Kandidat: tenant dengan nextDueDate terisi & belum SUSPENDED/CANCELLED.
   const tenants = await prisma.tenant.findMany({
@@ -85,13 +88,18 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
     const billing = await resolveBillingVars(t.id, t.plan);
 
     if (dueDate < now) {
-      // Sudah lewat jatuh tempo.
-      const r = await notifyPlatform({
-        tenantId: t.id, templateKey: "subscription_overdue",
-        vars: { paket: billing.paket, nominal: billing.nominal, tanggal: fmtDate(dueDate) },
-        dedupeKey: `subscription_overdue:${t.id}:${stamp}`,
-      });
-      queued += r.created; overdue += 1;
+      // Lewat jatuh tempo: HANYA pada milestone (BillingPolicy.dunningReminderDays),
+      // bukan tiap hari. Dedupe per milestone & periode (overdueDedupeKey).
+      const milestone = overdueMilestoneDue(dueDate, now, policy.dunningReminderDays);
+      if (milestone.due) {
+        const r = await notifyPlatform({
+          tenantId: t.id, templateKey: "subscription_overdue",
+          vars: { paket: billing.paket, nominal: billing.nominal, tanggal: fmtDate(dueDate) },
+          dedupeKey: overdueDedupeKey(t.id, dueDate, milestone.late),
+        });
+        queued += r.created;
+        overdue += 1;
+      }
     } else if (dueDate <= soon) {
       // 0..3 hari ke depan.
       const r = await notifyPlatform({
