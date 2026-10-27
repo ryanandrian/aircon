@@ -16,6 +16,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { getBillingPolicy } from "@/lib/billing/config";
+import { renderTenantCopy } from "@/lib/domain/tenant-copy";
 import { purgeTenantData } from "@/lib/services/dunning-service";
 
 export interface InactivitySweepSummary {
@@ -87,9 +88,6 @@ async function isExempt(tenantId: string, minCustomers: number, minJobs: number,
   return false;
 }
 
-function fillTpl(tpl: string, vars: Record<string, string>): string {
-  return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
-}
 
 /** Antre reminder inaktivitas ke antrean WA (MessageLog QUEUED). */
 async function queueInactivityReminder(tenantId: string, toPhone: string, body: string): Promise<void> {
@@ -148,12 +146,12 @@ export async function runInactivitySweep(now: Date = new Date()): Promise<Inacti
       }
     } else if (action === "reminder2") {
       const sisa = Math.max(DEL - idle, 0);
-      const body = fillTpl(p.inactivityReminder2Template, { nama: t.name, hari: String(idle), sisa: String(sisa) });
+      const body = renderTenantCopy(p.inactivityReminder2Template, { nama: t.name, hari: String(idle), sisa: String(sisa) });
       await queueInactivityReminder(t.id, t.phone, body);
       await prisma.tenant.update({ where: { id: t.id }, data: { inactivityReminderStage: 2, inactivityReminderAt: now } });
       summary.reminder2Sent++;
     } else if (action === "reminder1") {
-      const body = fillTpl(p.inactivityReminder1Template, { nama: t.name, hari: String(idle), sisa: String(Math.max(DEL - idle, 0)) });
+      const body = renderTenantCopy(p.inactivityReminder1Template, { nama: t.name, hari: String(idle), sisa: String(Math.max(DEL - idle, 0)) });
       await queueInactivityReminder(t.id, t.phone, body);
       await prisma.tenant.update({ where: { id: t.id }, data: { inactivityReminderStage: 1, inactivityReminderAt: now } });
       summary.reminder1Sent++;

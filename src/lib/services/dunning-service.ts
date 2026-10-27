@@ -11,6 +11,7 @@ import {
   shouldSendReminderToday,
 } from "@/lib/billing/dunning-pure";
 import { normalizePhone } from "@/lib/wa/gateway";
+import { renderTenantCopy } from "@/lib/domain/tenant-copy";
 
 export interface DunningSummary {
   checked: number;
@@ -88,11 +89,6 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
   return summary;
 }
 
-/** Ganti placeholder {kunci} (single brace) — dipakai template dunning dari BillingPolicy. */
-function fillSingle(tpl: string, vars: Record<string, string>): string {
-  return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
-}
-
 /** Antre pesan pengingat tunggakan ke antrean WA (MessageLog QUEUED). Template dari BillingPolicy (editable admin). */
 async function queueDunningReminder(
   tenantId: string,
@@ -106,7 +102,7 @@ async function queueDunningReminder(
   const policy = await getBillingPolicy();
   const vars = { nama: tenantName, telat: String(late), sisa: String(sisaHapus) };
   const tpl = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
-  const body = fillSingle(tpl, vars);
+  const body = renderTenantCopy(tpl, vars);
 
   await prisma.messageLog.create({
     data: {

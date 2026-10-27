@@ -14,6 +14,8 @@ import { sendEmail, isEmailConfigured } from "@/lib/email/smtp";
 
 const PLATFORM_WA_SESSION = "lumite-platform";
 const MAX_ATTEMPTS = 3;
+/** Subjek cadangan HANYA bila baris EMAIL tanpa subjek (tidak terjadi lewat notifyPlatform). */
+const EMAIL_SUBJECT_FALLBACK = "Pemberitahuan Aircon";
 
 export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent: number; failed: number; skipped: number }> {
   const waOn = await isGatewayConfigured();
@@ -43,7 +45,7 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
           // dedupeKey = idempotensi per-EVENT milik row. Meneruskannya membuat
           // gateway berhenti menebak dari isi pesan (lihat catatan di relay).
           { idempotencyKey: n.dedupeKey ?? null })
-      : await sendEmail(n.toAddress, n.subject ?? "Pemberitahuan Lumite", n.body);
+      : await sendEmail(n.toAddress, n.subject ?? EMAIL_SUBJECT_FALLBACK, n.body);
 
     if (res.ok) {
       await prisma.platformNotification.update({

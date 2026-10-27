@@ -3,6 +3,7 @@
  * Dipakai server action admin sebelum menulis ke DB.
  */
 import { z } from "zod";
+import { validateTenantCopy, type TenantCopyKey } from "@/lib/domain/tenant-copy";
 
 /** Kuota: bilangan bulat >= 0, atau null (= tanpa batas). */
 const quota = z.number().int().min(0).nullable();
@@ -57,6 +58,17 @@ export const billingPolicySchema = z
   .refine((d) => d.inactivityReminder2Days > d.inactivityReminder1Days, {
     message: "Reminder #2 harus setelah reminder #1",
     path: ["inactivityReminder2Days"],
+  })
+  // Placeholder copy tenant: hanya variabel yang dikenal kode, dan peringatan wajib {sisa}.
+  .superRefine((d, ctx) => {
+    const fields: TenantCopyKey[] = [
+      "dunningReminderTemplate", "dunningWarningTemplate",
+      "inactivityReminder1Template", "inactivityReminder2Template",
+    ];
+    for (const key of fields) {
+      const r = validateTenantCopy(key, d[key]);
+      if (!r.ok) for (const message of r.errors) ctx.addIssue({ code: "custom", message, path: [key] });
+    }
   })
   .refine((d) => d.inactivityDeleteDays >= d.inactivityReminder2Days, {
     message: "Hari hapus harus >= reminder #2",
