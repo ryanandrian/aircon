@@ -30,7 +30,7 @@ Status per 27 Oktober 2026 (WIB). F1 local implementation gates lulus; belum com
 | F2 billing/dunning/WA lifecycle | NOT STARTED | Audit: callback + dunning sudah terpetakan; baseline timer terverifikasi live. | Perubahan hanya setelah crosswalk event/sumber, policy, dan desain tes no-duplicate selesai. | 2026-10-26 |
 | F3 reliability/observability | NOT STARTED | Risks: stale `SENDING`, global manual dispatch, booking lead+notification non-atomic. | Lease/reconciliation, alert/replay tooling, crash/concurrency tests. | 2026-10-26 |
 | F4 agent/reseller lifecycle | NOT STARTED | Audit: no outbound notices; dashboard/manual actions present. | Event ownership/privacy/channel policy required before coding. | 2026-10-26 |
-| F5 template center/legacy cleanup | NOT STARTED | Platform templates hardcoded; dunning/inactivity independently editable. | Versioned template editor, adapters, backup/migration after data review. | 2026-10-27 |
+| F5 template center/legacy cleanup | IN PROGRESS — bagian 1 LIVE | Bagian 1 (template store DB + editor admin untuk 6 template platform) commit `811d0aa`, deploy release `811d0aa1e240aabc23d5e30becde73db3f0e839e`, migrasi `20261027090000` diterapkan (backup logis terverifikasi). Sisa: dunning/inactivity masuk katalog (G23), subject email hardcode `Pemberitahuan Lumite`, teks in-app booking (G18), preview/test-send allowlist, riwayat versi/rollback, cleanup `trialDays`.| Platform templates hardcoded; dunning/inactivity independently editable. | Versioned template editor, adapters, backup/migration after data review. | 2026-10-27 |
 | F6 E2E rollout/cleanup | NOT STARTED | No lifecycle deployment. | Deploy, smoke live, timer/queue verification, rollback/runbook, close residuals. | 2026-10-26 |
 
 ## Log perubahan progress
