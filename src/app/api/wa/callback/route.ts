@@ -100,23 +100,22 @@ export async function POST(req: NextRequest) {
         }
       }
     } else if (type === "disconnected") {
-      // Paket tanpa otomasi WA tidak boleh menerima pesan bahwa pengingat otomatis berhenti.
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-        select: { plan: true },
-      });
-      if (tenant && tenant.plan !== "TRIAL" && tenantId !== PLATFORM_SESSION) {
-        const stamp = new Date().toISOString().slice(0, 10);
-        const { notifyPlatform, isAutoReminderPlan } = await import("@/lib/services/platform-notification-service");
-        if (await isAutoReminderPlan(tenant.plan)) {
-          await notifyPlatform({
-            tenantId, templateKey: "wa_disconnected",
-            dedupeKey: `wa_disconnected:${tenantId}:${stamp}`,
-          }).catch(() => {});
-        }
+      // Transisi state WA → satu pesan per transisi (dedupe per epoch).
+      // Paket tanpa otomasi (Basic) tidak diberi tahu — menyuruh Basic
+      // "menyambung ulang" = copy salah untuk paket yang tak punya gateway.
+      if (tenantId !== PLATFORM_SESSION) {
+        const { applyWaTransition } = await import("@/lib/services/wa-transition-service");
+        await applyWaTransition(tenantId, "disconnected");
+      }
+    } else if (type === "ready") {
+      // Sesi tersambung (scan QR atau reconnect). Dulu diabaikan sepenuhnya;
+      // sekarang jadi sumber event "tersambung kembali" untuk owner.
+      if (tenantId !== PLATFORM_SESSION) {
+        const { applyWaTransition } = await import("@/lib/services/wa-transition-service");
+        await applyWaTransition(tenantId, "connected");
       }
     }
-    // type qr/ready: informasi sesi — diproses UI (polling). Ack 200.
+    // type qr: informasi sesi — diproses UI (polling). Ack 200.
   } catch (err) {
     console.error("[wa-callback] error:", err);
   }

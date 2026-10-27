@@ -61,6 +61,7 @@ const MANUAL_TEMPLATE_KEYS: readonly PlatformTemplateKey[] = [
   "welcome_paid",
   "subscription_due",
   "subscription_overdue",
+  "wa_connected",
   "wa_disconnected",
 ];
 

@@ -12,6 +12,7 @@ export type PlatformTemplateKey =
   | "subscription_overdue"
   | "payment_failed"
   | "payment_expired"
+  | "wa_connected"
   | "wa_disconnected";
 
 export interface PlatformTemplate {
@@ -63,6 +64,12 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     subject: "Pembayaran {{app}} gagal diproses",
     body: "Halo {{tenant}}, pembayaran paket {{paket}} sebesar {{nominal}} gagal diproses pada {{tanggal}}. Status paket Anda tidak berubah menjadi aktif karena transaksi ini. Periksa transaksi atau coba lagi melalui Langganan: {{link}}",
     requiredVars: ["tenant", "paket", "nominal", "tanggal", "link"],
+  },
+  wa_connected: {
+    label: "WhatsApp Tersambung Lagi",
+    subject: "WhatsApp usaha Anda tersambung",
+    body: "Halo {{tenant}}, koneksi WhatsApp usaha Anda sudah tersambung kembali. Pengiriman pesan usaha dari aplikasi dapat berjalan lagi. Periksa pengaturan bila koneksi terputus lagi: {{link}}",
+    requiredVars: ["tenant", "link"],
   },
   wa_disconnected: {
     label: "WhatsApp Terputus",

@@ -86,6 +86,7 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
     // (menampilkan riwayat transaksi + tombol Bayar Lagi untuk order tsb).
     payment_failed: langganan,
     payment_expired: langganan,
+    wa_connected: pengaturan,
     wa_disconnected: pengaturan,
   };
   const vars = {

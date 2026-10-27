@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { tenantFindUnique, platformNotificationFindFirst, platformNotificationUpdateMany, messageLogFindFirst, messageLogUpdateMany, notifyPlatform, isAutoReminderPlan } = vi.hoisted(() => ({
+const { tenantFindUnique, tenantUpdateMany, platformNotificationFindFirst, platformNotificationUpdateMany, messageLogFindFirst, messageLogUpdateMany, notifyPlatform, isAutoReminderPlan } = vi.hoisted(() => ({
   tenantFindUnique: vi.fn(),
+  tenantUpdateMany: vi.fn(),
   platformNotificationFindFirst: vi.fn(),
   platformNotificationUpdateMany: vi.fn(),
   messageLogFindFirst: vi.fn(),
@@ -13,7 +14,7 @@ const { tenantFindUnique, platformNotificationFindFirst, platformNotificationUpd
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    tenant: { findUnique: tenantFindUnique },
+    tenant: { findUnique: tenantFindUnique, updateMany: tenantUpdateMany },
     platformNotification: { findFirst: platformNotificationFindFirst, updateMany: platformNotificationUpdateMany },
     messageLog: { findFirst: messageLogFindFirst, updateMany: messageLogUpdateMany },
   },
@@ -36,7 +37,8 @@ const req = (payload: unknown) => new NextRequest("https://app.airconet.id/api/w
 describe("WA disconnected notification eligibility", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    tenantFindUnique.mockResolvedValue({ plan: "TRIAL" });
+    tenantFindUnique.mockResolvedValue({ plan: "TRIAL", waSessionEpoch: 0 });
+    tenantUpdateMany.mockResolvedValue({ count: 1 });
     isAutoReminderPlan.mockResolvedValue(false);
     notifyPlatform.mockResolvedValue({ created: 1, skipped: [] });
     messageLogFindFirst.mockResolvedValue(null);
@@ -52,22 +54,38 @@ describe("WA disconnected notification eligibility", () => {
   });
 
   it("paket autoReminder=false tidak menerima wa_disconnected", async () => {
-    tenantFindUnique.mockResolvedValue({ plan: "PROFESSIONAL" });
+    tenantFindUnique.mockResolvedValue({ plan: "PROFESSIONAL", waSessionEpoch: 0 });
     isAutoReminderPlan.mockResolvedValue(false);
     const res = await POST(req({ type: "disconnected", externalId: "tenant-locked" }));
     expect(res.status).toBe(200);
     expect(notifyPlatform).not.toHaveBeenCalled();
   });
 
-  it("paket autoReminder=true menerima satu notifikasi disconnect deduped harian", async () => {
-    tenantFindUnique.mockResolvedValue({ plan: "PROFESSIONAL" });
+  it("paket autoReminder=true menerima satu notifikasi disconnect per transisi", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "PROFESSIONAL", waSessionEpoch: 0 });
     isAutoReminderPlan.mockResolvedValue(true);
     const res = await POST(req({ type: "disconnected", externalId: "tenant-pro" }));
     expect(res.status).toBe(200);
     expect(notifyPlatform).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: "tenant-pro",
       templateKey: "wa_disconnected",
-      dedupeKey: expect.stringMatching(/^wa_disconnected:tenant-pro:\d{4}-\d{2}-\d{2}$/),
+      dedupeKey: "wa:tenant-pro:DISCONNECTED:1",
+    }));
+    // Kenaikan epoch tercatat (satu sumber state untuk dedupe transisi).
+    expect(tenantUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: { waSessionEpoch: 1 },
+    }));
+  });
+
+  it("paket autoReminder=true menerima notif tersambung saat sesi ready", async () => {
+    tenantFindUnique.mockResolvedValue({ plan: "PROFESSIONAL", waSessionEpoch: 1 });
+    isAutoReminderPlan.mockResolvedValue(true);
+    const res = await POST(req({ type: "ready", externalId: "tenant-pro" }));
+    expect(res.status).toBe(200);
+    expect(notifyPlatform).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: "tenant-pro",
+      templateKey: "wa_connected",
+      dedupeKey: "wa:tenant-pro:CONNECTED:2",
     }));
   });
 

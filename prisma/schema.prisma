@@ -281,6 +281,10 @@ model Tenant {
   // Nomor WA TERVERIFIKASI dari scan gateway (client.info.wid.user). TERPISAH dari `phone`
   // (nomor yang diketik owner) — sistem TIDAK menimpa `phone`. Unik global: 1 WA = 1 tenant.
   waVerifiedPhone         String?      @unique
+  // Epoch sesi WhatsApp tenant: naik tiap transisi state (tersambung/terputus).
+  // Satu sumber state untuk dedupe event WA — tanpa ini app tak bisa membedakan
+  // disconnect→reconnect→disconnect, sehingga pesan terduplikasi.
+  waSessionEpoch          Int          @default(0)
   publicProfile           Json?
   // Branding & profil bisnis tenant (Fase 1) — untuk invoice & permukaan publik tenant.
   logoUrl                 String       @default("")
