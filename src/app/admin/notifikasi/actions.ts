@@ -8,6 +8,7 @@ import {
   gatewayInitSession, gatewaySessionStatus, gatewayLogoutSession,
 } from "@/lib/wa/gateway-relay";
 import type { PlatformTemplateKey } from "@/lib/domain/platform-templates";
+import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-service";
 import { revalidatePath } from "next/cache";
 
 /** externalId sesi WA platform Lumite (1 nomor, lintas SaaS). */
@@ -66,6 +67,33 @@ export async function actionDispatchPlatformNow(): Promise<Result> {
     const d = await dispatchPlatformNotifications();
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: `Terkirim ${d.sent}, gagal ${d.failed}, ditahan ${d.skipped}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Simpan copy template platform (admin-only). Validasi di service. */
+export async function actionSavePlatformTemplate(
+  key: PlatformTemplateKey, subject: string, body: string,
+): Promise<Result & { errors?: string[] }> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const r = await saveTemplate(key, { subject, body }, admin.email);
+    if (!r.ok) return { ok: false, error: r.errors[0], errors: r.errors };
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: `Tersimpan (versi ${r.version})` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Kembalikan copy template ke default kode (admin-only). */
+export async function actionResetPlatformTemplate(key: PlatformTemplateKey): Promise<Result> {
+  try {
+    const admin = await requirePlatformAdmin();
+    await resetTemplate(key, admin.email);
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: "Dikembalikan ke default" };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }

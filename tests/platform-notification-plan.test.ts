@@ -9,11 +9,12 @@ import { TenantPlan } from "@prisma/client";
 
 vi.mock("server-only", () => ({}));
 
-const { tenantFindUnique, planConfigFindUnique, userFindFirst, platformNotificationCreate } = vi.hoisted(() => ({
+const { tenantFindUnique, planConfigFindUnique, userFindFirst, platformNotificationCreate, platformTemplateFindUnique } = vi.hoisted(() => ({
   tenantFindUnique: vi.fn(),
   planConfigFindUnique: vi.fn(),
   userFindFirst: vi.fn(),
   platformNotificationCreate: vi.fn(),
+  platformTemplateFindUnique: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -21,6 +22,8 @@ vi.mock("@/lib/prisma", () => ({
     planConfig: { findUnique: planConfigFindUnique },
     user: { findFirst: userFindFirst },
     platformNotification: { create: platformNotificationCreate },
+    // Tanpa baris override → notifyPlatform memakai default kode.
+    platformTemplate: { findUnique: platformTemplateFindUnique },
   },
 }));
 
@@ -33,6 +36,7 @@ import {
 describe("template welcome dipilih dari paket", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    platformTemplateFindUnique.mockResolvedValue(null);
     tenantFindUnique.mockResolvedValue({ id: "t1", name: "AC Jaya", phone: "6281234567890", plan: TenantPlan.TRIAL });
     planConfigFindUnique.mockResolvedValue({ displayName: "Basic", autoReminder: false });
     userFindFirst.mockResolvedValue({ email: "owner@example.com", phone: "6281234567890" });

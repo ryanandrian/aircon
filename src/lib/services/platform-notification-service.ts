@@ -17,6 +17,7 @@ import {
   renderPlatformTemplate,
   type PlatformTemplateKey,
 } from "@/lib/domain/platform-templates";
+import { getActiveTemplate } from "@/lib/services/platform-template-service";
 
 export { PLATFORM_TEMPLATES };
 export type { PlatformTemplateKey };
@@ -96,7 +97,8 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
   };
   let rendered: { subject: string; body: string };
   try {
-    rendered = renderPlatformTemplate(templateKey, vars);
+    const active = await getActiveTemplate(templateKey);
+    rendered = renderPlatformTemplate(templateKey, vars, { subject: active.subject, body: active.body });
   } catch (error) {
     const message = error instanceof Error ? error.message : "template gagal dirender";
     console.error(`[platform-notification] render gagal tenant=${tenantId} template=${templateKey}: ${message}`);

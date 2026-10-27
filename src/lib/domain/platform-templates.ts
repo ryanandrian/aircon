@@ -78,13 +78,69 @@ export function platformTemplateVariables(tpl: PlatformTemplate): string[] {
   return [...new Set(matches.map((x) => x.slice(2, -2)))];
 }
 
-/** Render copy platform; kegagalan variabel wajib menghentikan enqueue. */
+/** Semua variabel yang diisi runtime (superset). Harus dideklarasikan sebelum dipakai. */
+const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal"] as const;
+
+/**
+ * Placeholder yang DIKENAL untuk tiap key = `requiredVars` (kontrak kode) ∪ variabel
+ * runtime. Editor admin hanya boleh memakai variabel dari daftar ini.
+ */
+export function knownVariables(key: PlatformTemplateKey): string[] {
+  return [...new Set<string>([...PLATFORM_TEMPLATES[key].requiredVars, ...ALL_RUNTIME_VARS])];
+}
+
+export interface TemplateCopy { subject: string; body: string }
+
+export type TemplateValidation =
+  | { ok: true }
+  | { ok: false; errors: string[] };
+
+/**
+ * Validasi copy yang diedit admin. Aturan:
+ *  - body wajib (min 10 char); subject wajib untuk EMAIL (key ber-subject).
+ *  - setiap `{{x}}` harus variabel yang dikenal untuk key tsb (typo ditolak).
+ *  - setiap `requiredVars` harus muncul di body/subject (jika tidak, pesan pasti
+ *    tidak memuat info wajib, mis. nominal tagihan).
+ * Tidak mengubah eligibilitas: copy tidak bisa menambah CTA atau menyebut paket lain
+ * — itu tetap ditentukan kode (lihat catatan di notifyPlatform).
+ */
+export function validateTemplateCopy(key: PlatformTemplateKey, copy: TemplateCopy): TemplateValidation {
+  const errors: string[] = [];
+  const subject = copy.subject ?? "";
+  const body = copy.body ?? "";
+  if (body.trim().length < 10) errors.push("Isi pesan minimal 10 karakter");
+  if (body.length > 2000) errors.push("Isi pesan maksimal 2000 karakter");
+  if (subject.length > 200) errors.push("Subjek maksimal 200 karakter");
+  const known = new Set(knownVariables(key));
+  const used = new Set<string>();
+  for (const text of [subject, body]) {
+    for (const m of text.matchAll(/\{\{(\w*)\}\}/g)) {
+      used.add(m[1]);
+      if (!known.has(m[1])) errors.push(`Variabel tidak dikenal: {{${m[1]}}}`);
+    }
+    // Sisa kurung kurawal setelah placeholder valid dihapus = placeholder rusak.
+    if (text.replace(/\{\{\w*\}\}/g, "").match(/[{}]/)) {
+      errors.push("Placeholder rusak: kurung kurawal tidak berpasangan");
+      break;
+    }
+  }
+  for (const req of PLATFORM_TEMPLATES[key].requiredVars) {
+    if (!used.has(req)) errors.push(`Variabel wajib belum ada: {{${req}}}`);
+  }
+  return errors.length ? { ok: false, errors: [...new Set(errors)] } : { ok: true };
+}
+
+/**
+ * Render copy platform. `copy` = isi aktif (dari DB bila ada, selain itu default kode).
+ * Kegagalan variabel wajib menghentikan enqueue — copy rusak tidak pernah terkirim.
+ */
 export function renderPlatformTemplate(
   key: PlatformTemplateKey,
   vars: Record<string, string>,
+  copy: TemplateCopy = PLATFORM_TEMPLATES[key],
 ): { subject: string; body: string } {
-  const tpl = PLATFORM_TEMPLATES[key];
-  const missing = tpl.requiredVars.filter((name) => !String(vars[name] ?? "").trim());
+  const tpl = copy;
+  const missing = PLATFORM_TEMPLATES[key].requiredVars.filter((name) => !String(vars[name] ?? "").trim());
   if (missing.length) throw new Error(`template ${key} kehilangan placeholder wajib: ${missing.join(", ")}`);
   const render = (text: string) => text.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => vars[name] ?? "");
   const rendered = { subject: render(tpl.subject), body: render(tpl.body) };

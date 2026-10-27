@@ -1070,6 +1070,18 @@ model PlatformNotification {
   @@index([tenantId, createdAt])
 }
 
+// Template copy notifikasi PLATFORM (Lumite → tenant) — EDITABLE ADMIN (no hardcode).
+// Satu baris per key. Baris belum ada = pakai default kode (PLATFORM_TEMPLATES).
+// Eligibilitas/policy TIDAK ada di sini: hanya copy. Kontrak placeholder wajib tetap di kode.
+model PlatformTemplate {
+  key       String   @id // mis. subscription_due
+  subject   String   @default("")
+  body      String
+  version   Int      @default(1) // naik setiap simpan; antrean menyimpan body sendiri (snapshot)
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
 // ================= TENANT IN-APP NOTIFICATION =================
 model TenantNotification {
   id        String   @id @default(cuid())
