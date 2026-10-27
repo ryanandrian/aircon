@@ -1,8 +1,9 @@
 # Rencana Kerja Tuntas — Perbaikan Notifikasi Aircon
 
-- **Status:** F1 local implementation COMPLETE; F2–F6 remain open; production changes NOT deployed
+- **Status:** F1 deployed; HTTP smoke PASS; F2–F6 open; live CMS correction pending
 - **Acuan audit:** `docs/GAP_ANALYSIS_NOTIFIKASI_SAAS_AIRCON.md`
-- **Base commit (local HEAD; uncommitted changes):** `688690197eafb8bb7cd98a714f2c576535d14c49`
+- **Base commit (sebelum pekerjaan):** `688690197eafb8bb7cd98a714f2c576535d14c49`
+- **Commit F1 (live):** `6f3897f` → release `6f3897f2cb4b50bb4c9906f3bb1aa49a5dd53b68`
 - **Repo state saat F0:** bersih; hanya 2 dokumen belum di-commit (`GAP_ANALYSIS_…`, `RENCANA_KERJA_…`).
 - **Tujuan:** perbaiki semua temuan notifikasi secara menyeluruh, utamakan jalur yang sudah ada, cegah duplikasi dan regresi lintas fitur.
 
@@ -35,7 +36,8 @@ Status per 27 Oktober 2026 (WIB). F1 local implementation gates lulus; belum com
 ## Log perubahan progress
 
 - 2026-10-26 — Rencana dibuat; fase F0–F6 dan traceability G1–G30 ditetapkan. Implementasi belum dimulai. Cron aktif terverifikasi; G17 adalah verifikasi infra, bukan penyelesaian perbaikan.
-- 2026-10-27 11:40 — `subscription_activated` tidak lagi memakai tanggal hari ini sebagai fallback. Periode dicari dari `Tenant.currentPeriodEnd`, lalu `Subscription.currentPeriodEnd`; bila keduanya null, konfirmasi tidak diantre dan error eksplisit dicatat. Tes meliputi fallback/no-date. G7 tests 7/7; suite saat itu **118/1047 PASS**, tsc PASS. Perubahan sesudah suite (CTA period guard) butuh full validation ulang.
+- 2026-10-27 11:40 — `subscription_activated` tidak lagi memakai tanggal hari ini sebagai fallback. Periode dicari dari `Tenant.currentPeriodEnd`, lalu `Subscription.currentPeriodEnd`; bila keduanya null, konfirmasi tidak diantre dan error eksplisit dicatat. Tes meliputi fallback/no-date.
+- 2026-10-27 11:45 — F1 commit+deploy selesai: commit `6f3897f2cb4b50bb4c9906f3bb1aa49a5dd53b68`; push `main` berhasil; deploy script exit 0, artifact SHA256 `e887cd1dc167c079444db57ff61104051987f46ad6a2d19059cf3297ee1bb2f5`; release marker cocok; HTTPS `/` dan `/login` keduanya 200. Verifikasi runtime/schema tidak memerlukan migrasi Prisma untuk F1. Masih pending: verifikasi queue/live callback tanpa mengirim pesan; live CMS `LandingContent.heroSubtitle` masih copy lama dari query read-only sebelumnya. F2–F6 open.
 
 ## 1A. Baseline F0 terverifikasi (26–27 Okt 2026)
 
