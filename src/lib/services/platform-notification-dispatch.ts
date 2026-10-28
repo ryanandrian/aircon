@@ -154,8 +154,21 @@ export async function dispatchPlatformNotifications(
         },
       }).catch(() => {});
       sent += 1;
+    } else if ("deferred" in res && res.deferred) {
+      // ── TRANSIENT (kapasitas/memori/karantina gateway) ─────────────────────
+      // Pesan BELUM terkirim dan AKAN dikirim ulang: kembalikan ke QUEUED,
+      // JANGAN tandai FAILED (pesan hilang permanen) dan JANGAN fallback push
+      // (bakal dobel saat dikirim ulang). Ini kondisi yang sama dengan
+      // `message-dispatch-service` (yang sudah handle `deferred`).
+      await prisma.platformNotification.update({
+        where: { id: n.id },
+        data: { status: "QUEUED", error: res.error ?? "ditahan sementara", sendingAt: null, leaseExpiresAt: null },
+      }).catch(() => {});
+      failed += 1;
+      console.warn(`[platform-dispatch] ditahan (transient) notif=${n.id} tenant=${n.tenantId}: ${res.error}`);
     } else {
-      // Gagal → kembalikan ke QUEUED untuk retry (sampai MAX_ATTEMPTS), simpan error.
+      // Gagal PERMANEN → kembalikan ke QUEUED untuk retry (sampai MAX_ATTEMPTS),
+      // simpan error. Bila sudah habis attempt → FAILED (+ fallback push G14).
       const willRetry = n.attempts + 1 < MAX_ATTEMPTS;
       await prisma.platformNotification.update({
         where: { id: n.id },
@@ -163,6 +176,23 @@ export async function dispatchPlatformNotifications(
       }).catch(() => {});
       failed += 1;
       console.error(`[platform-dispatch] gagal ${n.channel} notif=${n.id} tenant=${n.tenantId}: ${res.error}`);
+      // FALLBACK PUSH (G14): hanya saat gagal PERMANEN (tak akan di-retry).
+      // Transient/duplicate/unknown TIDAK: dikirim ulang nanti / sudah sampai /
+      // hasil tak pasti. Fallback menambah bukti, TIDAK mengubah status baris.
+      if (!willRetry && n.tenantId) {
+        try {
+          const { pushFallbackForOwnerMessage } = await import("@/lib/services/push-fallback-service");
+          const fb = await pushFallbackForOwnerMessage({
+            tenantId: n.tenantId,
+            title: "Pesan belum sampai",
+            body: `${n.templateKey} gagal via ${n.channel}. Periksa Admin → Notifikasi.`,
+            tag: `pf:${n.templateKey}:${n.channel}`,
+          });
+          if (fb.sent > 0) console.info(`[platform-dispatch] fallback push terkirim notif=${n.id} sent=${fb.sent}`);
+        } catch (fbErr) {
+          console.error("[platform-dispatch] fallback push gagal:", fbErr instanceof Error ? fbErr.message : fbErr);
+        }
+      }
     }
   }
   return { sent, failed, skipped, stale };

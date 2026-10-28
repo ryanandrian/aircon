@@ -96,6 +96,19 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
       await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED", sendingAt: null, leaseExpiresAt: null } }).catch(() => {});
       failed += 1;
       console.error(`[dispatch] gagal kirim message=${m.id} tenant=${m.tenantId}: ${res.error}`);
+      // FALLBACK PUSH (G14): WA ke pelanggan gagal permanen → push ke owner
+      // tenant supaya ia tahu pelanggan tak bisa dihubungi otomatis.
+      try {
+        const { pushFallbackForCustomerMessage } = await import("@/lib/services/push-fallback-service");
+        const fb = await pushFallbackForCustomerMessage({
+          tenantId: m.tenantId,
+          customerLabel: m.toPhone || "pelanggan",
+          templateKey: m.templateKey || "PESAN",
+        });
+        if (fb.sent > 0) console.info(`[dispatch] fallback push ke owner terkirim message=${m.id} sent=${fb.sent}`);
+      } catch (fbErr) {
+        console.error("[dispatch] fallback push gagal:", fbErr instanceof Error ? fbErr.message : fbErr);
+      }
     }
   }
   return { configured: true, sent, failed, skipped, deferred, stale };
