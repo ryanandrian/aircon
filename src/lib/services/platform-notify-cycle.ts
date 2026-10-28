@@ -21,12 +21,12 @@ import { prisma } from "@/lib/prisma";
 import { notifyPlatform } from "@/lib/services/platform-notification-service";
 import { getBillingPolicy } from "@/lib/billing/config";
 import { overdueMilestoneDue, overdueDedupeKey } from "@/lib/domain/overdue-milestone";
+import { dayKeyInZone, dayDifferenceInZone } from "@/lib/domain/tenant-timezone";
 import { formatIDR } from "@/lib/billing/plans";
 import type { TenantPlan } from "@prisma/client";
 
-const DAY_MS = 86_400_000;
 const fmtDate = (d: Date) => d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
-const dayStamp = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD utk dedupe harian
+/** Dedupe harian memakai tanggal kalender ZONA TENANT (bukan UTC server). */
 export interface PlatformNotifySummary {
   due: number;
   overdue: number;
@@ -62,8 +62,6 @@ async function resolveBillingVars(
 }
 
 export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<PlatformNotifySummary> {
-  const soon = new Date(now.getTime() + 3 * DAY_MS);
-  const stamp = dayStamp(now);
   let due = 0, overdue = 0, skippedFreePlan = 0, queued = 0;
   const policy = await getBillingPolicy();
 
@@ -73,7 +71,7 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
       nextDueDate: { not: null },
       status: { in: ["TRIAL", "ACTIVE", "PAST_DUE"] },
     },
-    select: { id: true, status: true, nextDueDate: true, plan: true },
+    select: { id: true, status: true, nextDueDate: true, plan: true, timezone: true },
   });
 
   for (const t of tenants) {
@@ -90,30 +88,31 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
     if (dueDate < now) {
       // Lewat jatuh tempo: HANYA pada milestone (BillingPolicy.dunningReminderDays),
       // bukan tiap hari. Dedupe per milestone & periode (overdueDedupeKey).
-      const milestone = overdueMilestoneDue(dueDate, now, policy.dunningReminderDays);
+      const milestone = overdueMilestoneDue(dueDate, now, policy.dunningReminderDays, t.timezone);
       if (milestone.due) {
         const r = await notifyPlatform({
           tenantId: t.id, templateKey: "subscription_overdue",
           channels: ["EMAIL"],
           vars: { paket: billing.paket, nominal: billing.nominal, tanggal: fmtDate(dueDate) },
-          dedupeKey: overdueDedupeKey(t.id, dueDate, milestone.late),
+          dedupeKey: overdueDedupeKey(t.id, dueDate, milestone.late, t.timezone),
         });
         queued += r.created;
         overdue += 1;
       }
-    } else if (dueDate <= soon) {
-      // 0..3 hari ke depan.
+    } else {
+      // Jatuh tempo dalam 0..3 HARI KALENDER zona tenant (bukan 72 jam absolut).
       // Kanal TAGIHAN ke owner = EMAIL saja (F2/G5). Alasannya terverifikasi dari
       // data live: `Tenant.phone` == nomor OWNER untuk 6 dari 7 tenant, jadi pesan
       // WA platform + WA dunning (MessageLog) mendarat di nomor yang sama pada hari
       // yang sama — bukti live: tenant Jaya Mandiri menerima WA + EMAIL overdue di
       // hari yang sama, 5 hari berturut-turut, plus WA dunning.
-      // Email tidak berduplikasi dengan dunning WA dan tidak memakai nomor bisnis.
+      const daysToDue = dayDifferenceInZone(now, dueDate, t.timezone);
+      if (daysToDue > 3) continue;
       const r = await notifyPlatform({
         tenantId: t.id, templateKey: "subscription_due",
         channels: ["EMAIL"],
         vars: { paket: billing.paket, nominal: billing.nominal, tanggal: fmtDate(dueDate) },
-        dedupeKey: `subscription_due:${t.id}:${stamp}`,
+        dedupeKey: `subscription_due:${t.id}:${dayKeyInZone(now, t.timezone)}`,
       });
       queued += r.created; due += 1;
     }

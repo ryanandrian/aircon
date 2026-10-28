@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+
+const WIB = "Asia/Jakarta";
 import {
   daysLate,
   dunningAction,
@@ -16,10 +18,18 @@ describe("daysLate", () => {
     const future = new Date(Date.now() + 86_400_000);
     expect(daysLate(future)).toBe(0);
   });
-  it("menghitung hari penuh keterlambatan", () => {
-    const now = new Date("2026-01-10T00:00:00Z");
-    expect(daysLate(new Date("2026-01-08T00:00:00Z"), now)).toBe(2);
-    expect(daysLate(new Date("2026-01-09T12:00:00Z"), now)).toBe(0); // 12 jam -> 0
+  // G22: hari telat = selisih HARI KALENDER zona tenant (bukan durasi 24 jam).
+  it("menghitung selisih hari kalender (bukan durasi 24 jam)", () => {
+    const now = new Date("2026-01-10T00:00:00Z"); // 10 Jan 07:00 WIB
+    expect(daysLate(new Date("2026-01-08T00:00:00Z"), now, WIB)).toBe(2); // 8 Jan 07:00 WIB
+    // 9 Jan 19:00 WIB → 10 Jan 07:00 WIB = 1 hari kalender (dulu 0 karena 12 jam).
+    expect(daysLate(new Date("2026-01-09T12:00:00Z"), now, WIB)).toBe(1);
+  });
+
+  it("kasus live: jatuh tempo 07:39 WIB, cron 01:00 WIB → 1 hari telat", () => {
+    const due = new Date("2026-10-18T00:39:38.962Z"); // 18 Okt 07:39 WIB
+    const cron = new Date("2026-10-18T18:00:00.000Z"); // 19 Okt 01:00 WIB
+    expect(daysLate(due, cron, WIB)).toBe(1);
   });
 });
 

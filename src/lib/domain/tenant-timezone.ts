@@ -173,3 +173,20 @@ export function daysSinceInZone(from: Date, to: Date, tz?: string | null): numbe
   const timeZone = tenantTimeZone(tz);
   return Math.max(0, dayNumberInZone(to, timeZone) - dayNumberInZone(from, timeZone));
 }
+
+/**
+ * Selisih hari KALENDER zona tenant (`to` − `from`), bisa NEGATIF (to sebelum from).
+ * Beda dengan `daysSinceInZone` (dikunci >=0 untuk keterangan umur); fungsi ini
+ * untuk penanda telat/jatuh-tempo (G22): "0..3 hari lagi" & dedupe milestone harus
+ * memakai tanggal kalender lokal, bukan jam absolut maupun zona server.
+ */
+export function dayDifferenceInZone(from: Date, to: Date, tz?: string | null): number {
+  const timeZone = tenantTimeZone(tz);
+  return dayNumberInZone(to, timeZone) - dayNumberInZone(from, timeZone);
+}
+
+/** Tanggal kalender `YYYY-MM-DD` sebuah instan MENURUT zona tenant (untuk dedupe). */
+export function dayKeyInZone(instant: Date, tz?: string | null): string {
+  const { year, month, day } = zoneParts(instant, tenantTimeZone(tz));
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}

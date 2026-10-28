@@ -53,7 +53,7 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
   for (const t of tenants) {
     let markedNow: Date | null = null; // ditandai hapus di run ini (untuk {sisa} akurat)
     summary.checked++;
-    const late = daysLate(t.nextDueDate, now);
+    const late = daysLate(t.nextDueDate, now, t.timezone);
     const action = dunningAction(late, policy);
 
     if (action === "delete") {
@@ -88,7 +88,7 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
     }
 
     // Reminder WA (maks 1x/hari sesuai jadwal), termasuk peringatan khusus hari hapus.
-    if (shouldSendReminderToday(late, policy.dunningReminderDays, t.lastDunningReminderAt, now)) {
+    if (shouldSendReminderToday(late, policy.dunningReminderDays, t.lastDunningReminderAt, now, t.timezone)) {
       // {sisa} dihitung dari tenggat purge NYATA (N+1 untuk mark + 2 run purge),
       // bukan N-late yang meleset ~2 hari. Lihat sisaHapusSebelumPurge.
       await queueDunningReminder(t.id, t.phone, t.name, late, policy.daysBeforeDelete, policy.deleteWarningDay, {

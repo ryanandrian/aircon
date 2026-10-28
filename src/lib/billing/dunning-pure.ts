@@ -3,12 +3,22 @@
  * Aturan durasi/jadwal berasal dari BillingPolicy (DB), diteruskan sebagai argumen.
  */
 
-/** Hari keterlambatan sejak jatuh tempo. 0 bila belum lewat / null. */
-export function daysLate(nextDueDate: Date | null, now: Date = new Date()): number {
+import { dayDifferenceInZone, dayKeyInZone } from "@/lib/domain/tenant-timezone";
+
+/**
+ * Hari keterlambatan = SELISIH HARI KALENDER di zona tenant (bukan durasi 24 jam).
+ *
+ * Bukti live (28 Okt 2026): tenant Jaya Mandiri jatuh tempo 18 Okt 07:39 WIB.
+ * Cron 19 Okt 01:00 WIB → hitungan 24 jam memberi 0 (hanya 17j21m terlalu),
+ * padahal secara kalender sudah 1 hari telat. Akibatnya seluruh milestone
+ * dunning bergeser satu hari (G22). Sekarang: bandingan tanggal lokal, sesuai
+ * zona tenant (semua tenant saat ini WIB).
+ *
+ * `tz` opsional → zona tenant; kosong/tak dikenal → WIB (tenant-timezone).
+ */
+export function daysLate(nextDueDate: Date | null, now: Date = new Date(), tz?: string | null): number {
   if (!nextDueDate) return 0;
-  const ms = now.getTime() - nextDueDate.getTime();
-  if (ms <= 0) return 0;
-  return Math.floor(ms / 86_400_000);
+  return Math.max(0, dayDifferenceInZone(nextDueDate, now, tz));
 }
 
 export type DunningAction = "none" | "suspend" | "delete";
@@ -60,6 +70,7 @@ export function shouldSendReminderToday(
   reminderDaysCsv: string,
   lastReminderAt: Date | null,
   now: Date = new Date(),
+  tz?: string | null,
 ): boolean {
   const days = reminderDaysCsv
     .split(",")
@@ -67,11 +78,8 @@ export function shouldSendReminderToday(
     .filter((n) => Number.isFinite(n) && n >= 0);
   if (!days.includes(late)) return false;
   if (lastReminderAt) {
-    const sameDay =
-      lastReminderAt.getUTCFullYear() === now.getUTCFullYear() &&
-      lastReminderAt.getUTCMonth() === now.getUTCMonth() &&
-      lastReminderAt.getUTCDate() === now.getUTCDate();
-    if (sameDay) return false;
+    // "Hari yang sama" menurut kalender ZONA TENANT (bukan zona server/UTC).
+    if (dayKeyInZone(lastReminderAt, tz) === dayKeyInZone(now, tz)) return false;
   }
   return true;
 }
