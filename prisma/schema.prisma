@@ -204,6 +204,10 @@ enum MessageStatus {
   READ_UNOBSERVED
   FAILED
   LOGGED
+  // Hasil kirim TIDAK dapat dipastikan (lease kedaluwarsa / proses mati saat
+  // SENDING). Sengaja TIDAK dikirim ulang otomatis: duplikat ke pelanggan lebih
+  // buruk daripada satu pesan yang perlu ditinjau operator. Lihat queue-lease.ts.
+  UNKNOWN
 }
 
 enum WaDriver {
@@ -649,8 +653,13 @@ model MessageLog {
   body             String?
   gatewayMessageId String? // id dari messaging-gateway (untuk update status via callback)
   at               DateTime       @default(now())
+  // Lease pengiriman: dicatat saat baris diklaim SENDING. Bila lease kedaluwarsa,
+  // hasil kirim tidak dapat dipastikan → status UNKNOWN (bukan kirim ulang).
+  sendingAt       DateTime?
+  leaseExpiresAt  DateTime?
 
   @@index([tenantId, customerId, at])
+  @@index([status, leaseExpiresAt])
   @@index([driver, status])
   @@index([tenantId, gatewayMessageId])
 }
@@ -1067,10 +1076,15 @@ model PlatformNotification {
   attempts         Int            @default(0)
   createdAt        DateTime       @default(now())
   sentAt           DateTime?
+  // Lease pengiriman (sama seperti MessageLog): ambil -> SENDING -> kirim.
+  // Lease kedaluwarsa = hasil tak pasti -> UNKNOWN, bukan kirim ulang.
+  sendingAt       DateTime?
+  leaseExpiresAt  DateTime?
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([status, channel])
+  @@index([status, leaseExpiresAt])
   @@index([tenantId, createdAt])
 }
 

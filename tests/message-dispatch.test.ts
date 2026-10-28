@@ -5,7 +5,12 @@ const store: { rows: any[] } = { rows: [] };
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     messageLog: {
-      findMany: vi.fn(async () => store.rows.filter((r) => r.status === "QUEUED" && r.direction === "OUTBOUND" && r.channel === "WA")),
+      // Hormati where.status: antrean (QUEUED) vs recovery stale (SENDING).
+      findMany: vi.fn(async ({ where }: any = {}) => store.rows.filter((r) => {
+        if (r.direction !== "OUTBOUND") return false;
+        if (where?.status) return r.status === where.status;
+        return true;
+      })),
       updateMany: vi.fn(async ({ where, data }: any) => {
         const r = store.rows.find((x) => x.id === where.id && x.status === where.status);
         if (!r) return { count: 0 };

@@ -11,13 +11,14 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { gatewaySendAs, isGatewayConfigured } from "@/lib/wa/gateway-relay";
 import { sendEmail, isEmailConfigured } from "@/lib/email/smtp";
+import { leaseExpiry, leaseMinutesFromEnv } from "@/lib/domain/queue-lease";
 
 const PLATFORM_WA_SESSION = "lumite-platform";
 const MAX_ATTEMPTS = 3;
 /** Subjek cadangan HANYA bila baris EMAIL tanpa subjek (tidak terjadi lewat notifyPlatform). */
 const EMAIL_SUBJECT_FALLBACK = "Pemberitahuan Aircon";
 
-export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent: number; failed: number; skipped: number }> {
+export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent: number; failed: number; skipped: number; stale: number }> {
   const waOn = await isGatewayConfigured();
   const emailOn = isEmailConfigured();
 
@@ -27,7 +28,29 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
     take: limit,
   });
 
+  // ── RECOVERY STALE SENDING (F3/G10) ──────────────────────────────────────────
+  // Lease kedaluwarsa = hasil kirim tak pasti → UNKNOWN, BUKAN kirim ulang
+  // (gateway tanpa endpoint lookup job; duplikat lebih buruk daripada review).
+  const staleRows = await prisma.platformNotification.findMany({
+    where: { status: "SENDING", OR: [{ leaseExpiresAt: { lte: new Date() } }, { leaseExpiresAt: null }] },
+    select: { id: true, tenantId: true },
+    take: limit,
+  });
+  for (const s of staleRows) {
+    await prisma.platformNotification.update({
+      where: { id: s.id },
+      data: {
+        status: "UNKNOWN",
+        sendingAt: null,
+        leaseExpiresAt: null,
+        error: "lease kedaluwarsa: hasil kirim tidak dapat dipastikan; perlu review operator (tidak dikirim ulang)",
+      },
+    }).catch(() => {});
+    console.error(`[platform-dispatch] stale SENDING -> UNKNOWN notif=${s.id} tenant=${s.tenantId}`);
+  }
+
   let sent = 0, failed = 0, skipped = 0;
+  const stale = staleRows.length;
   for (const n of queued) {
     // Channel belum siap → biarkan QUEUED (kirim nanti saat dikonfigurasi).
     if (n.channel === "WA" && !waOn) { skipped += 1; continue; }
@@ -36,7 +59,12 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
     // Klaim (QUEUED → SENDING) atomik: cegah dobel kirim.
     const claim = await prisma.platformNotification.updateMany({
       where: { id: n.id, status: "QUEUED" },
-      data: { status: "SENDING", attempts: { increment: 1 } },
+      data: {
+        status: "SENDING",
+        attempts: { increment: 1 },
+        sendingAt: new Date(),
+        leaseExpiresAt: leaseExpiry(new Date(), leaseMinutesFromEnv(process.env.PLATFORM_NOTIFICATION_LEASE_MINUTES)),
+      },
     });
     if (claim.count === 0) { skipped += 1; continue; }
 
@@ -50,7 +78,7 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
     if (res.ok) {
       await prisma.platformNotification.update({
         where: { id: n.id },
-        data: { status: "SENT", sentAt: new Date(), gatewayMessageId: res.messageId ?? null, error: null },
+        data: { status: "SENT", sentAt: new Date(), gatewayMessageId: res.messageId ?? null, error: null, sendingAt: null, leaseExpiresAt: null },
       }).catch(() => {});
       sent += 1;
     } else if ("duplicate" in res && res.duplicate) {
@@ -91,6 +119,8 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
           sentAt: new Date(),
           gatewayMessageId: res.messageId ?? null,
           error: null,
+          sendingAt: null,
+          leaseExpiresAt: null,
         },
       }).catch(() => {});
       sent += 1;
@@ -99,11 +129,11 @@ export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent
       const willRetry = n.attempts + 1 < MAX_ATTEMPTS;
       await prisma.platformNotification.update({
         where: { id: n.id },
-        data: { status: willRetry ? "QUEUED" : "FAILED", error: res.error ?? "gagal" },
+        data: { status: willRetry ? "QUEUED" : "FAILED", error: res.error ?? "gagal", sendingAt: null, leaseExpiresAt: null },
       }).catch(() => {});
       failed += 1;
       console.error(`[platform-dispatch] gagal ${n.channel} notif=${n.id} tenant=${n.tenantId}: ${res.error}`);
     }
   }
-  return { sent, failed, skipped };
+  return { sent, failed, skipped, stale };
 }

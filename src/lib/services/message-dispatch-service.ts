@@ -9,11 +9,12 @@
  */
 import { prisma } from "@/lib/prisma";
 import { gatewaySend, isGatewayConfigured } from "@/lib/wa/gateway-relay";
+import { leaseExpiry, leaseMinutesFromEnv } from "@/lib/domain/queue-lease";
 
-export async function flushQueuedMessages(limit = 100): Promise<{ configured: boolean; sent: number; failed: number; skipped: number; deferred: number }> {
+export async function flushQueuedMessages(limit = 100): Promise<{ configured: boolean; sent: number; failed: number; skipped: number; deferred: number; stale: number }> {
   if (!(await isGatewayConfigured())) {
     // Gateway belum dikonfigurasi → jangan sentuh antrean (biarkan QUEUED untuk dikirim nanti).
-    return { configured: false, sent: 0, failed: 0, skipped: 0, deferred: 0 };
+    return { configured: false, sent: 0, failed: 0, skipped: 0, deferred: 0, stale: 0 };
   }
 
   const queued = await prisma.messageLog.findMany({
@@ -22,17 +23,46 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
     take: limit,
   });
 
+  // ── RECOVERY STALE SENDING (F3/G10) ──────────────────────────────────────────
+  // Baris SENDING yang lease-nya kedaluwarsa = hasil kirim TIDAK pasti (proses
+  // mati saat memanggil provider). Gateway tak menyediakan endpoint lookup job,
+  // jadi hasil tak bisa dipastikan. Prudensi: tandai UNKNOWN, JANGAN kirim ulang
+  // (duplikat ke pelanggan lebih buruk daripada pesan yang perlu ditinjau).
+  const staleRows = await prisma.messageLog.findMany({
+    where: {
+      direction: "OUTBOUND",
+      status: "SENDING",
+      // Lease habis ATAU NULL (baris legacy dari sebelum kolom lease ada —
+      // klaim oleh proses lama yang sudah tidak berjalan = hasil juga tak pasti).
+      OR: [{ leaseExpiresAt: { lte: new Date() } }, { leaseExpiresAt: null }],
+    },
+    select: { id: true, tenantId: true },
+    take: limit,
+  });
+  for (const s of staleRows) {
+    await prisma.messageLog.update({
+      where: { id: s.id },
+      data: { status: "UNKNOWN", sendingAt: null, leaseExpiresAt: null },
+    }).catch(() => {});
+    console.error(`[dispatch] stale SENDING -> UNKNOWN message=${s.id} tenant=${s.tenantId} (hasil kirim tak pasti; perlu review operator, tidak dikirim ulang)`);
+  }
+
+  const stale = staleRows.length;
   let sent = 0, failed = 0, skipped = 0, deferred = 0;
   for (const m of queued) {
     if (!m.toPhone || !m.body) {
-      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED" } }).catch(() => {});
+      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED", sendingAt: null, leaseExpiresAt: null } }).catch(() => {});
       failed += 1;
       continue;
     }
     // Tandai SENDING dulu (cegah dobel kirim bila flusher tumpang tindih).
     const claim = await prisma.messageLog.updateMany({
       where: { id: m.id, status: "QUEUED" },
-      data: { status: "SENDING" },
+      data: {
+        status: "SENDING",
+        sendingAt: new Date(),
+        leaseExpiresAt: leaseExpiry(new Date(), leaseMinutesFromEnv(process.env.MESSAGE_LEASE_MINUTES)),
+      },
     });
     if (claim.count === 0) { skipped += 1; continue; } // sudah diklaim proses lain
 
@@ -52,21 +82,21 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
     if (res.ok) {
       await prisma.messageLog.update({
         where: { id: m.id },
-        data: { status: "SENT", gatewayMessageId: res.messageId ?? null },
+        data: { status: "SENT", gatewayMessageId: res.messageId ?? null, sendingAt: null, leaseExpiresAt: null },
       }).catch(() => {});
       sent += 1;
     } else if (res.deferred) {
       // TRANSIENT (kapasitas sesi penuh / tekanan memori / karantina sementara):
       // kembalikan ke antrean. Menandainya FAILED = pesan hilang permanen dan
       // pengingat tenant hilang tanpa jejak — bug 2026-10-25.
-      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "QUEUED" } }).catch(() => {});
+      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "QUEUED", sendingAt: null, leaseExpiresAt: null } }).catch(() => {});
       deferred += 1;
       console.warn(`[dispatch] tahan message=${m.id} tenant=${m.tenantId} (${res.error}); menunggu slot`);
     } else {
-      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED" } }).catch(() => {});
+      await prisma.messageLog.update({ where: { id: m.id }, data: { status: "FAILED", sendingAt: null, leaseExpiresAt: null } }).catch(() => {});
       failed += 1;
       console.error(`[dispatch] gagal kirim message=${m.id} tenant=${m.tenantId}: ${res.error}`);
     }
   }
-  return { configured: true, sent, failed, skipped, deferred };
+  return { configured: true, sent, failed, skipped, deferred, stale };
 }
