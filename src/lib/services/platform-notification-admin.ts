@@ -129,3 +129,60 @@ export async function replayPlatformNotification(
   });
   return { ok: true };
 }
+
+/**
+ * Ringkasan tier bukti + tanda tidak sehat (F3: alert/dashboard).
+ *
+ * Tier pemisahan (prinsip: SENT ≠ delivered/read):
+ *  - accepted : SENT (provider menerima operasi) — belum bukti sampai.
+ *  - delivered: DELIVERED.
+ *  - read     : READ_CONFIRMED / READ_UNOBSERVED.
+ *  - unknown  : UNKNOWN (hasil tak pasti) — perlu review.
+ *  - failed   : FAILED.
+ * Plus penanda operasional: antrean menua (QUEUED lebih tua dari ambang) dan
+ * SENDING tanpa lease (hasil tak pasti) — keduanya terlihat, tak diam-diam.
+ */
+export interface PlatformNotifHealth {
+  accepted: number;
+  delivered: number;
+  read: number;
+  unknown: number;
+  failed: number;
+  queued: number;
+  sending: number;
+  /** Antrean terlalu lama (menunggu terlalu lama tanpa dikirim). */
+  queuedTooOld: number;
+  /** SENDING tanpa lease = hasil tak pasti (proses kemungkinan mati di tengah). */
+  sendingWithoutLease: number;
+  /** Ada masalah yang perlu tindakan operator. */
+  needsAttention: boolean;
+}
+
+/** Umur antrean dianggap terlalu lama (menit). */
+export const QUEUED_STALE_MINUTES = 60;
+
+export async function getPlatformNotifHealth(): Promise<PlatformNotifHealth> {
+  const grouped = await prisma.platformNotification.groupBy({
+    by: ["status"], _count: { _all: true },
+  });
+  const by = (s: string) => grouped.find((g) => g.status === s)?._count._all ?? 0;
+  const staleBefore = new Date(Date.now() - QUEUED_STALE_MINUTES * 60_000);
+  const queuedTooOld = await prisma.platformNotification.count({
+    where: { status: "QUEUED", createdAt: { lt: staleBefore } },
+  });
+  const sendingWithoutLease = await prisma.platformNotification.count({
+    where: { status: "SENDING", OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lt: new Date() } }] },
+  });
+  const accepted = by("SENT");
+  const delivered = by("DELIVERED");
+  const read = by("READ_CONFIRMED") + by("READ_UNOBSERVED");
+  const unknown = by("UNKNOWN");
+  const failed = by("FAILED");
+  const queued = by("QUEUED");
+  const sending = by("SENDING");
+  return {
+    accepted, delivered, read, unknown, failed, queued, sending,
+    queuedTooOld, sendingWithoutLease,
+    needsAttention: unknown > 0 || failed > 0 || queuedTooOld > 0 || sendingWithoutLease > 0,
+  };
+}

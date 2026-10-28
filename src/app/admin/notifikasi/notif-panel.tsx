@@ -11,6 +11,11 @@ import {
 } from "./actions";
 
 type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number };
+type Health = {
+  accepted: number; delivered: number; read: number; unknown: number; failed: number;
+  queued: number; sending: number; queuedTooOld: number; sendingWithoutLease: number;
+  needsAttention: boolean;
+};
 type Row = {
   id: string; tenantName: string; channel: string; templateKey: string;
   toAddress: string; status: string; error: string | null;
@@ -28,8 +33,8 @@ const statusColor: Record<string, string> = {
   UNKNOWN: "bg-purple-600 hover:bg-purple-600",
 };
 
-export function NotifPanel({ summary, rows, tenants, templates }: {
-  summary: Summary; rows: Row[]; tenants: Tenant[]; templates: Template[];
+export function NotifPanel({ summary, rows, tenants, templates, health }: {
+  summary: Summary; rows: Row[]; tenants: Tenant[]; templates: Template[]; health: Health;
 }) {
   const [tenantId, setTenantId] = useState(tenants[0]?.id ?? "");
   const [templateKey, setTemplateKey] = useState(templates[0]?.key ?? "");
@@ -62,6 +67,35 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
           ),
         )}
       </div>
+
+      {/* Tier bukti & tanda perlu perhatian (F3) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {([
+          ["Diterima gateway", health.accepted],
+          ["Sampai", health.delivered],
+          ["Dibaca", health.read],
+          ["Tak Pasti", health.unknown],
+          ["Gagal", health.failed],
+        ] as const).map(([label, n]) => (
+          <Card key={label}>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-foreground">{n}</div>
+              <div className="text-xs text-muted-foreground">{label}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {health.needsAttention && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          <p className="font-semibold">Perlu tindakan operator</p>
+          <ul className="mt-1 list-disc pl-5">
+            {health.unknown > 0 && <li>{health.unknown} pesan berstatus &quot;tak pasti&quot; (hasil kirim tak dapat dipastikan) — tinjau, lalu Kirim Ulang bila perlu.</li>}
+            {health.failed > 0 && <li>{health.failed} pesan gagal terkirim.</li>}
+            {health.queuedTooOld > 0 && <li>{health.queuedTooOld} pesan antre terlalu lama (lebih dari 1 jam) — kanal pengiriman mungkin belum siap.</li>}
+            {health.sendingWithoutLease > 0 && <li>{health.sendingWithoutLease} pesan berstatus proses tanpa lease — hasil kirim tak pasti, perlu ditinjau.</li>}
+          </ul>
+        </div>
+      )}
 
       {/* Aksi cepat */}
       <Card>
