@@ -98,3 +98,17 @@ export async function actionPartnerLogout(): Promise<void> {
   await clearPartnerSession();
   redirect("/agen/login");
 }
+
+/**
+ * Tandai notifikasi in-app mitra sebagai terbaca (F4).
+ * Isolasi: notifikasi harus milik mitra yang sedang login (filter di service).
+ */
+export async function actionMarkPartnerNotificationRead(formData: FormData): Promise<void> {
+  const sess = await getPartnerSession();
+  if (!sess) return;
+  const notificationId = String(formData.get("notificationId") ?? "").trim();
+  if (!notificationId) return;
+  const { markPartnerNotificationRead } = await import("@/lib/services/partner-notification-service");
+  const ok = await markPartnerNotificationRead(sess.kind, sess.id, notificationId);
+  if (ok) revalidatePath(sess.kind === "agent" ? "/agen" : "/reseller");
+}

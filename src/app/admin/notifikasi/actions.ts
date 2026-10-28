@@ -7,7 +7,7 @@ import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
 import {
   gatewayInitSession, gatewaySessionStatus, gatewayLogoutSession,
 } from "@/lib/wa/gateway-relay";
-import type { PlatformTemplateKey } from "@/lib/domain/platform-templates";
+import { PARTNER_TEMPLATE_KEYS, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-service";
 import { replayPlatformNotification } from "@/lib/services/platform-notification-admin";
 import { rollbackTemplate } from "@/lib/services/platform-template-service";
@@ -26,6 +26,9 @@ const EVENT_ONLY_TEMPLATE_KEYS: readonly string[] = [
   "payment_expired",
   // Butuh `nama` pemesan & dikirim ke inbox in-app tenant (bukan antrean platform).
   "booking_inapp",
+  // Template mitra (F4): penerima agen/reseller, terbit dari event lifecycle
+  // mitra (registrasi, approval, komisi, payout). Tak bisa dikirim manual.
+  ...PARTNER_TEMPLATE_KEYS,
 ];
 
 /** Kirim event notifikasi platform manual ke 1 tenant (uji / pengumuman terarah). */

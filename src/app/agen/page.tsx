@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getPartnerSession } from "@/lib/partner/partner-session";
 import { agentDashboard } from "@/lib/partner/partner-portal-service";
+import { listPartnerNotifications } from "@/lib/services/partner-notification-service";
+import { PartnerInbox } from "@/app/agen/_components/partner-inbox";
 import { actionPartnerLogout } from "./actions";
 import { CopyButton } from "./copy-button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +18,10 @@ const rupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 export default async function AgentDashboard() {
   const sess = await getPartnerSession();
   if (sess?.kind !== "agent") redirect("/agen/login");
-  const d = await agentDashboard(sess.id);
+  const [d, inbox] = await Promise.all([
+    agentDashboard(sess.id),
+    listPartnerNotifications("agent", sess.id, 20),
+  ]);
 
   return (
     <main className="min-h-screen bg-muted/40">
@@ -135,6 +140,8 @@ export default async function AgentDashboard() {
             )}
           </CardContent>
         </Card>
+        {/* Notifikasi (F4) */}
+        <PartnerInbox items={inbox} />
       </div>
     </main>
   );

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getPartnerSession } from "@/lib/partner/partner-session";
 import { resellerDashboard } from "@/lib/partner/partner-portal-service";
+import { listPartnerNotifications } from "@/lib/services/partner-notification-service";
+import { PartnerInbox } from "@/app/agen/_components/partner-inbox";
 import { actionPartnerLogout } from "@/app/agen/actions";
 import { CopyButton } from "@/app/agen/copy-button";
 import { SubmitButton } from "@/components/submit-button";
@@ -11,7 +13,10 @@ const rupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 export default async function ResellerDashboard() {
   const sess = await getPartnerSession();
   if (sess?.kind !== "reseller") redirect("/reseller/login");
-  const d = await resellerDashboard(sess.id);
+  const [d, inbox] = await Promise.all([
+    resellerDashboard(sess.id),
+    listPartnerNotifications("reseller", sess.id, 20),
+  ]);
 
   return (
     <main className="min-h-screen bg-muted/40">
@@ -41,6 +46,9 @@ export default async function ResellerDashboard() {
             <CopyButton text={`/onboarding?ref=${d.code}`} full />
           </section>
         )}
+
+        {/* Notifikasi (F4) */}
+        <PartnerInbox items={inbox} />
 
         <section className="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-foreground dark:border-sky-900/40 dark:bg-sky-950/30">
           <b>Cara kerja:</b> sebarkan kode Anda. Setiap usaha AC yang mendaftar &amp; berlangganan dengan kode Anda tercatat sebagai bawaan Anda — aturan komisi per paket tersimpan di sistem. Yang membayar Anda adalah <b>agen ({d.agentName})</b>, dihitung otomatis oleh sistem.

@@ -15,6 +15,7 @@ import type { TenantPlan } from "@prisma/client";
 import {
   PLATFORM_TEMPLATES,
   renderPlatformTemplate,
+  isPartnerTemplate,
   type PlatformTemplateKey,
 } from "@/lib/domain/platform-templates";
 import { getActiveTemplate } from "@/lib/services/platform-template-service";
@@ -73,10 +74,17 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
   const templateKey = input.templateKey ?? (await resolveWelcomeTemplateKey(tenantId));
   const tpl = PLATFORM_TEMPLATES[templateKey];
   if (!tpl) return { created: 0, skipped: [`template tak dikenal: ${templateKey}`], ids: [] };
+  // Template MITRA (F4) hanya boleh dirender oleh partner-notification-service:
+  // penerima bukan tenant, jadi notifyPlatform tak boleh menaruhnya.
+  if (isPartnerTemplate(templateKey)) {
+    return { created: 0, skipped: ["template mitra hanya boleh dikirim lewat service notifikasi mitra"], ids: [] };
+  }
   const planConfig = await prisma.planConfig.findUnique({ where: { plan: tenant.plan } });
   const langganan = `${appBase()}/app/langganan`;
   const pengaturan = `${appBase()}/app/pengaturan`;
-  const DEFAULT_LINK: Record<PlatformTemplateKey, string> = {
+  // Hanya template TENANT. Template mitra ditolak lebih dulu (lihat guard),
+  // jadi tak pernah butuh link di sini.
+  const DEFAULT_LINK: Partial<Record<PlatformTemplateKey, string>> = {
     welcome_basic: langganan,
     welcome_paid: pengaturan,
     subscription_activated: pengaturan,
@@ -94,7 +102,7 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
     app: "Aircon",
     tenant: tenant.name,
     paket: planConfig?.displayName ?? tenant.plan,
-    link: DEFAULT_LINK[templateKey],
+    link: DEFAULT_LINK[templateKey] ?? langganan,
     ...(input.vars ?? {}),
   };
   let rendered: { subject: string; body: string };

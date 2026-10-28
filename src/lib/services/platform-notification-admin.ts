@@ -42,7 +42,8 @@ export async function listPlatformNotifs(limit = 50): Promise<PlatformNotifRow[]
   });
   return rows.map((r) => ({
     id: r.id,
-    tenantName: r.tenant?.name ?? r.tenantId,
+    // Notifikasi mitra (F4) tak punya tenant → label "Mitra (agen/reseller)".
+    tenantName: r.tenant?.name ?? r.tenantId ?? (r.partnerKind ? `Mitra ${r.partnerKind}` : "—"),
     channel: r.channel,
     templateKey: r.templateKey,
     toAddress: r.toAddress,

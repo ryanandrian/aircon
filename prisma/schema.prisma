@@ -1078,7 +1078,14 @@ model PlatformAuditLog {
 // tandai SENT/FAILED. Idempoten via dedupeKey (cegah kirim ganda utk event yang sama).
 model PlatformNotification {
   id               String         @id @default(cuid())
-  tenantId         String // penerima = tenant (owner)
+  // Penerima. Untuk notifikasi tenant: tenantId terisi. Untuk notifikasi mitra
+  // (F4): tenantId NULL dan tepat satu dari partnerKind/agentId/resellerId terisi.
+  // CHECK constraint (migrasi) menjamin tak ada baris tanpa target.
+  tenantId         String? // penerima = tenant (owner); NULL untuk notifikasi mitra
+  // Target mitra (F4). NULL untuk notifikasi tenant biasa.
+  partnerKind      String? // "agent" | "reseller"
+  agentId          String?
+  resellerId       String?
   channel          MessageChannel // WA | EMAIL
   templateKey      String // mis. subscription_due, wa_disconnected, trial_ending, welcome
   toAddress        String // nomor WA (62xxx) atau alamat email — tergantung channel
@@ -1096,11 +1103,39 @@ model PlatformNotification {
   sendingAt       DateTime?
   leaseExpiresAt  DateTime?
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent    Agent?   @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  reseller Reseller? @relation(fields: [resellerId], references: [id], onDelete: Cascade)
 
   @@index([status, channel])
   @@index([status, leaseExpiresAt])
   @@index([tenantId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([resellerId, createdAt])
+}
+
+// Inbox in-app untuk mitra (F4): agen & reseller. Terpisah dari TenantNotification
+// karena mitra BUKAN tenant (tak punya tenantId) dan tak boleh bisa melihat
+// notifikasi tenant lain.
+model PartnerNotification {
+  id         String    @id @default(cuid())
+  partnerKind String   // "agent" | "reseller"
+  agentId    String?
+  resellerId String?
+  type       String    // mis. "COMMISSION_ACCRUED", "PAYOUT_PAID"
+  title      String
+  body       String
+  entityId   String?   // id ledger/payout/tenant sebagai acuan (bukan data sensitif)
+  dedupeKey  String    @unique
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  agent    Agent?    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  reseller Reseller? @relation(fields: [resellerId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, createdAt])
+  @@index([resellerId, createdAt])
+  @@index([partnerKind, readAt])
 }
 
 // Template copy notifikasi PLATFORM (Lumite → tenant) — EDITABLE ADMIN (no hardcode).
@@ -1385,6 +1420,10 @@ model Agent {
   userId          String? // login agen (portal, fase lanjutan)
   pinHash         String? // login portal agen (scrypt); set via tautan aktivasi
   loginToken      String?          @unique // token aktivasi sekali-pakai (set PIN)
+  // Masa berlaku token aktivasi (F4). Tanpa ini tautan aktif selamanya —
+  // risiko tautan bocor tetap hidup. Token kedaluwarsa = tak valid.
+  loginTokenExpiresAt DateTime?
+  loginTokenIssuedAt  DateTime?
   notes           String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -1392,6 +1431,8 @@ model Agent {
   resellers    Reseller[]
   codes        PartnerCode[]
   attributions TenantAttribution[]
+  notifications         PlatformNotification[]
+  partnerNotifications  PartnerNotification[]
   payouts      AgentPayout[]
   ledger       CommissionLedger[]
   planCommissions PartnerPlanCommission[]
@@ -1410,6 +1451,9 @@ model Reseller {
   commissionValue Float          @default(0)
   pinHash         String? // login portal reseller (scrypt)
   loginToken      String?        @unique // token aktivasi sekali-pakai
+  // Masa berlaku token aktivasi (F4) — lihat Agent.loginTokenExpiresAt.
+  loginTokenExpiresAt DateTime?
+  loginTokenIssuedAt  DateTime?
   bankName        String?
   bankAccountEnc  String?
   bankHolder      String?
@@ -1420,6 +1464,8 @@ model Reseller {
   codes        PartnerCode[]
   attributions TenantAttribution[]
   planCommissions PartnerPlanCommission[]
+  notifications         PlatformNotification[]
+  partnerNotifications  PartnerNotification[]
 
   @@index([agentId, status])
 }

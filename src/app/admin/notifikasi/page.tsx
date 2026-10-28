@@ -5,7 +5,7 @@ import {
 } from "@/lib/services/platform-notification-admin";
 import { listActiveTemplates, listTemplateRevisions } from "@/lib/services/platform-template-service";
 import { isNotifySendEnabled, isWaSendEnabled } from "@/lib/services/infra-config-service";
-import { PLATFORM_TEMPLATES, knownVariables, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
+import { PLATFORM_TEMPLATES, knownVariables, PARTNER_TEMPLATE_KEYS, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { NotifPanel } from "./notif-panel";
 import { LumiteWaConnect } from "./lumite-wa-connect";
 import { TemplateEditor, type TemplateView, type RevisionView } from "./template-editor";

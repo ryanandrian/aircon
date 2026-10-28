@@ -73,6 +73,15 @@ export async function dispatchPlatformNotifications(
   let sent = 0, failed = 0, skipped = 0;
   const stale = staleRows.length;
   for (const n of queued) {
+    // Notifikasi MITRA (F4) = EMAIL saja. WA ke agen/reseller belum diizinkan:
+    // belum ada consent + nomor WA terverifikasi. Baris WA mitra (tak pernah
+    // dibuat sekarang, tapi aman bila data lama) DITAHAN, bukan dikirim lewat
+    // sesi platform (salah penerima & tanpa consent).
+    if (n.partnerKind && n.channel === "WA") {
+      skipped += 1;
+      console.warn(`[platform-dispatch] tahan notifikasi mitra WA (belum ada consent): notif=${n.id} kind=${n.partnerKind}`);
+      continue;
+    }
     // Channel belum siap → biarkan QUEUED (kirim nanti saat dikonfigurasi).
     if (n.channel === "WA" && !waOn) { skipped += 1; continue; }
     if (n.channel === "EMAIL" && !emailOn) { skipped += 1; continue; }

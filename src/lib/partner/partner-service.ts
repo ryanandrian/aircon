@@ -50,6 +50,25 @@ export async function attributeTenant(tenantId: string, rawCode: string): Promis
       });
       await tx.partnerCode.update({ where: { code: resolved.code }, data: { usedCount: { increment: 1 } } });
     });
+    // Notifikasi mitra (F4): SETELAH atribusi commit. Hanya nama + status
+    // tenant (minimum) — tanpa kontak/data pelanggan lain.
+    try {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { name: true, status: true },
+      });
+      const { notifyTenantAttributed } = await import("@/lib/services/partner-notification-hooks");
+      await notifyTenantAttributed({
+        tenantId,
+        tenantName: tenant?.name ?? "Tenant",
+        tenantStatus: tenant?.status ?? "—",
+        agentId: resolved.agentId,
+        resellerId: resolved.resellerId,
+        code: resolved.code,
+      });
+    } catch (e) {
+      console.error("[partner-service] notifikasi atribusi gagal:", e instanceof Error ? e.message : e);
+    }
     return { attributed: true };
   } catch (error) {
     // Unique tenantId is the concurrency authority: a simultaneous onboarding
@@ -139,6 +158,22 @@ export async function accrueCommission(params: {
         periodMonth: periodMonthOf(settledAt),
       },
     });
+    // Notifikasi mitra (F4): SETELAH ledger commit. Kegagalan notifikasi tak
+    // menggagalkan pencatatan komisi (gagal-jujur) — event = fakta yang sudah
+    // terjadi. Dedupe per ledgerId.
+    try {
+      const { notifyCommissionAccrued } = await import("@/lib/services/partner-notification-hooks");
+      await notifyCommissionAccrued({
+        ledgerId: row.id,
+        agentId: row.agentId,
+        resellerId: row.resellerId,
+        agentAmountIdr: row.agentAmountIdr,
+        resellerAmountIdr: row.resellerAmountIdr,
+        periodMonth: row.periodMonth,
+      });
+    } catch (e) {
+      console.error("[partner-service] notifikasi komisi gagal:", e instanceof Error ? e.message : e);
+    }
     return { ledgerId: row.id, agentAmountIdr: agentAmount };
   } catch (error) {
     if ((error as { code?: string }).code !== "P2002") throw error;
@@ -200,6 +235,27 @@ export async function reverseCommission(orderId: string): Promise<{ reversed: bo
         await tx.commissionLedger.update({ where: { id: current.id }, data: { status: "REVERSED" } });
       }
     });
+    // Notifikasi pembatalan (F4): SETELAH transaksi commit. Reversal
+    // menjelaskan status sumber (ledger asal), bukan sekadar nominal.
+    try {
+      const { notifyCommissionReversed } = await import("@/lib/services/partner-notification-hooks");
+      const reversal = await prisma.commissionLedger.findUnique({
+        where: { orderId_entryKind: { orderId, entryKind: "REVERSAL" } },
+      });
+      if (reversal) {
+        await notifyCommissionReversed({
+          ledgerId: reversal.id,
+          sourceLedgerId: accrual.id,
+          agentId: reversal.agentId,
+          resellerId: reversal.resellerId,
+          agentAmountIdr: reversal.agentAmountIdr,
+          resellerAmountIdr: reversal.resellerAmountIdr,
+          periodMonth: reversal.periodMonth,
+        });
+      }
+    } catch (e) {
+      console.error("[partner-service] notifikasi reversal gagal:", e instanceof Error ? e.message : e);
+    }
   } catch (error) {
     if ((error as { code?: string }).code !== "P2002") throw error;
   }

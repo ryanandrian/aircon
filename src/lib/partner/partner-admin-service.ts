@@ -263,6 +263,23 @@ export async function markPayoutPaid(payoutId: string, transferRef: string) {
     const result = await tx.agentPayout.findUniqueOrThrow({ where: { id: payoutId } });
     await tx.commissionLedger.updateMany({ where: { payoutId, status: "APPROVED" }, data: { status: "PAID" } });
     return result;
+  })
+  .then(async (payout) => {
+    // Notifikasi mitra (F4): SETELAH payout PAID + transferRef tersimpan.
+    // Notifikasi sebelum transaksi commit tak boleh (event = fakta).
+    try {
+      const { notifyPayoutPaid } = await import("@/lib/services/partner-notification-hooks");
+      await notifyPayoutPaid({
+        payoutId: payout.id,
+        agentId: payout.agentId,
+        periodMonth: payout.periodMonth,
+        netPaidIdr: payout.netPaidIdr ?? 0,
+        transferRef: payout.transferRef ?? "",
+      });
+    } catch (e) {
+      console.error("[partner-admin] notifikasi payout gagal:", e instanceof Error ? e.message : e);
+    }
+    return payout;
   });
 }
 

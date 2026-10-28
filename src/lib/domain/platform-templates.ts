@@ -14,7 +14,18 @@ export type PlatformTemplateKey =
   | "payment_expired"
   | "wa_connected"
   | "wa_disconnected"
-  | "booking_inapp";
+  | "booking_inapp"
+  // F4 — notifikasi mitra (agen/reseller). Copy diedit admin di katalog yang sama.
+  | "partner_agent_invited"
+  | "partner_agent_activated"
+  | "partner_reseller_registered"
+  | "partner_reseller_approved"
+  | "partner_reseller_rejected"
+  | "partner_reseller_activated"
+  | "partner_tenant_attributed"
+  | "partner_commission_accrued"
+  | "partner_commission_reversed"
+  | "partner_payout_paid";
 
 export interface PlatformTemplate {
   subject: string;
@@ -78,6 +89,66 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     body: "{{nama}} mengirim permintaan booking{{layanan}}. Buka daftar calon pelanggan untuk membalas.",
     requiredVars: ["nama"],
   },
+  partner_agent_invited: {
+    label: "Undangan Agen (Platform ke Agen)",
+    subject: "Undangan menjadi mitra Aircon",
+    body: "Halo {{nama}}, {{app}} mengundang Anda menjadi mitra. Gunakan tautan berikut untuk mengaktifkan akun: {{link}}",
+    requiredVars: ["nama", "link"],
+  },
+  partner_agent_activated: {
+    label: "Agen Aktif (Platform ke Agen)",
+    subject: "Akun mitra Anda aktif",
+    body: "Halo {{nama}}, akun mitra Anda sudah aktif. Silakan masuk ke portal mitra: {{link}}",
+    requiredVars: ["nama", "link"],
+  },
+  partner_reseller_registered: {
+    label: "Pendaftaran Reseller (Platform ke Agen)",
+    subject: "Pendaftaran reseller baru atas nama {{mitra}}",
+    body: "Halo {{nama}}, ada pendaftaran reseller baru: {{mitra}}. Tinjau dan setujui di portal mitra: {{link}}",
+    requiredVars: ["nama", "mitra", "link"],
+  },
+  partner_reseller_approved: {
+    label: "Reseller Disetujui (Platform ke Reseller)",
+    subject: "Pendaftaran Anda disetujui",
+    body: "Halo {{nama}}, pendaftaran Anda disetujui. Kode Anda: {{kode}}. Aktifkan akun lewat tautan: {{link}}",
+    requiredVars: ["nama", "kode", "link"],
+  },
+  partner_reseller_rejected: {
+    label: "Reseller Ditolak (Platform ke Reseller)",
+    subject: "Pendaftaran Anda belum disetujui",
+    body: "Halo {{nama}}, pendaftaran Anda belum disetujui. Hubungi agen Anda untuk keterangan.",
+    requiredVars: ["nama"],
+  },
+  partner_reseller_activated: {
+    label: "Reseller Aktif (Platform ke Reseller)",
+    subject: "Akun reseller Anda aktif",
+    body: "Halo {{nama}}, akun reseller Anda sudah aktif. Silakan masuk ke portal mitra: {{link}}",
+    requiredVars: ["nama", "link"],
+  },
+  partner_tenant_attributed: {
+    label: "Tenant Terattribusi (Platform ke Mitra)",
+    subject: "Pelanggan baru masuk lewat kode Anda",
+    body: "Halo {{nama}}, pelanggan baru terdaftar memakai kode {{kode}}: {{nama_tenant}} (status akun: {{status_tenant}}).",
+    requiredVars: ["nama", "kode", "nama_tenant", "status_tenant"],
+  },
+  partner_commission_accrued: {
+    label: "Komisi Terhitung (Platform ke Mitra)",
+    subject: "Komisi Anda bertambah",
+    body: "Halo {{nama}}, komisi sebesar {{nominal_komisi}} tercatat untuk periode {{periode}}. Ini pencatatan, bukan pembayaran.",
+    requiredVars: ["nama", "nominal_komisi", "periode"],
+  },
+  partner_commission_reversed: {
+    label: "Komisi Dibatalkan (Platform ke Mitra)",
+    subject: "Komisi sebelumnya dibatalkan",
+    body: "Halo {{nama}}, komisi sebesar {{nominal_komisi}} dibatalkan untuk periode {{periode}}. {{ref}}",
+    requiredVars: ["nama", "nominal_komisi", "periode", "ref"],
+  },
+  partner_payout_paid: {
+    label: "Pembayaran Payout (Platform ke Mitra)",
+    subject: "Pembayaran komisi telah diproses",
+    body: "Halo {{nama}}, pembayaran komisi periode {{periode}} sebesar {{nominal_komisi}} telah diproses. Referensi: {{ref}}.",
+    requiredVars: ["nama", "nominal_komisi", "periode", "ref"],
+  },
   wa_disconnected: {
     label: "WhatsApp Terputus",
     subject: "WhatsApp usaha Anda terputus",
@@ -93,7 +164,7 @@ export function platformTemplateVariables(tpl: PlatformTemplate): string[] {
 }
 
 /** Semua variabel yang diisi runtime (superset). Harus dideklarasikan sebelum dipakai. */
-const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal", "nama", "layanan"] as const;
+const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal", "nama", "layanan", "mitra", "nama_tenant", "status_tenant", "nominal_komisi", "periode", "kode", "ref"] as const;
 
 /**
  * Placeholder yang DIKENAL untuk tiap key = `requiredVars` (kontrak kode) ∪ variabel
@@ -101,6 +172,47 @@ const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "n
  */
 export function knownVariables(key: PlatformTemplateKey): string[] {
   return [...new Set<string>([...PLATFORM_TEMPLATES[key].requiredVars, ...ALL_RUNTIME_VARS])];
+}
+
+/** Key template notifikasi MITRA (F4) — penerima agen/reseller, bukan tenant. */
+export type PartnerTemplateKey =
+  | "partner_agent_invited"
+  | "partner_agent_activated"
+  | "partner_reseller_registered"
+  | "partner_reseller_approved"
+  | "partner_reseller_rejected"
+  | "partner_reseller_activated"
+  | "partner_tenant_attributed"
+  | "partner_commission_accrued"
+  | "partner_commission_reversed"
+  | "partner_payout_paid";
+
+/**
+ * Key template yang Beverimaan TENANT (bukan mitra). Dipisah agar
+ * `DEFAULT_LINK` tak perlu-butuh entry untuk template mitra.
+ */
+export type TenantTemplateKey = Exclude<PlatformTemplateKey, PartnerTemplateKey>;
+
+/** Template notifikasi MITRA (F4) — penerima agen/reseller, bukan tenant. */
+export const PARTNER_TEMPLATE_KEYS: readonly PartnerTemplateKey[] = [
+  "partner_agent_invited",
+  "partner_agent_activated",
+  "partner_reseller_registered",
+  "partner_reseller_approved",
+  "partner_reseller_rejected",
+  "partner_reseller_activated",
+  "partner_tenant_attributed",
+  "partner_commission_accrued",
+  "partner_commission_reversed",
+  "partner_payout_paid",
+];
+
+/**
+ * True bila template ini untuk mitra (bukan tenant). Type guard → TS bisa
+ * menyempitkan `PlatformTemplateKey` menjadi `TenantTemplateKey` setelah guard.
+ */
+export function isPartnerTemplate(key: PlatformTemplateKey): key is PartnerTemplateKey {
+  return key.startsWith("partner_");
 }
 
 export interface TemplateCopy { subject: string; body: string }
