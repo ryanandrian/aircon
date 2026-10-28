@@ -188,7 +188,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
       <section className="border-y bg-muted/30">
         <div className="mx-auto grid max-w-5xl gap-6 px-5 py-12 sm:grid-cols-3">
           <RoiStat angka="1 servis ulang" ket="Cukup 1 pelanggan servis ulang per bulan sudah menutup biaya langganan." />
-          <RoiStat angka="±90 hari" ket="Aircon ingatkan pelanggan servis berikutnya otomatis — Anda tak perlu catat manual." />
+          <RoiStat angka="±90 hari" ket="Aircon ingatkan pelanggan servis berikutnya — otomatis pada paket Professional dan Business, manual dari WhatsApp Anda pada Basic." />
           <RoiStat angka="0 job hilang" ket="Semua pekerjaan & pelanggan tercatat rapi. Tak ada lagi order yang lupa dikerjakan." />
         </div>
       </section>
