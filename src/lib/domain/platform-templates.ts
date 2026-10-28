@@ -22,6 +22,10 @@ export type PlatformTemplateKey =
   | "tenant_dunning_warning"
   | "tenant_inactivity_reminder1"
   | "tenant_inactivity_reminder2"
+  // Keamanan (G16): pesan ke OWNER tenant saat aktivitas akun sensitif.
+  | "security_new_login"
+  | "security_pin_reset"
+  | "security_staff_activated"
   // F4 — notifikasi mitra (agen/reseller). Copy diedit admin di katalog yang sama.
   | "partner_agent_invited"
   | "partner_agent_activated"
@@ -113,6 +117,24 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     subject: "Akun Anda akan dihapus",
     body: "Halo {{nama}}, akun Aircon Anda sudah {{hari}} hari tanpa aktivitas. PERINGATAN: bila tetap tidak digunakan, akun beserta seluruh data akan DIHAPUS PERMANEN dalam {{sisa}} hari. Buka aplikasi untuk membatalkan penghapusan.",
     requiredVars: ["nama", "hari", "sisa"],
+  },
+  security_new_login: {
+    label: "Login Baru (Keamanan)",
+    subject: "Login baru terdeteksi",
+    body: "Halo {{tenant}}, staf {{nama}} baru saja login ke akun Anda.",
+    requiredVars: ["tenant", "nama"],
+  },
+  security_pin_reset: {
+    label: "PIN Diubah (Keamanan)",
+    subject: "PIN anggota tim diubah",
+    body: "Halo {{tenant}}, PIN {{nama}} baru diubah/reset. Bila bukan Anda, periksa tim Anda sekarang.",
+    requiredVars: ["tenant", "nama"],
+  },
+  security_staff_activated: {
+    label: "Staf Mengaktifkan Akun (Keamanan)",
+    subject: "Staf mengaktifkan akun",
+    body: "Halo {{tenant}}, {{nama}} sudah mengaktifkan akun (PIN dibuat). Jika ini bukan undangan Anda, cabut aksesnya.",
+    requiredVars: ["tenant", "nama"],
   },
   booking_confirm_customer: {
     label: "Konfirmasi Booking (WA ke Pemesan)",

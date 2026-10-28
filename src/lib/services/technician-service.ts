@@ -75,7 +75,7 @@ export async function getInviteByToken(token: string) {
  * Membuat User (role sesuai undangan, ACTIVE); Technician hanya bila TECHNICIAN. Tandai invite ACCEPTED.
  * Mengembalikan userId + role untuk pembuatan sesi + redirect per peran.
  */
-export async function acceptInvite(token: string, pin: string): Promise<{ userId: string; tenantId: string; role: "ADMIN" | "TECHNICIAN" }> {
+export async function acceptInvite(token: string, pin: string): Promise<{ userId: string; tenantId: string; role: "ADMIN" | "TECHNICIAN"; name: string }> {
   if (!isValidPin(pin)) throw new TechAuthError("VALIDATION", "PIN harus 6 angka");
   const invite = await getInviteByToken(token);
 
@@ -109,6 +109,9 @@ export async function acceptInvite(token: string, pin: string): Promise<{ userId
         authProvider: "PIN",
         pinHash: hashPin(pin),
         status: "ACTIVE",
+        // Aktivasi = login pertama. Kolom ini TAK PERNAH ditulis sebelumnya
+        // padahal dibaca sweeper inaktif → tenant aktif bisa dianggap tak aktif.
+        lastLoginAt: new Date(),
       },
     });
     // Record Technician HANYA untuk peran TECHNICIAN (admin = staf kantor, tanpa profil lapangan).
@@ -117,7 +120,7 @@ export async function acceptInvite(token: string, pin: string): Promise<{ userId
         data: { tenantId: invite.tenantId, userId: user.id, skills: [], active: true },
       });
     }
-    return { userId: user.id, tenantId: invite.tenantId, role: invite.role as "ADMIN" | "TECHNICIAN" };
+    return { userId: user.id, tenantId: invite.tenantId, role: invite.role as "ADMIN" | "TECHNICIAN", name: user.name };
   });
   return result;
 }
@@ -127,7 +130,7 @@ export async function acceptInvite(token: string, pin: string): Promise<{ userId
  * SECURITY: cari user PIN aktif by phone (lintas-tenant by phone unik global? phone unik per tenant).
  * Karena phone unik PER tenant, kita cari semua kandidat lalu cocokkan PIN.
  */
-export async function loginTechnician(phone: string, pin: string): Promise<{ userId: string; tenantId: string; role: "ADMIN" | "TECHNICIAN" }> {
+export async function loginTechnician(phone: string, pin: string): Promise<{ userId: string; tenantId: string; role: "ADMIN" | "TECHNICIAN"; name: string }> {
   const norm = normalizePhone(phone);
   if (!isValidPin(pin)) throw new TechAuthError("INVALID_PIN", "PIN harus 6 angka");
 
@@ -142,13 +145,22 @@ export async function loginTechnician(phone: string, pin: string): Promise<{ use
   // Staf ber-PIN = TECHNICIAN atau ADMIN (owner login via Google, bukan PIN).
   const candidates = await prisma.user.findMany({
     where: { phone: norm, role: { in: ["TECHNICIAN", "ADMIN"] }, authProvider: "PIN", status: "ACTIVE" },
-    select: { id: true, tenantId: true, pinHash: true, role: true },
+    select: { id: true, tenantId: true, pinHash: true, role: true, name: true },
   });
   for (const c of candidates) {
     if (verifyPin(pin, c.pinHash)) {
       // sukses → reset throttle
       if (throttle) await prisma.loginThrottle.delete({ where: { key: norm } }).catch(() => {});
-      return { userId: c.id, tenantId: c.tenantId, role: c.role as "ADMIN" | "TECHNICIAN" };
+      // `lastLoginAt` PERNAH ditulis (kolom ada di schema & dibaca sweeper
+      // inaktif, tapi tak pernah diisi) — tanpa ini, tenant yang stafnya aktif
+      // tiap hari tetap bisa dianggap "tak aktif" lalu dihapus sweeper.
+      await prisma.user.update({
+        where: { id: c.id },
+        data: { lastLoginAt: new Date() },
+      }).catch((e) => {
+        console.error("[loginTechnician] gagal tulis lastLoginAt:", e instanceof Error ? e.message : e);
+      });
+      return { userId: c.id, tenantId: c.tenantId, role: c.role as "ADMIN" | "TECHNICIAN", name: c.name };
     }
   }
 
@@ -550,11 +562,11 @@ export async function resetTechnicianPin(
   tenantId: string,
   technicianId: string,
   newPin: string,
-): Promise<void> {
+): Promise<{ name: string }> {
   if (!isValidPin(newPin)) throw new TechAuthError("VALIDATION", "PIN harus 6 digit angka");
   const tech = await prisma.technician.findFirst({
     where: { id: technicianId, tenantId },
-    select: { userId: true, user: { select: { status: true } } },
+    select: { userId: true, user: { select: { status: true, name: true } } },
   });
   if (!tech) throw new TechAuthError("NOT_FOUND", "Teknisi tidak ditemukan");
   await prisma.user.update({
@@ -562,6 +574,7 @@ export async function resetTechnicianPin(
     // Reset PIN sekaligus aktifkan bila sebelumnya masih INVITED (belum pernah set PIN).
     data: { pinHash: hashPin(newPin), status: tech.user.status === "INVITED" ? "ACTIVE" : undefined },
   });
+  return { name: tech.user.name };
 }
 
 /**
@@ -597,15 +610,16 @@ export async function updateAdmin(
 }
 
 /** Reset PIN admin (owner): set PIN baru langsung. tenant-scoped. */
-export async function resetAdminPin(tenantId: string, userId: string, newPin: string): Promise<void> {
+export async function resetAdminPin(tenantId: string, userId: string, newPin: string): Promise<{ name: string }> {
   if (!isValidPin(newPin)) throw new TechAuthError("VALIDATION", "PIN harus 6 digit angka");
   const admin = await prisma.user.findFirst({
     where: { id: userId, tenantId, role: "ADMIN" },
-    select: { id: true, status: true },
+    select: { id: true, status: true, name: true },
   });
   if (!admin) throw new TechAuthError("NOT_FOUND", "Admin tidak ditemukan");
   await prisma.user.update({
     where: { id: admin.id },
     data: { pinHash: hashPin(newPin), status: admin.status === "INVITED" ? "ACTIVE" : undefined },
   });
+  return { name: admin.name };
 }

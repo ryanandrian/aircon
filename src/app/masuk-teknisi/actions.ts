@@ -16,8 +16,11 @@ export type LoginResult = { ok: true; role: "ADMIN" | "TECHNICIAN" } | { ok: fal
 /** Login staf (phone+PIN) → set sesi. Mengembalikan role untuk redirect (admin→/app, teknisi→/t). */
 export async function techLogin(phone: string, pin: string): Promise<LoginResult> {
   try {
-    const { userId, role } = await loginTechnician(phone, pin);
+    const { userId, tenantId, role, name } = await loginTechnician(phone, pin);
     await setTechSession(userId);
+    // G16: owner berhak tahu stafnya masuk (dedupe per-jam: tak spam).
+    const { notifySecurityNewLogin } = await import("@/lib/services/security-notify-service");
+    await notifySecurityNewLogin({ tenantId, actorName: name });
     return { ok: true, role };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -30,8 +33,11 @@ export async function techLogin(phone: string, pin: string): Promise<LoginResult
 export async function techAcceptInvite(token: string, pin: string, pinConfirm: string): Promise<LoginResult> {
   try {
     if (pin !== pinConfirm) return { ok: false, error: "Konfirmasi PIN tidak sama" };
-    const { userId, role } = await acceptInvite(token, pin);
+    const { userId, tenantId, role, name } = await acceptInvite(token, pin);
     await setTechSession(userId);
+    // G16: aktivasi akun = PIN baru dibuat — owner harus tahu.
+    const { notifySecurityPinChanged } = await import("@/lib/services/security-notify-service");
+    await notifySecurityPinChanged({ tenantId, actorName: name });
     return { ok: true, role };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -165,8 +171,11 @@ export async function ownerResetTechnicianPin(technicianId: string, newPin: stri
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
-    await resetTechnicianPin(ctx.tenantId, technicianId, newPin);
+    const { name } = await resetTechnicianPin(ctx.tenantId, technicianId, newPin);
     revalidatePath("/app/tim");
+    // G16: ubah PIN = aktivitas sensitif akun.
+    const { notifySecurityPinChanged } = await import("@/lib/services/security-notify-service");
+    await notifySecurityPinChanged({ tenantId: ctx.tenantId, actorName: name });
     return { ok: true };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
@@ -218,8 +227,11 @@ export async function ownerResetAdminPin(userId: string, newPin: string): Promis
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER"]);
-    await resetAdminPin(ctx.tenantId, userId, newPin);
+    const { name } = await resetAdminPin(ctx.tenantId, userId, newPin);
     revalidatePath("/app/tim");
+    // G16: ubah PIN = aktivitas sensitif akun.
+    const { notifySecurityPinChanged } = await import("@/lib/services/security-notify-service");
+    await notifySecurityPinChanged({ tenantId: ctx.tenantId, actorName: name });
     return { ok: true };
   } catch (err) {
     if (err instanceof TechAuthError) return { ok: false, error: err.message };
