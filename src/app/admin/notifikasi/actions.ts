@@ -21,6 +21,8 @@ const EVENT_ONLY_TEMPLATE_KEYS: readonly string[] = [
   "subscription_activated",
   "payment_failed",
   "payment_expired",
+  // Butuh `nama` pemesan & dikirim ke inbox in-app tenant (bukan antrean platform).
+  "booking_inapp",
 ];
 
 /** Kirim event notifikasi platform manual ke 1 tenant (uji / pengumuman terarah). */

@@ -13,7 +13,8 @@ export type PlatformTemplateKey =
   | "payment_failed"
   | "payment_expired"
   | "wa_connected"
-  | "wa_disconnected";
+  | "wa_disconnected"
+  | "booking_inapp";
 
 export interface PlatformTemplate {
   subject: string;
@@ -71,6 +72,12 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     body: "Halo {{tenant}}, koneksi WhatsApp usaha Anda sudah tersambung kembali. Pengiriman pesan usaha dari aplikasi dapat berjalan lagi. Periksa pengaturan bila koneksi terputus lagi: {{link}}",
     requiredVars: ["tenant", "link"],
   },
+  booking_inapp: {
+    label: "Booking Online Baru (In-App)",
+    subject: "Booking online baru",
+    body: "{{nama}} mengirim permintaan booking{{layanan}}. Buka daftar calon pelanggan untuk membalas.",
+    requiredVars: ["nama"],
+  },
   wa_disconnected: {
     label: "WhatsApp Terputus",
     subject: "WhatsApp usaha Anda terputus",
@@ -86,7 +93,7 @@ export function platformTemplateVariables(tpl: PlatformTemplate): string[] {
 }
 
 /** Semua variabel yang diisi runtime (superset). Harus dideklarasikan sebelum dipakai. */
-const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal"] as const;
+const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal", "nama", "layanan"] as const;
 
 /**
  * Placeholder yang DIKENAL untuk tiap key = `requiredVars` (kontrak kode) ∪ variabel

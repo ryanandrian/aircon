@@ -55,8 +55,9 @@ export async function listPlatformNotifs(limit = 50): Promise<PlatformNotifRow[]
 
 /**
  * Template yang boleh dikirim manual dari panel admin.
- * `subscription_activated` TIDAK termasuk: isinya mengikat transaksi (nominal,
- * periode, paket) sehingga hanya sah bila terbit dari webhook pembayaran.
+ * TIDAK termasuk: `subscription_activated` (mengikat transaksi: nominal, periode,
+ * paket — hanya sah dari webhook pembayaran) dan `booking_inapp` (butuh `nama`
+ * pemesan; dikirim ke inbox in-app tenant, bukan lewat antrean platform).
  */
 const MANUAL_TEMPLATE_KEYS: readonly PlatformTemplateKey[] = [
   "welcome_basic",

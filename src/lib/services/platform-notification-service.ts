@@ -88,6 +88,7 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
     payment_expired: langganan,
     wa_connected: pengaturan,
     wa_disconnected: pengaturan,
+    booking_inapp: pengaturan,
   };
   const vars = {
     app: "Aircon",

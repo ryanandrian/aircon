@@ -95,7 +95,7 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
               onClick={() => run(() => actionSendPlatformNotif(tenantId, templateKey as never, channel))}>
               Kirim ke Tenant Ini
             </Button>
-            {!canSendManually && selectedTemplate && <p className="self-center text-xs text-muted-foreground">Template ini terbit otomatis setelah transaksi terkait, bukan untuk kirim manual.</p>}
+            {!canSendManually && selectedTemplate && <p className="self-center text-xs text-muted-foreground">Template ini tidak bisa dikirim manual: isinya mengikat event transaksi, atau dikirim ke inbox in-app.</p>}
             <Button size="sm" variant="outline" disabled={pending}
               onClick={() => run(() => actionRunPlatformNotifyNow())}>
               Jalankan Siklus Event Sekarang

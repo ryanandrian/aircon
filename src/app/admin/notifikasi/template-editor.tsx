@@ -75,7 +75,7 @@ function TemplateRow({ t }: { t: TemplateView }) {
       </div>
       {t.hasSubject && (
         <div className="space-y-1.5">
-          <Label htmlFor={`subj-${t.key}`}>Subjek (email)</Label>
+          <Label htmlFor={`subj-${t.key}`}>{t.key === "booking_inapp" ? "Judul notifikasi" : "Subjek (email)"}</Label>
           <Input id={`subj-${t.key}`} value={subject} onChange={(e) => setSubject(e.target.value)} />
         </div>
       )}

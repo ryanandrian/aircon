@@ -10,7 +10,7 @@ import { TemplateEditor, type TemplateView } from "./template-editor";
 
 export const dynamic = "force-dynamic";
 
-const EVENT_ONLY = new Set<string>(["subscription_activated", "payment_failed", "payment_expired"]);
+const EVENT_ONLY = new Set<string>(["subscription_activated", "payment_failed", "payment_expired", "booking_inapp"]);
 
 export default async function AdminNotifikasiPage() {
   const [summary, rows, tenants, active] = await Promise.all([
