@@ -11,7 +11,7 @@ import type { PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-service";
 import { replayPlatformNotification } from "@/lib/services/platform-notification-admin";
 import { rollbackTemplate } from "@/lib/services/platform-template-service";
-import { isNotifySendEnabled, setNotifySendEnabled } from "@/lib/services/infra-config-service";
+import { isNotifySendEnabled, setNotifySendEnabled, isWaSendEnabled, setWaSendEnabled } from "@/lib/services/infra-config-service";
 import { revalidatePath } from "next/cache";
 
 /** externalId sesi WA platform Lumite (1 nomor, lintas SaaS). */
@@ -86,6 +86,18 @@ export async function actionSetNotifySendEnabled(enabled: boolean): Promise<Resu
     await setNotifySendEnabled(enabled, admin.email);
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: enabled ? "Pengiriman platform DIAKTIFKAN" : "Pengiriman platform DITAHAN (antrean menunggu)" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Kill switch WA tenant -> pelanggan (G30): admin-only, audit-logged. */
+export async function actionSetWaSendEnabled(enabled: boolean): Promise<Result> {
+  try {
+    const admin = await requirePlatformAdmin();
+    await setWaSendEnabled(enabled, admin.email);
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: enabled ? "WA tenant ke pelanggan DIAKTIFKAN" : "WA tenant ke pelanggan DITAHAN (antrean tetap menunggu)" };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }

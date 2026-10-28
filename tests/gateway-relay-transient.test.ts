@@ -23,6 +23,8 @@ vi.stubGlobal("fetch", fetchMock);
 vi.mock("@/lib/services/infra-config-service", () => ({
   getInfraConfig: vi.fn(async () => ({ waGatewayUrl: "https://gw.example.test" })),
   getInfraSecrets: vi.fn(async () => ({ gatewayKey: "test-key" })),
+  // Kill switch WA tenant (G30) — default aktif agar tes fokus pada klasifikasi.
+  isWaSendEnabled: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/wa/gateway", () => ({

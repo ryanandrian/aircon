@@ -28,6 +28,12 @@ vi.mock("@/lib/email/smtp", () => ({
 vi.mock("@/lib/wa/gateway-relay", () => ({
   isGatewayConfigured: vi.fn(async () => true),
   gatewaySendAs: vi.fn(async () => ({ ok: false })),
+  PLATFORM_WA_SESSION: "lumite-platform",
+}));
+// Kill switch platform (G30) — default aktif.
+vi.mock("@/lib/services/infra-config-service", () => ({
+  isNotifySendEnabled: vi.fn(async () => true),
+  isWaSendEnabled: vi.fn(async () => true),
 }));
 
 const NOTIF = {

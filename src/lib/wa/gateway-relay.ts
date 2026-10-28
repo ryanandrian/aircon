@@ -4,8 +4,14 @@
  * externalId = tenantId (1 sesi WA per tenant).
  */
 import "server-only";
-import { getInfraConfig, getInfraSecrets } from "@/lib/services/infra-config-service";
+import { getInfraConfig, getInfraSecrets, isWaSendEnabled } from "@/lib/services/infra-config-service";
 import { blockedSendReason } from "@/lib/wa/gateway";
+
+/**
+ * externalId sesi platform (Aircon -> owner). Semua externalId lain = sesi
+ * tenant (tenant -> pelanggan). Dipakai untuk memisahkan dua kill switch.
+ */
+export const PLATFORM_WA_SESSION = "lumite-platform";
 
 async function resolve(): Promise<{ url: string; key: string } | null> {
   // DB dulu (admin panel), lalu ENV sebagai fallback.
@@ -53,6 +59,16 @@ export async function gatewaySendAs(
 ): Promise<GatewaySendResult> {
   const cfg = await resolve();
   if (!cfg) return { ok: false, error: "Gateway WA belum dikonfigurasi (admin panel)" };
+
+  // KILL SWITCH WA TENANT -> PELANGGAN (G30): saat dimatikan, SEMUA WA dari
+  // sesi tenant ditahan. Antrean (MessageLog) tak berubah — pemanggil melihat
+  // `deferred` sehingga pesan tetap waiting dan dikirim saat switch dinyalakan.
+  // Sesi platform (Aircon -> owner) TIDAK kena switch ini; ia punya switch
+  // sendiri (`notifySendEnabled`).
+  if (externalId !== PLATFORM_WA_SESSION && !(await isWaSendEnabled())) {
+    console.warn(`[gateway-relay] KILL SWITCH WA tenant aktif: kirim ke ${toPhone} (sesi ${externalId}) ditahan`);
+    return { ok: false, deferred: true, error: "KILL SWITCH WA tenant aktif: pengiriman ditahan" };
+  }
 
   // GUARD ANTI-SPAM (rem darurat autopilot): cegah kirim ke nomor asing/invalid.
   // WA_SAFE_MODE=1 → hanya nomor demo 62899000xxx; WA_SEND_ALLOWLIST → hanya nomor tsb.

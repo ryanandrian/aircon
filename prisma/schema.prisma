@@ -1036,6 +1036,11 @@ model InfraConfig {
   // ada insiden. Tidak menyentuh pesan tenant ke pelanggan (money loop) —
   // itu dikendalikan WA_SAFE_MODE/allowlist.
   notifySendEnabled   Boolean  @default(true)
+  // KILL SWITCH WA TENANT -> PELANGGAN (G30): saat false, SEMUA pesan WA dari
+  // sesi tenant ke pelanggan ditahan (antrean MessageLog tetap PENDING, tak ada
+  // pesan hilang). Berbeda dari notifySendEnabled yang hanya menahan pesan
+  // platform (platform -> owner). Manual one-off (invoice,zteknisi) ikut tertahan.
+  waSendEnabled       Boolean  @default(true)
   updatedBy           String?
   updatedAt           DateTime @updatedAt
 }

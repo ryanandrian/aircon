@@ -9,12 +9,11 @@
  */
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { gatewaySendAs, isGatewayConfigured } from "@/lib/wa/gateway-relay";
+import { gatewaySendAs, isGatewayConfigured, PLATFORM_WA_SESSION } from "@/lib/wa/gateway-relay";
 import { isNotifySendEnabled } from "@/lib/services/infra-config-service";
 import { sendEmail, isEmailConfigured } from "@/lib/email/smtp";
 import { leaseExpiry, leaseMinutesFromEnv } from "@/lib/domain/queue-lease";
 
-const PLATFORM_WA_SESSION = "lumite-platform";
 const MAX_ATTEMPTS = 3;
 /** Subjek cadangan HANYA bila baris EMAIL tanpa subjek (tidak terjadi lewat notifyPlatform). */
 const EMAIL_SUBJECT_FALLBACK = "Pemberitahuan Aircon";

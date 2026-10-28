@@ -4,7 +4,7 @@ import {
   getPlatformNotifHealth, type PlatformNotifHealth,
 } from "@/lib/services/platform-notification-admin";
 import { listActiveTemplates, listTemplateRevisions } from "@/lib/services/platform-template-service";
-import { isNotifySendEnabled } from "@/lib/services/infra-config-service";
+import { isNotifySendEnabled, isWaSendEnabled } from "@/lib/services/infra-config-service";
 import { PLATFORM_TEMPLATES, knownVariables, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { NotifPanel } from "./notif-panel";
 import { LumiteWaConnect } from "./lumite-wa-connect";
@@ -15,13 +15,14 @@ export const dynamic = "force-dynamic";
 const EVENT_ONLY = new Set<string>(["subscription_activated", "payment_failed", "payment_expired", "booking_inapp"]);
 
 export default async function AdminNotifikasiPage() {
-  const [summary, rows, tenants, active, health, sendEnabled, revisionLists] = await Promise.all([
+  const [summary, rows, tenants, active, health, sendEnabled, waSendEnabled, revisionLists] = await Promise.all([
     getPlatformNotifSummary(),
     listPlatformNotifs(50),
     listTenants({ limit: 50 }),
     listActiveTemplates(),
     getPlatformNotifHealth(),
     isNotifySendEnabled(),
+    isWaSendEnabled(),
     Promise.all(
       (Object.keys(PLATFORM_TEMPLATES) as PlatformTemplateKey[]).map((k) => listTemplateRevisions(k, 5)),
     ),
@@ -69,6 +70,7 @@ export default async function AdminNotifikasiPage() {
         templates={templates}
         health={health}
         sendEnabled={sendEnabled}
+        waSendEnabled={waSendEnabled}
       />
     </div>
   );

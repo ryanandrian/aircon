@@ -105,3 +105,37 @@ export async function setNotifySendEnabled(enabled: boolean, adminEmail: string)
     },
   });
 }
+
+/**
+ * KILL SWITCH WA TENANT -> PELANGGAN (G30): true = boleh; false = ditahan.
+ * Fail-open dengan log bila config tak terbaca.
+ */
+export async function isWaSendEnabled(): Promise<boolean> {
+  try {
+    const c = await prisma.infraConfig.findUnique({
+      where: { id: "singleton" },
+      select: { waSendEnabled: true },
+    });
+    return c?.waSendEnabled !== false;
+  } catch (e) {
+    console.error("[infra-config] gagal membaca waSendEnabled, diasumsikan aktif:", e);
+    return true;
+  }
+}
+
+/** Set kill switch WA tenant->pelanggan (admin-only) + audit log. */
+export async function setWaSendEnabled(enabled: boolean, adminEmail: string): Promise<void> {
+  await prisma.infraConfig.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton", waSendEnabled: enabled, updatedBy: adminEmail },
+    update: { waSendEnabled: enabled, updatedBy: adminEmail },
+  });
+  await prisma.platformAuditLog.create({
+    data: {
+      actor: adminEmail,
+      action: enabled ? "WA_SEND_ENABLE" : "WA_SEND_DISABLE",
+      target: "infra-config:waSendEnabled",
+      metadata: { enabled },
+    },
+  });
+}
