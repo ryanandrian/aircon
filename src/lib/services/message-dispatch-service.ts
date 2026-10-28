@@ -84,6 +84,32 @@ export async function flushQueuedMessages(limit = 100): Promise<{ configured: bo
         where: { id: m.id },
         data: { status: "SENT", gatewayMessageId: res.messageId ?? null, sendingAt: null, leaseExpiresAt: null },
       }).catch(() => {});
+      // Tandai reminder SENT BARU setelah pesan benar-benar terkirim (bug fix
+      // 2026-10-28: menandai SENT saat antre membuat pengingat hilang permanen
+      // bila gateway gagal). Relasi dijamin kode: reminder dibuat bersamaan
+      // dengan MessageLog untuk customer+template yang sama.
+      if (m.templateKey === "reminder" || m.templateKey === "reminder_multi") {
+        // Relasi dijamin kode: reminder dibuat (SENT) bersamaan dengan MessageLog
+        // untuk asset milik customer tsb. `RepeatReminder` tak punya
+        // customerId; lewat `asset.customerId`.
+        if (m.customerId) {
+          const assets = await prisma.asset.findMany({
+            where: { tenantId: m.tenantId, customerId: m.customerId },
+            select: { id: true },
+          });
+          const assetIds = assets.map((a) => a.id);
+          if (assetIds.length > 0) {
+            await prisma.repeatReminder.updateMany({
+              where: {
+                tenantId: m.tenantId,
+                assetId: { in: assetIds },
+                status: "QUEUED",
+              },
+              data: { status: "SENT", sentAt: new Date() },
+            }).catch(() => {});
+          }
+        }
+      }
       sent += 1;
     } else if (res.deferred) {
       // TRANSIENT (kapasitas sesi penuh / tekanan memori / karantina sementara):

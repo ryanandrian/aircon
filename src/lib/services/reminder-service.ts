@@ -104,7 +104,13 @@ export async function sendCustomerReminderWa(
     if (token) body = `${body}\n\nLihat kartu perawatan AC Anda: ${customerCardUrl(token)}`;
   } catch { /* footer opsional; jangan gagalkan reminder */ }
 
-  // SATU MessageLog + tandai SEMUA reminder di grup SENT (atomik).
+  // SATU MessageLog (antrean) — reminder BELUM ditandai SENT di sini.
+  //
+  // KENAPA (bug nyata 2026-10-28): versi lama menandai `RepeatReminder` = SENT
+  // pada saat ANTRE, padahal WA-nya belum dikirim. Bila gateway gagal (sesi
+  // penuh, karantina, nomor salah), `MessageLog` jadi FAILED tapi reminder tetap
+  // SENT -> pengingat hilang tanpa jejak, lalu `expireDueReminders` membuangnya.
+  // Jadi: SENT hanya setelah pesan benar-benar terkirim (lihat flusher).
   const [msg] = await prisma.$transaction([
     prisma.messageLog.create({
       data: {
@@ -113,13 +119,9 @@ export async function sendCustomerReminderWa(
         direction: "OUTBOUND", status: "QUEUED", toPhone, body,
       },
     }),
-    prisma.repeatReminder.updateMany({
-      where: { id: { in: reminders.map((r) => r.id) }, tenantId, status: "QUEUED" },
-      data: { status: "SENT", sentAt: new Date() },
-    }),
   ]);
 
-  return { messageLogId: msg.id, toPhone, body, count: reminders.length };
+  return { messageLogId: msg.id, toPhone, body, count: reminders.length, reminderIds };
 }
 
 /** Kirim reminder WA (SATU unit) — dipakai tombol manual per-reminder di dashboard/demo. */

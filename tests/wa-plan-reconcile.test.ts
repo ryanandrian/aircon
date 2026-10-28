@@ -65,6 +65,36 @@ const PLAN_ROWS = [
 ];
 
 describe("A3 — rekonsiliasi sesi paket Basic", () => {
+  it("BUG FIX: sesi SUDAH hilang tapi nomor verifikasi tertinggal → nomor dibersihkan", async () => {
+    // Angka live 2026-10-28: tenant Basic "Buana Multi Teknik" punya
+    // waVerifiedPhone = 6287878785460, tapi sesi gateway-nya sudah `exists:false`
+    // (dilepas saat rules lama). `continue` lama membuat nomor tertingual
+    // selamanya → tenant Basic menyimpan nomor yang tak pernah diverifikasi.
+    setDb([{ id: "tenant-buana", plan: "TRIAL" }], PLAN_ROWS);
+    setGateway(new Map()); // tak ada sesi
+    prisma.tenant.updateMany = vi.fn(async () => ({ count: 1 })) as never;
+
+    const r = await reconcileWaPlanSessions();
+    expect(r.numbersCleared).toBe(1);
+    expect(r.revoked).toBe(0); // tak ada sesi → tak ada yang dicabut
+    expect(gatewayLogoutSession).not.toHaveBeenCalled(); // sesi tak ada → tak perlu logout
+    expect(prisma.tenant.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "tenant-buana", waVerifiedPhone: { not: null } },
+      data: { waVerifiedPhone: null },
+    }));
+  });
+
+  it("gateway tak terbaca (ok=false) → nomor TIDAK dihapus (aman: sesi mungkin masih hidup)", async () => {
+    setDb([{ id: "tenant-x", plan: "TRIAL" }], PLAN_ROWS);
+    gwStatus.mockImplementation(async () => ({ ok: false, error: "gateway down" }) as never);
+    prisma.tenant.updateMany = vi.fn(async () => ({ count: 1 })) as never;
+
+    const r = await reconcileWaPlanSessions();
+    expect(r.revoked).toBe(0);
+    expect(prisma.tenant.updateMany).not.toHaveBeenCalled();
+    expect(gatewayLogoutSession).not.toHaveBeenCalled();
+  });
+
   it("3 sesi TRIAL bocor → ketiganya logout + nomor verifikasi dibersihkan", async () => {
     setDb(TRIAL_BOCOR, PLAN_ROWS);
     setGateway(new Map(TRIAL_BOCOR.map((t) => [t.id, { exists: true, ready: true, phone: "628111" }])));

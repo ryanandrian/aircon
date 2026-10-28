@@ -91,9 +91,12 @@ describe("reminder batching per pelanggan", () => {
     expect(state.messageLogs[0].templateKey).toBe("reminder_multi");
   });
 
-  it("semua reminder di grup ditandai SENT", async () => {
+  it("reminder TIDAK ditandai SENT saat antre (bug fix 2026-10-28)", async () => {
+    // SENT hanya setelah pesan benar-benar terkirim (di flusher). Kalau ditandai
+    // SENT saat antre, pengingat hilang permanen bila gateway gagal.
     await sendCustomerReminderWa("t1", "c1", ["r1", "r2", "r3"]);
-    expect(state.reminders.every((r) => r.status === "SENT")).toBe(true);
+    expect(state.reminders.every((r) => r.status !== "SENT")).toBe(true);
+    expect(state.reminders.every((r) => r.status === "QUEUED")).toBe(true);
   });
 
   it("1 unit due -> pakai template reminder tunggal", async () => {

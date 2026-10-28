@@ -43,8 +43,16 @@ export async function reconcileVerifiedWaPhone(tenantId: string, phone: string |
 }
 
 /** Bersihkan nomor verifikasi tenant saat putuskan (logout) → nomor bebas ditautkan ulang. */
-export async function clearVerifiedWaPhone(tenantId: string): Promise<void> {
-  await prisma.tenant.updateMany({ where: { id: tenantId, waVerifiedPhone: { not: null } }, data: { waVerifiedPhone: null } });
+/**
+ * Bersihkan nomor WA terverifikasi milik tenant.
+ * @returns jumlah baris yang terpengaruh (0 = memang tak ada nomor).
+ */
+export async function clearVerifiedWaPhone(tenantId: string): Promise<number> {
+  const res = await prisma.tenant.updateMany({
+    where: { id: tenantId, waVerifiedPhone: { not: null } },
+    data: { waVerifiedPhone: null },
+  });
+  return res.count;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,7 +101,14 @@ export async function waAutomationEligibility(tenantId: string): Promise<WaAutom
 // AMAN-GAGAL: satu tenant gagal logout TIDAK membatalkan sisanya.
 // Sumber "berhak" = PlanConfig.autoReminder (satu-sumber, pola cron).
 // ---------------------------------------------------------------------------
-export type WaPlanReconcileResult = { checked: number; revoked: number; failed: number };
+export type WaPlanReconcileResult = {
+  checked: number;
+  /** Sesi gateway yang dicabut (logout). */
+  revoked: number;
+  /** Nomor WA terverifikasi yang dibersihkan (sesi sudah tak ada sebelumnya). */
+  numbersCleared: number;
+  failed: number;
+};
 
 export async function reconcileWaPlanSessions(): Promise<WaPlanReconcileResult> {
   const [tenants, configs] = await Promise.all([
@@ -105,18 +120,35 @@ export async function reconcileWaPlanSessions(): Promise<WaPlanReconcileResult> 
   const targets = tenants.filter((t) => ineligiblePlans.has(t.plan));
 
   let revoked = 0;
+  let numbersCleared = 0;
   let failed = 0;
   for (const t of targets) {
     try {
       const st = await gatewaySessionStatus(t.id);
-      if (!st.ok || !st.exists) continue; // sesi tak ada → skip (idempoten)
+      if (!st.ok) {
+        // Gateway tak bisa dibaca (s_down/masalah) → JANGAN hapus nomor di sini:
+        // risks data bila ternyata sesi masih hidup. Cron lain + reconcile
+        // berikutnya akan mencoba lagi.
+        continue;
+      }
+      if (!st.exists) {
+        // Sesi SUDAH tak ada (mis. dilepas manual / rules lama). Nomor WA
+        // terverifikasi yang tertinggal HARUS ikut dibersihkan — kalau tidak,
+        // tenant Basic menyimpan nomor asing selamanya (BUG 2026-10-28:
+        // `continue` di sini menyebabkan nomor tak pernah terhapus).
+        // Idempoten: clearVerifiedWaPhone hanya affect baris yang terisi.
+        const cleared = await clearVerifiedWaPhone(t.id);
+        if (cleared) numbersCleared += 1;
+        continue;
+      }
       await gatewayLogoutSession(t.id);
-      await clearVerifiedWaPhone(t.id);
-      revoked++;
+      revoked += 1;
+      const cleared = await clearVerifiedWaPhone(t.id);
+      if (cleared) numbersCleared += 1;
     } catch (e) {
       console.error(`[wa-plan-reconcile] gagal utk ${t.id}:`, e);
       failed++;
     }
   }
-  return { checked: targets.length, revoked, failed };
+  return { checked: targets.length, revoked, numbersCleared, failed };
 }
