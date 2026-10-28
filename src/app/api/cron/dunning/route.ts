@@ -21,20 +21,34 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   if (!authorized(req)) {
     return NextResponse.json({ error: "Tidak diizinkan" }, { status: 401 });
   }
-  try {
-    const dunning = await runDunningCycle();
-    const purge = await purgeMarkedTenants();
-    const inactivity = await runInactivitySweep();
-    // Flush antrean WA dunning ke gateway (pesan penagihan benar-benar terkirim).
-    const dispatch = await flushQueuedMessages();
-    // PLATFORM notif (Lumite → tenant): evaluasi event → antre → kirim (WA sesi lumite-platform + email).
-    const platformNotify = await runPlatformNotifyCycle();
-    const platformDispatch = await dispatchPlatformNotifications();
-    return NextResponse.json({ ok: true, dunning, purge, inactivity, dispatch, platformNotify, platformDispatch });
-  } catch (err) {
-    console.error("[cron/dunning] gagal:", err);
-    return NextResponse.json({ error: "Gagal menjalankan dunning" }, { status: 500 });
-  }
+  // TERISOLASI PER TAHAP (F2): sebelumnya SEMUA tahap dalam satu try, sehingga
+  // exception di `runDunningCycle` diam-diam melewatkan purge, dispatch WA, dan
+  // platform notify hari itu — padahal ketiganya jalur berbeda. Sekarang tiap
+  // tahap dijalankan & dicatat meski tahap lain gagal; respons tetap 500 bila ADA
+  // kegagalan agar `curl -fsS` di run-cron.sh membuat journal non-zero (kegagalan
+  // tak hilang diam-diam).
+  type Stage = { name: string; ok: boolean; value?: unknown; error?: string };
+  const stages: Stage[] = [];
+  const run = async (name: string, fn: () => Promise<unknown>) => {
+    try { stages.push({ name, ok: true, value: await fn() }); }
+    catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      console.error(`[cron/dunning] tahap ${name} gagal:`, err);
+      stages.push({ name, ok: false, error });
+    }
+  };
+
+  await run("dunning", runDunningCycle);
+  await run("purge", purgeMarkedTenants);
+  await run("inactivity", runInactivitySweep);
+  await run("dispatch", flushQueuedMessages);
+  await run("platformNotify", runPlatformNotifyCycle);
+  await run("platformDispatch", dispatchPlatformNotifications);
+
+  const failed = stages.filter((s) => !s.ok).map((s) => s.name);
+  const body: Record<string, unknown> = { ok: failed.length === 0, failed };
+  for (const s of stages) body[s.name] = s.ok ? s.value : { error: s.error };
+  return NextResponse.json(body, { status: failed.length ? 500 : 200 });
 }
 
 // Vercel Cron memanggil via GET dengan header Authorization: Bearer $CRON_SECRET.

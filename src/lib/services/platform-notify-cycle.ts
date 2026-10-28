@@ -94,6 +94,7 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
       if (milestone.due) {
         const r = await notifyPlatform({
           tenantId: t.id, templateKey: "subscription_overdue",
+          channels: ["EMAIL"],
           vars: { paket: billing.paket, nominal: billing.nominal, tanggal: fmtDate(dueDate) },
           dedupeKey: overdueDedupeKey(t.id, dueDate, milestone.late),
         });
@@ -102,8 +103,15 @@ export async function runPlatformNotifyCycle(now: Date = new Date()): Promise<Pl
       }
     } else if (dueDate <= soon) {
       // 0..3 hari ke depan.
+      // Kanal TAGIHAN ke owner = EMAIL saja (F2/G5). Alasannya terverifikasi dari
+      // data live: `Tenant.phone` == nomor OWNER untuk 6 dari 7 tenant, jadi pesan
+      // WA platform + WA dunning (MessageLog) mendarat di nomor yang sama pada hari
+      // yang sama — bukti live: tenant Jaya Mandiri menerima WA + EMAIL overdue di
+      // hari yang sama, 5 hari berturut-turut, plus WA dunning.
+      // Email tidak berduplikasi dengan dunning WA dan tidak memakai nomor bisnis.
       const r = await notifyPlatform({
         tenantId: t.id, templateKey: "subscription_due",
+        channels: ["EMAIL"],
         vars: { paket: billing.paket, nominal: billing.nominal, tanggal: fmtDate(dueDate) },
         dedupeKey: `subscription_due:${t.id}:${stamp}`,
       });

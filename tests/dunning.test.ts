@@ -4,6 +4,8 @@ import {
   dunningAction,
   shouldSendReminderToday,
   isPurgeEligible,
+  purgeEarliestOffsetDays,
+  sisaHapusSebelumPurge,
 } from "../src/lib/billing/dunning-pure";
 
 const POLICY = { graceDaysBeforeSuspend: 1, daysBeforeDelete: 7 };
@@ -72,5 +74,54 @@ describe("isPurgeEligible (masa tenggang purge — cegah mark+purge di run yang 
   it("tepat di ambang belum memenuhi (harus lebih tua)", () => {
     const exactly = new Date(now.getTime() - 24 * 3_600_000);
     expect(isPurgeEligible(exactly, now, 24)).toBe(false);
+  });
+});
+
+describe("reconcile {sisa} dengan tenggat purge nyata (F2)", () => {
+  // Angka kebijakan LIVE 27 Okt 2026: daysBeforeDelete=37, purgeGraceHours=24.
+  const LIVE = { daysBeforeDelete: 37, purgeGraceHours: 24 };
+
+  it("purge paling cepat = N+3 hari (mark N+1, lalu 2 run harian setelahnya)", () => {
+    expect(purgeEarliestOffsetDays(LIVE.daysBeforeDelete, LIVE.purgeGraceHours)).toBe(40);
+  });
+
+  it("grace 48 jam → +2 run setelah mark → N+4", () => {
+    expect(purgeEarliestOffsetDays(37, 48)).toBe(41);
+  });
+
+  it("sisa = offset - telat, dan minimal 0", () => {
+    const due = new Date("2026-10-18T00:00:00Z");
+    const now = new Date(due.getTime() + 30 * 86_400_000); // telat 30
+    expect(sisaHapusSebelumPurge({
+      nextDueDate: due, markedForDeletionAt: null,
+      daysBeforeDelete: 37, purgeGraceHours: 24, now,
+    })).toBe(10);
+    // telat lewat tenggat → 0
+    const nowLate = new Date(due.getTime() + 99 * 86_400_000);
+    expect(sisaHapusSebelumPurge({
+      nextDueDate: due, markedForDeletionAt: null,
+      daysBeforeDelete: 37, purgeGraceHours: 24, now: nowLate,
+    })).toBe(0);
+  });
+
+  it("setelah ditandai: sisa dari mark + grace + 1 run harian (tenggat pasti)", () => {
+    const marked = new Date("2026-11-24T01:00:00Z");
+    const now = new Date("2026-11-24T01:00:00Z");
+    expect(sisaHapusSebelumPurge({
+      nextDueDate: null, markedForDeletionAt: marked,
+      daysBeforeDelete: 37, purgeGraceHours: 24, now,
+    })).toBe(2); // +24 jam grace, +24 jam run berikutnya = 48 jam = 2 hari
+  });
+
+  it("sebelum jatuh tempo atau tanpa tanggal → 0", () => {
+    const due = new Date("2026-10-18T00:00:00Z");
+    expect(sisaHapusSebelumPurge({
+      nextDueDate: due, markedForDeletionAt: null,
+      daysBeforeDelete: 37, purgeGraceHours: 24, now: new Date(due.getTime() - 86_400_000),
+    })).toBe(0);
+    expect(sisaHapusSebelumPurge({
+      nextDueDate: null, markedForDeletionAt: null,
+      daysBeforeDelete: 37, purgeGraceHours: 24, now: new Date(),
+    })).toBe(0);
   });
 });

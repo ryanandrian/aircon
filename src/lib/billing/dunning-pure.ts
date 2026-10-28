@@ -75,3 +75,50 @@ export function shouldSendReminderToday(
   }
   return true;
 }
+
+/**
+ * Reconcile peringatan penghapusan dengan purge nyata (F2 / GAP §3.5).
+ *
+ * FAKTA (dibaca dari kode + cron systemd harian 01:00, bukan asumsi):
+ *  1. `runDunningCycle` menandai hapus saat `late > daysBeforeDelete`, dan
+ *     `late = floor((now-due)/24h)` → mark terjadi paling cepat pada
+ *     `due + (N+1) hari`.
+ *  2. `purgeMarkedTenants` menghapus bila `markedForDeletionAt < now - graceHours`
+ *    (bandingkan KETAT) — nilai sama tidak lolos.
+ *  3. Cron harian → butuh 2 run setelah mark (kumulatif ≤ 2×24 jam) sebelum
+ *     syarat itu terpenuhi. graceHours=24 → purge ≥ due + N + 3 hari.
+ *
+ * Nilai = sisa ke arah PALING KONSERVATIF (purge paling cepat): memperingatkan
+ * sedikit lebih awal aman; terlambat = data hilang lebih dulu.
+ * `deleteWarningDay=30` live memakai jalur ini → tenant diperingatkan dengan
+ * "sisa" yang mencerminkan purge nyata, bukan N-late (yang meleset ~2 hari).
+ *
+ * Bila tenant SUDAH ditandai: tenggat lebih pasti = mark + grace + 1 run.
+ */
+export function purgeEarliestOffsetDays(daysBeforeDelete: number, purgeGraceHours: number): number {
+  // grace/24 run untuk mencapai threshold, +1 karena bandingan ketat (mark < threshold).
+  const runsAfterMark = Math.ceil(purgeGraceHours / 24) + 1;
+  return daysBeforeDelete + 1 + runsAfterMark;
+}
+
+/** Sisa hari kalender sebelum data bisa dihapus (>=0, arah konservatif). */
+export function sisaHapusSebelumPurge(params: {
+  nextDueDate: Date | null;
+  markedForDeletionAt: Date | null;
+  daysBeforeDelete: number;
+  purgeGraceHours: number;
+  now: Date;
+}): number {
+  const { nextDueDate, markedForDeletionAt, daysBeforeDelete, purgeGraceHours, now } = params;
+  if (markedForDeletionAt) {
+    // Mark ada → purge ≥ mark + grace (ketat) + 1 run harian.
+    const earliest = markedForDeletionAt.getTime()
+      + purgeGraceHours * 3_600_000
+      + 24 * 3_600_000;
+    return Math.max(Math.ceil((earliest - now.getTime()) / 86_400_000), 0);
+  }
+  if (!nextDueDate) return 0;
+  const late = Math.floor((now.getTime() - nextDueDate.getTime()) / 86_400_000);
+  if (late < 0) return 0;
+  return Math.max(purgeEarliestOffsetDays(daysBeforeDelete, purgeGraceHours) - late, 0);
+}

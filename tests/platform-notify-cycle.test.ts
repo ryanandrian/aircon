@@ -57,6 +57,8 @@ describe("runPlatformNotifyCycle", () => {
     expect(notifyPlatform).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: "pro-1",
       templateKey: "subscription_due",
+      // G5: tagihan ke owner EMAIL saja — WA platform & WA dunning memakai nomor sama.
+      channels: ["EMAIL"],
       vars: expect.objectContaining({
         paket: "Professional",
         nominal: "Rp149.000",
@@ -98,6 +100,7 @@ describe("runPlatformNotifyCycle", () => {
     expect(r.overdue).toBe(1);
     expect(notifyPlatform).toHaveBeenCalledWith(expect.objectContaining({
       templateKey: "subscription_overdue",
+      channels: ["EMAIL"],
       dedupeKey: "subscription_overdue:pro-3:2026-10-24:d3",
     }));
   });

@@ -9,9 +9,17 @@ import {
   daysLate,
   dunningAction,
   shouldSendReminderToday,
+  sisaHapusSebelumPurge,
 } from "@/lib/billing/dunning-pure";
 import { normalizePhone } from "@/lib/wa/gateway";
 import { renderTenantCopy } from "@/lib/domain/tenant-copy";
+
+/**
+ * Masa tenggang purge (jam) — SATU sumber untuk dunning (perkiraan {sisa}) dan
+ * purge (eksekusi). Nilai ini sebelumnya hardcode di purgeMarkedTenants saja,
+ * sehingga copy {sisa} tidak tahu tenggat hapus yang sebenarnya.
+ */
+export const PURGE_GRACE_HOURS = 24;
 
 export interface DunningSummary {
   checked: number;
@@ -43,6 +51,7 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
   });
 
   for (const t of tenants) {
+    let markedNow: Date | null = null; // ditandai hapus di run ini (untuk {sisa} akurat)
     summary.checked++;
     const late = daysLate(t.nextDueDate, now);
     const action = dunningAction(late, policy);
@@ -58,6 +67,9 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
         },
       });
       summary.markedDelete++;
+      // Baris baru saja ditandai di run INI → nilai lama (null) sudah kedaluwarsa;
+      // perkiraan {sisa} harus memakai mark yang baru dibuat.
+      markedNow = now;
       console.info(`[dunning] tenant ${t.id} ditandai hapus (telat ${late} hari)`);
     } else if (action === "suspend") {
       if (t.status !== "SUSPENDED") {
@@ -77,7 +89,14 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
 
     // Reminder WA (maks 1x/hari sesuai jadwal), termasuk peringatan khusus hari hapus.
     if (shouldSendReminderToday(late, policy.dunningReminderDays, t.lastDunningReminderAt, now)) {
-      await queueDunningReminder(t.id, t.phone, t.name, late, policy.daysBeforeDelete, policy.deleteWarningDay);
+      // {sisa} dihitung dari tenggat purge NYATA (N+1 untuk mark + 2 run purge),
+      // bukan N-late yang meleset ~2 hari. Lihat sisaHapusSebelumPurge.
+      await queueDunningReminder(t.id, t.phone, t.name, late, policy.daysBeforeDelete, policy.deleteWarningDay, {
+        markedForDeletionAt: t.markedForDeletionAt ?? markedNow,
+        purgeGraceHours: PURGE_GRACE_HOURS,
+        nextDueDate: t.nextDueDate,
+        now,
+      });
       await prisma.tenant.update({
         where: { id: t.id },
         data: { lastDunningReminderAt: now },
@@ -97,8 +116,15 @@ async function queueDunningReminder(
   late: number,
   daysBeforeDelete: number,
   deleteWarningDay: number,
+  purge: { markedForDeletionAt: Date | null; purgeGraceHours: number; nextDueDate: Date | null; now: Date },
 ): Promise<void> {
-  const sisaHapus = Math.max(daysBeforeDelete - late, 0);
+  const sisaHapus = sisaHapusSebelumPurge({
+    markedForDeletionAt: purge.markedForDeletionAt,
+    purgeGraceHours: purge.purgeGraceHours,
+    nextDueDate: purge.nextDueDate,
+    daysBeforeDelete,
+    now: purge.now,
+  });
   const policy = await getBillingPolicy();
   const vars = { nama: tenantName, telat: String(late), sisa: String(sisaHapus) };
   const tpl = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
@@ -188,7 +214,7 @@ export async function purgeTenantData(id: string): Promise<void> {
 
 export async function purgeMarkedTenants(
   now: Date = new Date(),
-  purgeGraceHours: number = 24,
+  purgeGraceHours: number = PURGE_GRACE_HOURS,
 ): Promise<{ purged: number; failed: number; tenantIds: string[] }> {
   const threshold = new Date(now.getTime() - purgeGraceHours * 3_600_000);
   const marked = await prisma.tenant.findMany({
