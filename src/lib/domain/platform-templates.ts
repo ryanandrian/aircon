@@ -16,6 +16,12 @@ export type PlatformTemplateKey =
   | "wa_disconnected"
   | "booking_inapp"
   | "booking_confirm_customer"
+  // Copy TENANT -> PELANGGAN (dunning & inactivity). Semula tersimpan di kolom
+  // BillingPolicy; sekarang satu katalog (G23) supaya bisa diedit di satu tempat.
+  | "tenant_dunning_reminder"
+  | "tenant_dunning_warning"
+  | "tenant_inactivity_reminder1"
+  | "tenant_inactivity_reminder2"
   // F4 — notifikasi mitra (agen/reseller). Copy diedit admin di katalog yang sama.
   | "partner_agent_invited"
   | "partner_agent_activated"
@@ -83,6 +89,30 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     subject: "WhatsApp usaha Anda tersambung",
     body: "Halo {{tenant}}, koneksi WhatsApp usaha Anda sudah tersambung kembali. Pengiriman pesan usaha dari aplikasi dapat berjalan lagi. Periksa pengaturan bila koneksi terputus lagi: {{link}}",
     requiredVars: ["tenant", "link"],
+  },
+  tenant_dunning_reminder: {
+    label: "Pengingat Tunggakan (Tenant ke Pelanggan)",
+    subject: "Pengingat tunggakan",
+    body: "Halo {{nama}}, langganan Aircon Anda jatuh tempo dan menunggak {{telat}} hari. Mohon segera perpanjang agar layanan tidak terputus.",
+    requiredVars: ["nama", "telat"],
+  },
+  tenant_dunning_warning: {
+    label: "Peringatan Hapus Data (Tenant ke Pelanggan)",
+    subject: "Peringatan penghapusan data",
+    body: "Halo {{nama}}, langganan Aircon Anda menunggak {{telat}} hari. PERINGATAN: bila tidak dibayar dalam {{sisa}} hari lagi, data usaha Anda akan dihapus permanen. Segera perpanjang untuk menghindari kehilangan data.",
+    requiredVars: ["nama", "telat", "sisa"],
+  },
+  tenant_inactivity_reminder1: {
+    label: "Pengingat Akun Tidak Aktif #1 (Tenant ke Pelanggan)",
+    subject: "Akun Anda belum aktif",
+    body: "Halo {{nama}}, akun Aircon Anda belum ada aktivitas selama {{hari}} hari. Kami menantikan Anda kembali — buka aplikasi kapan saja untuk melanjutkan.",
+    requiredVars: ["nama", "hari"],
+  },
+  tenant_inactivity_reminder2: {
+    label: "Pengingat Akun Tidak Aktif #2 (Tenant ke Pelanggan)",
+    subject: "Akun Anda akan dihapus",
+    body: "Halo {{nama}}, akun Aircon Anda sudah {{hari}} hari tanpa aktivitas. PERINGATAN: bila tetap tidak digunakan, akun beserta seluruh data akan DIHAPUS PERMANEN dalam {{sisa}} hari. Buka aplikasi untuk membatalkan penghapusan.",
+    requiredVars: ["nama", "hari", "sisa"],
   },
   booking_confirm_customer: {
     label: "Konfirmasi Booking (WA ke Pemesan)",
@@ -171,7 +201,7 @@ export function platformTemplateVariables(tpl: PlatformTemplate): string[] {
 }
 
 /** Semua variabel yang diisi runtime (superset). Harus dideklarasikan sebelum dipakai. */
-const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal", "nama", "layanan", "mitra", "nama_tenant", "status_tenant", "nominal_komisi", "periode", "kode", "ref"] as const;
+const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal", "nama", "layanan", "mitra", "nama_tenant", "status_tenant", "nominal_komisi", "periode", "kode", "ref", "telat", "hari", "sisa"] as const;
 
 /**
  * Placeholder yang DIKENAL untuk tiap key = `requiredVars` (kontrak kode) ∪ variabel

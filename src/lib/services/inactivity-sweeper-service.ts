@@ -16,7 +16,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { getBillingPolicy } from "@/lib/billing/config";
-import { renderTenantCopy } from "@/lib/domain/tenant-copy";
+import { renderTenantCopy, resolveTenantCopy } from "@/lib/domain/tenant-copy";
 import { purgeTenantData } from "@/lib/services/dunning-service";
 
 export interface InactivitySweepSummary {
@@ -146,12 +146,16 @@ export async function runInactivitySweep(now: Date = new Date()): Promise<Inacti
       }
     } else if (action === "reminder2") {
       const sisa = Math.max(DEL - idle, 0);
-      const body = renderTenantCopy(p.inactivityReminder2Template, { nama: t.name, hari: String(idle), sisa: String(sisa) });
+      // G23: sumber copy = katalog platform (dapat diedit di Admin → Notifikasi);
+      // kolom BillingPolicy = warisan, dipakai selama katalog belum diisi.
+      const copy2 = await resolveTenantCopy("inactivityReminder2Template", p.inactivityReminder2Template);
+      const body = renderTenantCopy(copy2.body, { nama: t.name, hari: String(idle), sisa: String(sisa) });
       await queueInactivityReminder(t.id, t.phone, body);
       await prisma.tenant.update({ where: { id: t.id }, data: { inactivityReminderStage: 2, inactivityReminderAt: now } });
       summary.reminder2Sent++;
     } else if (action === "reminder1") {
-      const body = renderTenantCopy(p.inactivityReminder1Template, { nama: t.name, hari: String(idle), sisa: String(Math.max(DEL - idle, 0)) });
+      const copy1 = await resolveTenantCopy("inactivityReminder1Template", p.inactivityReminder1Template);
+      const body = renderTenantCopy(copy1.body, { nama: t.name, hari: String(idle), sisa: String(Math.max(DEL - idle, 0)) });
       await queueInactivityReminder(t.id, t.phone, body);
       await prisma.tenant.update({ where: { id: t.id }, data: { inactivityReminderStage: 1, inactivityReminderAt: now } });
       summary.reminder1Sent++;

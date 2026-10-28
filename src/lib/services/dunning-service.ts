@@ -12,7 +12,7 @@ import {
   sisaHapusSebelumPurge,
 } from "@/lib/billing/dunning-pure";
 import { normalizePhone } from "@/lib/wa/gateway";
-import { renderTenantCopy } from "@/lib/domain/tenant-copy";
+import { renderTenantCopy, resolveTenantCopy } from "@/lib/domain/tenant-copy";
 
 /**
  * Masa tenggang purge (jam) — SATU sumber untuk dunning (perkiraan {sisa}) dan
@@ -136,8 +136,15 @@ async function queueDunningReminder(
   });
   const policy = await getBillingPolicy();
   const vars = { nama: tenantName, telat: String(late), sisa: String(sisaHapus) };
-  const tpl = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
+  // G23: sumber copy = katalog platform (dapat diedit di Admin → Notifikasi);
+  // kolom BillingPolicy = warisan, dipakai selama katalog belum diisi.
+  const copyKey = late >= deleteWarningDay ? "dunningWarningTemplate" : "dunningReminderTemplate";
+  const policyTemplate = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
+  const { body: tpl, source } = await resolveTenantCopy(copyKey, policyTemplate);
   const body = renderTenantCopy(tpl, vars);
+  if (source === "policy") {
+    console.warn(`[dunning] copy "${copyKey}" belum ada di katalog platform — memakai kolom BillingPolicy (warisan)`);
+  }
 
   const phone = normalizePhone(toPhone);
   if (!phone) {
