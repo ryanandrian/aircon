@@ -77,8 +77,19 @@ export async function submitBooking(
     }
 
     // 4) Buat Lead(source=WEBSITE, status=NEW) → masuk mesin uang.
-    const lead = await createLeadFromBooking(tenant.id, parsed.data);
-    await createTenantBookingNotification({ tenantId: tenant.id, leadId: lead.id, name: lead.name, service: parsed.data.serviceType });
+    //    Idempoten (G11): token per render form; submit ulang = lead yang sama.
+    const requestId = str(formData, "requestId").trim() || undefined;
+    const lead = await createLeadFromBooking(tenant.id, parsed.data, requestId);
+
+    // 5) Notifikasi in-app owner. GAGALNYA TIDAK menggagalkan booking: lead sudah
+    //    tersimpan (fakta bisnis), jadi pemesan tetap diberi jawaban "terima kasih".
+    //    Sebelumnya error di sini membuat pemesan mengulang → lead ganda.
+    //    Kegagalan dicatat agar operator tahu (G21) dan notifikasi bisa dibuat ulang.
+    try {
+      await createTenantBookingNotification({ tenantId: tenant.id, leadId: lead.id, name: lead.name, service: parsed.data.serviceType });
+    } catch (err) {
+      console.error(`[submitBooking] lead tersimpan (${lead.id}) tapi notifikasi owner gagal:`, err);
+    }
 
     return { ok: true, message: "Terima kasih, kami akan hubungi Anda." };
   } catch (err) {

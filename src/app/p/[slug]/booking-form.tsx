@@ -33,7 +33,7 @@ const initialState: BookingActionState = { ok: null };
 const selectClass =
   "flex min-h-[48px] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
-export default function BookingForm({ slug }: { slug: string }) {
+export default function BookingForm({ slug, requestId }: { slug: string; requestId: string }) {
   const [state, formAction] = useActionState<BookingActionState, FormData>(
     (_prev, formData) => submitBooking(slug, formData),
     initialState,
@@ -75,6 +75,10 @@ export default function BookingForm({ slug }: { slug: string }) {
           {state.error}
         </p>
       )}
+
+      {/* Token idempotensi (G11): mencegah booking ganda saat pemesan
+          mengirim ulang dari halaman yang sama. */}
+      <input type="hidden" name="requestId" value={requestId} />
 
       {/* Honeypot: disembunyikan dari manusia & pembaca layar. */}
       <div className="absolute left-[-9999px]" aria-hidden="true">

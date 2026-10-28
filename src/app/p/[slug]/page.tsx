@@ -8,6 +8,7 @@
  * - Mobile-first, aksesibel, konsisten dgn src/app/page.tsx (sky-500, rounded-2xl).
  */
 import type { Metadata } from "next";
+import { randomUUID } from "node:crypto";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
@@ -84,6 +85,9 @@ export default async function PublicTenantPage({ params }: PageProps) {
   if (!tenant) notFound();
 
   const view = resolvePublicView(tenant.publicProfile, tenant.serviceArea, tenant.tagline ?? null);
+  // Token idempotensi booking (G11): satu per render halaman. Submit ulang dari
+  // halaman yang sama memakai token sama → lead sama (tak ada booking ganda).
+  const bookingRequestId = randomUUID();
   const waPhone = normalizeBookingPhone(tenant.phone);
   const waHref = `https://wa.me/${waPhone}?text=${encodeURIComponent(
     `Halo ${tenant.name}, saya mau tanya soal servis AC.`,
@@ -178,7 +182,7 @@ export default async function PublicTenantPage({ params }: PageProps) {
             <p className="mb-5 mt-1 text-sm text-muted-foreground">
               Isi form di bawah, tim kami akan segera menghubungi Anda.
             </p>
-            <BookingForm slug={tenant.slug} />
+            <BookingForm slug={tenant.slug} requestId={bookingRequestId} />
           </CardContent>
         </Card>
 

@@ -561,9 +561,14 @@ model Lead {
   followUpAt          DateTime?
   convertedCustomerId String?
   convertedJobId      String?
+  // Idempotensi booking publik (G11): token per render form, dikirim sebagai
+  // hidden field. Submit ulang dengan token sama = booking sama (tak ada lead
+  // ganda). NULL = lead lama / booking non-publik.
+  requestId           String?
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
 
+  @@unique([tenantId, requestId])
   @@index([tenantId, status])
   @@index([tenantId, followUpAt])
 }
