@@ -195,7 +195,30 @@ dinyatakan).
 
 ---
 
-## 7. Yang BELUM ada (jangan diasumsikan ada)
+## 7. Aturan wajib: bersihkan setiap data testing
+
+Setiap uji di produksi (runtime test, replay, kill-switch drill, uji lifecycle
+mitra) **WAJIB** meninggalkan nol jejak di DB:
+
+1. Tulis baris uji hanya ke domain `@uji.local` atau nomor `62899000xxx`
+   (bukan kontak asli). Beri prefix `uji-` di `dedupeKey`/body agar bisa
+   ditemukan.
+2. Setelah bukti terekam, hapus baris uji **dengan snapshot** dulu
+   (`SELECT *` disimpan ke `/opt/aircon-app/backups/`) sebelum `DELETE`.
+3. Catat penghapusan di `PlatformAuditLog` (apa yang dihapus, mengapa, berapa
+   banyak, path snapshot).
+4. Verifikasi pasca: query baseline (§0) harus persis sama seperti sebelum uji.
+5. JANGAN menghapus baris yang bukan milik uji sendiri — cek dulu pemiliknya
+   (tenant/agen nyata). Data bisnis tidak boleh terkena dampak pembersihan.
+
+Contoh penerapan: drill kill-switch + uji notifikasi mitra 2026-10-28 —
+2 baris uji notif + fosil uji pra-eksisten "PT Clawback" dihapus, agen bisnis
+"Wisnu Candra" + ledger komisi tetap utuh; jejak: `PlatformAuditLog`
+`CLEANUP_TEST_DATA_F4` + `backups/cleanup-test-f4-snapshot-20261028.json`.
+
+---
+
+## 8. Yang BELUM ada (jangan diasumsikan ada)
 
 - **Belum ada outbound notifikasi ke agent/reseller.** Jangan menulis ke tabel
   notifikasi mitra dengan asumsi.
