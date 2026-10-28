@@ -1,6 +1,7 @@
 "use server";
 
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin";
+import { prisma } from "@/lib/prisma";
 import { notifyPlatform } from "@/lib/services/platform-notification-service";
 import { dispatchPlatformNotifications } from "@/lib/services/platform-notification-dispatch";
 import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
@@ -12,6 +13,7 @@ import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-se
 import { replayPlatformNotification } from "@/lib/services/platform-notification-admin";
 import { rollbackTemplate } from "@/lib/services/platform-template-service";
 import { isNotifySendEnabled, setNotifySendEnabled, isWaSendEnabled, setWaSendEnabled } from "@/lib/services/infra-config-service";
+import { runNotificationReconcile, type ReconcileReport } from "@/lib/services/notify-reconcile-service";
 import { revalidatePath } from "next/cache";
 
 /** externalId sesi WA platform Lumite (1 nomor, lintas SaaS). */
@@ -89,6 +91,29 @@ export async function actionSetNotifySendEnabled(enabled: boolean): Promise<Resu
     await setNotifySendEnabled(enabled, admin.email);
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: enabled ? "Pengiriman platform DIAKTIFKAN" : "Pengiriman platform DITAHAN (antrean menunggu)" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/**
+ * Jalankan rekonsiliasi antrean notifikasi (G29): READ-ONLY, admin-only.
+ * Menemukan pesan yang hilang/ditahan/tak pasti & tenant menunggak tanpa pengingat.
+ */
+export async function actionReconcileNotifications(): Promise<Result & { report?: ReconcileReport }> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const report = await runNotificationReconcile();
+    await prisma.platformAuditLog.create({
+      data: {
+        actor: admin.email,
+        action: "NOTIFY_RECONCILE",
+        target: "antrean-notifikasi",
+        metadata: { findings: report.findings.length, ok: report.ok },
+      },
+    });
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: report.ok ? "Tidak ada temuan — antrean sehat" : `${report.findings.length} temuan perlu ditinjau`, report };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }

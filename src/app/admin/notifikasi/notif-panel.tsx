@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   actionSendPlatformNotif, actionRunPlatformNotifyNow, actionDispatchPlatformNow,
   actionReplayPlatformNotification, actionSetNotifySendEnabled, actionSetWaSendEnabled,
+  actionReconcileNotifications,
 } from "./actions";
 
 type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number; suppressed: number };
@@ -62,6 +63,11 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
   const [templateKey, setTemplateKey] = useState(templates[0]?.key ?? "");
   const [channel, setChannel] = useState<"WA" | "EMAIL">("WA");
   const [pending, start] = useTransition();
+  const [reconcile, setReconcile] = useState<{
+    findings: { kind: string; tenantName: string; detail: string }[];
+    checks: string[];
+    ok: boolean;
+  } | null>(null);
   const selectedTemplate = templates.find((t) => t.key === templateKey);
   const canSendManually = selectedTemplate?.manualAllowed === true;
 
@@ -164,6 +170,61 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
           </CardContent>
         </Card>
       </div>
+
+      {/* Rekonsiliasi antrean (G29) — read-only: cari pesan yang hilang/tak sengaja */}
+      <Card>
+        <CardContent className="space-y-3 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">Rekonsiliasi Antrean</h2>
+              <p className="text-sm text-muted-foreground">
+                Pemeriksaan baca-saja: pesan tertahan, hasil kirim tak pasti, antrean
+                menua, tenant menunggak tanpa pengingat, dan sesi WA tanpa nomor owner.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await actionReconcileNotifications();
+                  if (!r.ok) { toast.error(r.error ?? "Gagal"); return; }
+                  setReconcile({
+                    findings: r.report?.findings ?? [],
+                    checks: r.report?.checks ?? [],
+                    ok: r.report?.ok ?? true,
+                  });
+                  toast.success(r.info ?? "Rekonsiliasi selesai");
+                })
+              }
+            >
+              Jalankan Rekonsiliasi
+            </Button>
+          </div>
+          {reconcile && (
+            <div className="space-y-2">
+              {reconcile.ok ? (
+                <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                  Tidak ada temuan — semua antrean sehat.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {reconcile.findings.map((f, i) => (
+                    <li key={`${f.kind}-${i}`} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                      <span className="font-semibold">{f.tenantName}</span> — {f.detail}
+                      <span className="ml-1 text-xs opacity-70">({f.kind})</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Pemeriksaan: {reconcile.checks.join(", ")}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Aksi cepat */}
       <Card>
