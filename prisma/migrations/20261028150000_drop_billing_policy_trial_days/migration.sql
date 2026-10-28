@@ -1,0 +1,15 @@
+-- F5 cleanup fosil: hapus kolom `BillingPolicy.trialDays`.
+--
+-- DASAR: Basic Aircon gratis selamanya dan TIDAK punya masa coba. Kolom ini
+-- adalah sisa konsep trial. Pemanggil `trialDays()` sudah dihapus dari
+-- `src/lib/billing/gating.ts` (deprecated, nol consumer di seluruh repo —
+-- diverifikasi lewat pencarian `trialDays` pada src/, tests/, dan UI admin),
+-- dan UI Admin -> Kebijakan tak pernah menampilkannya.
+--
+-- SAFETY: kolom tak dibaca/tulis kode mana pun lagi; nilainya tak memengaruhi
+-- perhitungan tagihan, dunning, atau pengingat.}^* rollback: kolom tak bisa
+-- dipulihkan nilainya (di-backup logis sebelum migrasi) — tetapi karena tak
+-- ada consumer, dampaknya nol.
+--
+-- Rollback plan: ALTER TABLE "BillingPolicy" ADD COLUMN "trialDays" INTEGER NOT NULL DEFAULT 14;
+ALTER TABLE "BillingPolicy" DROP COLUMN IF EXISTS "trialDays";

@@ -30,7 +30,7 @@ async function main() {
   await prisma.billingPolicy.upsert({
     where: { id: "singleton" },
     create: {
-      id: "singleton", taxPercent: 11, trialDays: 14,
+      id: "singleton", taxPercent: 11,
       graceDaysBeforeSuspend: 1, daysBeforeDelete: 7,
       dunningReminderDays: "0,1,3", deleteWarningDay: 3,
     },

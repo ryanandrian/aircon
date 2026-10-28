@@ -71,12 +71,3 @@ export async function checkQuota(
   const allowed = limit === null || current + additional <= limit;
   return { allowed, limit, current, kind };
 }
-
-/**
- * @deprecated Tidak dipakai. Basic Aircon gratis selamanya dan tidak memiliki
- * masa trial. Dipertahankan sementara untuk kompatibilitas API internal; hapus
- * bersama BillingPolicy.trialDays setelah pencarian consumer lintas repo lulus.
- */
-export async function trialDays(): Promise<number> {
-  return 0;
-}

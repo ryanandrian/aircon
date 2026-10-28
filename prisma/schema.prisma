@@ -1206,7 +1206,6 @@ model PlanConfig {
 model BillingPolicy {
   id                          String   @id @default("singleton")
   taxPercent                  Float    @default(11) // PPN %
-  trialDays                   Int      @default(14)
   graceDaysBeforeSuspend      Int      @default(7) // telat > N hari -> suspend (blok login). Standar world-class: 7 hari.
   daysBeforeDelete            Int      @default(37) // telat > N hari -> hapus data tenant (~30 hari setelah suspend).
   // Jadwal reminder WA (hari keterlambatan saat reminder dikirim), mis "0,3,7,14,30"
