@@ -55,9 +55,19 @@ export default function BookingForm({ slug, requestId }: { slug: string; request
         <h3 className="text-lg font-bold text-emerald-800 dark:text-emerald-300">
           {state.message}
         </h3>
-        <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
-          Permintaan Anda sudah kami terima. Tim kami akan menghubungi via
-          WhatsApp secepatnya.
+
+        {/* Kode booking (G13): bukti pemesanan yang bisa disebut saat dihubungi. */}
+        <div className="mt-3 rounded-xl border border-emerald-200 bg-white/70 p-3 dark:border-emerald-900/40 dark:bg-emerald-950/40">
+          <div className="text-xs text-emerald-700 dark:text-emerald-400">Kode booking Anda</div>
+          <div className="mt-1 font-mono text-2xl font-bold tracking-widest text-emerald-900 dark:text-emerald-100">
+            {state.reference}
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-400">
+          {state.confirmationSent
+            ? "Konfirmasi dengan kode booking tersebut sudah kami kirim ke WhatsApp Anda."
+            : "Tim kami akan menghubungi Anda via WhatsApp secepatnya — sebutkan kode booking di atas."}
         </p>
       </div>
     );

@@ -16,9 +16,13 @@ import {
 } from "@/lib/validation/booking";
 import { createLeadFromBooking } from "@/lib/services/lead-service";
 import { createTenantBookingNotification } from "@/lib/services/tenant-notification-service";
+import { bookingReference, bookingConfirmationMessage } from "@/lib/domain/booking-reference";
+import { normalizePhone } from "@/lib/wa/gateway";
 
 export type BookingActionState =
-  | { ok: true; message: string }
+  /** `reference` = kode booking pemesan (G13). `confirmationSent` = WA konfirmasi
+   * berhasil diantre ke pemesan (bila sesi WA tenant tersambung). */
+  | { ok: true; message: string; reference: string; confirmationSent: boolean }
   | { ok: false; error: string; fieldErrors?: Record<string, string> }
   | { ok: null }; // state awal
 
@@ -41,7 +45,8 @@ export async function submitBooking(
     };
     if (looksLikeSpam(rawForSpam)) {
       // Balas sukses "diam-diam" agar bot tak belajar. Tak menulis Lead.
-      return { ok: true, message: "Terima kasih, kami akan hubungi Anda." };
+      // Anti-spam: balasan sukses palsu — TANPA kode booking (tidak ada lead).
+      return { ok: true, message: "Terima kasih, kami akan hubungi Anda.", reference: "—", confirmationSent: false };
     }
 
     // 2) Validasi Zod (normalisasi phone, batasi panjang, dsb).
@@ -70,7 +75,7 @@ export async function submitBooking(
     //    slug terverifikasi, bukan dari input user.
     const tenant = await prisma.tenant.findUnique({
       where: { slug },
-      select: { id: true },
+      select: { id: true, name: true, waVerifiedPhone: true },
     });
     if (!tenant) {
       return { ok: false, error: "Halaman tidak ditemukan." };
@@ -79,7 +84,8 @@ export async function submitBooking(
     // 4) Buat Lead(source=WEBSITE, status=NEW) → masuk mesin uang.
     //    Idempoten (G11): token per render form; submit ulang = lead yang sama.
     const requestId = str(formData, "requestId").trim() || undefined;
-    const lead = await createLeadFromBooking(tenant.id, parsed.data, requestId);
+    const { lead, alreadyBooked } = await createLeadFromBooking(tenant.id, parsed.data, requestId);
+    const reference = bookingReference(lead.id);
 
     // 5) Notifikasi in-app owner. GAGALNYA TIDAK menggagalkan booking: lead sudah
     //    tersimpan (fakta bisnis), jadi pemesan tetap diberi jawaban "terima kasih".
@@ -91,7 +97,41 @@ export async function submitBooking(
       console.error(`[submitBooking] lead tersimpan (${lead.id}) tapi notifikasi owner gagal:`, err);
     }
 
-    return { ok: true, message: "Terima kasih, kami akan hubungi Anda." };
+    // 6) Konfirmasi WA ke PEMESAN (G13): bukti + kode booking.
+    //    HANYA saat lead baru dibuat (submit ulang tak mengulang) dan sesi WA
+    //    tenant tersambung. Gagal/terskip TIDAK menggagalkan booking: pemesan
+    //    tetap melihat kode di layar.
+    let confirmationSent = false;
+    const bookerPhone = normalizePhone(parsed.data.phone ?? "");
+    if (!alreadyBooked && bookerPhone && tenant.waVerifiedPhone) {
+      try {
+        const message = bookingConfirmationMessage({
+          tenantName: tenant.name,
+          bookerName: parsed.data.name,
+          reference,
+          serviceName: parsed.data.serviceType ?? null,
+          preferredDate: parsed.data.preferredDate ?? null,
+        });
+        // Antre via MessageLog (tenant -> pemesan). Idempoten: hanya lead baru.
+        await prisma.messageLog.create({
+          data: {
+            tenantId: tenant.id,
+            channel: "WA",
+            direction: "OUTBOUND",
+            status: "QUEUED",
+            templateKey: "BOOKING_CONFIRM",
+            toPhone: bookerPhone,
+            body: message,
+          },
+        });
+        confirmationSent = true;
+      } catch (err) {
+        // Gagal antre (mis. DB) tidak menggagalkan booking — kode tetap tampil.
+        console.error(`[submitBooking] konfirmasi WA pemesan gagal (lead ${lead.id}):`, err);
+      }
+    }
+
+    return { ok: true, message: "Terima kasih, kami akan hubungi Anda.", reference, confirmationSent };
   } catch (err) {
     // Jangan bocorkan error internal ke user; log untuk operator.
     console.error("[submitBooking] gagal:", err);

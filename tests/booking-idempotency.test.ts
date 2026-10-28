@@ -36,26 +36,29 @@ describe("booking idempoten (G11)", () => {
     leadCreate.mockResolvedValue({ id: "lead-1", tenantId: "t1", name: "Budi", phone: "628123456789" });
   });
 
-  it("token baru → lead dibuat dengan requestId", async () => {
-    const lead = await createLeadFromBooking("t1", INPUT, "req-1");
+  it("token baru → lead dibuat dengan requestId, alreadyBooked=false (konfirmasi WA layak dikirim)", async () => {
+    const { lead, alreadyBooked } = await createLeadFromBooking("t1", INPUT, "req-1");
     expect(lead.id).toBe("lead-1");
+    expect(alreadyBooked).toBe(false);
     expect(leadCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ requestId: "req-1", tenantId: "t1" }),
     }));
   });
 
-  it("token yang sudah dipakai → lead yang sama, TAK ADA create baru", async () => {
+  it("token yang sudah dipakai → lead yang sama + alreadyBooked=true (konfirmasi TAK diulang)", async () => {
     leadFindUnique.mockResolvedValue({ id: "lead-1", tenantId: "t1", name: "Budi", phone: "628123456789" });
-    const lead = await createLeadFromBooking("t1", INPUT, "req-1");
+    const { lead, alreadyBooked } = await createLeadFromBooking("t1", INPUT, "req-1");
     expect(lead.id).toBe("lead-1");
+    expect(alreadyBooked).toBe(true);
     expect(leadCreate).not.toHaveBeenCalled();
   });
 
-  it("balapan dua submit dengan token sama (P2002) → kembalikan lead yang ada", async () => {
+  it("balapan dua submit dengan token sama (P2002) → lead yang sama + alreadyBooked=true", async () => {
     leadFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: "lead-existing", tenantId: "t1" });
     leadCreate.mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" }));
-    const lead = await createLeadFromBooking("t1", INPUT, "req-2");
+    const { lead, alreadyBooked } = await createLeadFromBooking("t1", INPUT, "req-2");
     expect(lead.id).toBe("lead-existing");
+    expect(alreadyBooked).toBe(true);
   });
 
   it("tanpa token (booking legacy) → tetap buat lead, requestId null", async () => {

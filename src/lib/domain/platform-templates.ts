@@ -15,6 +15,7 @@ export type PlatformTemplateKey =
   | "wa_connected"
   | "wa_disconnected"
   | "booking_inapp"
+  | "booking_confirm_customer"
   // F4 — notifikasi mitra (agen/reseller). Copy diedit admin di katalog yang sama.
   | "partner_agent_invited"
   | "partner_agent_activated"
@@ -82,6 +83,12 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     subject: "WhatsApp usaha Anda tersambung",
     body: "Halo {{tenant}}, koneksi WhatsApp usaha Anda sudah tersambung kembali. Pengiriman pesan usaha dari aplikasi dapat berjalan lagi. Periksa pengaturan bila koneksi terputus lagi: {{link}}",
     requiredVars: ["tenant", "link"],
+  },
+  booking_confirm_customer: {
+    label: "Konfirmasi Booking (WA ke Pemesan)",
+    subject: "Konfirmasi booking",
+    body: "Halo {{nama}}, booking Anda di {{tenant}} sudah diterima. Kode booking: {{kode}}. Sebutkan kode booking saat kami menghubungi Anda.",
+    requiredVars: ["nama", "tenant", "kode"],
   },
   booking_inapp: {
     label: "Booking Online Baru (In-App)",

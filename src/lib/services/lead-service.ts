@@ -29,7 +29,8 @@ export async function createLeadFromBooking(
   input: PublicBookingInput,
   /** Token idempotensi per render form (G11). Tanpa token = booking legacy. */
   requestId?: string,
-) {
+): Promise<{ lead: { id: string; tenantId: string; name: string; phone: string };
+           alreadyBooked: boolean }> {
   if (!tenantId) throw new LeadServiceError("NO_TENANT", "tenantId wajib");
 
   // Idempotensi: submit ulang dari halaman yang sama memakai token yang sama
@@ -38,7 +39,9 @@ export async function createLeadFromBooking(
     const existing = await prisma.lead.findUnique({
       where: { tenantId_requestId: { tenantId, requestId } },
     });
-    if (existing) return existing;
+    // Submit ulang → booking yang SAMA (G11). `alreadyBooked` mencegah
+    // konfirmasi WA dobel ke pemesan (G13).
+    if (existing) return { lead: existing, alreadyBooked: true };
   }
 
   const noteParts: string[] = [];
@@ -49,7 +52,7 @@ export async function createLeadFromBooking(
 
   // SECURITY: tenant-scoped — Lead melekat pada tenantId dari slug terverifikasi.
   try {
-    return await prisma.lead.create({
+    const lead = await prisma.lead.create({
       data: {
         tenantId,
         name: input.name,
@@ -60,6 +63,7 @@ export async function createLeadFromBooking(
         requestId: requestId ?? null,
       },
     });
+    return { lead, alreadyBooked: false };
   } catch (e) {
     // Balapan dua submit serentak dengan token sama: unique constraint menang →
     // kembalikan lead yang sudah ada, jangan buat dua.
@@ -67,7 +71,8 @@ export async function createLeadFromBooking(
       const existing = await prisma.lead.findUnique({
         where: { tenantId_requestId: { tenantId, requestId } },
       });
-      if (existing) return existing;
+      // Balapan dua submit → lead sama; jangan konfirmasi dua kali (G13).
+      if (existing) return { lead: existing, alreadyBooked: true };
     }
     throw e;
   }
