@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   actionSendPlatformNotif, actionRunPlatformNotifyNow, actionDispatchPlatformNow,
+  actionReplayPlatformNotification,
 } from "./actions";
 
 type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number };
@@ -135,6 +136,16 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
                       {r.toAddress} · {fmt(r.createdAt)}{r.error ? ` · ${r.error}` : ""}
                     </div>
                   </div>
+                  {(r.status === "UNKNOWN" || r.status === "FAILED") && (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => run(() => actionReplayPlatformNotification(r.id))}
+                    >
+                      Kirim Ulang
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

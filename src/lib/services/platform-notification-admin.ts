@@ -77,3 +77,55 @@ export function platformTemplateOptions(): {
     manualAllowed: MANUAL_TEMPLATE_KEYS.includes(key),
   }));
 }
+
+/**
+ * Replay manual satu notifikasi platform (G30) — tenant-scoped, permission-checked,
+ * audit-logged. Dipanggil dari server action yang sudah lewat requirePlatformAdmin.
+ *
+ * ATURAN:
+ *  - Hanya baris berstatus UNKNOWN atau FAILED (hasil tak pasti / gagal) boleh
+ *    di-replay; baris SENT/DELIVERED/READ TIDAK (memang sudah sampai).
+ *  - dedupeKey DIPERTAHANKAN ⇒ gateway idempotency tetap sama ⇒ tak ada duplikat
+ *    ke penerima; bila gateway masih menyimpan job itu, ia menolak dengan 409
+ *    (dicatat sebagai "duplicate", bukan gagal).
+ *  - attempts direset agar retry dibolehkan; hasil & jejak ditulis ke audit log.
+ */
+export async function replayPlatformNotification(
+  id: string,
+  adminEmail: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const row = await prisma.platformNotification.findUnique({
+    where: { id },
+    select: { id: true, tenantId: true, status: true, templateKey: true, attempts: true, dedupeKey: true },
+  });
+  if (!row) return { ok: false, error: "Notifikasi tidak ditemukan" };
+  if (!["UNKNOWN", "FAILED"].includes(row.status)) {
+    return { ok: false, error: `Status ${row.status} tidak boleh di-replay (hanya UNKNOWN/FAILED)` };
+  }
+  await prisma.platformNotification.update({
+    where: { id },
+    data: {
+      status: "QUEUED",
+      attempts: 0,
+      error: null,
+      sendingAt: null,
+      leaseExpiresAt: null,
+      sentAt: null,
+    },
+  });
+  await prisma.platformAuditLog.create({
+    data: {
+      actor: adminEmail,
+      action: "PLATFORM_NOTIFICATION_REPLAY",
+      target: `platform-notification:${id}`,
+      metadata: {
+        tenantId: row.tenantId,
+        templateKey: row.templateKey,
+        fromStatus: row.status,
+        previousAttempts: row.attempts,
+        dedupeKey: row.dedupeKey,
+      },
+    },
+  });
+  return { ok: true };
+}

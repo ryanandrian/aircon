@@ -9,6 +9,7 @@ import {
 } from "@/lib/wa/gateway-relay";
 import type { PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-service";
+import { replayPlatformNotification } from "@/lib/services/platform-notification-admin";
 import { revalidatePath } from "next/cache";
 
 /** externalId sesi WA platform Lumite (1 nomor, lintas SaaS). */
@@ -71,6 +72,21 @@ export async function actionDispatchPlatformNow(): Promise<Result> {
     const d = await dispatchPlatformNotifications();
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: `Terkirim ${d.sent}, gagal ${d.failed}, ditahan ${d.skipped}${d.stale ? `, hasil tak pasti (UNKNOWN) ${d.stale}` : ""}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Replay manual 1 notifikasi UNKNOWN/FAILED (G30): admin-only + audit log. */
+export async function actionReplayPlatformNotification(id: string): Promise<Result> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const r = await replayPlatformNotification(id, admin.email);
+    if (!r.ok) return { ok: false, error: r.error };
+    // Dispatch tertunda → admin lihat hasil seketika (tetap terarah ke baris ini).
+    const d = await dispatchPlatformNotifications(1, [id]);
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: `Di-antre ulang; terkirim ${d.sent}, gagal ${d.failed}${d.skipped ? `, ditahan ${d.skipped}` : ""}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }
