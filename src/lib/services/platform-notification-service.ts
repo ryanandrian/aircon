@@ -61,18 +61,18 @@ export async function isAutoReminderPlan(plan: TenantPlan): Promise<boolean> {
  * Antre notifikasi platform ke tenant. Menulis PlatformNotification(QUEUED) per channel.
  * Return jumlah baris yang dibuat (0 bila dedupe menahan / penerima tak tersedia).
  */
-export async function notifyPlatform(input: NotifyInput): Promise<{ created: number; skipped: string[] }> {
+export async function notifyPlatform(input: NotifyInput): Promise<{ created: number; skipped: string[]; ids: string[] }> {
   const { tenantId } = input;
   const skipped: string[] = [];
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, phone: true, plan: true } });
-  if (!tenant) return { created: 0, skipped: ["tenant tak ditemukan"] };
+  if (!tenant) return { created: 0, skipped: ["tenant tak ditemukan"], ids: [] };
   const owner = await prisma.user.findFirst({
     where: { tenantId, role: "OWNER" }, select: { email: true, phone: true },
   });
 
   const templateKey = input.templateKey ?? (await resolveWelcomeTemplateKey(tenantId));
   const tpl = PLATFORM_TEMPLATES[templateKey];
-  if (!tpl) return { created: 0, skipped: [`template tak dikenal: ${templateKey}`] };
+  if (!tpl) return { created: 0, skipped: [`template tak dikenal: ${templateKey}`], ids: [] };
   const planConfig = await prisma.planConfig.findUnique({ where: { plan: tenant.plan } });
   const langganan = `${appBase()}/app/langganan`;
   const pengaturan = `${appBase()}/app/pengaturan`;
@@ -103,12 +103,13 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
   } catch (error) {
     const message = error instanceof Error ? error.message : "template gagal dirender";
     console.error(`[platform-notification] render gagal tenant=${tenantId} template=${templateKey}: ${message}`);
-    return { created: 0, skipped: [message] };
+    return { created: 0, skipped: [message], ids: [] };
   }
   const { subject, body } = rendered;
   const channels = input.channels ?? ["WA", "EMAIL"];
 
   let created = 0;
+  const ids: string[] = [];
   for (const channel of channels) {
     const toAddress = channel === "WA"
       ? normalizePhone(tenant.phone || owner?.phone || "")
@@ -117,10 +118,11 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
 
     const dedupeKey = input.dedupeKey ? `${input.dedupeKey}:${channel}` : null;
     try {
-      await prisma.platformNotification.create({
+      const row = await prisma.platformNotification.create({
         data: { tenantId, channel, templateKey, toAddress, subject: channel === "EMAIL" ? subject : null, body, dedupeKey },
       });
       created += 1;
+      ids.push(row.id);
     } catch (e) {
       // Unique dedupeKey → sudah pernah diantre → aman diabaikan (idempoten).
       if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
@@ -130,5 +132,5 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
       }
     }
   }
-  return { created, skipped };
+  return { created, skipped, ids };
 }

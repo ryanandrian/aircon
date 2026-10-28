@@ -9,7 +9,7 @@ import {
   actionSendPlatformNotif, actionRunPlatformNotifyNow, actionDispatchPlatformNow,
 } from "./actions";
 
-type Summary = { queued: number; sent: number; failed: number; sending: number };
+type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number };
 type Row = {
   id: string; tenantName: string; channel: string; templateKey: string;
   toAddress: string; status: string; error: string | null;
@@ -23,6 +23,8 @@ const statusColor: Record<string, string> = {
   QUEUED: "bg-amber-500 hover:bg-amber-500",
   SENDING: "bg-sky-500 hover:bg-sky-500",
   FAILED: "bg-destructive hover:bg-destructive",
+  // Hasil kirim tidak dapat dipastikan (lease kedaluwarsa) — TIDAK dikirim ulang.
+  UNKNOWN: "bg-purple-600 hover:bg-purple-600",
 };
 
 export function NotifPanel({ summary, rows, tenants, templates }: {
@@ -47,7 +49,7 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
   return (
     <div className="space-y-6">
       {/* Ringkasan status */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {([["Antre", summary.queued], ["Terkirim", summary.sent], ["Proses", summary.sending], ["Gagal", summary.failed]] as const).map(
           ([label, n]) => (
             <Card key={label}>
@@ -100,12 +102,14 @@ export function NotifPanel({ summary, rows, tenants, templates }: {
             </Button>
             <Button size="sm" variant="ghost" disabled={pending}
               onClick={() => run(() => actionDispatchPlatformNow())}>
-              Kirim Antrean Tertahan
+              Kirim Semua Antrean Tertahan
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
             &quot;Siklus Event&quot; memeriksa pengingat tagihan tenant berbayar yang mendekati atau melewati jatuh tempo. Paket Basic gratis selamanya, tidak memiliki masa trial atau tagihan langganan.
             Status Terkirim, Diterima, dan Dibaca dibedakan berdasarkan bukti callback yang tersedia.
+            Status &quot;Tak Pasti&quot; berarti pengiriman terputus (lease habis) sehingga hasilnya tidak dapat dipastikan — pesan tidak
+            dikirim ulang otomatis; tinjau dan putuskan replay sendiri untuk menghindari pesan ganda.
           </p>
         </CardContent>
       </Card>

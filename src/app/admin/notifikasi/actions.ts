@@ -38,8 +38,10 @@ export async function actionSendPlatformNotif(
     }
     const r = await notifyPlatform({ tenantId, templateKey, channels: [channel] });
     if (r.created === 0) return { ok: false, error: r.skipped.join("; ") || "Tak ada yang diantre" };
-    // Langsung dispatch supaya admin lihat hasil seketika.
-    const d = await dispatchPlatformNotifications();
+    // Dispatch TERARAH: hanya baris yang barusan dibuat (G20). Versi lama
+    // menyedot seluruh antrean global sehingga satu klik ikut mengirim antrean
+    // milik tenant lain.
+    const d = await dispatchPlatformNotifications(r.ids.length, r.ids);
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: `Antre ${r.created}, terkirim ${d.sent}, gagal ${d.failed}` };
   } catch (e) {
@@ -66,7 +68,7 @@ export async function actionDispatchPlatformNow(): Promise<Result> {
     await requirePlatformAdmin();
     const d = await dispatchPlatformNotifications();
     revalidatePath("/admin/notifikasi");
-    return { ok: true, info: `Terkirim ${d.sent}, gagal ${d.failed}, ditahan ${d.skipped}` };
+    return { ok: true, info: `Terkirim ${d.sent}, gagal ${d.failed}, ditahan ${d.skipped}${d.stale ? `, hasil tak pasti (UNKNOWN) ${d.stale}` : ""}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }

@@ -22,6 +22,8 @@ export interface PlatformNotifRow {
 
 export interface PlatformNotifSummary {
   queued: number; sent: number; failed: number; sending: number;
+  /** Hasil kirim tak pasti (lease kedaluwarsa) — perlu review operator (G9/G29). */
+  unknown: number;
 }
 
 export async function getPlatformNotifSummary(): Promise<PlatformNotifSummary> {
@@ -29,7 +31,7 @@ export async function getPlatformNotifSummary(): Promise<PlatformNotifSummary> {
     by: ["status"], _count: { _all: true },
   });
   const by = (s: string) => grouped.find((g) => g.status === s)?._count._all ?? 0;
-  return { queued: by("QUEUED"), sent: by("SENT"), failed: by("FAILED"), sending: by("SENDING") };
+  return { queued: by("QUEUED"), sent: by("SENT"), failed: by("FAILED"), sending: by("SENDING"), unknown: by("UNKNOWN") };
 }
 
 export async function listPlatformNotifs(limit = 50): Promise<PlatformNotifRow[]> {

@@ -18,20 +18,33 @@ const MAX_ATTEMPTS = 3;
 /** Subjek cadangan HANYA bila baris EMAIL tanpa subjek (tidak terjadi lewat notifyPlatform). */
 const EMAIL_SUBJECT_FALLBACK = "Pemberitahuan Aircon";
 
-export async function dispatchPlatformNotifications(limit = 100): Promise<{ sent: number; failed: number; skipped: number; stale: number }> {
+/**
+ * @param onlyIds Kirim HANYA baris ini (kirim manual admin / replay terarah).
+ *  Tanpa opsi → antrean global (jalur cron). Dengan opsi → tidak menyedot
+ *  antrean tenant lain (G20), dan attempts LEBIH TINGGI dari maksimum tetap
+ *  boleh (itu keputusan eksplisit operator, bukan retry otomatis).
+ */
+export async function dispatchPlatformNotifications(
+  limit = 100,
+  onlyIds: string[] = [],
+): Promise<{ sent: number; failed: number; skipped: number; stale: number }> {
   const waOn = await isGatewayConfigured();
   const emailOn = isEmailConfigured();
 
   const queued = await prisma.platformNotification.findMany({
-    where: { status: "QUEUED", attempts: { lt: MAX_ATTEMPTS } },
+    where: onlyIds.length
+      ? { id: { in: onlyIds }, status: "QUEUED" }
+      : { status: "QUEUED", attempts: { lt: MAX_ATTEMPTS } },
     orderBy: { createdAt: "asc" },
-    take: limit,
+    take: onlyIds.length ? onlyIds.length : limit,
   });
 
   // ── RECOVERY STALE SENDING (F3/G10) ──────────────────────────────────────────
   // Lease kedaluwarsa = hasil kirim tak pasti → UNKNOWN, BUKAN kirim ulang
   // (gateway tanpa endpoint lookup job; duplikat lebih buruk daripada review).
-  const staleRows = await prisma.platformNotification.findMany({
+  // Recovery (perbaikan antrean) hanya pada dispatch GLOBAL; kirim manual terarah
+  // tidak menyentuh baris milik tenant lain (G20).
+  const staleRows = onlyIds.length ? [] : await prisma.platformNotification.findMany({
     where: { status: "SENDING", OR: [{ leaseExpiresAt: { lte: new Date() } }, { leaseExpiresAt: null }] },
     select: { id: true, tenantId: true },
     take: limit,
