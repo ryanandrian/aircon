@@ -10,19 +10,35 @@ import {
   actionReplayPlatformNotification, actionSetNotifySendEnabled, actionSetWaSendEnabled,
 } from "./actions";
 
-type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number };
+type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number; suppressed: number };
 type Health = {
   accepted: number; delivered: number; read: number; unknown: number; failed: number;
-  queued: number; sending: number; queuedTooOld: number; sendingWithoutLease: number;
+  queued: number; sending: number; suppressed: number;
+  queuedTooOld: number; sendingWithoutLease: number;
   needsAttention: boolean;
 };
 type Row = {
-  id: string; tenantName: string; channel: string; templateKey: string;
+  id: string; tenantName: string | null; channel: string; templateKey: string;
   toAddress: string; status: string; error: string | null;
+  /** Alasan ditahan (G28) — bila status SUPPRESSED. */
+  suppressedReason: string | null;
   createdAt: string; sentAt: string | null;
 };
 type Tenant = { id: string; name: string };
 type Template = { key: string; label: string; manualAllowed: boolean };
+
+/** Label manusiawi untuk status (SUPPRESSED lebih jelas daripada istilah teknis). */
+function statusLabel(status: string): string | null {
+  if (status === "SUPPRESSED") return "Ditahan (penerima kosong)";
+  if (status === "DELIVERED") return "Sampai";
+  if (status === "READ_CONFIRMED" || status === "READ_UNOBSERVED") return "Dibaca";
+  if (status === "SENT") return "Dikirim";
+  if (status === "QUEUED") return "Antre";
+  if (status === "SENDING") return "Proses";
+  if (status === "FAILED") return "Gagal";
+  if (status === "UNKNOWN") return "Tak Pasti";
+  return null;
+}
 
 const statusColor: Record<string, string> = {
   SENT: "bg-emerald-600 hover:bg-emerald-600",
@@ -31,6 +47,11 @@ const statusColor: Record<string, string> = {
   FAILED: "bg-destructive hover:bg-destructive",
   // Hasil kirim tidak dapat dipastikan (lease kedaluwarsa) — TIDAK dikirim ulang.
   UNKNOWN: "bg-purple-600 hover:bg-purple-600",
+  // Ditahan karena penerima kosong (G28) — bukan gagal; perbaiki data kontak.
+  SUPPRESSED: "bg-zinc-500 hover:bg-zinc-500",
+  DELIVERED: "bg-teal-600 hover:bg-teal-600",
+  READ_CONFIRMED: "bg-teal-700 hover:bg-teal-700",
+  READ_UNOBSERVED: "bg-teal-700 hover:bg-teal-700",
 };
 
 export function NotifPanel({ summary, rows, tenants, templates, health, sendEnabled, waSendEnabled }: {
@@ -77,6 +98,7 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
           ["Dibaca", health.read],
           ["Tak Pasti", health.unknown],
           ["Gagal", health.failed],
+          ["DItahan", health.suppressed],
         ] as const).map(([label, n]) => (
           <Card key={label}>
             <CardContent className="p-4">
@@ -92,6 +114,7 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
           <ul className="mt-1 list-disc pl-5">
             {health.unknown > 0 && <li>{health.unknown} pesan berstatus &quot;tak pasti&quot; (hasil kirim tak dapat dipastikan) — tinjau, lalu Kirim Ulang bila perlu.</li>}
             {health.failed > 0 && <li>{health.failed} pesan gagal terkirim.</li>}
+            {health.suppressed > 0 && <li>{health.suppressed} pesan ditahan karena penerima kosong — lengkapi nomor WhatsApp atau email owner, lalu pesan bisa dikirim ulang.</li>}
             {health.queuedTooOld > 0 && <li>{health.queuedTooOld} pesan antre terlalu lama (lebih dari 1 jam) — kanal pengiriman mungkin belum siap.</li>}
             {health.sendingWithoutLease > 0 && <li>{health.sendingWithoutLease} pesan berstatus proses tanpa lease — hasil kirim tak pasti, perlu ditinjau.</li>}
           </ul>
@@ -204,7 +227,9 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
             <div className="divide-y">
               {rows.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-                  <Badge className={`shrink-0 ${statusColor[r.status] ?? ""}`}>{r.status}</Badge>
+                  <Badge className={`shrink-0 ${statusColor[r.status] ?? ""}`}>
+                    {statusLabel(r.status) ?? r.status}
+                  </Badge>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate font-medium text-foreground">{r.tenantName}</span>
@@ -212,7 +237,7 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
                       <span className="truncate text-xs text-muted-foreground">{r.templateKey}</span>
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {r.toAddress} · {fmt(r.createdAt)}{r.error ? ` · ${r.error}` : ""}
+                      {r.toAddress || "(kosong)"} · {fmt(r.createdAt)}{r.suppressedReason ? ` · ${r.suppressedReason}` : r.error ? ` · ${r.error}` : ""}
                     </div>
                   </div>
                   {(r.status === "UNKNOWN" || r.status === "FAILED") && (

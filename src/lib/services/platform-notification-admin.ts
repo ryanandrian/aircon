@@ -10,12 +10,15 @@ import { PLATFORM_TEMPLATES } from "@/lib/domain/platform-templates";
 
 export interface PlatformNotifRow {
   id: string;
-  tenantName: string;
+  /** NULL untuk notifikasi mitra (F4) — baris tsb tak punya tenant. */
+  tenantName: string | null;
   channel: string;
   templateKey: string;
   toAddress: string;
   status: string;
   error: string | null;
+  /** Alasan ditahan (G28) — terisi bila status SUPPRESSED. */
+  suppressedReason: string | null;
   createdAt: Date;
   sentAt: Date | null;
 }
@@ -24,6 +27,8 @@ export interface PlatformNotifSummary {
   queued: number; sent: number; failed: number; sending: number;
   /** Hasil kirim tak pasti (lease kedaluwarsa) — perlu review operator (G9/G29). */
   unknown: number;
+  /** DITAHAN karena penerima kosong (G28) — perlu perbaikan data kontak. */
+  suppressed: number;
 }
 
 export async function getPlatformNotifSummary(): Promise<PlatformNotifSummary> {
@@ -31,7 +36,10 @@ export async function getPlatformNotifSummary(): Promise<PlatformNotifSummary> {
     by: ["status"], _count: { _all: true },
   });
   const by = (s: string) => grouped.find((g) => g.status === s)?._count._all ?? 0;
-  return { queued: by("QUEUED"), sent: by("SENT"), failed: by("FAILED"), sending: by("SENDING"), unknown: by("UNKNOWN") };
+  return {
+    queued: by("QUEUED"), sent: by("SENT"), failed: by("FAILED"),
+    sending: by("SENDING"), unknown: by("UNKNOWN"), suppressed: by("SUPPRESSED"),
+  };
 }
 
 export async function listPlatformNotifs(limit = 50): Promise<PlatformNotifRow[]> {
@@ -49,6 +57,7 @@ export async function listPlatformNotifs(limit = 50): Promise<PlatformNotifRow[]
     toAddress: r.toAddress,
     status: r.status,
     error: r.error,
+    suppressedReason: r.suppressedReason ?? null,
     createdAt: r.createdAt,
     sentAt: r.sentAt,
   }));
@@ -101,6 +110,8 @@ export async function replayPlatformNotification(
   });
   if (!row) return { ok: false, error: "Notifikasi tidak ditemukan" };
   if (!["UNKNOWN", "FAILED"].includes(row.status)) {
+    // SUPPRESSED sengaja TIDAK bisa di-replay: penyebabnya penerima kosong,
+    // jadi harus diperbaiki DATANYA dulu (bukan kirim ulang yang tetap gagal).
     return { ok: false, error: `Status ${row.status} tidak boleh di-replay (hanya UNKNOWN/FAILED)` };
   }
   await prisma.platformNotification.update({
@@ -151,6 +162,8 @@ export interface PlatformNotifHealth {
   failed: number;
   queued: number;
   sending: number;
+  /** DITAHAN karena penerima kosong (G28) — butuh perbaikan data kontak. */
+  suppressed: number;
   /** Antrean terlalu lama (menunggu terlalu lama tanpa dikirim). */
   queuedTooOld: number;
   /** SENDING tanpa lease = hasil tak pasti (proses kemungkinan mati di tengah). */
@@ -181,9 +194,12 @@ export async function getPlatformNotifHealth(): Promise<PlatformNotifHealth> {
   const failed = by("FAILED");
   const queued = by("QUEUED");
   const sending = by("SENDING");
+  const suppressed = by("SUPPRESSED");
   return {
-    accepted, delivered, read, unknown, failed, queued, sending,
+    accepted, delivered, read, unknown, failed, queued, sending, suppressed,
     queuedTooOld, sendingWithoutLease,
-    needsAttention: unknown > 0 || failed > 0 || queuedTooOld > 0 || sendingWithoutLease > 0,
+    // SUPPRESSED ikut "perlu tindakan": penerima kosong = data kontak yang
+    // harus diperbaiki operator, bukan sekadar catatan.
+    needsAttention: unknown > 0 || failed > 0 || queuedTooOld > 0 || sendingWithoutLease > 0 || suppressed > 0,
   };
 }

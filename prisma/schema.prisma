@@ -208,6 +208,10 @@ enum MessageStatus {
   // SENDING). Sengaja TIDAK dikirim ulang otomatis: duplikat ke pelanggan lebih
   // buruk daripada satu pesan yang perlu ditinjau operator. Lihat queue-lease.ts.
   UNKNOWN
+  // DITAHAN karena tidak bisa dikirim (mis. nomor/email tujuan kosong).
+  // BUKAN kegagalan: tak ada attempt, tak akan dikirim ulang, dan tak hilang
+  // diam-diam — alasannya tersimpan supaya operator bisa menindaklanjuti.
+  SUPPRESSED
 }
 
 enum WaDriver {
@@ -656,6 +660,10 @@ model MessageLog {
   status           MessageStatus  @default(LOGGED)
   toPhone          String?
   body             String?
+  // Alasan pesan DITAHAN (G28): terisi saat status = SUPPRESSED (mis. nomor
+  // tujuan kosong). Berbeda dari kegagalan kirim (tak ada kolom error di sini,
+  // hasil kirim via callback).
+  suppressedReason String?
   gatewayMessageId String? // id dari messaging-gateway (untuk update status via callback)
   at               DateTime       @default(now())
   // Lease pengiriman: dicatat saat baris diklaim SENDING. Bila lease kedaluwarsa,
@@ -1096,6 +1104,9 @@ model PlatformNotification {
   gatewayMessageId String?
   error            String?
   attempts         Int            @default(0)
+  // Alasan ditahan (G28). Terisi saat status = SUPPRESSED (mis. "email tujuan
+  // kosong"). Disimpan terpisah dari `error` (error = kegagalan kirim).
+  suppressedReason String?
   createdAt        DateTime       @default(now())
   sentAt           DateTime?
   // Lease pengiriman (sama seperti MessageLog): ambil -> SENDING -> kirim.

@@ -62,9 +62,11 @@ export async function isAutoReminderPlan(plan: TenantPlan): Promise<boolean> {
  * Antre notifikasi platform ke tenant. Menulis PlatformNotification(QUEUED) per channel.
  * Return jumlah baris yang dibuat (0 bila dedupe menahan / penerima tak tersedia).
  */
-export async function notifyPlatform(input: NotifyInput): Promise<{ created: number; skipped: string[]; ids: string[] }> {
+export async function notifyPlatform(input: NotifyInput): Promise<{ created: number; skipped: string[]; ids: string[]; suppressed?: number }> {
   const { tenantId } = input;
   const skipped: string[] = [];
+  /** Baris yang DITAHAN karena penerima kosong (G28) — tercatat, bukan hilang. */
+  let suppressed = 0;
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true, phone: true, plan: true } });
   if (!tenant) return { created: 0, skipped: ["tenant tak ditemukan"], ids: [] };
   const owner = await prisma.user.findFirst({
@@ -123,7 +125,39 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
     const toAddress = channel === "WA"
       ? normalizePhone(tenant.phone || owner?.phone || "")
       : (owner?.email ?? "");
-    if (!toAddress) { skipped.push(`${channel}: penerima kosong`); continue; }
+    if (!toAddress) {
+      // G28: penerima kosong tak boleh hilang diam-diam. Catat sebagai baris
+      // SUPPRESSED (bukan FAILED: tak ada attempt, tak akan dikirim ulang,
+      // operator bisa melihat & menindaklanjuti).
+      const reason = channel === "WA"
+        ? "nomor WhatsApp penerima kosong"
+        : "email penerima kosong";
+      try {
+        const row = await prisma.platformNotification.create({
+          data: {
+            tenantId,
+            channel,
+            templateKey,
+            toAddress: channel === "WA" ? "" : "",
+            subject: channel === "EMAIL" ? subject : null,
+            body,
+            status: "SUPPRESSED",
+            suppressedReason: reason,
+            dedupeKey: input.dedupeKey ? `${input.dedupeKey}:${channel}` : null,
+          },
+        });
+        ids.push(row.id);
+        suppressed += 1;
+      } catch (e) {
+        if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
+          skipped.push(`${channel}: dedupe (sudah tercatat)`);
+        } else {
+          skipped.push(`${channel}: ${e instanceof Error ? e.message : "gagal"}`);
+        }
+      }
+      skipped.push(`${channel}: penerima kosong (dicatat SUPPRESSED)`);
+      continue;
+    }
 
     const dedupeKey = input.dedupeKey ? `${input.dedupeKey}:${channel}` : null;
     try {
@@ -141,5 +175,5 @@ export async function notifyPlatform(input: NotifyInput): Promise<{ created: num
       }
     }
   }
-  return { created, skipped, ids };
+  return { created, skipped, ids, suppressed };
 }

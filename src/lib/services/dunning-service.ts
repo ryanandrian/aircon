@@ -27,6 +27,8 @@ export interface DunningSummary {
   suspended: number;
   markedDelete: number;
   remindersSent: number;
+  /** Pesan yang DITAHAN karena nomor tujuan kosong (G28) — dicatat, bukan hilang. */
+  remindersSuppressed: number;
 }
 
 /**
@@ -38,7 +40,8 @@ export interface DunningSummary {
 export async function runDunningCycle(now: Date = new Date()): Promise<DunningSummary> {
   const policy = await getBillingPolicy();
   const summary: DunningSummary = {
-    checked: 0, movedPastDue: 0, suspended: 0, markedDelete: 0, remindersSent: 0,
+    checked: 0, movedPastDue: 0, suspended: 0, markedDelete: 0,
+    remindersSent: 0, remindersSuppressed: 0,
   };
 
   // Tenant yang punya jatuh tempo lewat & belum ditandai hapus.
@@ -91,17 +94,23 @@ export async function runDunningCycle(now: Date = new Date()): Promise<DunningSu
     if (shouldSendReminderToday(late, policy.dunningReminderDays, t.lastDunningReminderAt, now, t.timezone)) {
       // {sisa} dihitung dari tenggat purge NYATA (N+1 untuk mark + 2 run purge),
       // bukan N-late yang meleset ~2 hari. Lihat sisaHapusSebelumPurge.
-      await queueDunningReminder(t.id, t.phone, t.name, late, policy.daysBeforeDelete, policy.deleteWarningDay, {
+      const queued = await queueDunningReminder(t.id, t.phone, t.name, late, policy.daysBeforeDelete, policy.deleteWarningDay, {
         markedForDeletionAt: t.markedForDeletionAt ?? markedNow,
         purgeGraceHours: PURGE_GRACE_HOURS,
         nextDueDate: t.nextDueDate,
         now,
       });
-      await prisma.tenant.update({
-        where: { id: t.id },
-        data: { lastDunningReminderAt: now },
-      });
-      summary.remindersSent++;
+      if (queued) {
+        await prisma.tenant.update({
+          where: { id: t.id },
+          data: { lastDunningReminderAt: now },
+        });
+        summary.remindersSent++;
+      } else {
+        // Pesan ditahan (tanpa nomor). lastDunningReminderAt TIDAK di-update:
+        // bila nomor diperbaiki, pengingat tetap terkirim pada run berikutnya.
+        summary.remindersSuppressed += 1;
+      }
     }
   }
 
@@ -117,7 +126,7 @@ async function queueDunningReminder(
   daysBeforeDelete: number,
   deleteWarningDay: number,
   purge: { markedForDeletionAt: Date | null; purgeGraceHours: number; nextDueDate: Date | null; now: Date },
-): Promise<void> {
+): Promise<boolean> {
   const sisaHapus = sisaHapusSebelumPurge({
     markedForDeletionAt: purge.markedForDeletionAt,
     purgeGraceHours: purge.purgeGraceHours,
@@ -130,16 +139,35 @@ async function queueDunningReminder(
   const tpl = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
   const body = renderTenantCopy(tpl, vars);
 
+  const phone = normalizePhone(toPhone);
+  if (!phone) {
+    // G28: nomor tujuan kosong ⇒ pesan DITAHAN & DICATAT (status SUPPRESSED
+    // + alasan), bukan antre sia-sia yang pasti gagal saat dispatch. Pesan tak
+    // hilang diam-diam: operator bisa melihat & memperbaiki data kontak.
+    await prisma.messageLog.create({
+      data: {
+        tenantId,
+        channel: "WA",
+        direction: "OUTBOUND",
+        status: "SUPPRESSED",
+        toPhone: null,
+        body,
+        suppressedReason: "nomor WhatsApp tujuan kosong",
+      },
+    });
+    return false;
+  }
   await prisma.messageLog.create({
     data: {
       tenantId,
       channel: "WA",
       direction: "OUTBOUND",
       status: "QUEUED",
-      toPhone: normalizePhone(toPhone),
+      toPhone: phone,
       body,
     },
   });
+  return true;
 }
 
 /**
