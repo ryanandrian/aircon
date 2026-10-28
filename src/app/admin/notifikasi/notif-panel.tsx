@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   actionSendPlatformNotif, actionRunPlatformNotifyNow, actionDispatchPlatformNow,
-  actionReplayPlatformNotification,
+  actionReplayPlatformNotification, actionSetNotifySendEnabled,
 } from "./actions";
 
 type Summary = { queued: number; sent: number; failed: number; sending: number; unknown: number };
@@ -33,8 +33,9 @@ const statusColor: Record<string, string> = {
   UNKNOWN: "bg-purple-600 hover:bg-purple-600",
 };
 
-export function NotifPanel({ summary, rows, tenants, templates, health }: {
+export function NotifPanel({ summary, rows, tenants, templates, health, sendEnabled }: {
   summary: Summary; rows: Row[]; tenants: Tenant[]; templates: Template[]; health: Health;
+  sendEnabled: boolean;
 }) {
   const [tenantId, setTenantId] = useState(tenants[0]?.id ?? "");
   const [templateKey, setTemplateKey] = useState(templates[0]?.key ?? "");
@@ -96,6 +97,28 @@ export function NotifPanel({ summary, rows, tenants, templates, health }: {
           </ul>
         </div>
       )}
+
+      {/* Kill switch (G30) */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold">Pengiriman Platform</h2>
+            <p className="text-sm text-muted-foreground">
+              Matikan bila ada insiden: pesan platform DITAHAN (antrean tetap
+              menunggu, tak ada yang hilang) sampai dinyalakan lagi.
+              Pesan tenant ke pelanggan tidak terpengaruh.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant={sendEnabled ? "destructive" : "default"}
+            disabled={pending}
+            onClick={() => run(() => actionSetNotifySendEnabled(!sendEnabled))}
+          >
+            {sendEnabled ? "Tahan Pengiriman" : "Aktifkan Pengiriman"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Aksi cepat */}
       <Card>

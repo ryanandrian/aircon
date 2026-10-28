@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { actionSavePlatformTemplate, actionResetPlatformTemplate } from "./actions";
+import { actionSavePlatformTemplate, actionResetPlatformTemplate, actionRollbackPlatformTemplate } from "./actions";
+
+export type RevisionView = { version: number; actor: string | null; createdAt: string };
 
 export type TemplateView = {
   key: string;
@@ -21,6 +23,7 @@ export type TemplateView = {
   version: number;
   isDefault: boolean;
   eventOnly: boolean;
+  revisions: RevisionView[];
 };
 
 export function TemplateEditor({ templates }: { templates: TemplateView[] }) {
@@ -86,12 +89,38 @@ function TemplateRow({ t }: { t: TemplateView }) {
       <p className="text-xs text-muted-foreground">
         Wajib memuat: {t.requiredVars.map((v) => `{{${v}}}`).join(" ") || "—"} · Variabel tersedia: {t.knownVars.map((v) => `{{${v}}}`).join(" ")}
       </p>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={pending || !dirty} onClick={save}>Simpan</Button>
         {!t.isDefault && (
           <Button size="sm" variant="outline" disabled={pending} onClick={reset}>Kembalikan ke default</Button>
         )}
       </div>
+      {t.revisions.length > 0 && (
+        <div className="rounded-md border p-2">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">Riwayat versi</p>
+          <ul className="space-y-1">
+            {t.revisions.map((r) => (
+              <li key={r.version} className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted-foreground">
+                  v{r.version} · {new Date(r.createdAt).toLocaleString("id-ID")}{r.actor ? ` · ${r.actor}` : ""}
+                </span>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  disabled={pending}
+                  onClick={() => start(async () => {
+                    const res = await actionRollbackPlatformTemplate(t.key as never, r.version);
+                    if (res.ok) toast.success(res.info ?? "Dikembalikan");
+                    else toast.error(res.error ?? "Gagal");
+                  })}
+                >
+                  Kembalikan
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,12 +10,14 @@ import {
 import type { PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-service";
 import { replayPlatformNotification } from "@/lib/services/platform-notification-admin";
+import { rollbackTemplate } from "@/lib/services/platform-template-service";
+import { isNotifySendEnabled, setNotifySendEnabled } from "@/lib/services/infra-config-service";
 import { revalidatePath } from "next/cache";
 
 /** externalId sesi WA platform Lumite (1 nomor, lintas SaaS). */
 const LUMITE_SESSION = "lumite-platform";
 
-type Result = { ok: boolean; error?: string; info?: string };
+type Result = { ok: boolean; error?: string; info?: string; errors?: string[] };
 
 /** Template khusus event: hanya diproduksi dari transaksi terkait, tidak boleh dikirim manual tanpa konteks. */
 const EVENT_ONLY_TEMPLATE_KEYS: readonly string[] = [
@@ -72,6 +74,31 @@ export async function actionDispatchPlatformNow(): Promise<Result> {
     const d = await dispatchPlatformNotifications();
     revalidatePath("/admin/notifikasi");
     return { ok: true, info: `Terkirim ${d.sent}, gagal ${d.failed}, ditahan ${d.skipped}${d.stale ? `, hasil tak pasti (UNKNOWN) ${d.stale}` : ""}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Kill switch pengiriman platform (G30): admin-only, audit-logged. */
+export async function actionSetNotifySendEnabled(enabled: boolean): Promise<Result> {
+  try {
+    const admin = await requirePlatformAdmin();
+    await setNotifySendEnabled(enabled, admin.email);
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: enabled ? "Pengiriman platform DIAKTIFKAN" : "Pengiriman platform DITAHAN (antrean menunggu)" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
+  }
+}
+
+/** Rollback copy template ke versi lama (F5): admin-only, validasi + audit log. */
+export async function actionRollbackPlatformTemplate(key: PlatformTemplateKey, targetVersion: number): Promise<Result> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const r = await rollbackTemplate(key, targetVersion, admin.email);
+    if (!r.ok) return { ok: false, error: r.errors[0], errors: r.errors };
+    revalidatePath("/admin/notifikasi");
+    return { ok: true, info: `Dikembalikan ke versi ${targetVersion} (sekarang versi ${r.version})` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }

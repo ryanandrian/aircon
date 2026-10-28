@@ -20,6 +20,9 @@ vi.mock("@/lib/prisma", () => ({
 }));
 vi.mock("@/lib/wa/gateway-relay", () => ({ gatewaySendAs: vi.fn(async () => ({ ok: true, messageId: "gw" })), isGatewayConfigured: vi.fn(async () => true) }));
 vi.mock("@/lib/email/smtp", () => ({ sendEmail, isEmailConfigured: vi.fn(async () => true) }));
+// Kill switch (G30) — dimock agar default = boleh kirim; diuji terpisah di bawah.
+const { isNotifySendEnabled } = vi.hoisted(() => ({ isNotifySendEnabled: vi.fn(async () => true) }));
+vi.mock("@/lib/services/infra-config-service", () => ({ isNotifySendEnabled }));
 
 import { dispatchPlatformNotifications } from "../src/lib/services/platform-notification-dispatch";
 
@@ -47,6 +50,20 @@ describe("dispatcher platform — recovery stale SENDING", () => {
       }),
     }));
     // TIDAK ada pengiriman ulang untuk baris stale.
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("KILL SWITCH aktif → dispatcher MENAH: tak ada kirim, tak ada recovery stale", async () => {
+    isNotifySendEnabled.mockResolvedValueOnce(false);
+    findMany.mockReset();
+    const r = await dispatchPlatformNotifications();
+    expect(r.held).toBe(true);
+    expect(r.sent).toBe(0);
+    expect(r.failed).toBe(0);
+    expect(r.stale).toBe(0);
+    // tak ada query antrean sama sekali → pesan tetap QUEUED, tak ada yang hilang
+    expect(findMany).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();
   });
 

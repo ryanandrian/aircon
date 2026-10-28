@@ -36,6 +36,25 @@ export type SaveTemplateResult =
   | { ok: true; version: number }
   | { ok: false; errors: string[] };
 
+export interface TemplateRevisionView {
+  id: string;
+  key: string;
+  subject: string;
+  body: string;
+  version: number;
+  actor: string | null;
+  createdAt: Date;
+}
+
+/** Riwayat versi sebuah template (terbaru dulu). */
+export async function listTemplateRevisions(key: PlatformTemplateKey, limit = 20): Promise<TemplateRevisionView[]> {
+  return prisma.platformTemplateRevision.findMany({
+    where: { key },
+    orderBy: { version: "desc" },
+    take: limit,
+  });
+}
+
 /**
  * Simpan copy baru. Validasi ketat (placeholder dikenal + requiredVars).
  * Setiap simpan menaikkan `version`. Antrean tidak terpengaruh: row PlatformNotification
@@ -55,6 +74,10 @@ export async function saveTemplate(
     create: { key, subject, body: copy.body, version: 1, updatedBy: actorEmail },
     update: { subject, body: copy.body, version: { increment: 1 }, updatedBy: actorEmail },
   });
+  // Riwayat versi: snapshot isi yang baru disimpan (F5 versioning/rollback).
+  await prisma.platformTemplateRevision.create({
+    data: { key, subject, body: copy.body, version: row.version, actor: actorEmail },
+  });
   await prisma.platformAuditLog.create({
     data: {
       actor: actorEmail,
@@ -69,6 +92,44 @@ export async function saveTemplate(
 /** Kembalikan ke default kode: hapus baris override. */
 export async function resetTemplate(key: PlatformTemplateKey, actorEmail: string): Promise<void> {
   await prisma.platformTemplate.deleteMany({ where: { key } });
+  await prisma.platformAuditLog.create({
+    data: { actor: actorEmail, action: "PLATFORM_TEMPLATE_RESET", target: `platform-template:${key}`, metadata: {} },
+  });
+}
+
+/**
+ * Rollback ke versi lama (F5). Isi versi lama disalin ke baris aktif; versi aktif
+ * NAIK lagi (tak ada nomor versi yang dipakai ulang) dan riwayat versi tetap utuh.
+ * Copy hasil rollback tetap divalidasi (tak mungkin menyimpan copy rusak).
+ */
+export async function rollbackTemplate(
+  key: PlatformTemplateKey,
+  targetVersion: number,
+  actorEmail: string,
+): Promise<SaveTemplateResult> {
+  const rev = await prisma.platformTemplateRevision.findUnique({
+    where: { key_version: { key, version: targetVersion } },
+  });
+  if (!rev) return { ok: false, errors: [`Versi ${targetVersion} tidak ditemukan`] };
+  const check = validateTemplateCopy(key, { subject: rev.subject, body: rev.body });
+  if (!check.ok) return { ok: false, errors: check.errors };
+  const row = await prisma.platformTemplate.upsert({
+    where: { key },
+    create: { key, subject: rev.subject, body: rev.body, version: 1, updatedBy: actorEmail },
+    update: { subject: rev.subject, body: rev.body, version: { increment: 1 }, updatedBy: actorEmail },
+  });
+  await prisma.platformTemplateRevision.create({
+    data: { key, subject: rev.subject, body: rev.body, version: row.version, actor: actorEmail },
+  });
+  await prisma.platformAuditLog.create({
+    data: {
+      actor: actorEmail,
+      action: "PLATFORM_TEMPLATE_ROLLBACK",
+      target: `platform-template:${key}`,
+      metadata: { restoredFromVersion: targetVersion, newVersion: row.version },
+    },
+  });
+  return { ok: true, version: row.version };
   await prisma.platformAuditLog.create({
     data: { actor: actorEmail, action: "PLATFORM_TEMPLATE_RESET", target: `platform-template:${key}`, metadata: {} },
   });

@@ -14,7 +14,10 @@ const { findMany, updateMany, update, sendEmail, gatewaySendAs } = vi.hoisted(()
   gatewaySendAs: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { platformNotification: { findMany, updateMany, update } },
+  prisma: {
+    platformNotification: { findMany, updateMany, update },
+    infraConfig: { findUnique: vi.fn(async () => ({ notifySendEnabled: true })) },
+  },
 }));
 vi.mock("@/lib/wa/gateway-relay", () => ({
   gatewaySendAs,

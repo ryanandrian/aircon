@@ -1031,6 +1031,11 @@ model InfraConfig {
   iotOvercurrentA     Float    @default(10) // arus (A) di atas ini = alert overcurrent
   iotNoCoolTempC      Float    @default(30) // suhu keluar (°C) di atas ini + AC nyala = tak mendingin
   iotOfflineMinutes   Int      @default(30) // tak ada telemetry > N menit = offline
+  // KILL SWITCH (G30): saat false, dispatcher platform MENAH (tidak mengirim),
+  // antrean tetap QUEUED sehingga tak ada pesan hilang. Dipakai operator saat
+  // ada insiden. Tidak menyentuh pesan tenant ke pelanggan (money loop) —
+  // itu dikendalikan WA_SAFE_MODE/allowlist.
+  notifySendEnabled   Boolean  @default(true)
   updatedBy           String?
   updatedAt           DateTime @updatedAt
 }
@@ -1103,6 +1108,22 @@ model PlatformTemplate {
   version   Int      @default(1) // naik setiap simpan; antrean menyimpan body sendiri (snapshot)
   updatedBy String?
   updatedAt DateTime @updatedAt
+}
+
+// Riwayat versi template platform (F5: versioning + rollback).
+// Setiap simpan menulis satu baris di sini; rollback = salin isi versi lama
+// kembali ke baris aktif (versi naik lagi, jadi jejaknya utuh).
+model PlatformTemplateRevision {
+  id        String   @id @default(cuid())
+  key       String
+  subject   String   @default("")
+  body      String
+  version   Int
+  actor     String?
+  createdAt DateTime @default(now())
+
+  @@unique([key, version])
+  @@index([key, createdAt])
 }
 
 // ================= TENANT IN-APP NOTIFICATION =================

@@ -67,3 +67,41 @@ export async function getPolicyView() {
     updatedAt: c.updatedAt,
   };
 }
+
+/**
+ * KILL SWITCH (G30): true = boleh kirim; false = dispatcher platform MENAH.
+ * Query ringan (singleton) — dibaca sekali per run dispatcher, bukan per pesan.
+ */
+export async function isNotifySendEnabled(): Promise<boolean> {
+  try {
+    const c = await prisma.infraConfig.findUnique({
+      where: { id: "singleton" },
+      select: { notifySendEnabled: true },
+    });
+    // Baris belum ada = default aman (kirim). Tak ada config = tak ada insiden.
+    return c?.notifySendEnabled !== false;
+  } catch (e) {
+    // FAIL-OPEN dengan log: bila konfigurasi tak terbaca, notifikasi tagihan
+    // tak boleh berhenti total. Kill switch yang AKTIF selalu terbaca (DB
+    // sehat saat adminToggle), jadi risikonya kecil dan tercatat di log.
+    console.error("[infra-config] gagal membaca notifySendEnabled, diasumsikan aktif:", e);
+    return true;
+  }
+}
+
+/** Set kill switch (PLATFORM-ADMIN-ONLY). Dicatat di audit log. */
+export async function setNotifySendEnabled(enabled: boolean, adminEmail: string): Promise<void> {
+  await prisma.infraConfig.upsert({
+    where: { id: "singleton" },
+    create: { id: "singleton", notifySendEnabled: enabled, updatedBy: adminEmail },
+    update: { notifySendEnabled: enabled, updatedBy: adminEmail },
+  });
+  await prisma.platformAuditLog.create({
+    data: {
+      actor: adminEmail,
+      action: enabled ? "NOTIFY_SEND_ENABLE" : "NOTIFY_SEND_DISABLE",
+      target: "infra-config:notifySendEnabled",
+      metadata: { enabled },
+    },
+  });
+}

@@ -10,6 +10,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { gatewaySendAs, isGatewayConfigured } from "@/lib/wa/gateway-relay";
+import { isNotifySendEnabled } from "@/lib/services/infra-config-service";
 import { sendEmail, isEmailConfigured } from "@/lib/email/smtp";
 import { leaseExpiry, leaseMinutesFromEnv } from "@/lib/domain/queue-lease";
 
@@ -27,9 +28,17 @@ const EMAIL_SUBJECT_FALLBACK = "Pemberitahuan Aircon";
 export async function dispatchPlatformNotifications(
   limit = 100,
   onlyIds: string[] = [],
-): Promise<{ sent: number; failed: number; skipped: number; stale: number }> {
+): Promise<{ sent: number; failed: number; skipped: number; stale: number; held?: boolean }> {
   const waOn = await isGatewayConfigured();
   const emailOn = isEmailConfigured();
+
+  // KILL SWITCH (G30): saat dimatikan, dispatcher MENAH — tak ada yang dikirim,
+  // antrean tetap QUEUED (tak ada pesan hilang), dan tak ada recovery stale
+  // (operator sedang menangani insiden; jangan sentuh apa pun).
+  if (!(await isNotifySendEnabled())) {
+    console.warn("[platform-dispatch] KILL SWITCH aktif: pengiriman platform ditahan (antrean tetap QUEUED)");
+    return { sent: 0, failed: 0, skipped: 0, stale: 0, held: true };
+  }
 
   const queued = await prisma.platformNotification.findMany({
     where: onlyIds.length

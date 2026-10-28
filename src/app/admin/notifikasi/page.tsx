@@ -3,25 +3,36 @@ import {
   getPlatformNotifSummary, listPlatformNotifs, platformTemplateOptions,
   getPlatformNotifHealth, type PlatformNotifHealth,
 } from "@/lib/services/platform-notification-admin";
-import { listActiveTemplates } from "@/lib/services/platform-template-service";
+import { listActiveTemplates, listTemplateRevisions } from "@/lib/services/platform-template-service";
+import { isNotifySendEnabled } from "@/lib/services/infra-config-service";
 import { PLATFORM_TEMPLATES, knownVariables, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { NotifPanel } from "./notif-panel";
 import { LumiteWaConnect } from "./lumite-wa-connect";
-import { TemplateEditor, type TemplateView } from "./template-editor";
+import { TemplateEditor, type TemplateView, type RevisionView } from "./template-editor";
 
 export const dynamic = "force-dynamic";
 
 const EVENT_ONLY = new Set<string>(["subscription_activated", "payment_failed", "payment_expired", "booking_inapp"]);
 
 export default async function AdminNotifikasiPage() {
-  const [summary, rows, tenants, active, health] = await Promise.all([
+  const [summary, rows, tenants, active, health, sendEnabled, revisionLists] = await Promise.all([
     getPlatformNotifSummary(),
     listPlatformNotifs(50),
     listTenants({ limit: 50 }),
     listActiveTemplates(),
     getPlatformNotifHealth(),
+    isNotifySendEnabled(),
+    Promise.all(
+      (Object.keys(PLATFORM_TEMPLATES) as PlatformTemplateKey[]).map((k) => listTemplateRevisions(k, 5)),
+    ),
   ]);
   const templates = platformTemplateOptions();
+  const revisionsByKey = new Map<string, RevisionView[]>();
+  (Object.keys(PLATFORM_TEMPLATES) as PlatformTemplateKey[]).forEach((k, i) => {
+    revisionsByKey.set(k, (revisionLists[i] ?? []).map((r) => ({
+      version: r.version, actor: r.actor, createdAt: r.createdAt.toISOString(),
+    })));
+  });
   const views: TemplateView[] = active.map((a) => {
     const key = a.key as PlatformTemplateKey;
     const def = PLATFORM_TEMPLATES[key];
@@ -36,6 +47,7 @@ export default async function AdminNotifikasiPage() {
       version: a.version,
       isDefault: a.isDefault,
       eventOnly: EVENT_ONLY.has(key),
+      revisions: revisionsByKey.get(key) ?? [],
     };
   });
 
@@ -56,6 +68,7 @@ export default async function AdminNotifikasiPage() {
         tenants={tenants.items.map((t) => ({ id: t.id, name: t.name }))}
         templates={templates}
         health={health}
+        sendEnabled={sendEnabled}
       />
     </div>
   );
