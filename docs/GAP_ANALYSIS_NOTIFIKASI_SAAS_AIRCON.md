@@ -1,25 +1,17 @@
 # Audit Mendalam & Gap Analysis Notifikasi SaaS Aircon
 
-- **Status:** rekomendasi/audit kode; belum mengubah perilaku aplikasi
+- **Status:** audit 26 Okt 2026; code/status claims below are historical and superseded where contradicted by the dated SSOT in `RENCANA_KERJA_PERBAIKAN_NOTIFIKASI_AIRCON.md`. Reconciled 29 Okt 2026: core P0/F1, F4 partner engine, F3 lease/replay foundations, F5 template center and G23 have since been implemented; phase status/evidence/remaining live in the SSOT. This gap analysis is retained as findings/source map, not a current completion checklist.
 - **Tanggal audit:** 26 Oktober 2026
 - **Cakupan:** platform Aircon ↔ tenant; platform ↔ agent/reseller; tenant ↔ pelanggan/teknisi; email, WhatsApp, push, in-app, dan pesan pada UI.
 - **Prinsip:** bedakan notifikasi yang benar-benar dikirim, notifikasi yang hanya tampil di aplikasi, tindakan yang membuka WhatsApp pengguna, dan usulan fitur. Keberadaan copy atau fungsi belum membuktikan delivery berhasil.
 
-## Ringkasan eksekutif
+## Ringkasan eksekutif — snapshot audit 26 Okt 2026, direkonsiliasi 29 Okt
 
-Audit menemukan bahwa sistem memiliki beberapa jalur notifikasi terpisah, bukan satu sistem dengan katalog dan kebijakan bersama. Pesan platform utama (`welcome`, `trial_ending`, `subscription_due`, `subscription_overdue`, `wa_disconnected`) masih hardcode. Dunning dan inactivity memiliki template yang dapat diedit di Admin → Kebijakan. Pesan operasional tenant memakai template tenant atau string hardcode. Admin tidak memiliki satu tempat untuk mengelola seluruh pesan, event, kanal, penerima, aturan paket, placeholder, dan status delivery.
+Bagian-bagian audit di bawah memuat **kondisi awal 26 Okt**, bukan seluruh kondisi aplikasi hari ini. Implementasi sesudahnya telah menutup banyak temuan. Jangan gunakan temuan historis di bawah sebagai daftar pekerjaan aktif tanpa memeriksa `RENCANA_KERJA_PERBAIKAN_NOTIFIKASI_AIRCON.md`.
 
-Temuan prioritas tertinggi:
+Pada tanggal audit ditemukan beberapa jalur notifikasi dan kekurangan katalog, reliability, serta observability. Sejak itu, code/deploy evidence menutup banyak hal: correctness P0 & paket, pembayaran dan WA lifecycle, partner email/in-app engine, booking idempotency/reference, push fallback, leases/UNKNOWN, template center/versioning, kill switches, alert kegagalan job, serta G23 retirement BillingPolicy copy. Fase belum dinyatakan 100% karena scheduled milestone behavior G5/G22 belum terbukti pada run terbaru (`checked=0`), F3 stale/queue-age/no-run alerts dan replay/status UI masih terbuka, F5 test-send allowlist/coverage belum, F4 lifecycle E2E belum, dan direct WA invoice/receipt/technician-invite masih bypass `MessageLog`. Fokus audit ini adalah klasifikasi dan pencatatan bukti; fitur tidak dinyatakan rusak hanya karena E2E belum teruji.
 
-1. **Welcome dikirim tanpa pemeriksaan paket** (`onboarding-service.ts`); isinya meminta menautkan WhatsApp dan menjanjikan reminder otomatis. Paket Basic/Gratis justru tidak memiliki otomasi gateway.
-2. **Upgrade/pembayaran berhasil tidak memicu pesan aktivasi/selamat datang Pro/Business**; `activateSubscription()` mengubah paket dan status, tetapi tidak mengantre pesan. Karena itu tidak ada petunjuk otomatis untuk menyambungkan WA setelah upgrade.
-3. **Konsep masa Trial masih tersisa di konfigurasi dan notifikasi**, padahal Basic adalah gratis selamanya. `trialDays` masih dapat diedit tetapi pemanggilnya tidak ditemukan; onboarding membuat Basic dengan `status: ACTIVE` dan `nextDueDate: null`. Template `trial_ending` masih dapat dipanggil manual maupun oleh cycle bila ada tenant `TRIAL` dengan due date.
-4. **Template subscription_due memiliki placeholder yang tidak diisi**: teks memuat `{{paket}}` dan `{{nominal}}`, sedangkan cycle hanya mengirim `tanggal` dan `link`. Renderer menghapus placeholder tanpa nilai, sehingga pesan kehilangan informasi paket dan nominal.
-5. **Dunning bukan jalur PlatformNotification**: pesan WA dunning dibuat sebagai `MessageLog` tenant. Perlu diuji operasionalnya terhadap tenant yang WA-nya tidak tersambung; jangan disamakan dengan pesan Lumite platform yang memakai sesi `lumite-platform`.
-6. **Agent/reseller tidak memiliki notifikasi otomatis** yang ditemukan untuk aktivasi akun, reseller mendaftar/disetujui/ditolak, tenant teratribusi, komisi, reversal, maupun payout. Portal menampilkan data; admin/agen harus membagikan tautan atau menghubungi penerima sendiri.
-7. **Marketing tidak konsisten dengan gate paket**: landing dan FAQ menyebut reminder otomatis melalui WhatsApp tanpa membedakan paket; kartu paket dan `planQuotaLines()` sendiri menyebut Basic mengirim manual dan paket berbayar otomatis.
-
-**Rekomendasi utama:** buat katalog template/event yang dapat diedit dan tervalidasi admin, tetapi pertahankan routing pengiriman yang ada. Pisahkan template copy dari aturan eligibilitas; eligibilitas paket dan status harus ditegakkan di kode, tidak boleh bergantung pada kalimat template.
+**Rekomendasi arsitektur** tetap relevan sebagai prinsip, tetapi daftar spesifik/implementation status mengikuti SSOT: satu routing per domain, policy di kode, template divalidasi, status delivery tidak disamakan, dan jangan melakukan send nyata tanpa allowlist + approval.
 
 ---
 
@@ -30,22 +22,26 @@ Temuan prioritas tertinggi:
 - Onboarding membuat tenant `plan: TRIAL`, `status: ACTIVE`, `nextDueDate: null` dengan komentar bahwa tidak ada masa habis untuk gratis (`src/lib/services/onboarding-service.ts`, sekitar 134–139).
 - Cron reminder mengambil `PlanConfig.autoReminder`; paket dengan flag false tidak masuk pengiriman otomatis. Tenant tetap dapat melihat due reminders (`src/lib/services/reminder-service.ts`, 140–156; `listDueReminders()` tidak melakukan gate paket).
 - Halaman Pengingat memiliki tombol **Kirim Pengingat** yang membuka `wa.me` dengan teks template dan tombol untuk menandai terkirim manual. Aplikasi **tidak dapat memverifikasi** bahwa pengguna benar-benar mengirim pesan itu (`src/app/app/pengingat/actions.ts`, 64–75 dan 113–127; `inbox.tsx`). Ini adalah manual dari WhatsApp pemilik, bukan pengiriman otomatis platform.
-- `trialDays` masih ada di `BillingPolicy` dan halaman Admin → Kebijakan, tetapi pencarian pemanggil `trialDays()` di luar definisinya tidak menemukan penggunaan. `trial_ending` bukan indikator masa aktif Basic yang benar.
+- **Historical 26 Okt:** `trialDays` ada di `BillingPolicy`/Admin dan `trial_ending` masih di katalog. **Superseded:** G4 retired field/key dan migration 20261028150000 live; G23 retired four copy columns separately. Rujuk SSOT G4/G19/G23 untuk bukti.
 
-## 2. Inventaris mekanisme yang benar-benar ada
+## 2. Inventaris mekanisme — baseline 26 Okt (parsial kini; lihat SSOT)
+
+Tabel ini adalah snapshot awal; partner/template/queue capabilities telah berubah pasca audit dan tabel **bukan inventory current-state**.
 
 | Mekanisme | Tujuan | Sumber/trigger | Template saat ini |
 |---|---|---|---|
-| PlatformNotification | Lumite/Aircon → tenant | onboarding, cycle tagihan, callback WA putus, aksi admin | 5 template hardcode |
-| Dunning MessageLog | Aircon → owner tenant tertunggak | cron harian berdasar kebijakan tagihan | template dapat diedit di Admin → Kebijakan |
-| Inactivity MessageLog | Aircon → tenant gratis/tidak aktif | cron harian; master switch default OFF, dry-run default ON | 2 template dapat diedit di Admin → Kebijakan |
+| PlatformNotification | Lumite/Aircon → tenant | onboarding, cycle tagihan, callback WA putus, aksi admin | 5 template hardcode at audit date; now DB-backed platform catalog/versioning |
+| Dunning MessageLog | Aircon → owner tenant tertunggak | cron harian berdasar kebijakan tagihan | template edited in Kebijakan at audit date; G23 now PlatformTemplate/Admin → Notifikasi |
+| Inactivity MessageLog | Aircon → tenant gratis/tidak aktif | cron harian; master switch default OFF, dry-run default ON | template edited in Kebijakan at audit date; G23 now PlatformTemplate/Admin → Notifikasi |
 | Tenant MessageLog | tenant → pelanggan | auto reminder; invoice/kwitansi; pesan operasional | reminder editable per tenant; invoice/kwitansi hardcode |
 | TenantNotification | aplikasi → tenant | booking online baru | in-app; title/body hardcode |
 | Push | aplikasi → perangkat pengguna/teknisi | tugas ditugaskan | push opsional, copy hardcode |
 | WhatsApp manual | tenant → pelanggan | klik tombol di halaman Pengingat | link wa.me, bukan bukti terkirim |
-| Pesan agent/reseller | Aircon → mitra | — | tidak ditemukan outbound otomatis |
+| Pesan agent/reseller | Aircon → mitra | partner lifecycle hooks (post-audit) | email queue + in-app live; E2E pending (F4 SSOT) |
 
 ## 3. Alur proses: Aircon platform ↔ tenant
+
+**Snapshot historis 26 Okt.** Perubahan implementasi/deploy sesudahnya membatalkan klaim “saat ini” di bagian ini; cek phase evidence SSOT untuk status terkini.
 
 ### 3.1 Tenant mendaftar / onboarding selesai
 
@@ -131,9 +127,11 @@ Audit tidak menemukan katalog notifikasi platform untuk perubahan email/nomor/PI
 
 ## 4. Alur proses: Aircon platform ↔ agent/reseller
 
+**Snapshot historis 26 Okt.** Partner email/in-app lifecycle telah dikembangkan sesudah audit; lihat rekonsiliasi §6.4 dan fase F4 SSOT.
+
 **Bukti Absence (26 Okt 2026):** pencarian outbound primitive (`sendEmail`, `gatewaySend`/`gatewaySendAs`, `notifyPlatform`, `notifyAssignees`) pada `src/lib/partner/**`, `src/app/agen/**`, `src/app/reseller/**`, dan `src/app/admin/keagenan/**` menghasilkan **nol hasil**. Seluruh pemanggilan `sendEmail()` di repository hanya satu: `platform-notification-dispatch.ts:46`, yang pengirimannya `PlatformNotification` ke tenant. Tidak ada tabel notifikasi untuk agent/reseller: model `TenantNotification` hanya terikat `tenantId`; model `PlatformNotification` juga `tenantId`. Field `Agent.picEmail`/`picPhone` hanya dipakai untuk penyimpanan, login (`loginAgent` mencari berdasarkan `picEmail`), dan tampilan admin — bukan sebagai alamat pengiriman.
 
-Artinya: **seluruh** lifecycle mitra (aktivasi, pendaftaran, approval, atribusi, komisi, reversal, payout) saat ini berjalan tanpa pesan keluar otomatis; informasinya hanya tersedia di portal/dashboard dan lewat tindakan manual admin atau agen.
+**Pada baseline audit 26 Okt saja**, lifecycle mitra belum memiliki outbound. Ini sudah superseded oleh F4: email melalui PlatformNotification + in-app PartnerNotification/event hooks live. E2E lifecycle penuh tetap pending; lihat SSOT F4.
 
 ### 4.1 Agent dibuat / portal diaktifkan
 
@@ -203,6 +201,8 @@ Jangan menyatakan sudah dibayar sebelum status payout dan referensi transfer ter
 
 ## 5. Alur tenant ↔ pelanggan/teknisi (agar tidak tertukar dengan notifikasi platform)
 
+Snapshot audit sumber; pengecualian berstatus current yang terkonfirmasi ditandai di SSOT §F5/G23 residuals. Jangan menyimpulkan direct WA paths telah memakai MessageLog.
+
 | Proses | Perilaku aktual | Gap / batas |
 |---|---|---|
 | Reminder jatuh tempo | Auto runner membuat satu WA per pelanggan untuk beberapa unit due; memakai template `reminder`/`reminder_multi` per tenant. Runner mem-filter paket dengan `autoReminder`; Basic tidak otomatis. | Manual dari Pengingat membuka `wa.me`; status terkirim manual hanya konfirmasi tenant. Tidak ada bukti WhatsApp delivery/read dari tindakan manual itu. |
@@ -214,17 +214,17 @@ Jangan menyatakan sudah dibayar sebelum status payout dan referensi transfer ter
 
 ## 6. Audit template & konfigurasi saat ini
 
-### 6.1 Hardcode PlatformNotification
+### 6.1 Historical baseline — superseded by implementation after 26 Oct
 
-`src/lib/domain/platform-templates.ts` mempunyai lima keys: `welcome`, `trial_ending`, `subscription_due`, `subscription_overdue`, `wa_disconnected`. Subject/body/label statis. Header file menyebut “Editable admin menyusul”; tidak ada tabel PlatformTemplate. `PlatformNotification` menyimpan snapshot `templateKey`, `subject`, `body`, recipient, channel, status dan dedupe key pada saat queued.
+**Jangan baca uraian di bawah sebagai kondisi saat ini.** Per 26 Okt audit, `src/lib/domain/platform-templates.ts` mempunyai lima keys: `welcome`, `trial_ending`, `subscription_due`, `subscription_overdue`, `wa_disconnected`. Subject/body/label statis. Header file menyebut “Editable admin menyusul”; tidak ada tabel PlatformTemplate. `PlatformNotification` menyimpan snapshot `templateKey`, `subject`, `body`, recipient, channel, status dan dedupe key pada saat queued.
 
 Admin → Notifikasi menyediakan manual send, cycle/dispatch, daftar dan summary status, serta kontrol sesi WA Lumite. Dropdown mengambil label dari konstanta; tidak menyediakan editor subject/body. Manual send dapat memilih template/channel tanpa aturan eligibilitas paket.
 
 Verifikasi UI (26 Okt 2026): `src/app/admin/notifikasi/notif-panel.tsx` merender tiga `select` (Tenant, Template, Saluran) dan tiga tombol aksi; **nol** `Input`/`Textarea` untuk isi pesan. Copy bawaan halaman di baris 104 masih menyebut "tenant jatuh tempo/trial habis" — Istilah "trial habis" tidak sesuai model Basic gratis selamanya dan harus diganti menjadi "jatuh tempo langganan" ketika copy platform dirapikan.
 
-### 6.2 Template yang dapat diedit
+### 6.2 Historical baseline — retired in G23
 
-`BillingPolicy` memiliki `dunningReminderTemplate`, `dunningWarningTemplate`, `inactivityReminder1Template`, `inactivityReminder2Template`; diedit di Admin → Kebijakan. Ambang dunning/inactivity juga dikonfigurasi. Ini hanya mencakup dua flow di atas, bukan semua pesan platform.
+**Koreksi 29 Okt 2026:** empat kolom copy `BillingPolicy` sudah dihapus oleh migrasi `20261029060000`; copy tenant sekarang dikelola sebagai key katalog `PlatformTemplate` di Admin → Notifikasi. Uraian berikut hanya merekam kondisi sebelum G23. `BillingPolicy` memiliki `dunningReminderTemplate`, `dunningWarningTemplate`, `inactivityReminder1Template`, `inactivityReminder2Template`; diedit di Admin → Kebijakan. Ambang dunning/inactivity juga dikonfigurasi. Ini hanya mencakup dua flow di atas, bukan semua pesan platform.
 
 `MessageTemplate` per tenant mendukung pesan reminder pelanggan. Ini bukan konfigurasi pesan platform; tenant adalah pemilik copy.
 
@@ -237,30 +237,49 @@ Verifikasi UI (26 Okt 2026): `src/app/admin/notifikasi/notif-panel.tsx` merender
 - Uji kirim ke admin/test recipient sebelum publish; preview WA/email berbeda dan batasi link.
 - Pesan penghapusan dan keamanan perlu review/approval tambahan.
 
-## 7. Gap analysis berprioritas
+## 6.4 Reconciliation hasil audit dengan SSOT — 29 Okt 2026
+
+Gap di §7 dan reliability list §7.1 adalah snapshot 26 Okt, **bukan status sekarang**. Gunakan tabel ini bersama phase/traceability SSOT:
+
+| Finding (ID SSOT) | Kondisi terkini yang terbukti | Status / bukti |
+|---|---|---|
+| Welcome/payment/template/P0, G1–G4/G7/G19 | Implementasi correctness + template validator; `trialDays`/kolom fosil ditangani migrasi | DONE & LIVE menurut SSOT; lihat F1/G1–G4/G7/G19, release dan tests di progress log. |
+| G5/G22 schedule/billing | Code dan unit tests live; run 29 Okt 01:00 berstatus sukses tetapi `checked=0`, jadi tak mengeksekusi perilaku milestone | IMPLEMENTED, runtime behavior NOT EXERCISED; masih terbuka untuk bukti applicable. |
+| G8, F4 partner lifecycle | Shared platform email queue + in-app partner inbox, hooks, expiry/replay safety | IMPLEMENTED & LIVE; E2E lifecycle real/test recipient belum lulus/diizinkan. |
+| G9/G10/G20/G29 | Lease + UNKNOWN, targeted dispatch, replay controls, evidence-tier dashboard/reconcile | Implemented/live per SSOT; masih perlu cek keseluruhan permukaan UI tier dan operasional replay/alert queue. |
+| G11/G13 booking | Request idempotency + reference/confirmation behavior | Live per SSOT; historical statement “no customer confirmation” sudah superseded. |
+| G12/G18/F5 | DB template editor + version history/rollback | Live; preview/test-send allowlist belum ditemukan dalam code audit 29 Okt (`admin/notifikasi/page.tsx`, `platform-template-service.ts`). |
+| G14 push fallback | Push fallback implemented/live per SSOT 1c6a9eb | Historical P2 gap superseded; verify tests/live evidence in SSOT. |
+| G21/G30 job failure alerts | Audit log + admin email alerts live (`43d6e17`); WA plan partial failures also alert (`5a2e30d`) | Live; no full injected failure/email delivery performed (avoid real recipient without approval). Stale/old-queued/no-run alerts remain open. |
+| G23 BillingPolicy copy | Four copy columns removed after R1, backup + migration + verify | DONE & VALID per SSOT, release `d64c6d4` + migration `20261029060000`. |
+| Direct WA invoices/receipts/technician invite | Direct `gatewaySend` paths still bypass MessageLog/status/lease | Confirmed residual by source search 29 Okt; explicitly open in SSOT; no unapproved migration. |
+
+## 7. Gap analysis berprioritas — historical findings (26 Okt), not open-work ledger
+
+Findings below are audit-time gaps. Many were closed by subsequent implementation; use §6.4 reconciliation + SSOT traceability to determine current state. Rows with residuals must be assessed against current source/release evidence.
 
 | Prioritas | Gap | Dampak | Rekomendasi |
 |---|---|---|---|
-| P0 | Welcome tidak gate paket dan copy salah untuk Basic | Salah ekspektasi, instruksi fitur yang tidak dimiliki | Varian welcome berbasis `autoReminder`; Basic dilarang menerima klaim tautkan/otomatis |
-| P0 | Tidak ada notifikasi upgrade/aktivasi sukses | Pengguna Pro tidak tahu langkah setup WA | Event idempoten pasca-aktivasi subscription; tautkan halaman koneksi |
-| P0 | Placeholder paket/nominal subscription_due tidak diisi | Pesan tagihan tidak lengkap | Ambil data invoice/subscription dan validasi placeholder sebelum antre |
-| P0 | trial_ending/trialDays masih muncul walau Basic gratis selamanya | Potensi ancaman palsu masa habis | Hentikan event untuk Basic; hapus/retire key setelah migrasi dan pastikan tidak ada tenant berstatus Trial berbayar yang sah |
-| P1 | Dunning dan platform overdue overlap, kanal/routing berbeda | Duplikasi, status dan link bisa bertentangan | Tetapkan satu state machine/owner event; dedupe lintas kanal/event dan satu timeline per tenant |
-| P1 | Tidak ada recovery WA connected; disconnect template tak paham paket | Tenant tidak tahu otomasi pulih; false warning Basic | Emit state transition hanya untuk paket berhak; pesan putus dan pulih dengan status yang terverifikasi |
-| P1 | Tidak ada event gagal/tertunda pembayaran | Tenant bingung status upgrade | Notifikasi/in-app event payment state idempoten; pisahkan pending, failed, expired, paid |
-| P1 | Tidak ada notifikasi agent/reseller | Operasi mitra bergantung portal/manual share | Buat event bisnis terstruktur dan email/in-app; mulai dari approval dan payout PAID |
-| P1 | Tidak ada sent/read outcome konsisten di UI untuk platform log | Admin sulit membedakan accepted/ delivered/read | Tampilkan status gateway ack; jangan menyebut SENT = delivered/read |
-| P1 | Baris PlatformNotification berstatus SENDING tidak punya lease/reclaim; percobaan ulang berisiko duplikasi bila hasil provider ambigu | Pesan dapat tertahan permanen atau terkirim ganda saat retry naif | Lease/timeout + reconciliation idempotensi provider + alert stale SENDING; jangan auto-requeue tanpa bukti hasil |
-| P1 | Booking Lead bisa tersimpan tetapi action mengembalikan error bila write notifikasi in-app gagal | Pemesan dapat submit ulang dan menyisakan lead duplikat | Pisahkan write notifikasi dari commit lead (best-effort/outbox); jadikan request booking idempoten |
-| P1 | Tidak ada template center lintas flow | Copy tersebar, sulit diperbaiki dan rawan beda versi | Admin Template & Notifikasi dengan katalog + versi + preview + audit |
-| P2 | Booking hanya notifikasi in-app tenant; customer tidak menerima receipt | Pemesan tak punya bukti permintaan | Tampilkan konfirmasi dengan booking/reference ID; email/WA hanya bila alamat/consent tersedia |
-| P2 | Push tugas hardcode dan tak ada fallback eksplisit | Teknisi bisa melewatkan assignment | Preferensi kanal dan status push; fallback in-app, jangan kirim broadcast tanpa consent |
-| P2 | Klaim landing mencampur fitur paket | Akuisisi menyampaikan janji tak sesuai gate | Perbaiki copy landing/schema FAQ: Basic manual; Pro/Business otomatis setelah WA tersambung |
-| P2 | Keamanan, gangguan, pemeliharaan tidak punya katalog event yang ditemukan | Pengguna tidak mendapat informasi penting | Tambahkan email/in-app operasional dan security notifications terukur |
+| P0 (G1) | Welcome tidak gate paket dan copy salah untuk Basic (historical) | Salah ekspektasi, instruksi fitur yang tidak dimiliki | **CLOSED & LIVE** per SSOT G1: varian welcome berbasis `autoReminder`; Basic dilarang menerima klaim tautkan/otomatis. |
+| P0 (G2) | Tidak ada notifikasi upgrade/aktivasi sukses (historical) | Pengguna Pro tidak tahu langkah setup WA | **CLOSED & LIVE** per SSOT G2: event pasca-PAID idempoten; status detail di SSOT. |
+| P0 (G3) | Placeholder paket/nominal subscription_due tidak diisi (historical) | Pesan tagihan tidak lengkap | **CLOSED & LIVE** per SSOT G3: nominal/paket diisi dan validasi wajib. |
+| P0 | trial_ending/trialDays (historical gap) | Potensi ancaman palsu masa habis | **CLOSED** per SSOT G4/G19: `trial_ending`, policy field `BillingPolicy.trialDays`, dan kolom DB retired; jangan memperlakukan sebagai gap aktif. |
+| P1 (G5) | Dunning dan platform overdue overlap, kanal/routing berbeda | Duplikasi, status dan link bisa bertentangan | Implementasi email-only platform owner vs tenant WA dunning LIVE; G5 operational no-duplicate belum exercised pada run 29 Okt (eligible rows=0), jadi behavior runtime pending verification. |
+| P1 (G6) | Tidak ada recovery WA connected; disconnect template tak paham paket (historical) | Tenant tidak tahu otomasi pulih; false warning Basic | **CLOSED & LIVE** per SSOT G6: callback transition + epoch, `autoReminder` gate. |
+| P1 (G7) | Tidak ada event gagal/tertunda pembayaran (historical) | Tenant bingung status upgrade | **CLOSED & LIVE** per SSOT G7: pending→terminal payment outcome events idempotent. |
+| P1 (G8/F4) | Tidak ada notifikasi agent/reseller (historical) | Operasi mitra bergantung portal/manual share | Partner event/email/in-app implemented live; E2E lifecycle remains pending. |
+| P1 (G9) | Tidak ada sent/read outcome konsisten di UI untuk platform log (historical) | Admin sulit membedakan accepted/ delivered/read | Dashboard evidence tiers LIVE (`5565638`); inspect residual scope in SSOT F3 if any. |
+| P1 (G10) | Baris PlatformNotification berstatus SENDING tanpa lease (historical) | Pesan dapat tertahan atau terkirim ganda saat retry naif | **G10 core CLOSED & LIVE:** lease/stale→UNKNOWN; no auto resend. Stale/queued/no-run escalation masih residual F3. |
+| P1 (G11) | Booking Lead bisa tersimpan tetapi action mengembalikan error (historical) | Pemesan dapat submit ulang dan menyisakan lead duplikat | **Core G11 CLOSED & LIVE:** request idempotency/failure safety; lihat SSOT. Residual customer confirmation G13 independently addressed. |
+| P1 (G12/G18) | Tidak ada template center lintas flow (historical) | Copy tersebar | DB editor/version/rollback LIVE; preview/test-send allowlist remains OPEN per SSOT F5/G18. |
+| P2 (G13) | Booking hanya notifikasi in-app tenant; customer tanpa receipt (historical) | Pemesan tak punya bukti permintaan | **CLOSED & LIVE** per SSOT G13: reference/confirmation implemented. Audit legacy `booking_confirm_customer` key has zero consumer and was removed under G23. |
+| P2 (G14) | Push tugas hardcode dan tak ada fallback eksplisit (historical) | Teknisi bisa melewatkan assignment | **G14 fallback CLOSED & LIVE** per release `1c6a9eb`; see SSOT. |
+| P2 (G15) | Klaim landing mencampur fitur paket (historical) | Akuisisi menyampaikan janji tak sesuai gate | **CLOSED & LIVE** per SSOT G15/release `b560629`; preserve owner-approved copy. |
+| P2 (G16) | Security/maintenance events not catalogued (historical) | Pengguna tidak mendapat informasi penting | Security events G16 live; broad maintenance/outage/status-page catalog remains unverified/out of current closure evidence. |
 
-## 7.1 Temuan reliability & bukti yang belum tegas
+## 7.1 Temuan reliability & bukti yang belum tegas — snapshot audit-time, 26 Okt
 
-Bagian ini memuat temuan yang saya verifikasi sendiri terhadap kode, terpisah dari sub-audit, karena sebagian menyangkut keandalan pengiriman.
+Bagian ini merekam temuan awal yang diverifikasi saat itu, bukan klaim current-state. Sejak audit, G10 lease, G11 booking idempotency, G20 targeted dispatch, G21 alerts, dan G29 reconcile telah berubah; tabel §6.4 mengklasifikasikan ulang. Temuan direct gateway paths tetap perlu audit terpisah.
 
 **Batas verifikasi delivery:** audit independen terhadap subsystem PlatformNotification mengonfirmasi source/test (3 file, 21 tes lulus), tetapi tidak memverifikasi delivery gateway/SMTP live atau bahwa seluruh source snapshot sama dengan release produksi. Secara terpisah, pemeriksaan VPS pada 26 Okt membuktikan timer cron aktif dan journal satu run menunjukkan `platformDispatch.sent:2`, `failed:0`; ini bukti dispatcher melaporkan dua operasi terkirim pada run tersebut, bukan bukti perangkat penerima membaca pesan atau bukti setiap event selalu berhasil. Status `SENT` tidak boleh disamakan dengan `DELIVERED`/`READ_CONFIRMED`.
 
@@ -272,7 +291,7 @@ Bagian ini memuat temuan yang saya verifikasi sendiri terhadap kode, terpisah da
 5. **Kirim manual berpotensi duplikasi.** Aksi manual tidak menyertakan `dedupeKey`, dan dispatcher memproses antrean QUEUED global, bukan hanya baris yang baru dibuat (`actions.ts:18-30`; `platform-notification-service.ts:24,55-59`).
 6. **`SENT` bukan bukti pengiriman.** Status SENT berarti gateway/SMTP menerima operasi; hanya callback WA yang dapat menaikkan ke DELIVERED/READ_CONFIRMED. Jalur email tidak memiliki ACK sama sekali (`platform-notification-dispatch.ts:48-53`; `api/wa/callback/route.ts:80-99`).
 7. **Jadwal cron telah diverifikasi aktif di live (koreksi hasil audit awal).** VPS menjalankan `aircon-dunning.timer` pukul 01:00, `aircon-reminders.timer` pukul 02:00, dan `aircon-reconcile.timer` pukul 03:00; ketiganya enabled. `aircon-dunning.service` memanggil `/opt/aircon-app/run-cron.sh dunning`, yang mengirim POST ke `/api/cron/dunning` dengan `CRON_SECRET`. Journal live untuk 26 Okt 2026 menunjukkan dunning `checked:1`, `remindersSent:1`, tenant flush `sent:1`, dan platform dispatch `sent:2`, exit status 0. Jadi **cron bukan gap**; jangan menyatakan tidak aktif. Catatan ini merupakan bukti run terbaru, bukan jaminan semua hari selalu sukses. Route tetap membungkus tahapan dalam satu `try`, sehingga exception di tahap awal dapat melewati siklus notifikasi platform hari itu (`api/cron/dunning/route.ts:24-36`).
-8. **Rentang "0..3 hari" bergantung jam tersimpan.** Perbandingan memakai timestamp (`dueDate < now`, `dueDate <= now + 3 hari`) dan dedupe harian dihitung dari UTC, sehingga batas hari kalender bisa bergeser (`platform-notify-cycle.ts:17-19,42-70`).
+8. **G22 historical, superseded:** masalah timestamp/UTC di atas diperbaiki via kalender zona tenant (`dayDifferenceInZone`/`dayKeyInZone`) dan release `80ee6c4`; unit tests mencakup boundary. Run 29 Okt tidak punya tenant eligible (`checked=0`), jadi live runtime milestone behavior belum terekspos. Lihat SSOT G22.
 
 ## 8. Urutan business process dan katalog event yang direkomendasikan
 

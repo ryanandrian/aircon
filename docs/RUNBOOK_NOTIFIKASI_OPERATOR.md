@@ -11,7 +11,7 @@
 | Platform → Owner | Aircon → owner tenant (tagihan, WA, email) | `PlatformNotification` | `InfraConfig.notifySendEnabled` |
 | Tenant → Pelanggan | sesi WA tenant → pelanggan (pengingat, tagihan, undangan) | `MessageLog` (channel WA, OUTBOUND) | `InfraConfig.waSendEnabled` |
 | Tenant internal | Aircon → in-app tenant (booking baru) | `TenantNotification` | — |
-| Mitra | agent/reseller | — | — (belum ada outbound notifikasi) |
+| Mitra | Aircon → agent/reseller | `PlatformNotification` + `PartnerNotification` | Email queue + in-app; WA ditahan sampai consent (F4 LIVE; E2E bisnis penuh masih pending) |
 
 **Prinsip yang tak boleh dilanggar**
 
@@ -111,10 +111,8 @@ penerima. Karena itu pengiriman ulang **tidak** dilakukan otomatis.
 
 1. Tentukan apakah pesan benar-benar belum sampai (cek riwayat di sisi penerima
    bila memungkinkan).
-2. Bila yakin belum sampai → **Kirim Ulang** (dedupeKey tetap menjaga tak ada
-   duplikat).
-3. Bila tidak yakin → biarkan; biarkan tercatat sebagai `UNKNOWN` untuk
-   keperluan audit.
+2. Jangan menganggap `dedupeKey` platform selalu menjadi idempotency key provider. Verifikasi gateway/provider outcome dan ikuti prosedur operator admin yang berlaku; bila belum yakin, jangan replay.
+3. Bila masih ambiguous → biarkan `UNKNOWN`, catat keputusan/aktor/bukti, eskalasi sesuai incident process. Replay hanya dengan permission, scoped satu baris, audit log, dan approval operator yang berwenang.
 
 ### 2c. Status `QUEUED` terlalu lama (> 1 jam)
 
@@ -239,8 +237,7 @@ Kegagalan cron TIDAK lagi hanya terlihat di journal. Saat ada kegagalan:
 - **Jejak pasti** ditulis ke `PlatformAuditLog` (aksi `JOB_FAILURE_ALERT`,
   target `job-failure:<job>:<tahap>:<YYYY-MM-DD>`).
 - **Email** dikirim ke seluruh admin platform aktif (SMTP yang sudah dipakai
-  notifikasi platform). opsional — bila SMTP belum dikonfigurasi, yang terjadi
-  hanya jejak audit.
+  notifikasi platform). Pada audit 29 Okt SMTP env terkonfigurasi dan 2 admin aktif; pengiriman email alert nyata belum diuji. Bila konfigurasi tidak tersedia, hanya jejak audit yang dipastikan.
 - **Anti-spam**: satu alert per (job, tahap, hari) — cron harian yang gagal
   berkali-kali tak mengirim email tiap jam.
 - Alert TIDAK mengubah status/respon job (cron tetap balas 500 agar journal
@@ -261,13 +258,10 @@ order by "createdAt" desc limit 20;
 
 ## 8. Yang BELUM ada (jangan diasumsikan ada)
 
-- **Belum ada outbound notifikasi ke agent/reseller.** Jangan menulis ke tabel
-  notifikasi mitra dengan asumsi.
-- **Belum ada push notification** sebagai fallback; kanal aktif: WA, email,
-  in-app.
+- Partner outbound email/in-app ada dan live (F4); jangan menganggap WA mitra aktif—tetap ditahan sampai consent dan nomor terverifikasi. Lifecycle E2E masih perlu bukti mitra eligible.
+- Push notification untuk assignment tersedia; fallback dan evidence status harus mengikuti implementasi `PushSubscription`. G14 fallback saat pengiriman utama gagal permanen sudah diterapkan; jangan menyamakan push yang dicoba dengan diterima/dibaca.
 - Alert otomatis saat cron/job gagal **SUDAH ada** (email ke admin platform
   + jejak `PlatformAuditLog`) — lihat §7b. Yang belum ada: alert ke Telegram
   dan notifikasi dalam aplikasi khusus operator (sekarang cukup email + jejak
   audit yang tampil di Admin → Notifikasi).
-- **Copy landing yang live** masih berisi kalimat lama ("semua otomatis").
-  Perbarui lewat Admin → Landing, bukan lewat kode.
+- Copy landing telah dikoreksi live 2026-10-28 (lihat tracker F1/G15). Jangan kembalikan klaim lama “semua otomatis”; Basic = manual, paket berbayar otomatis hanya setelah WA tersambung.
