@@ -49,11 +49,17 @@ describe("alert kegagalan job (F3/G21/G30)", () => {
   it("kegagalan → jejak audit TERTULIS (kanal pasti)", async () => {
     const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
     expect(r.audited).toBe(true);
-    expect(auditCreate).toHaveBeenCalledTimes(1);
+    // Dua baris audit: (1) jejak kegagalan, (2) marker "email terkirim".
+    // Keduanya punya target berbeda — pemisahan ini yang mencegah email alert
+    // hilang permanen bila SMTP gagal di percobaan pertama.
+    expect(auditCreate).toHaveBeenCalledTimes(2);
     const arg = auditCreate.mock.calls[0][0].data;
     expect(arg.action).toBe("JOB_FAILURE_ALERT");
     expect(arg.target).toContain("job-failure:dunning:purge:");
     expect(arg.metadata.error).toBe("db down");
+    const marker = auditCreate.mock.calls[1][0].data;
+    expect(marker.action).toBe("JOB_FAILURE_ALERT_EMAIL_DELIVERED");
+    expect(marker.target).toContain("job-failure-email-delivered:dunning:purge:");
   });
 
   it("email terkirim ke SEMUA admin platform aktif", async () => {
@@ -66,7 +72,12 @@ describe("alert kegagalan job (F3/G21/G30)", () => {
 
   it("ANTI-SPAM: alert kedua hari yang sama tak menambah jejak/email", async () => {
     // Sudah ada baris audit untuk (job, tahap, hari) → tak ada alert baru.
-    auditFindFirst.mockResolvedValue({ id: "a-older" });
+    // Marker email-delivered juga sudah ada ⇒ tak ada email ulang.
+    auditFindFirst.mockImplementation(async ({ where }: { where: { target?: unknown } }) => {
+      const target = where.target as string;
+      if (target.startsWith("job-failure-email-delivered:")) return { id: "m-older" };
+      return { id: "a-older" };
+    });
     const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
     expect(auditCreate).not.toHaveBeenCalled();
     expect(sendEmail).not.toHaveBeenCalled();

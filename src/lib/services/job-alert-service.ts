@@ -16,7 +16,8 @@
  * `PlatformNotification_target_check` mewajibkan tepat satu target
  * (tenant / agent / reseller). Alert internal platform tak punya penerima
  * eksternal ⇒ tak boleh membuat baris itu (akan ditolak DB). Jejak +
- * email sudah cukup, dan Admin → Notifikasi membaca `PlatformAuditLog`.
+ * email sudah cukup; jejak alert kini tampil di Admin → Notifikasi melalui
+ * panel read-only (`listJobAlerts`).
  *
  * ANTI-SPAM: satu alert per (job, hari) — cron harian yang gagal tiap jam
  * tak boleh mengirim email tiap jam. Dedupe via `dedupeKey` unik di
@@ -53,6 +54,12 @@ export interface JobFailureAlertResult {
   emailed: number;
   /** Alasan kegagalan (kalau ada). */
   problems: string[];
+  /** True bila alert ini sudah pernah mencoba mengirim email hari ini. */
+  emailAttempted?: boolean;
+  /** True bila email alert hari ini dikonfirmasi diterima SMTP. */
+  emailDelivered?: boolean;
+  /** Ringkasan domain SMTP terakhir, tanpa menyimpan recipient/message content. */
+  emailResults?: { attempted: number; delivered: number; lastError: string | null };
 }
 
 /** Potong error agar muat & aman disimpan. */
@@ -207,6 +214,13 @@ export async function alertStaleNotificationQueues(
     staleMessageLogSending: result.staleMessageLogSending,
   };
   const target = `stale-notification-queues:${dayKey}`;
+  /**
+   * Penanda "email alert stale hari ini SUDAH terkirim" — TERPISA dari baris
+   * jejak (`target`), dengan alasan yang sama seperti `alertJobFailure`: bila
+   * penanda ikut memakai baris jejak, kegagalan SMTP di percobaan pertama akan
+   * membuat email tak pernah terkirim sampai ganti hari.
+   */
+  const emailDeliveredTarget = `stale-notification-queues-email-delivered:${dayKey}`;
   let isFirstAlertToday = false;
   try {
     const previous = await prisma.platformAuditLog.findFirst({ where: { target } });
@@ -226,7 +240,17 @@ export async function alertStaleNotificationQueues(
     result.problems.push(`audit: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  if (isFirstAlertToday) {
+  // Anti-spam email: penanda terpisah. Bila penanda belum ada ⇒ email dicoba
+  // lagi (SMTP mungkin gagal sesaat pada percobaan pertama).
+  let emailAlreadyDelivered = false;
+  try {
+    const marker = await prisma.platformAuditLog.findFirst({ where: { target: emailDeliveredTarget } });
+    emailAlreadyDelivered = Boolean(marker);
+  } catch (e) {
+    result.problems.push(`email-marker: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  if (!emailAlreadyDelivered) {
     try {
       const admins = await prisma.platformAdmin.findMany({ where: { active: true }, select: { email: true } });
       if (admins.length) {
@@ -242,10 +266,28 @@ export async function alertStaleNotificationQueues(
             "Tidak ada status yang diubah dan tidak ada pesan yang dikirim ulang oleh pemeriksaan ini.",
             "Tinjau Admin → Notifikasi dan journal sebelum melakukan replay.",
           ].join("\n");
+          let delivered = 0;
           for (const admin of admins) {
             const sent = await sendEmail(admin.email, `[Aircon] Antrean notifikasi stale — ${dayKey}`, body);
-            if (sent.ok) result.emailed += 1;
+            if (sent.ok) delivered += 1;
             else result.problems.push(`email: ${sent.error ?? "gagal"}`);
+          }
+          result.emailed = delivered;
+          // Penanda ditulis hanya bila SEMUA admin menerima ⇒ email tak hilang
+          // permanen kalau sebagian gagal.
+          if (delivered === admins.length) {
+            try {
+              await prisma.platformAuditLog.create({
+                data: {
+                  actor: "system:job-alert",
+                  action: "STALE_NOTIFICATION_QUEUE_ALERT_EMAIL_DELIVERED",
+                  target: emailDeliveredTarget,
+                  metadata: { dayKey, delivered },
+                },
+              });
+            } catch (e) {
+              result.problems.push(`email-marker: ${e instanceof Error ? e.message : String(e)}`);
+            }
           }
         }
       }
@@ -256,6 +298,65 @@ export async function alertStaleNotificationQueues(
   if (result.problems.length) console.error("[job-alert] stale queue alert partial failure:", result.problems.join("; "));
   result.queueAlerts = result.audited ? 1 : 0;
   return result;
+}
+
+/**
+ * Baca jejak alert job untuk ditampilkan di Admin (READ-ONLY).
+ *
+ * DASAR: komentar di file ini dan Runbook mengklaim "Admin → Notifikasi
+ * membaca PlatformAuditLog". Sebelum fungsi ini, TIDAK ADA kode yang
+ * membacanya untuk UI — jejak "pasti" hanya bisa dilihat lewat psql, jadi
+ * operator tak pernah melihat alert cron gagal di panel yang dia gunakan
+ * setiap hari. Fungsi ini menutup celah itu tanpa mengubah skema.
+ *
+ * Tidak menulis apa pun. Baris `CRON_DUNNING_HEARTBEAT` dikecualikan karena
+ * itu sinyal internal "cron jalan", bukan alert operator.
+ */
+export interface JobAlertRow {
+  id: string;
+  actor: string;
+  action: string;
+  target: string;
+  /** Ringkasan error (dipotong) — tanpa data tenant/pelanggan. */
+  error: string | null;
+  stage: string | null;
+  job: string | null;
+  /** Email alert sudah diterima SMTP untuk alert ini? (marker terpisah) */
+  emailDelivered: boolean;
+  createdAt: Date;
+}
+
+export async function listJobAlerts(limit = 20): Promise<JobAlertRow[]> {
+  const rows = await prisma.platformAuditLog.findMany({
+    where: { action: { in: ["JOB_FAILURE_ALERT", "STALE_NOTIFICATION_QUEUE_ALERT"] } },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  if (rows.length === 0) return [];
+  // Marker "email terkirim" dicari per target alert agar panel bisa
+  // membedakan "jejak ada, tapi email belum sampai" dari "sudah sampai".
+  const delivered = await prisma.platformAuditLog.findMany({
+    where: {
+      action: "JOB_FAILURE_ALERT_EMAIL_DELIVERED",
+      target: { in: rows.map((r) => r.target) },
+    },
+    select: { target: true },
+  });
+  const deliveredTargets = new Set(delivered.map((d) => d.target));
+  return rows.map((r) => {
+    const metadata = (r.metadata ?? {}) as { error?: string; stage?: string | null; job?: string };
+    return {
+      id: r.id,
+      actor: r.actor,
+      action: r.action,
+      target: r.target,
+      error: metadata.error ? clip(metadata.error, 300) : null,
+      stage: metadata.stage ?? null,
+      job: metadata.job ?? null,
+      emailDelivered: deliveredTargets.has(r.target),
+      createdAt: r.createdAt,
+    };
+  });
 }
 
 /**
@@ -275,7 +376,17 @@ export async function alertJobFailure(input: JobFailureAlertInput): Promise<JobF
   // gagal berkali-kali tak boleh menumpuk baris audit tiap jam.
   const dayKey = input.dayKey ?? new Date().toISOString().slice(0, 10);
   const auditTarget = `job-failure:${job}:${stage ?? "-"}:${dayKey}`;
-  /** True bila ini alert PERTAMA untuk job+tahap hari ini (dasar anti-spam). */
+  /**
+   * Target penanda "email alert hari ini SUDAH terkirim". Sengaja TERPISA dari
+   * `auditTarget`: bila penanda email ikut memakai baris audit, maka ketika
+   * SMTP gagal sesaat pada percobaan pertama, baris audit sudah ada ⇒
+   * percobaan berikutnya menganggap "sudah dialerkan" ⇒ email TIDAK PERNAH
+   * terkirim sampai ganti hari. Alert cron gagal = kerusakan produksi ⇒
+   * operator wajib diberi tahu; email yang hilang diam-diam adalah cacat.
+   * (Gejala nyata: 29 Okt 2026, `job-failure:dunning-no-run:-:2026-10-29`.)
+   */
+  const emailDeliveredTarget = `job-failure-email-delivered:${job}:${stage ?? "-"}:${dayKey}`;
+  /** True bila ini alert PERTAMA untuk job+tahap hari ini (dasar anti-spam jejak). */
   let isFirstAlertToday = false;
   try {
     const dup = await prisma.platformAuditLog.findFirst({ where: { target: auditTarget } });
@@ -301,11 +412,21 @@ export async function alertJobFailure(input: JobFailureAlertInput): Promise<JobF
   }
 
   // ── 2) EMAIL KE ADMIN PLATFORM (opsional) ───────────────────────────────
-  // Satu email per job per hari (dedupe baris audit di atas = penanda hari ini
-  // sudah dialerkan). Kegagalan email tak menggagalkan yang lain.
-  // Email HANYA bila alert ini yang pertama hari ini (anti-spam: cron harian
-  // yang gagal berkali-kali tak boleh email tiap jam).
-  if (isFirstAlertToday) {
+  // Anti-spam: satu email per (job, tahap, hari) — ditandai oleh baris audit
+  // KHUSUS email (bukan baris jejak kegagalan). Bila penanda ini belum ada,
+  // email dicoba lagi: kegagalan SMTP sebelumnya tak boleh menjatuhkan
+  // notifikasi operator sampai hari berikutnya.
+  let emailAlreadyDelivered = false;
+  try {
+    const marker = await prisma.platformAuditLog.findFirst({ where: { target: emailDeliveredTarget } });
+    emailAlreadyDelivered = Boolean(marker);
+  } catch (e) {
+    result.problems.push(`email-marker: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  result.emailAttempted = !emailAlreadyDelivered;
+  result.emailDelivered = emailAlreadyDelivered;
+
+  if (!emailAlreadyDelivered) {
     try {
       const admins = await prisma.platformAdmin.findMany({
         where: { active: true },
@@ -325,10 +446,36 @@ export async function alertJobFailure(input: JobFailureAlertInput): Promise<JobF
             "Cek: journalctl -u aircon-app | tail -50",
             "Admin → Notifikasi: Jalankan Rekonsiliasi untuk melihat antrean bermasalah.",
           ].filter(Boolean).join("\n");
+          let delivered = 0;
+          let lastError: string | null = null;
           for (const a of admins) {
             const r = await sendEmail(a.email, subject, body);
-            if (r.ok) result.emailed += 1;
-            else result.problems.push(`email ${a.email}: ${r.error ?? "gagal"}`);
+            if (r.ok) delivered += 1;
+            else {
+              lastError = r.error ?? "gagal";
+              result.problems.push(`email ${a.email}: ${lastError}`);
+            }
+          }
+          result.emailed = delivered;
+          result.emailResults = { attempted: admins.length, delivered, lastError };
+          // Penanda "sudah delivers" hanya ditulis bila SEMUA admin aktif
+          // menerima email. Bila sebagian gagal, penanda tak ditulis ⇒
+          // percobaan berikutnya mengirim lagi ke yang belum sampai (dan
+          // operator tak pernah kehilangan notifikasi).
+          if (delivered === admins.length && admins.length > 0) {
+            try {
+              await prisma.platformAuditLog.create({
+                data: {
+                  actor: "system:job-alert",
+                  action: "JOB_FAILURE_ALERT_EMAIL_DELIVERED",
+                  target: emailDeliveredTarget,
+                  metadata: { job, stage: stage ?? null, dayKey, delivered },
+                },
+              });
+              result.emailDelivered = true;
+            } catch (e) {
+              result.problems.push(`email-marker: ${e instanceof Error ? e.message : String(e)}`);
+            }
           }
         }
       }

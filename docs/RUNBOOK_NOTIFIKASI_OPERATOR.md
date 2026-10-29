@@ -258,11 +258,20 @@ Contoh penerapan: drill kill-switch + uji notifikasi mitra 2026-10-28 —
 Kegagalan cron TIDAK lagi hanya terlihat di journal. Saat ada kegagalan:
 
 - **Jejak pasti** ditulis ke `PlatformAuditLog` (aksi `JOB_FAILURE_ALERT`,
-  target `job-failure:<job>:<tahap>:<YYYY-MM-DD>`).
+  target `job-failure:<job>:<tahap>:<YYYY-MM-DD>`). Jejak ini SEKARANG TAMPIL
+  di Admin → Notifikasi → panel **"Jejak Alert Cron"** (baca-saja).
 - **Email** dikirim ke seluruh admin platform aktif (SMTP yang sudah dipakai
   notifikasi platform). Pada audit 29 Okt SMTP env terkonfigurasi dan 2 admin aktif; pengiriman email alert nyata belum diuji. Bila konfigurasi tidak tersedia, hanya jejak audit yang dipastikan.
-- **Anti-spam**: satu alert per (job, tahap, hari) — cron harian yang gagal
-  berkali-kali tak mengirim email tiap jam.
+- **Anti-spam**: satu email per (job, tahap, hari) — cron harian yang gagal
+  berkali-kali tak mengirim email tiap jam. Penanda "email sudah terkirim"
+  (`JOB_FAILURE_ALERT_EMAIL_DELIVERED`, target
+  `job-failure-email-delivered:<job>:<tahap>:<YYYY-MM-DD>`) **terpisah** dari
+  baris jejak kegagalan: bila SMTP gagal sesaat di percobaan pertama, email
+  dicoba lagi pada percobaan berikutnya di hari yang sama (sebelum perbaikan ini
+  email alert bisa hilang sampai ganti hari).
+- Panel "Jejak Alert Cron" membedakan dua keadaan: "Email terkirim" vs
+  "Jejak tersimpan — email belum terkonfirmasi". Yang kedua artinya operator
+  wajib menunggu/memicu ulang; jangan dianggap sudah diberi tahu.
 - Alert TIDAK mengubah status/respon job (cron tetap balas 500 agar journal
   menandai exit non-zero), dan kegagalannya sendiri tak menjatuhkan job.
 
@@ -270,7 +279,7 @@ Job yang diawasi: `dunning` (per tahap: dunning/purge/inactivity/dispatch/
 platformNotify/platformDispatch), `reminders`, `reconcile`, dan `ipaymu-webhook`
 (callback pembayaran — uang masuk tapi langganan tak diproses).
 
-Cara cepat melihat jejak alert:
+Cara cepat melihat jejak alert (SQL — untuk investigasi mendalam):
 
 ```sql
 select "target", metadata->>'error' as error, "createdAt"
@@ -279,12 +288,17 @@ where action = 'JOB_FAILURE_ALERT'
 order by "createdAt" desc limit 20;
 ```
 
+Cara cepat melihat jejak alert (UI): **Admin → Notifikasi → "Jejak Alert
+Cron"**. Panel ini menampilkan 20 alert terakhir (kegagalan job + antrean
+stale) beserta status email-nya, tanpa perlu akses database.
+
 ## 8. Yang BELUM ada (jangan diasumsikan ada)
 
 - Partner outbound email/in-app ada dan live (F4); jangan menganggap WA mitra aktif—tetap ditahan sampai consent dan nomor terverifikasi. Lifecycle E2E masih perlu bukti mitra eligible.
 - Push notification untuk assignment tersedia; fallback dan evidence status harus mengikuti implementasi `PushSubscription`. G14 fallback saat pengiriman utama gagal permanen sudah diterapkan; jangan menyamakan push yang dicoba dengan diterima/dibaca.
 - Alert otomatis saat cron/job gagal **SUDAH ada** (email ke admin platform
-  + jejak `PlatformAuditLog`) — lihat §7b. Yang belum ada: alert ke Telegram
-  dan notifikasi dalam aplikasi khusus operator (sekarang cukup email + jejak
-  audit yang tampil di Admin → Notifikasi).
+  + jejak `PlatformAuditLog`) — lihat §7b. Jejak alert kini tampil di
+  Admin → Notifikasi (panel "Jejak Alert Cron"). Yang belum ada: alert ke
+  Telegram (tanpa persetujuan/credential) dan notifikasi dalam aplikasi khusus
+  operator di luar panel Admin.
 - Copy landing telah dikoreksi live 2026-10-28 (lihat tracker F1/G15). Jangan kembalikan klaim lama “semua otomatis”; Basic = manual, paket berbayar otomatis hanya setelah WA tersambung.

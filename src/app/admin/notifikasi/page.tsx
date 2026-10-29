@@ -7,15 +7,17 @@ import { listActiveTemplates, listTemplateRevisions } from "@/lib/services/platf
 import { isNotifySendEnabled, isWaSendEnabled } from "@/lib/services/infra-config-service";
 import { PLATFORM_TEMPLATES, knownVariables, PARTNER_TEMPLATE_KEYS, type PlatformTemplateKey } from "@/lib/domain/platform-templates";
 import { NotifPanel } from "./notif-panel";
+import { JobAlertPanel } from "./job-alert-panel";
 import { LumiteWaConnect } from "./lumite-wa-connect";
 import { TemplateEditor, type TemplateView, type RevisionView } from "./template-editor";
+import { listJobAlerts } from "@/lib/services/job-alert-service";
 
 export const dynamic = "force-dynamic";
 
 const EVENT_ONLY = new Set<string>(["subscription_activated", "payment_failed", "payment_expired", "booking_inapp"]);
 
 export default async function AdminNotifikasiPage() {
-  const [summary, rows, tenants, active, health, sendEnabled, waSendEnabled, revisionLists] = await Promise.all([
+  const [summary, rows, tenants, active, health, sendEnabled, waSendEnabled, revisionLists, alerts] = await Promise.all([
     getPlatformNotifSummary(),
     listPlatformNotifs(50),
     listTenants({ limit: 50 }),
@@ -26,6 +28,7 @@ export default async function AdminNotifikasiPage() {
     Promise.all(
       (Object.keys(PLATFORM_TEMPLATES) as PlatformTemplateKey[]).map((k) => listTemplateRevisions(k, 5)),
     ),
+    listJobAlerts(20),
   ]);
   const templates = platformTemplateOptions();
   const revisionsByKey = new Map<string, RevisionView[]>();
@@ -62,6 +65,18 @@ export default async function AdminNotifikasiPage() {
         </p>
       </div>
       <LumiteWaConnect />
+      <JobAlertPanel
+        rows={alerts.map((a) => ({
+          id: a.id,
+          action: a.action,
+          target: a.target,
+          job: a.job,
+          stage: a.stage,
+          error: a.error,
+          emailDelivered: a.emailDelivered,
+          createdAt: a.createdAt.toISOString(),
+        }))}
+      />
       <TemplateEditor templates={views} />
       <NotifPanel
         summary={summary}
