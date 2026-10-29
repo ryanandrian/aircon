@@ -140,12 +140,25 @@ Semua copy pesan **platform** dikelola di Admin → Notifikasi → Template.
   tetap divalidasi (placeholder tak dikenal ditolak).
 - Placeholder yang dikenal: `tenant`, `paket`, `nominal`, `tanggal`, `link`,
   `cta`, `app`, `nama`, `layanan`. Placeholder lain **ditolak** saat simpan.
+- **Template pengingat ke pelanggan** (dunning reminder/warning + pengingat
+  akun tidak aktif) juga di katalog ini — key `tenant_dunning_reminder`,
+  `tenant_dunning_warning`, `tenant_inactivity_reminder1`,
+  `tenant_inactivity_reminder2`. Placeholder yang boleh dipakai HANYA:
+  `{{nama}}`, `{{telat}}`, `{{hari}}`, `{{sisa}}` (format dua kurung). Placeholder
+  lain ditolak saat simpan; template peringatan wajib memuat `{{sisa}}`.
+- Kolom copy di `BillingPolicy` **sudah dihapus** (G23) — tak ada lagi dua
+  sumber kebenaran. Kalau tak ditemukan copy yangdiedit di Admin → Kebijakan,
+  itu memang sudah tidak ada di sana.
 - Template `subscription_activated`, `payment_failed`, `payment_expired`, dan
   `booking_inapp` **tidak bisa dikirim manual** — isinya mengikat event
   tertentu.
 
 Copy pesan **tenant ke pelanggan** (pengingat servis, tagihan) dikelola tenant
 sendiri di halaman **Pengingat**; template per-tenant, bukan global.
+
+> Catatan (G23): pesan pengingat tunggakan/pengingat akun tidak aktif milik
+> **platform** (diteruskan ke pelanggan atas nama tenant) — makanya ikut katalog
+> platform, bukan template tenant.
 
 ---
 
@@ -172,7 +185,8 @@ sudo systemctl restart aircon-app
 ```
 
 Migrasi DB bersifat additive (tabel baru / kolom baru dengan default). Kolom
-yang dihapus hanya `BillingPolicy.trialDays` (fosil, nol consumer) — nilainya
+yang dihapus: `BillingPolicy.trialDays` (fosil, nol consumer) dan 4 kolom copy
+pesan `BillingPolicy` (G23 — digantikan katalog `PlatformTemplate`) — nilainya
 tersimpan di backup logis.
 
 Backup logis ada di `/opt/aircon-app/backups/pre-*/` (JSON per tabel +

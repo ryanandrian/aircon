@@ -92,16 +92,17 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     audience: "admin",
     order: 4,
     whatIsIt:
-      "Atur aturan penagihan: pajak, masa tenggang sebelum suspend/hapus, jadwal reminder, dan template pesan penagihan. Paket Basic gratis selamanya; tidak ada masa trial.",
+      "Atur aturan penagihan: pajak, masa tenggang sebelum suspend/hapus, jadwal reminder, dan ambang sweeper akun tidak aktif. Paket Basic gratis selamanya; tidak ada masa trial.",
     steps: [
       "Atur persentase pajak.",
       "Atur 'grace' sebelum suspend dan sebelum hapus data (hari).",
       "Atur jadwal reminder (mis. 0,3,7,14,30) & hari peringatan hapus.",
-      "Sesuaikan template pesan reminder & peringatan. Simpan.",
+      "Atur ambang sweeper akun tidak aktif (reminder #1, #2, hapus permanen).",
     ],
     tips: [
       "Nilai default sudah world-class (suspend >7 hari, hapus >37 hari). Ubah bila perlu.",
       "Semua tenant memakai kebijakan ini kecuali diatur khusus.",
+      "Isi pesan (template) diatur terpisah di Notifikasi Platform — bukan di halaman ini.",
     ],
   },
   {
@@ -180,13 +181,16 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     audience: "admin",
     order: 9,
     whatIsIt:
-      "Atur template notifikasi platform (Lumite → tenant): selamat datang, trial berakhir, tagihan jatuh tempo, WA terputus. Via WA & email.",
+      "Satu tempat semua template notifikasi platform (Aircon → tenant): sambutan, tagihan jatuh tempo, WA terputus, keamanan, dan pesan pengingat ke pelanggan. Copy diedit di sini, aturan paket & penerima tetap di kode.",
     steps: [
       "Pilih template event yang ingin diubah.",
-      "Sesuaikan subjek & isi pesan (dengan placeholder).",
+      "Sesuaikan subjek & isi pesan (dengan placeholder {{variabel}}).",
       "Simpan — dipakai otomatis saat event terjadi.",
     ],
-    tips: ["Notifikasi ini berbeda dari template pesan tenant→pelanggan."],
+    tips: [
+      "Notifikasi ini berbeda dari template pesan tenant→pelanggan (dikelola tenant sendiri di halaman Pesan).",
+      "Tempatkan kursor di dalam kurung ganda agar variabel tetap utuh.",
+    ],
   },
   {
     key: "admin-landing",

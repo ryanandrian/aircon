@@ -20,6 +20,14 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  {
+    // Skrip Node CommonJS (.cjs) — dijalankan langsung di VPS (`node skrip.cjs`),
+    // tanpa tooling TS. `require()` satu-satunya cara import di CommonJS.
+    files: ["scripts/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

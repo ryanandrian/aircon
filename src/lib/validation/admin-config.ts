@@ -3,7 +3,6 @@
  * Dipakai server action admin sebelum menulis ke DB.
  */
 import { z } from "zod";
-import { validateTenantCopy, type TenantCopyKey } from "@/lib/domain/tenant-copy";
 
 /** Kuota: bilangan bulat >= 0, atau null (= tanpa batas). */
 const quota = z.number().int().min(0).nullable();
@@ -34,8 +33,6 @@ export const billingPolicySchema = z
       .trim()
       .regex(/^(\d+)(\s*,\s*\d+)*$/, "Format harus angka dipisah koma, mis. 0,1,3"),
     deleteWarningDay: z.number().int().min(0),
-    dunningReminderTemplate: z.string().trim().min(10).max(1000),
-    dunningWarningTemplate: z.string().trim().min(10).max(1000),
     inactivitySweepEnabled: z.boolean(),
     inactivityDryRun: z.boolean(),
     inactivityReminder1Days: z.number().int().min(1),
@@ -44,8 +41,6 @@ export const billingPolicySchema = z
     inactivityMinCustomers: z.number().int().min(0),
     inactivityMinJobs: z.number().int().min(0),
     inactivityExemptPaid: z.boolean(),
-    inactivityReminder1Template: z.string().trim().min(10).max(1000),
-    inactivityReminder2Template: z.string().trim().min(10).max(1000),
   })
   .refine((d) => d.daysBeforeDelete > d.graceDaysBeforeSuspend, {
     message: "Hari hapus harus lebih besar dari hari suspend",
@@ -58,17 +53,6 @@ export const billingPolicySchema = z
   .refine((d) => d.inactivityReminder2Days > d.inactivityReminder1Days, {
     message: "Reminder #2 harus setelah reminder #1",
     path: ["inactivityReminder2Days"],
-  })
-  // Placeholder copy tenant: hanya variabel yang dikenal kode, dan peringatan wajib {sisa}.
-  .superRefine((d, ctx) => {
-    const fields: TenantCopyKey[] = [
-      "dunningReminderTemplate", "dunningWarningTemplate",
-      "inactivityReminder1Template", "inactivityReminder2Template",
-    ];
-    for (const key of fields) {
-      const r = validateTenantCopy(key, d[key]);
-      if (!r.ok) for (const message of r.errors) ctx.addIssue({ code: "custom", message, path: [key] });
-    }
   })
   .refine((d) => d.inactivityDeleteDays >= d.inactivityReminder2Days, {
     message: "Hari hapus harus >= reminder #2",

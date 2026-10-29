@@ -10,8 +10,9 @@ export default async function AdminKebijakanPage() {
       <div>
         <h1 className="text-xl font-bold text-foreground">Kebijakan Billing</h1>
         <p className="text-sm text-muted-foreground">
-          Pajak, masa tenggang sebelum suspend/hapus, jadwal pengingat, dan template pesan penagihan.
-          Semua tanpa hardcode — perubahan langsung berlaku pada siklus penagihan berikutnya.
+          Pajak, masa tenggang sebelum suspend/hapus, jadwal pengingat, dan ambang sweeper
+          akun tidak aktif. Semua tanpa hardcode — perubahan langsung berlaku pada siklus
+          penagihan berikutnya.
         </p>
       </div>
       <PolicyEditor
@@ -21,8 +22,6 @@ export default async function AdminKebijakanPage() {
           daysBeforeDelete: p.daysBeforeDelete,
           dunningReminderDays: p.dunningReminderDays,
           deleteWarningDay: p.deleteWarningDay,
-          dunningReminderTemplate: p.dunningReminderTemplate,
-          dunningWarningTemplate: p.dunningWarningTemplate,
           inactivitySweepEnabled: p.inactivitySweepEnabled,
           inactivityDryRun: p.inactivityDryRun,
           inactivityReminder1Days: p.inactivityReminder1Days,
@@ -31,8 +30,6 @@ export default async function AdminKebijakanPage() {
           inactivityMinCustomers: p.inactivityMinCustomers,
           inactivityMinJobs: p.inactivityMinJobs,
           inactivityExemptPaid: p.inactivityExemptPaid,
-          inactivityReminder1Template: p.inactivityReminder1Template,
-          inactivityReminder2Template: p.inactivityReminder2Template,
         }}
         updatedBy={p.updatedBy}
       />

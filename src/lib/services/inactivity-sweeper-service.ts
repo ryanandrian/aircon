@@ -146,15 +146,14 @@ export async function runInactivitySweep(now: Date = new Date()): Promise<Inacti
       }
     } else if (action === "reminder2") {
       const sisa = Math.max(DEL - idle, 0);
-      // G23: sumber copy = katalog platform (dapat diedit di Admin → Notifikasi);
-      // kolom BillingPolicy = warisan, dipakai selama katalog belum diisi.
-      const copy2 = await resolveTenantCopy("inactivityReminder2Template", p.inactivityReminder2Template);
+      // G23: sumber copy = katalog platform (diedit di Admin → Notifikasi).
+      const copy2 = await resolveTenantCopy("tenant_inactivity_reminder2");
       const body = renderTenantCopy(copy2.body, { nama: t.name, hari: String(idle), sisa: String(sisa) });
       await queueInactivityReminder(t.id, t.phone, body);
       await prisma.tenant.update({ where: { id: t.id }, data: { inactivityReminderStage: 2, inactivityReminderAt: now } });
       summary.reminder2Sent++;
     } else if (action === "reminder1") {
-      const copy1 = await resolveTenantCopy("inactivityReminder1Template", p.inactivityReminder1Template);
+      const copy1 = await resolveTenantCopy("tenant_inactivity_reminder1");
       const body = renderTenantCopy(copy1.body, { nama: t.name, hari: String(idle), sisa: String(Math.max(DEL - idle, 0)) });
       await queueInactivityReminder(t.id, t.phone, body);
       await prisma.tenant.update({ where: { id: t.id }, data: { inactivityReminderStage: 1, inactivityReminderAt: now } });

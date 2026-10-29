@@ -130,7 +130,4 @@ export async function rollbackTemplate(
     },
   });
   return { ok: true, version: row.version };
-  await prisma.platformAuditLog.create({
-    data: { actor: actorEmail, action: "PLATFORM_TEMPLATE_RESET", target: `platform-template:${key}`, metadata: {} },
-  });
 }

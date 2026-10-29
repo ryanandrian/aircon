@@ -41,13 +41,9 @@ describe("planConfigSchema", () => {
 const validPolicy = {
   taxPercent: 11, graceDaysBeforeSuspend: 1,
   daysBeforeDelete: 7, dunningReminderDays: "0,1,3", deleteWarningDay: 3,
-  dunningReminderTemplate: "Halo {nama}, tagihan menunggak {telat} hari.",
-  dunningWarningTemplate: "Halo {nama}, menunggak {telat} hari, sisa {sisa} hari sebelum data dihapus.",
   inactivitySweepEnabled: false, inactivityDryRun: true,
   inactivityReminder1Days: 30, inactivityReminder2Days: 45, inactivityDeleteDays: 52,
   inactivityMinCustomers: 5, inactivityMinJobs: 3, inactivityExemptPaid: true,
-  inactivityReminder1Template: "Halo {nama}, akun belum ada aktivitas {hari} hari.",
-  inactivityReminder2Template: "Halo {nama}, {hari} hari tanpa aktivitas, dihapus dalam {sisa} hari.",
 };
 
 describe("billingPolicySchema", () => {
@@ -68,6 +64,17 @@ describe("billingPolicySchema", () => {
   });
   it("terima reminder csv valid", () => {
     expect(billingPolicySchema.safeParse({ ...validPolicy, dunningReminderDays: "0, 2, 5" }).success).toBe(true);
+  });
+
+  // G23: copy pesan TIDAK lagi bagian kebijakan (satu sumber = katalog template).
+  it("field copy tak lagi ada di skema kebijakan", () => {
+    const shape = billingPolicySchema.shape as Record<string, unknown>;
+    for (const gone of [
+      "dunningReminderTemplate", "dunningWarningTemplate",
+      "inactivityReminder1Template", "inactivityReminder2Template",
+    ]) {
+      expect(Object.keys(shape), gone).not.toContain(gone);
+    }
   });
 });
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { actionUpdatePolicy } from "../config-actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 
@@ -14,8 +14,6 @@ interface Initial {
   daysBeforeDelete: number;
   dunningReminderDays: string;
   deleteWarningDay: number;
-  dunningReminderTemplate: string;
-  dunningWarningTemplate: string;
   inactivitySweepEnabled: boolean;
   inactivityDryRun: boolean;
   inactivityReminder1Days: number;
@@ -24,8 +22,6 @@ interface Initial {
   inactivityMinCustomers: number;
   inactivityMinJobs: number;
   inactivityExemptPaid: boolean;
-  inactivityReminder1Template: string;
-  inactivityReminder2Template: string;
 }
 
 export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updatedBy: string | null }) {
@@ -68,17 +64,18 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
         </div>
       </div>
 
-      <div className="space-y-3 rounded-xl border bg-muted/40 p-4">
-        <p className="text-sm font-medium text-foreground">Template Pesan Penagihan (WhatsApp ke owner tenant)</p>
-        <p className="text-xs text-muted-foreground">Placeholder: {"{nama}"} = nama usaha, {"{telat}"} = hari menunggak, {"{sisa}"} = sisa hari sebelum data dihapus.</p>
-        <div>
-          <Label htmlFor="dunningReminderTemplate">Pengingat biasa</Label>
-          <Textarea id="dunningReminderTemplate" name="dunningReminderTemplate" defaultValue={initial.dunningReminderTemplate} rows={2} className="mt-1" />
-        </div>
-        <div>
-          <Label htmlFor="dunningWarningTemplate">Peringatan hapus data (mendekati batas)</Label>
-          <Textarea id="dunningWarningTemplate" name="dunningWarningTemplate" defaultValue={initial.dunningWarningTemplate} rows={2} className="mt-1" />
-        </div>
+      {/* G23: copy pesan TAK lagi diatur di halaman ini. Satu sumber kebenaran =
+          katalog template platform (Admin → Notifikasi → Template). */}
+      <div className="space-y-2 rounded-xl border bg-muted/40 p-4">
+        <p className="text-sm font-medium text-foreground">Template pesan penagihan &amp; pengingat</p>
+        <p className="text-xs text-muted-foreground">
+          Isi pesan pengingat tunggakan, peringatan hapus data, dan pengingat akun tidak aktif
+          kini diatur di satu tempat: katalog template platform. Placeholder: {"{{nama}}"} = nama usaha,
+          {"{{telat}}"} = hari menunggak, {"{{hari}}"} = hari tak aktif, {"{{sisa}}"} = sisa hari sebelum dihapus.
+        </p>
+        <Link href="/admin/notifikasi" className={buttonVariants({ variant: "outline", size: "sm" })}>
+          Buka Template Center (Notifikasi Platform)
+        </Link>
       </div>
 
       <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
@@ -122,15 +119,6 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
             <Label htmlFor="inactivityMinJobs">Kecualikan bila ≥ pekerjaan</Label>
             <Input id="inactivityMinJobs" type="number" name="inactivityMinJobs" defaultValue={initial.inactivityMinJobs} className="mt-1" />
           </div>
-        </div>
-        <p className="text-xs text-muted-foreground">Placeholder template: {"{nama}"} = nama usaha, {"{hari}"} = hari tak aktif, {"{sisa}"} = sisa hari sebelum dihapus.</p>
-        <div>
-          <Label htmlFor="inactivityReminder1Template">Template reminder #1</Label>
-          <Textarea id="inactivityReminder1Template" name="inactivityReminder1Template" defaultValue={initial.inactivityReminder1Template} rows={2} className="mt-1" />
-        </div>
-        <div>
-          <Label htmlFor="inactivityReminder2Template">Template reminder #2 (peringatan hapus)</Label>
-          <Textarea id="inactivityReminder2Template" name="inactivityReminder2Template" defaultValue={initial.inactivityReminder2Template} rows={2} className="mt-1" />
         </div>
       </div>
 

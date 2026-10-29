@@ -4,6 +4,8 @@
  * Hanya paket `autoReminder=true` boleh menerima CTA koneksi WhatsApp dan klaim otomatis.
  * Placeholder wajib divalidasi sebelum enqueue agar copy rusak tidak pernah dikirim.
  */
+import { TENANT_COPY_VARS, validateTenantCopy, type TenantCopyKey } from "@/lib/domain/tenant-copy";
+
 export type PlatformTemplateKey =
   | "welcome_basic"
   | "welcome_paid"
@@ -15,7 +17,6 @@ export type PlatformTemplateKey =
   | "wa_connected"
   | "wa_disconnected"
   | "booking_inapp"
-  | "booking_confirm_customer"
   // Copy TENANT -> PELANGGAN (dunning & inactivity). Semula tersimpan di kolom
   // BillingPolicy; sekarang satu katalog (G23) supaya bisa diedit di satu tempat.
   | "tenant_dunning_reminder"
@@ -136,12 +137,6 @@ export const PLATFORM_TEMPLATES: Record<PlatformTemplateKey, PlatformTemplate> =
     body: "Halo {{tenant}}, {{nama}} sudah mengaktifkan akun (PIN dibuat). Jika ini bukan undangan Anda, cabut aksesnya.",
     requiredVars: ["tenant", "nama"],
   },
-  booking_confirm_customer: {
-    label: "Konfirmasi Booking (WA ke Pemesan)",
-    subject: "Konfirmasi booking",
-    body: "Halo {{nama}}, booking Anda di {{tenant}} sudah diterima. Kode booking: {{kode}}. Sebutkan kode booking saat kami menghubungi Anda.",
-    requiredVars: ["nama", "tenant", "kode"],
-  },
   booking_inapp: {
     label: "Booking Online Baru (In-App)",
     subject: "Booking online baru",
@@ -226,10 +221,27 @@ export function platformTemplateVariables(tpl: PlatformTemplate): string[] {
 const ALL_RUNTIME_VARS = ["app", "tenant", "paket", "link", "cta", "tanggal", "nominal", "nama", "layanan", "mitra", "nama_tenant", "status_tenant", "nominal_komisi", "periode", "kode", "ref", "telat", "hari", "sisa"] as const;
 
 /**
+ * Key template copy TENANT → PELANGGAN (dunning & inactivity).
+ *
+ * Copy ini dirender oleh `renderTenantCopy` dengan variabel runtime
+ * `{nama, telat, hari, sisa}` — BUKAN oleh `renderPlatformTemplate`. Karena itu
+ * daftar variabel yang boleh dipakai DIBATAS persis ke variabel itu. Kalau
+ * longgar (mis. `{{paket}}` ikut boleh), copy bisa tersimpan lalu saat dikirim
+ * placeholder-nya jadi string kosong — pesan rusak tanpa jejak.
+ */
+export function isTenantCopyTemplate(key: PlatformTemplateKey): key is TenantCopyKey {
+  return key.startsWith("tenant_");
+}
+
+/**
  * Placeholder yang DIKENAL untuk tiap key = `requiredVars` (kontrak kode) ∪ variabel
  * runtime. Editor admin hanya boleh memakai variabel dari daftar ini.
+ *
+ * Pengecualian (G23): template copy tenant→pelanggan memakai daftar TIGHT
+ * (lihat `isTenantCopyTemplate`) — hanya variabel yang benar-benar diisi saat render.
  */
 export function knownVariables(key: PlatformTemplateKey): string[] {
+  if (isTenantCopyTemplate(key)) return [...TENANT_COPY_VARS[key]];
   return [...new Set<string>([...PLATFORM_TEMPLATES[key].requiredVars, ...ALL_RUNTIME_VARS])];
 }
 
@@ -311,6 +323,23 @@ export function validateTemplateCopy(key: PlatformTemplateKey, copy: TemplateCop
   }
   for (const req of PLATFORM_TEMPLATES[key].requiredVars) {
     if (!used.has(req)) errors.push(`Variabel wajib belum ada: {{${req}}}`);
+  }
+  // G23: template copy tenant→pelanggan punya kontrak LEBIH KETAT — format katalog
+  // `{{x}}` (format `{x}` warisan tak lagi dipakai di katalog), placeholder hanya
+  // dari `TENANT_COPY_VARS`, dan template peringatan WAJIB memuat {{sisa}}.
+  // Tanpa ini, admin bisa menyimpan copy yang saat render jadi string kosong
+  // (pesan rusak tanpa jejak) — persis cacat yang G23 tutup.
+  if (isTenantCopyTemplate(key)) {
+    const tenantCheck = validateTenantCopy(key, body);
+    if (!tenantCheck.ok) {
+      for (const e of tenantCheck.errors) errors.push(e);
+    }
+    // Format salah = ada placeholder KURUNG TUNGGAL. Placeholder kurung ganda
+    // yang valid dihapus dulu, supaya `{{nama}}` tak dianggap `{nama}`.
+    const tanpaKurungGanda = body.replace(/\{\{\w*\}\}/g, "");
+    if (/\{\w+\}/.test(tanpaKurungGanda)) {
+      errors.push("Format placeholder katalog harus {{nama}} (dua kurung), bukan {nama}");
+    }
   }
   return errors.length ? { ok: false, errors: [...new Set(errors)] } : { ok: true };
 }

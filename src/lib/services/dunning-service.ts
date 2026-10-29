@@ -134,16 +134,13 @@ async function queueDunningReminder(
     daysBeforeDelete,
     now: purge.now,
   });
-  const policy = await getBillingPolicy();
   const vars = { nama: tenantName, telat: String(late), sisa: String(sisaHapus) };
-  // G23: sumber copy = katalog platform (dapat diedit di Admin → Notifikasi);
-  // kolom BillingPolicy = warisan, dipakai selama katalog belum diisi.
-  const copyKey = late >= deleteWarningDay ? "dunningWarningTemplate" : "dunningReminderTemplate";
-  const policyTemplate = late >= deleteWarningDay ? policy.dunningWarningTemplate : policy.dunningReminderTemplate;
-  const { body: tpl, source } = await resolveTenantCopy(copyKey, policyTemplate);
+  // G23: sumber copy = katalog platform (diedit di Admin → Notifikasi).
+  const copyKey = late >= deleteWarningDay ? "tenant_dunning_warning" : "tenant_dunning_reminder";
+  const { body: tpl, source } = await resolveTenantCopy(copyKey);
   const body = renderTenantCopy(tpl, vars);
-  if (source === "policy") {
-    console.warn(`[dunning] copy "${copyKey}" belum ada di katalog platform — memakai kolom BillingPolicy (warisan)`);
+  if (source === "default") {
+    console.warn(`[dunning] copy "${copyKey}" belum ada di katalog platform — memakai default kode`);
   }
 
   const phone = normalizePhone(toPhone);
