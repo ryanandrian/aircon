@@ -37,6 +37,13 @@ export interface JobFailureAlertInput {
   error: string;
   /** Ringkasan tambahan (JSON-serializable). */
   details?: Record<string, unknown>;
+  /**
+   * Kunci hari untuk dedupe harian. Default = hari UTC. Pemantau harian yang
+   * berjalan pada zona WIB wajib mengoper key WIB-nya sendiri, karena WIB 03:00
+   * = UTC 20:00 hari sebelumnya — bila tidak, alert hari ini menelan alert
+   * besok (dedupe salah hari) dan email asli tak pernah terkirim.
+   */
+  dayKey?: string;
 }
 
 export interface JobFailureAlertResult {
@@ -57,42 +64,86 @@ function clip(text: string, max = 500): string {
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-function jakartaDateKey(date: Date): string {
+/** Kunci hari WIB (YYYY-MM-DD). Semua cron Aircon dijadwalkan dalam WIB. */
+export function jakartaDayKey(date: Date = new Date()): string {
   return new Date(date.getTime() + JAKARTA_OFFSET_MS).toISOString().slice(0, 10);
 }
 
-/** Record successful completion of existing dunning route; no schema/new timer. */
-export async function recordDunningHeartbeat(now = new Date()): Promise<void> {
-  const dayKey = jakartaDateKey(now);
+/** Menit sejak tengah malam WIB. */
+function jakartaMinutesOfDay(date: Date): number {
+  const shifted = new Date(date.getTime() + JAKARTA_OFFSET_MS);
+  return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+}
+
+/** Outcome heartbeat dunning. */
+export type DunningHeartbeatOutcome = "success" | "failed";
+
+/**
+ * Record bahwa cron dunning SUDAH DIJALANKAN (bukan: bahwa semua tahap
+ * sukses). Ditulis di akhir route apa pun hasil tahapnya, karena pemantau
+ * no-run perlu membedakan dua keadaan yang berbeda:
+ *   - cron jalan → heartbeat ada (tahap gagal sudah alerting sendiri per tahap)
+ *   - cron tak jalan / proses mati di tengah → heartbeat tak ada (alert no-run)
+ * Tanpa pembedaan ini, cron yang jalan tapi satu tahap gagal akan mendapat
+ * DUA email (satu per tahap, satu lagi "no-run") — alarm palsu.
+ */
+export async function recordDunningHeartbeat(now = new Date(), outcome: DunningHeartbeatOutcome = "success", failedStages: string[] = []): Promise<void> {
+  const dayKey = jakartaDayKey(now);
   await prisma.platformAuditLog.create({
     data: {
       actor: "system:cron-heartbeat",
       action: "CRON_DUNNING_HEARTBEAT",
       target: `cron-heartbeat:dunning:${dayKey}`,
-      metadata: { completedAt: now.toISOString(), timezone: "Asia/Jakarta" },
+      metadata: {
+        completedAt: now.toISOString(),
+        timezone: "Asia/Jakarta",
+        outcome,
+        failedStages,
+      },
     },
   });
 }
 
 /**
- * Called by the EXISTING 03:00 reconcile timer. Alert if no successful dunning
- * heartbeat exists for today's WIB window. Dedup through the existing audit
- * channel and email alert helper. No queue/service path added.
+ * Dipanggil oleh timer reconcile yang SUDAH ADA (03:00 WIB). Alert bila cron
+ * dunning hari ini tak pernah jalan. Dead-man switch harus "armed" dulu: tanpa
+ * pernah ada heartbeat historis, monitor belum pernah bisa melihat run sukses,
+ * jadi tak boleh menuduh cron tak jalan (mis. hari pertama rilis, dunning 01:00
+ * jalan sebelum monitor live — kasus nyata 29 Okt 2026).
+ *
+ * Dedupe harian memakai key WIB, bukan UTC: WIB 03:00 = UTC 20:00 hari
+ * sebelumnya, sehingga key UTC untuk "hari yang sama" bergeser dan alert hari
+ * ini bisa menelan alert asli besok (email asli tak pernah terkirim).
  */
-export async function alertIfDunningHeartbeatMissing(now = new Date()): Promise<{ missing: boolean; audited: boolean; emailed: number }> {
-  const dayKey = jakartaDateKey(now);
-  const minutes = new Date(now.getTime() + JAKARTA_OFFSET_MS).getUTCHours() * 60 + new Date(now.getTime() + JAKARTA_OFFSET_MS).getUTCMinutes();
-  // Reconcile normally runs at 03:00 WIB. Avoid alerting before the scheduled
-  // dunning window has passed if this route is manually invoked earlier.
-  if (minutes < 3 * 60) return { missing: false, audited: false, emailed: 0 };
+export async function alertIfDunningHeartbeatMissing(
+  now = new Date(),
+): Promise<{ missing: boolean; audited: boolean; emailed: number; reason: string | null }> {
+  const dayKey = jakartaDayKey(now);
+  // Jendela pemeriksaan: dunning terjadwal 01:00, reconcile 03:00. Pemeriksaan
+  // sebelum 03:00 tak boleh menuduh cron tak jalan (dunning mungkin belum jalan).
+  if (jakartaMinutesOfDay(now) < 3 * 60) {
+    return { missing: false, audited: false, emailed: 0, reason: null };
+  }
   const heartbeat = await prisma.platformAuditLog.findFirst({ where: { target: `cron-heartbeat:dunning:${dayKey}` } });
-  if (heartbeat) return { missing: false, audited: false, emailed: 0 };
+  if (heartbeat) {
+    // Cron hari ini sudah jalan. Bila tahapnya gagal, kegagalan itu sudah
+    // dialerkan sendiri oleh alertJobFailure per tahap — jangan dobelkan.
+    return { missing: false, audited: false, emailed: 0, reason: null };
+  }
+  // Armed-check: monitor harus pernah melihat run sukses sebelum boleh menuduh.
+  const armed = await prisma.platformAuditLog.findFirst({
+    where: { target: { startsWith: "cron-heartbeat:dunning:" } },
+  });
+  if (!armed) {
+    return { missing: true, audited: false, emailed: 0, reason: "monitor-belum-terbukti" };
+  }
   const alert = await alertJobFailure({
     job: "dunning-no-run",
     error: `Tidak ada heartbeat sukses cron dunning hingga ${now.toISOString()} (tanggal WIB ${dayKey}).`,
     details: { dayKey, checkedAt: now.toISOString(), timezone: "Asia/Jakarta" },
+    dayKey,
   });
-  return { missing: true, audited: alert.audited, emailed: alert.emailed };
+  return { missing: true, audited: alert.audited, emailed: alert.emailed, reason: null };
 }
 
 export interface StaleQueueAlertResult {
@@ -222,7 +273,7 @@ export async function alertJobFailure(input: JobFailureAlertInput): Promise<JobF
   // ── 1) JEJAK AUDIT (dijamin ada) ────────────────────────────────────────
   // Dedupe harian: satu baris audit per (job, tahap, hari). Cron harian yang
   // gagal berkali-kali tak boleh menumpuk baris audit tiap jam.
-  const dayKey = new Date().toISOString().slice(0, 10);
+  const dayKey = input.dayKey ?? new Date().toISOString().slice(0, 10);
   const auditTarget = `job-failure:${job}:${stage ?? "-"}:${dayKey}`;
   /** True bila ini alert PERTAMA untuk job+tahap hari ini (dasar anti-spam). */
   let isFirstAlertToday = false;

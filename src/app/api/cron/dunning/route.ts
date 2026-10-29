@@ -9,7 +9,7 @@ import { runInactivitySweep } from "@/lib/services/inactivity-sweeper-service";
 import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
 import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
 import { dispatchPlatformNotifications } from "@/lib/services/platform-notification-dispatch";
-import { alertJobFailure, alertStaleNotificationQueues, recordDunningHeartbeat } from "@/lib/services/job-alert-service";
+import { alertJobFailure, alertStaleNotificationQueues, jakartaDayKey, recordDunningHeartbeat } from "@/lib/services/job-alert-service";
 
 /** Cek otorisasi cron: header Bearer CRON_SECRET (dipakai Vercel Cron & pemanggilan manual). */
 function authorized(req: NextRequest): boolean {
@@ -67,11 +67,12 @@ async function handle(req: NextRequest): Promise<NextResponse> {
         details: { failedStages: failed },
       }).catch((e) => console.error("[cron/dunning] alert gagal:", e));
     }
-  } else {
-    // Success heartbeat consumed by the already-scheduled 03:00 WIB reconcile
-    // route; does not create another timer or cron producer.
-    await recordDunningHeartbeat().catch((e) => console.error("[cron/dunning] heartbeat gagal:", e));
   }
+  // Persist that today's scheduled job ran regardless of stage outcome. Each
+  // failed stage already emits its own failure alert above; the heartbeat
+  // prevents reconcile from misclassifying an execution failure as no-run.
+  await recordDunningHeartbeat(new Date(), failed.length === 0 ? "success" : "failed", failed)
+    .catch((e) => console.error("[cron/dunning] heartbeat gagal:", e));
   return NextResponse.json(body, { status: failed.length ? 500 : 200 });
 }
 

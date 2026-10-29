@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { runDunningCycle, purgeMarkedTenants, runInactivitySweep, flushQueuedMessages, runPlatformNotifyCycle, dispatchPlatformNotifications } = vi.hoisted(() => ({
+  const { runDunningCycle, purgeMarkedTenants, runInactivitySweep, flushQueuedMessages, runPlatformNotifyCycle, dispatchPlatformNotifications } = vi.hoisted(() => ({
   runDunningCycle: vi.fn(),
   purgeMarkedTenants: vi.fn(),
   runInactivitySweep: vi.fn(),
@@ -24,7 +24,11 @@ const { alertJobFailure, alertStaleNotificationQueues, recordDunningHeartbeat } 
     audited: true, emailed: 0, problems: [] as string[],
   })),
   alertStaleNotificationQueues: vi.fn(async () => ({ audited: false, emailed: 0, queueAlerts: 0, problems: [], staleQueued: 0, staleSending: 0, staleMessageLogQueued: 0, staleMessageLogSending: 0 })),
-  recordDunningHeartbeat: vi.fn(async () => undefined),
+  recordDunningHeartbeat: vi.fn(async (
+    _now?: Date,
+    _outcome?: "success" | "failed",
+    _failedStages?: string[],
+  ) => undefined),
 }));
 vi.mock("@/lib/services/job-alert-service", () => ({ alertJobFailure, alertStaleNotificationQueues, recordDunningHeartbeat }));
 
@@ -98,11 +102,24 @@ describe("cron dunning — tahap terisolasi", () => {
     const res = await POST(req(AUTH));
     expect(res.status).toBe(500);
     expect(alertJobFailure).toHaveBeenCalledTimes(1);
-    expect(recordDunningHeartbeat).not.toHaveBeenCalled();
     const arg = alertJobFailure.mock.calls[0][0];
     expect(arg.job).toBe("dunning");
     expect(arg.stage).toBe("dunning");
     expect(arg.error).toBe("db timeout");
+    vi.restoreAllMocks();
+  });
+
+  // Cron yang jalan tapi tahapnya gagal = "cron jalan", bukan "cron tak jalan".
+  // Heartbeat tetap ditulis supaya reconcile tak mengirim alarm no-run kedua.
+  it("tahap gagal → heartbeat tetap ditulis dengan outcome=failed", async () => {
+    runDunningCycle.mockRejectedValue(new Error("db timeout"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await POST(req(AUTH));
+    expect(res.status).toBe(500);
+    expect(recordDunningHeartbeat).toHaveBeenCalledTimes(1);
+    const [, outcome, failedStages] = recordDunningHeartbeat.mock.calls[0];
+    expect(outcome).toBe("failed");
+    expect(failedStages).toEqual(["dunning"]);
     vi.restoreAllMocks();
   });
 

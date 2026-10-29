@@ -162,17 +162,26 @@ sendiri di halaman **Pengingat**; template per-tenant, bukan global.
 
 ## 3b. Alert bila cron dunning terlewat (F3 — berlaku setelah deploy)
 
-Jalur lama tetap dipakai: timer `aircon-dunning.timer` yang ada menjalankan
-`/api/cron/dunning` pukul 01:00 WIB. Jika keenam tahap berhasil, route menulis
-heartbeat harian ke `PlatformAuditLog` (`CRON_DUNNING_HEARTBEAT`, tanggal WIB).
-Timer reconcile yang sudah ada pukul 03:00 WIB memeriksa heartbeat hari yang
-sama. Jika tidak ada, ia mencatat alert `JOB_FAILURE_ALERT` dan mengirim email
-ke admin platform sesuai dedupe harian. Pemeriksaan sebelum 03:00 WIB tidak
-menandai cron hilang. Tidak ada timer/route baru dan tidak ada replay pesan.
+Pemantau "cron tak jalan" memakai jalur yang sudah ada: timer `aircon-dunning.timer`
+(01:00 WIB) memanggil `/api/cron/dunning`, dan route itu mencatat heartbeat di
+`PlatformAuditLog` (`CRON_DUNNING_HEARTBEAT`, tanggal WIB). Timer reconcile yang
+sudah ada pukul 03:00 WIB memeriksa heartbeat hari yang sama.
 
-Jika dispatcher/service gagal, alert kegagalan biasa tetap berlaku. Jika database
-tidak tersedia, heartbeat tidak bisa dicatat; reconcile saat DB pulih bisa
-menandai missing heartbeat. Pastikan journal/systemd juga diperiksa.
+Aturan penting:
+- Heartbeat berarti **cron jalan**, bukan "semua tahap sukses". Kalau satu tahap
+  gagal, kegagalan itu sudah alerting sendiri per tahap; heartbeat tetap ditulis
+  supaya tak muncul email kedua yang salah menyebut "cron tak jalan".
+- Pemantau belum "armed" sampai pernah melihat satu heartbeat. Tanpa ini, hari
+  pertama rilis (run 01:00 terjadi sebelum monitor live) muncul alert palsu.
+- Dedupe harian memakai tanggal WIB, bukan UTC — WIB 03:00 = UTC 20:00 hari
+  sebelumnya, jadi key UTC membuat alert hari ini menelan alert asli besok.
+- Pemeriksaan sebelum 03:00 WIB tidak menandai cron hilang. Tidak ada timer/route
+  baru dan tidak ada replay pesan.
+
+Rilis pertama (`19dae418`) sempat memicu alert palsu pada 29 Okt 2026; lihat
+SSOT untuk detail dan perbaikannya. Setelah perbaikan, verifikasi lewat unit
+test dan pemeriksaan read-only — jangan pernah sengaja memicu alert/email
+"cron tak jalan" di produksi sekadar untuk mengetes.
 
 ## 4. Jadwal & zona waktu
 
