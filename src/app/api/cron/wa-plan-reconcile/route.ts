@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { reconcileWaPlanSessions } from "@/lib/services/wa-identity-service";
+import { alertJobFailure } from "@/lib/services/job-alert-service";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -39,9 +40,22 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   }
   try {
     const result = await reconcileWaPlanSessions();
-    return NextResponse.json({ ok: true, ...result });
+    // Service menangkap kegagalan per tenant agar tenant lain tetap diproses;
+    // tetapi failed>0 wajib jadi alert — bukan sekadar angka di respons cron.
+    if (result.failed > 0) {
+      await alertJobFailure({
+        job: "wa-plan-reconcile",
+        error: `Rekonsiliasi sebagian gagal untuk ${result.failed} tenant.`,
+        details: result,
+      }).catch((e) => console.error("[cron/wa-plan-reconcile] alert gagal:", e));
+    }
+    return NextResponse.json({ ok: result.failed === 0, ...result }, { status: 200 });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("[cron/wa-plan-reconcile] gagal:", err);
+    await alertJobFailure({ job: "wa-plan-reconcile", error: message }).catch((e) =>
+      console.error("[cron/wa-plan-reconcile] alert gagal:", e),
+    );
     return NextResponse.json({ error: "Gagal rekonsiliasi sesi plan" }, { status: 500 });
   }
 }
