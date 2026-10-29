@@ -59,6 +59,54 @@ export async function actionSendPlatformNotif(
   }
 }
 
+/**
+ * Test-send template email ke address explicit allowlist only.
+ * Bypasses PlatformNotification intentionally: test probe is not a business event.
+ * No destination outside NOTIFICATION_TEST_EMAIL_ALLOWLIST can be reached.
+ */
+export async function actionTestPlatformTemplateEmail(
+  key: PlatformTemplateKey,
+  recipient: string,
+): Promise<Result> {
+  try {
+    const admin = await requirePlatformAdmin();
+    const { PLATFORM_TEMPLATES, knownVariables, validateTemplateCopy } = await import("@/lib/domain/platform-templates");
+    const { getActiveTemplate } = await import("@/lib/services/platform-template-service");
+    const { sendEmail, isEmailConfigured } = await import("@/lib/email/smtp");
+    const allowlist = (process.env.NOTIFICATION_TEST_EMAIL_ALLOWLIST ?? "")
+      .split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+    const to = recipient.trim().toLowerCase();
+    if (!to || !allowlist.includes(to)) {
+      return { ok: false, error: "Alamat email bukan bagian dari NOTIFICATION_TEST_EMAIL_ALLOWLIST" };
+    }
+    if (!isEmailConfigured()) return { ok: false, error: "SMTP belum dikonfigurasi" };
+    if (!(key in PLATFORM_TEMPLATES)) return { ok: false, error: "Template tidak dikenal" };
+    // Required variables are rendered with explicit safe placeholders; no real tenant
+    // or customer data is ever queried or inserted into the test email.
+    const active = await getActiveTemplate(key);
+    const check = validateTemplateCopy(key, active);
+    if (!check.ok) return { ok: false, error: check.errors.join("; ") };
+    const { renderPlatformTemplate } = await import("@/lib/domain/platform-templates");
+    const vars = Object.fromEntries([...new Set([...PLATFORM_TEMPLATES[key].requiredVars, ...knownVariables(key)])].map((v) => [v, `[TEST_${v.toUpperCase()}]`])) as Record<string, string>;
+    const rendered = renderPlatformTemplate(key, vars, active);
+    const subject = `[TEST] ${rendered.subject || PLATFORM_TEMPLATES[key].label}`;
+    const body = `[TEST TEMPLATE — bukan notifikasi bisnis]\nAdmin: ${admin.email}\nKey: ${key}\nVersion: ${active.version}\n\n${rendered.body}`;
+    const sent = await sendEmail(to, subject, body);
+    await prisma.platformAuditLog.create({
+      data: {
+        actor: admin.email,
+        action: "PLATFORM_TEMPLATE_TEST_EMAIL",
+        target: `platform-template:${key}`,
+        metadata: { recipient: to, version: active.version, sent: sent.ok, error: sent.ok ? null : sent.error },
+      },
+    });
+    if (!sent.ok) return { ok: false, error: sent.error ?? "Email test gagal" };
+    return { ok: true, info: `Test email diterima SMTP ke allowlist (${to}); messageId ${sent.messageId ?? "n/a"}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal test-send" };
+  }
+}
+
 /** Jalankan siklus notif + dispatch sekarang (tak menunggu cron harian). */
 export async function actionRunPlatformNotifyNow(): Promise<Result> {
   try {

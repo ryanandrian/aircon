@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { actionSavePlatformTemplate, actionResetPlatformTemplate, actionRollbackPlatformTemplate } from "./actions";
+import { actionSavePlatformTemplate, actionResetPlatformTemplate, actionRollbackPlatformTemplate, actionTestPlatformTemplateEmail } from "./actions";
 
 export type RevisionView = { version: number; actor: string | null; createdAt: string };
 
@@ -50,6 +50,7 @@ function TemplateRow({ t }: { t: TemplateView }) {
   const [subject, setSubject] = useState(t.subject);
   const [body, setBody] = useState(t.body);
   const [pending, start] = useTransition();
+  const [testRecipient, setTestRecipient] = useState("");
   const dirty = subject !== t.subject || body !== t.body;
 
   const save = () => start(async () => {
@@ -89,6 +90,16 @@ function TemplateRow({ t }: { t: TemplateView }) {
       <p className="text-xs text-muted-foreground">
         Wajib memuat: {t.requiredVars.map((v) => `{{${v}}}`).join(" ") || "—"} · Variabel tersedia: {t.knownVars.map((v) => `{{${v}}}`).join(" ")}
       </p>
+      <div className="rounded-lg border border-dashed p-3 space-y-2">
+        <p className="text-xs text-muted-foreground">Test-send EMAIL hanya ke NOTIFICATION_TEST_EMAIL_ALLOWLIST. Tidak membuat antrean bisnis. Pastikan template placeholder-valid.</p>
+        <div className="flex flex-wrap gap-2">
+          <Input type="email" value={testRecipient} onChange={(e) => setTestRecipient(e.target.value)} placeholder="alamat test yang di-allowlist" className="max-w-sm" />
+          <Button size="sm" variant="outline" disabled={pending || !testRecipient.trim()} onClick={() => start(async () => {
+            const r = await actionTestPlatformTemplateEmail(t.key as never, testRecipient);
+            if (r.ok) toast.success(r.info ?? "Test email dikirim"); else toast.error(r.error ?? "Test gagal");
+          })}>Kirim Test Email</Button>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" disabled={pending || !dirty} onClick={save}>Simpan</Button>
         {!t.isDefault && (
