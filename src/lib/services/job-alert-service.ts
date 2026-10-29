@@ -54,6 +54,118 @@ function clip(text: string, max = 500): string {
   return s;
 }
 
+export interface StaleQueueAlertResult {
+  audited: boolean;
+  emailed: number;
+  queueAlerts: number;
+  problems: string[];
+  staleQueued: number;
+  staleSending: number;
+  staleMessageLogQueued: number;
+  staleMessageLogSending: number;
+}
+
+/**
+ * Read-only scan untuk alert antrean lama (F3). Tidak mengubah status antrean,
+ * tidak mengirim ulang pesan, tidak menyentuh provider.
+ * Snapshot agregat dicatat harian agar satu antrean basi tidak spam admin.
+ */
+export async function alertStaleNotificationQueues(
+  now = new Date(),
+  staleMinutes = 60,
+): Promise<StaleQueueAlertResult> {
+  const result: StaleQueueAlertResult = {
+    audited: false, emailed: 0, queueAlerts: 0, problems: [],
+    staleQueued: 0, staleSending: 0, staleMessageLogQueued: 0, staleMessageLogSending: 0,
+  };
+  const thresholdMinutes = Math.max(5, staleMinutes);
+  const cutoff = new Date(now.getTime() - thresholdMinutes * 60_000);
+  try {
+    const [queued, sending, messageLogQueued, messageLogSending] = await Promise.all([
+      prisma.platformNotification.count({
+        where: { status: "QUEUED", createdAt: { lt: cutoff } },
+      }),
+      prisma.platformNotification.count({
+        where: { status: "SENDING", OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lt: now } }] },
+      }),
+      prisma.messageLog.count({
+        where: { direction: "OUTBOUND", status: "QUEUED", at: { lt: cutoff } },
+      }),
+      prisma.messageLog.count({
+        where: { direction: "OUTBOUND", status: "SENDING", OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lt: now } }] },
+      }),
+    ]);
+    result.staleQueued = queued;
+    result.staleSending = sending;
+    result.staleMessageLogQueued = messageLogQueued;
+    result.staleMessageLogSending = messageLogSending;
+  } catch (e) {
+    result.problems.push(`scan: ${e instanceof Error ? e.message : String(e)}`);
+    console.error("[job-alert] queue scan gagal:", result.problems[0]);
+    return result;
+  }
+
+  if (result.staleQueued + result.staleSending + result.staleMessageLogQueued + result.staleMessageLogSending === 0) return result;
+
+  const dayKey = now.toISOString().slice(0, 10);
+  const counts = {
+    staleQueued: result.staleQueued,
+    staleSending: result.staleSending,
+    staleMessageLogQueued: result.staleMessageLogQueued,
+    staleMessageLogSending: result.staleMessageLogSending,
+  };
+  const target = `stale-notification-queues:${dayKey}`;
+  let isFirstAlertToday = false;
+  try {
+    const previous = await prisma.platformAuditLog.findFirst({ where: { target } });
+    isFirstAlertToday = !previous;
+    if (!previous) {
+      await prisma.platformAuditLog.create({
+        data: {
+          actor: "system:job-alert",
+          action: "STALE_NOTIFICATION_QUEUE_ALERT",
+          target,
+          metadata: { ...counts, cutoff: cutoff.toISOString(), observedAt: now.toISOString() },
+        },
+      });
+    }
+    result.audited = true;
+  } catch (e) {
+    result.problems.push(`audit: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  if (isFirstAlertToday) {
+    try {
+      const admins = await prisma.platformAdmin.findMany({ where: { active: true }, select: { email: true } });
+      if (admins.length) {
+        const { sendEmail, isEmailConfigured } = await import("@/lib/email/smtp");
+        if (isEmailConfigured()) {
+          const body = [
+            "Antrean notifikasi membutuhkan pemeriksaan operator.",
+            `QUEUED platform > ${thresholdMinutes} menit: ${result.staleQueued}`,
+            `SENDING platform tanpa lease / lease kedaluwarsa: ${result.staleSending}`,
+            `QUEUED tenant MessageLog > ${thresholdMinutes} menit: ${result.staleMessageLogQueued}`,
+            `SENDING tenant MessageLog tanpa lease / lease kedaluwarsa: ${result.staleMessageLogSending}`,
+            `Waktu observasi: ${now.toISOString()}`,
+            "Tidak ada status yang diubah dan tidak ada pesan yang dikirim ulang oleh pemeriksaan ini.",
+            "Tinjau Admin → Notifikasi dan journal sebelum melakukan replay.",
+          ].join("\n");
+          for (const admin of admins) {
+            const sent = await sendEmail(admin.email, `[Aircon] Antrean notifikasi stale — ${dayKey}`, body);
+            if (sent.ok) result.emailed += 1;
+            else result.problems.push(`email: ${sent.error ?? "gagal"}`);
+          }
+        }
+      }
+    } catch (e) {
+      result.problems.push(`email: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (result.problems.length) console.error("[job-alert] stale queue alert partial failure:", result.problems.join("; "));
+  result.queueAlerts = result.audited ? 1 : 0;
+  return result;
+}
+
 /**
  * Kirim alert kegagalan job.
  *

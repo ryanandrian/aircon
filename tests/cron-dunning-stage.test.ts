@@ -19,12 +19,13 @@ vi.mock("@/lib/services/inactivity-sweeper-service", () => ({ runInactivitySweep
 vi.mock("@/lib/services/message-dispatch-service", () => ({ flushQueuedMessages }));
 vi.mock("@/lib/services/platform-notify-cycle", () => ({ runPlatformNotifyCycle }));
 vi.mock("@/lib/services/platform-notification-dispatch", () => ({ dispatchPlatformNotifications }));
-const alertJobFailure = vi.hoisted(() =>
-  vi.fn(async (_input: { job: string; stage?: string; error: string; details?: Record<string, unknown> }) => ({
+const { alertJobFailure, alertStaleNotificationQueues } = vi.hoisted(() => ({
+  alertJobFailure: vi.fn(async (_input: { job: string; stage?: string; error: string; details?: Record<string, unknown> }) => ({
     audited: true, emailed: 0, problems: [] as string[],
   })),
-);
-vi.mock("@/lib/services/job-alert-service", () => ({ alertJobFailure }));
+  alertStaleNotificationQueues: vi.fn(async () => ({ audited: false, emailed: 0, queueAlerts: 0, problems: [], staleQueued: 0, staleSending: 0, staleMessageLogQueued: 0, staleMessageLogSending: 0 })),
+}));
+vi.mock("@/lib/services/job-alert-service", () => ({ alertJobFailure, alertStaleNotificationQueues }));
 
 import { POST, GET } from "../src/app/api/cron/dunning/route";
 import { NextRequest } from "next/server";
@@ -54,6 +55,7 @@ describe("cron dunning — tahap terisolasi", () => {
     expect(body.dunning).toEqual({ checked: 1, remindersSent: 1 });
     expect(body.platformDispatch).toEqual({ sent: 0, failed: 0, skipped: 0 });
     expect(runPlatformNotifyCycle).toHaveBeenCalled();
+    expect(alertStaleNotificationQueues).toHaveBeenCalled();
   });
 
   // Kegagalan dunning TIDAK boleh melewatkan purge/dispatch/platform notify.

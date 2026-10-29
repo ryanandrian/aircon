@@ -9,7 +9,7 @@ import { runInactivitySweep } from "@/lib/services/inactivity-sweeper-service";
 import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
 import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
 import { dispatchPlatformNotifications } from "@/lib/services/platform-notification-dispatch";
-import { alertJobFailure } from "@/lib/services/job-alert-service";
+import { alertJobFailure, alertStaleNotificationQueues } from "@/lib/services/job-alert-service";
 
 /** Cek otorisasi cron: header Bearer CRON_SECRET (dipakai Vercel Cron & pemanggilan manual). */
 function authorized(req: NextRequest): boolean {
@@ -45,6 +45,10 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   await run("dispatch", flushQueuedMessages);
   await run("platformNotify", runPlatformNotifyCycle);
   await run("platformDispatch", dispatchPlatformNotifications);
+  // Read-only queue health check. It only records/email-alerts; never changes
+  // queue status or replays messages. Run after dispatch to avoid reporting
+  // rows that were just eligible and successfully handled in this cycle.
+  await run("queueHealth", alertStaleNotificationQueues);
 
   const failed = stages.filter((s) => !s.ok).map((s) => s.name);
   const body: Record<string, unknown> = { ok: failed.length === 0, failed };
