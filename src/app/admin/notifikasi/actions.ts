@@ -89,7 +89,9 @@ export async function actionTestPlatformTemplateEmail(
     const { renderPlatformTemplate } = await import("@/lib/domain/platform-templates");
     const vars = Object.fromEntries([...new Set([...PLATFORM_TEMPLATES[key].requiredVars, ...knownVariables(key)])].map((v) => [v, `[TEST_${v.toUpperCase()}]`])) as Record<string, string>;
     const rendered = renderPlatformTemplate(key, vars, active);
-    const subject = `[TEST] ${rendered.subject || PLATFORM_TEMPLATES[key].label}`;
+    // Distinguish templates whose business subjects are identical (e.g. welcome_basic
+    // and welcome_paid), so an operator's inbox doesn't look like duplicate test sends.
+    const subject = `[TEST:${key}] ${rendered.subject || PLATFORM_TEMPLATES[key].label}`;
     const body = `[TEST TEMPLATE — bukan notifikasi bisnis]\nAdmin: ${admin.email}\nKey: ${key}\nVersion: ${active.version}\n\n${rendered.body}`;
     const sent = await sendEmail(to, subject, body);
     await prisma.platformAuditLog.create({

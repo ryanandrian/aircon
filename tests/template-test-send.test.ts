@@ -30,7 +30,7 @@ describe("template email test-send allowlist", () => {
   it("sends only to exact allowlisted email with TEST prefix and audit record", async () => {
     const r = await actionTestPlatformTemplateEmail("welcome_basic", " QA@example.test ");
     expect(r.ok, JSON.stringify(r)).toBe(true);
-    expect(emailSend).toHaveBeenCalledWith("qa@example.test", expect.stringContaining("[TEST]"), expect.stringContaining("TEST TEMPLATE"));
+    expect(emailSend).toHaveBeenCalledWith("qa@example.test", expect.stringContaining("[TEST:welcome_basic]"), expect.stringContaining("TEST TEMPLATE"));
     expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: "PLATFORM_TEMPLATE_TEST_EMAIL", metadata: expect.objectContaining({ recipient: "qa@example.test", version: 3, sent: true }) }) }));
   });
 
