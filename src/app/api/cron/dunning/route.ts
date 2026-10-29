@@ -9,6 +9,7 @@ import { runInactivitySweep } from "@/lib/services/inactivity-sweeper-service";
 import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
 import { runPlatformNotifyCycle } from "@/lib/services/platform-notify-cycle";
 import { dispatchPlatformNotifications } from "@/lib/services/platform-notification-dispatch";
+import { alertJobFailure } from "@/lib/services/job-alert-service";
 
 /** Cek otorisasi cron: header Bearer CRON_SECRET (dipakai Vercel Cron & pemanggilan manual). */
 function authorized(req: NextRequest): boolean {
@@ -48,6 +49,21 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   const failed = stages.filter((s) => !s.ok).map((s) => s.name);
   const body: Record<string, unknown> = { ok: failed.length === 0, failed };
   for (const s of stages) body[s.name] = s.ok ? s.value : { error: s.error };
+
+  // ALERT KEGAGALAN (F3/G21/G30): kegagalan cron tak boleh hilang diam-diam.
+  // Jejak pasti di PlatformAuditLog + email opsional ke admin platform.
+  // Alert TIDAK mengubah status job (respon 500 tetap), dan kegagalannya sendiri
+  // tak menjatuhkan route.
+  if (failed.length > 0) {
+    for (const s of stages.filter((x) => !x.ok)) {
+      await alertJobFailure({
+        job: "dunning",
+        stage: s.name,
+        error: s.error ?? "tanpa pesan error",
+        details: { failedStages: failed },
+      }).catch((e) => console.error("[cron/dunning] alert gagal:", e));
+    }
+  }
   return NextResponse.json(body, { status: failed.length ? 500 : 200 });
 }
 

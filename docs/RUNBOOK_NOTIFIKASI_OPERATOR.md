@@ -232,13 +232,42 @@ Contoh penerapan: drill kill-switch + uji notifikasi mitra 2026-10-28 —
 
 ---
 
+## 7b. Alert otomatis saat job gagal (F3/G21/G30)
+
+Kegagalan cron TIDAK lagi hanya terlihat di journal. Saat ada kegagalan:
+
+- **Jejak pasti** ditulis ke `PlatformAuditLog` (aksi `JOB_FAILURE_ALERT`,
+  target `job-failure:<job>:<tahap>:<YYYY-MM-DD>`).
+- **Email** dikirim ke seluruh admin platform aktif (SMTP yang sudah dipakai
+  notifikasi platform). opsional — bila SMTP belum dikonfigurasi, yang terjadi
+  hanya jejak audit.
+- **Anti-spam**: satu alert per (job, tahap, hari) — cron harian yang gagal
+  berkali-kali tak mengirim email tiap jam.
+- Alert TIDAK mengubah status/respon job (cron tetap balas 500 agar journal
+  menandai exit non-zero), dan kegagalannya sendiri tak menjatuhkan job.
+
+Job yang diawasi: `dunning` (per tahap: dunning/purge/inactivity/dispatch/
+platformNotify/platformDispatch), `reminders`, `reconcile`, dan `ipaymu-webhook`
+(callback pembayaran — uang masuk tapi langganan tak diproses).
+
+Cara cepat melihat jejak alert:
+
+```sql
+select "target", metadata->>'error' as error, "createdAt"
+from "PlatformAuditLog"
+where action = 'JOB_FAILURE_ALERT'
+order by "createdAt" desc limit 20;
+```
+
 ## 8. Yang BELUM ada (jangan diasumsikan ada)
 
 - **Belum ada outbound notifikasi ke agent/reseller.** Jangan menulis ke tabel
   notifikasi mitra dengan asumsi.
 - **Belum ada push notification** sebagai fallback; kanal aktif: WA, email,
   in-app.
-- **Belum ada alert otomatis** (email/Telegram) saat cron gagal — pemantauannya
-  manual lewat `journalctl` dan Admin → Notifikasi.
+- Alert otomatis saat cron/job gagal **SUDAH ada** (email ke admin platform
+  + jejak `PlatformAuditLog`) — lihat §7b. Yang belum ada: alert ke Telegram
+  dan notifikasi dalam aplikasi khusus operator (sekarang cukup email + jejak
+  audit yang tampil di Admin → Notifikasi).
 - **Copy landing yang live** masih berisi kalimat lama ("semua otomatis").
   Perbarui lewat Admin → Landing, bukan lewat kode.

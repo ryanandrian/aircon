@@ -4,6 +4,7 @@ import { mapIpaymuStatus, mapIpaymuStatusCode } from "@/lib/billing/ipaymu-logic
 import { verifyIpaymuCallback } from "@/lib/billing/ipaymu-client";
 import { processIpaymuNotification } from "@/lib/services/subscription-service";
 import { processIotPayment } from "@/lib/services/iot-order-service";
+import { alertJobFailure } from "@/lib/services/job-alert-service";
 
 function normalizeData(raw: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
@@ -50,7 +51,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       await processIpaymuNotification({ referenceId, status, transactionId: String(body.trx_id ?? ""), amount, paymentType: String(body.channel ?? body.via ?? ""), raw: body });
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[ipaymu-webhook] gagal proses:", error);
+    // ALERT KEGAGALAN (F3/G21): callback pembayaran gagal = uang masuk tapi
+    // langganan tak diproses. Wajib ada jejak + email — tak boleh hilang diam-diam.
+    await alertJobFailure({
+      job: "ipaymu-webhook",
+      error: message,
+      details: { referenceId },
+    }).catch((e) => console.error("[ipaymu-webhook] alert gagal:", e));
     return NextResponse.json({ error: "Gagal memproses" }, { status: 500 });
   }
   return NextResponse.json({ ok: true });

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { runDueRemindersAllTenants } from "@/lib/services/reminder-service";
 import { flushQueuedMessages } from "@/lib/services/message-dispatch-service";
+import { alertJobFailure } from "@/lib/services/job-alert-service";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -29,7 +30,12 @@ async function handle(req: NextRequest): Promise<NextResponse> {
     const dispatch = await flushQueuedMessages();
     return NextResponse.json({ ok: true, ...result, dispatch });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("[cron/reminders] gagal:", err);
+    // ALERT KEGAGALAN (F3/G21): jejak pasti + email opsional ke admin.
+    await alertJobFailure({ job: "reminders", error: message }).catch((e) =>
+      console.error("[cron/reminders] alert gagal:", e),
+    );
     return NextResponse.json({ error: "Gagal menjalankan reminders" }, { status: 500 });
   }
 }

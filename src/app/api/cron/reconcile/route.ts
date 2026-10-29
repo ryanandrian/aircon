@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { reconcilePendingPayments } from "@/lib/services/reconcile-service";
+import { alertJobFailure } from "@/lib/services/job-alert-service";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -19,7 +20,12 @@ async function handle(req: NextRequest): Promise<NextResponse> {
     const result = await reconcilePendingPayments();
     return NextResponse.json({ ok: true, result });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("[cron/reconcile] gagal:", err);
+    // ALERT KEGAGALAN (F3/G21): jejak pasti + email opsional ke admin.
+    await alertJobFailure({ job: "reconcile", error: message }).catch((e) =>
+      console.error("[cron/reconcile] alert gagal:", e),
+    );
     return NextResponse.json({ error: "Gagal rekonsiliasi" }, { status: 500 });
   }
 }
