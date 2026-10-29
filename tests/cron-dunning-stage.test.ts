@@ -19,6 +19,12 @@ vi.mock("@/lib/services/inactivity-sweeper-service", () => ({ runInactivitySweep
 vi.mock("@/lib/services/message-dispatch-service", () => ({ flushQueuedMessages }));
 vi.mock("@/lib/services/platform-notify-cycle", () => ({ runPlatformNotifyCycle }));
 vi.mock("@/lib/services/platform-notification-dispatch", () => ({ dispatchPlatformNotifications }));
+const alertJobFailure = vi.hoisted(() =>
+  vi.fn(async (_input: { job: string; stage?: string; error: string; details?: Record<string, unknown> }) => ({
+    audited: true, emailed: 0, problems: [] as string[],
+  })),
+);
+vi.mock("@/lib/services/job-alert-service", () => ({ alertJobFailure }));
 
 import { POST, GET } from "../src/app/api/cron/dunning/route";
 import { NextRequest } from "next/server";
@@ -78,6 +84,37 @@ describe("cron dunning — tahap terisolasi", () => {
     expect(body.failed).toEqual(["dunning", "dispatch"]);
     expect(body.purge).toEqual({ purged: 0 });
     expect(body.platformNotify).toBeDefined();
+    vi.restoreAllMocks();
+  });
+
+  // ALERT (F3/G21/G30): kegagalan cron → jejak + email admin. Tak boleh hilang diam-diam.
+  it("tahap gagal → alertJobFailure dipanggil dengan job+tahap+error", async () => {
+    runDunningCycle.mockRejectedValue(new Error("db timeout"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await POST(req(AUTH));
+    expect(res.status).toBe(500);
+    expect(alertJobFailure).toHaveBeenCalledTimes(1);
+    const arg = alertJobFailure.mock.calls[0][0];
+    expect(arg.job).toBe("dunning");
+    expect(arg.stage).toBe("dunning");
+    expect(arg.error).toBe("db timeout");
+    vi.restoreAllMocks();
+  });
+
+  it("semua tahap sukses → TIDAK ada alert (anti-spam)", async () => {
+    const res = await POST(req(AUTH));
+    expect(res.status).toBe(200);
+    expect(alertJobFailure).not.toHaveBeenCalled();
+  });
+
+  it("alert yang sendiri gagal TIDAK menjatuhkan route (respon tetap 500)", async () => {
+    runDunningCycle.mockRejectedValue(new Error("db timeout"));
+    alertJobFailure.mockRejectedValueOnce(new Error("alert service down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await POST(req(AUTH));
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.failed).toEqual(["dunning"]);
     vi.restoreAllMocks();
   });
 
