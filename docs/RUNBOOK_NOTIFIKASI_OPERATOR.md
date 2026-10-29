@@ -160,6 +160,20 @@ sendiri di halaman **Pengingat**; template per-tenant, bukan global.
 
 ---
 
+## 3b. Alert bila cron dunning terlewat (F3 — berlaku setelah deploy)
+
+Jalur lama tetap dipakai: timer `aircon-dunning.timer` yang ada menjalankan
+`/api/cron/dunning` pukul 01:00 WIB. Jika keenam tahap berhasil, route menulis
+heartbeat harian ke `PlatformAuditLog` (`CRON_DUNNING_HEARTBEAT`, tanggal WIB).
+Timer reconcile yang sudah ada pukul 03:00 WIB memeriksa heartbeat hari yang
+sama. Jika tidak ada, ia mencatat alert `JOB_FAILURE_ALERT` dan mengirim email
+ke admin platform sesuai dedupe harian. Pemeriksaan sebelum 03:00 WIB tidak
+menandai cron hilang. Tidak ada timer/route baru dan tidak ada replay pesan.
+
+Jika dispatcher/service gagal, alert kegagalan biasa tetap berlaku. Jika database
+tidak tersedia, heartbeat tidak bisa dicatat; reconcile saat DB pulih bisa
+menandai missing heartbeat. Pastikan journal/systemd juga diperiksa.
+
 ## 4. Jadwal & zona waktu
 
 - Tiga timer aktif (dunning 01:00, reminder 02:00, reconcile 03:00 WIB).

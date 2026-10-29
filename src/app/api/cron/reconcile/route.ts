@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { reconcilePendingPayments } from "@/lib/services/reconcile-service";
-import { alertJobFailure } from "@/lib/services/job-alert-service";
+import { alertJobFailure, alertIfDunningHeartbeatMissing } from "@/lib/services/job-alert-service";
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
@@ -18,7 +18,10 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   }
   try {
     const result = await reconcilePendingPayments();
-    return NextResponse.json({ ok: true, result });
+    // Existing reconcile timer runs 03:00 WIB; alert if the daily 01:00 dunning
+    // route never recorded a successful completion. Monitoring only, no sends.
+    const dunningHeartbeat = await alertIfDunningHeartbeatMissing();
+    return NextResponse.json({ ok: true, result, dunningHeartbeat });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[cron/reconcile] gagal:", err);

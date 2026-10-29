@@ -54,6 +54,47 @@ function clip(text: string, max = 500): string {
   return s;
 }
 
+
+const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function jakartaDateKey(date: Date): string {
+  return new Date(date.getTime() + JAKARTA_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** Record successful completion of existing dunning route; no schema/new timer. */
+export async function recordDunningHeartbeat(now = new Date()): Promise<void> {
+  const dayKey = jakartaDateKey(now);
+  await prisma.platformAuditLog.create({
+    data: {
+      actor: "system:cron-heartbeat",
+      action: "CRON_DUNNING_HEARTBEAT",
+      target: `cron-heartbeat:dunning:${dayKey}`,
+      metadata: { completedAt: now.toISOString(), timezone: "Asia/Jakarta" },
+    },
+  });
+}
+
+/**
+ * Called by the EXISTING 03:00 reconcile timer. Alert if no successful dunning
+ * heartbeat exists for today's WIB window. Dedup through the existing audit
+ * channel and email alert helper. No queue/service path added.
+ */
+export async function alertIfDunningHeartbeatMissing(now = new Date()): Promise<{ missing: boolean; audited: boolean; emailed: number }> {
+  const dayKey = jakartaDateKey(now);
+  const minutes = new Date(now.getTime() + JAKARTA_OFFSET_MS).getUTCHours() * 60 + new Date(now.getTime() + JAKARTA_OFFSET_MS).getUTCMinutes();
+  // Reconcile normally runs at 03:00 WIB. Avoid alerting before the scheduled
+  // dunning window has passed if this route is manually invoked earlier.
+  if (minutes < 3 * 60) return { missing: false, audited: false, emailed: 0 };
+  const heartbeat = await prisma.platformAuditLog.findFirst({ where: { target: `cron-heartbeat:dunning:${dayKey}` } });
+  if (heartbeat) return { missing: false, audited: false, emailed: 0 };
+  const alert = await alertJobFailure({
+    job: "dunning-no-run",
+    error: `Tidak ada heartbeat sukses cron dunning hingga ${now.toISOString()} (tanggal WIB ${dayKey}).`,
+    details: { dayKey, checkedAt: now.toISOString(), timezone: "Asia/Jakarta" },
+  });
+  return { missing: true, audited: alert.audited, emailed: alert.emailed };
+}
+
 export interface StaleQueueAlertResult {
   audited: boolean;
   emailed: number;
