@@ -96,4 +96,26 @@ describe("PLATFORM_TEMPLATES — Aircon → tenant", () => {
       tanggal: "27 Oktober 2026", link: "https://x",
     })).toThrow(/nominal/);
   });
+
+
+  it("semua 27 key katalog memiliki producer eksplisit dan kategori tenant/mitra lengkap", async () => {
+    const { PARTNER_TEMPLATE_KEYS, isPartnerTemplate } = await import(
+      "../src/lib/domain/platform-templates"
+    );
+    const { TENANT_COPY_KEYS } = await import("../src/lib/domain/tenant-copy");
+    const catalogKeys = Object.keys(PLATFORM_TEMPLATES).sort();
+    expect(catalogKeys).toHaveLength(27);
+    expect(new Set(catalogKeys).size).toBe(27);
+    expect([...PARTNER_TEMPLATE_KEYS].sort()).toEqual(
+      catalogKeys.filter((key) => key.startsWith("partner_")).sort(),
+    );
+    expect(PARTNER_TEMPLATE_KEYS).toHaveLength(10);
+    expect([...TENANT_COPY_KEYS].sort()).toEqual(
+      catalogKeys.filter((key) => key.startsWith("tenant_")).sort(),
+    );
+    expect(TENANT_COPY_KEYS).toHaveLength(4);
+    for (const key of catalogKeys) {
+      expect(isPartnerTemplate(key as keyof typeof PLATFORM_TEMPLATES)).toBe(key.startsWith("partner_"));
+    }
+  });
 });
