@@ -145,10 +145,10 @@ export async function actionRollbackPlatformTemplate(key: PlatformTemplateKey, t
 }
 
 /** Replay manual 1 notifikasi UNKNOWN/FAILED (G30): admin-only + audit log. */
-export async function actionReplayPlatformNotification(id: string): Promise<Result> {
+export async function actionReplayPlatformNotification(id: string, unknownOutcomeReviewed = false): Promise<Result> {
   try {
     const admin = await requirePlatformAdmin();
-    const r = await replayPlatformNotification(id, admin.email);
+    const r = await replayPlatformNotification(id, admin.email, { unknownOutcomeReviewed });
     if (!r.ok) return { ok: false, error: r.error };
     // Dispatch tertunda → admin lihat hasil seketika (tetap terarah ke baris ini).
     const d = await dispatchPlatformNotifications(1, [id]);

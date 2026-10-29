@@ -53,6 +53,12 @@ describe("G29 — reconcile tool (read-only)", () => {
     expect(r.stats.messageLog.unknown).toBe(2);
     expect(r.stats.messageLog.suppressed).toBe(4);
     expect(r.stats.messageLog.failed7d).toBe(3);
+    expect(r.stats.messageLog.sent).toBe(0);
+    expect(r.stats.messageLog.delivered).toBe(0);
+    expect(r.stats.messageLog.read).toBe(0);
+    expect(r.stats.platformNotification.sent).toBe(42);
+    expect(r.stats.platformNotification.delivered).toBe(0);
+    expect(r.stats.platformNotification.read).toBe(0);
     expect(r.stats.platformNotification.unknown).toBe(1);
     expect(r.stats.platformNotification.suppressed).toBe(2);
   });

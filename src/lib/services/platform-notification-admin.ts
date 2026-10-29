@@ -95,14 +95,15 @@ export function platformTemplateOptions(): {
  * ATURAN:
  *  - Hanya baris berstatus UNKNOWN atau FAILED (hasil tak pasti / gagal) boleh
  *    di-replay; baris SENT/DELIVERED/READ TIDAK (memang sudah sampai).
- *  - dedupeKey DIPERTAHANKAN ⇒ gateway idempotency tetap sama ⇒ tak ada duplikat
- *    ke penerima; bila gateway masih menyimpan job itu, ia menolak dengan 409
- *    (dicatat sebagai "duplicate", bukan gagal).
- *  - attempts direset agar retry dibolehkan; hasil & jejak ditulis ke audit log.
+ *  - `dedupeKey` dipertahankan, tetapi replay UNKNOWN hanya aman setelah operator
+ *    memeriksa bukti provider/penerima; dedupe key aplikasi tidak otomatis
+ *    membuktikan gateway punya record idempotency yang cocok.
+ *  - attempts direset agar retry dibolehkan; jejak tindakan ditulis ke audit log.
  */
 export async function replayPlatformNotification(
   id: string,
   adminEmail: string,
+  options: { unknownOutcomeReviewed?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const row = await prisma.platformNotification.findUnique({
     where: { id },
@@ -113,6 +114,9 @@ export async function replayPlatformNotification(
     // SUPPRESSED sengaja TIDAK bisa di-replay: penyebabnya penerima kosong,
     // jadi harus diperbaiki DATANYA dulu (bukan kirim ulang yang tetap gagal).
     return { ok: false, error: `Status ${row.status} tidak boleh di-replay (hanya UNKNOWN/FAILED)` };
+  }
+  if (row.status === "UNKNOWN" && options.unknownOutcomeReviewed !== true) {
+    return { ok: false, error: "UNKNOWN perlu verifikasi hasil provider/penerima dan konfirmasi operator sebelum replay" };
   }
   await prisma.platformNotification.update({
     where: { id },

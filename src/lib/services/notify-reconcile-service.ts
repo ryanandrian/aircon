@@ -26,8 +26,8 @@ export interface ReconcileReport {
   checks: string[];
   findings: ReconcileFinding[];
   stats: {
-    messageLog: { queued: number; sending: number; unknown: number; suppressed: number; failed7d: number };
-    platformNotification: { queuedOld: number; unknown: number; suppressed: number };
+    messageLog: { queued: number; sending: number; sent: number; delivered: number; read: number; unknown: number; suppressed: number; failed7d: number };
+    platformNotification: { queuedOld: number; sent: number; delivered: number; read: number; unknown: number; suppressed: number };
   };
   ok: boolean;
 }
@@ -52,8 +52,16 @@ export async function runNotificationReconcile(): Promise<ReconcileReport> {
   });
 
   const stats = {
-    messageLog: { queued: ml("QUEUED"), sending: ml("SENDING"), unknown: ml("UNKNOWN"), suppressed: ml("SUPPRESSED"), failed7d },
-    platformNotification: { queuedOld: 0, unknown: pn("UNKNOWN"), suppressed: pn("SUPPRESSED") },
+    messageLog: {
+      queued: ml("QUEUED"), sending: ml("SENDING"), sent: ml("SENT"),
+      delivered: ml("DELIVERED"), read: ml("READ_CONFIRMED") + ml("READ_UNOBSERVED"),
+      unknown: ml("UNKNOWN"), suppressed: ml("SUPPRESSED"), failed7d,
+    },
+    platformNotification: {
+      queuedOld: 0, sent: pn("SENT"), delivered: pn("DELIVERED"),
+      read: pn("READ_CONFIRMED") + pn("READ_UNOBSERVED"),
+      unknown: pn("UNKNOWN"), suppressed: pn("SUPPRESSED"),
+    },
   };
 
   // ── 1) Antrean menua (tenant → pelanggan) ────────────────────────────────

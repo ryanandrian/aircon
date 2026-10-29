@@ -32,7 +32,7 @@ describe("replay manual notifikasi platform (G30)", () => {
       id: "n1", tenantId: "t1", status: "UNKNOWN", templateKey: "wa_disconnected",
       attempts: 3, dedupeKey: "wa:t1:DISCONNECTED:1",
     });
-    const r = await replayPlatformNotification("n1", "admin@x.id");
+    const r = await replayPlatformNotification("n1", "admin@x.id", { unknownOutcomeReviewed: true });
     expect(r.ok).toBe(true);
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "n1" },
@@ -53,6 +53,18 @@ describe("replay manual notifikasi platform (G30)", () => {
         metadata: expect.objectContaining({ tenantId: "t1", fromStatus: "UNKNOWN" }),
       }),
     }));
+  });
+
+  it("UNKNOWN tanpa konfirmasi verifikasi → ditolak sebelum mutasi", async () => {
+    findUnique.mockResolvedValue({
+      id: "n-unknown", tenantId: "t1", status: "UNKNOWN", templateKey: "wa_disconnected",
+      attempts: 2, dedupeKey: "key",
+    });
+    const r = await replayPlatformNotification("n-unknown", "admin@x.id");
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("verifikasi");
+    expect(update).not.toHaveBeenCalled();
+    expect(auditCreate).not.toHaveBeenCalled();
   });
 
   it("FAILED → boleh di-replay", async () => {

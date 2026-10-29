@@ -66,6 +66,10 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
   const [reconcile, setReconcile] = useState<{
     findings: { kind: string; tenantName: string; detail: string }[];
     checks: string[];
+    stats: {
+      messageLog: { queued: number; sending: number; sent: number; delivered: number; read: number; unknown: number; suppressed: number; failed7d: number };
+      platformNotification: { queuedOld: number; sent: number; delivered: number; read: number; unknown: number; suppressed: number };
+    };
     ok: boolean;
   } | null>(null);
   const selectedTemplate = templates.find((t) => t.key === templateKey);
@@ -193,6 +197,10 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
                   setReconcile({
                     findings: r.report?.findings ?? [],
                     checks: r.report?.checks ?? [],
+                    stats: r.report?.stats ?? {
+                      messageLog: { queued: 0, sending: 0, sent: 0, delivered: 0, read: 0, unknown: 0, suppressed: 0, failed7d: 0 },
+                      platformNotification: { queuedOld: 0, sent: 0, delivered: 0, read: 0, unknown: 0, suppressed: 0 },
+                    },
                     ok: r.report?.ok ?? true,
                   });
                   toast.success(r.info ?? "Rekonsiliasi selesai");
@@ -218,8 +226,18 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
                   ))}
                 </ul>
               )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border p-3 text-xs">
+                  <p className="mb-1 font-semibold">Aircon → tenant/penerima platform</p>
+                  <p>Dikirim: {reconcile.stats.platformNotification.sent} · Sampai: {reconcile.stats.platformNotification.delivered} · Dibaca: {reconcile.stats.platformNotification.read} · Tak pasti: {reconcile.stats.platformNotification.unknown} · Ditahan: {reconcile.stats.platformNotification.suppressed} · Antre &gt;1j: {reconcile.stats.platformNotification.queuedOld}</p>
+                </div>
+                <div className="rounded-xl border p-3 text-xs">
+                  <p className="mb-1 font-semibold">Tenant → pelanggan (WA)</p>
+                  <p>Dikirim: {reconcile.stats.messageLog.sent} · Sampai: {reconcile.stats.messageLog.delivered} · Dibaca: {reconcile.stats.messageLog.read} · Tak pasti: {reconcile.stats.messageLog.unknown} · Ditahan: {reconcile.stats.messageLog.suppressed} · Antre: {reconcile.stats.messageLog.queued} · Proses: {reconcile.stats.messageLog.sending} · Gagal 7 hari: {reconcile.stats.messageLog.failed7d}</p>
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Pemeriksaan: {reconcile.checks.join(", ")}
+                Pemeriksaan: {reconcile.checks.join(", ")}. Dikirim (SENT) berarti provider menerima permintaan; bukan bukti sampai/dibaca.
               </p>
             </div>
           )}
@@ -306,7 +324,15 @@ export function NotifPanel({ summary, rows, tenants, templates, health, sendEnab
                       size="xs"
                       variant="outline"
                       disabled={pending}
-                      onClick={() => run(() => actionReplayPlatformNotification(r.id))}
+                      onClick={() => {
+                        if (r.status === "UNKNOWN") {
+                          const confirmed = window.confirm(
+                            "Hasil pengiriman ini tidak diketahui. Periksa bukti dari gateway/penerima terlebih dahulu. Replay dapat menyebabkan pesan duplikat. Lanjutkan hanya bila Anda telah memverifikasi pesan belum diterima."
+                          );
+                          if (!confirmed) return;
+                        }
+                        run(() => actionReplayPlatformNotification(r.id, r.status === "UNKNOWN"));
+                      }}
                     >
                       Kirim Ulang
                     </Button>
