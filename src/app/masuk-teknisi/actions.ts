@@ -123,7 +123,26 @@ export async function ownerSendInviteWa(inviteId: string): Promise<
     const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId }, select: { name: true } });
     const message = `Halo ${invite.name}, Anda diundang menjadi ${peran} di ${tenant?.name ?? "usaha kami"} (via Aircon). Buka tautan ini untuk membuat PIN & mulai:\n${url}`;
 
-    const res = await gatewaySend(ctx.tenantId, invite.phone, message);
+    const res = await gatewaySend(ctx.tenantId, invite.phone, message, {
+      idempotencyKey: `aircon:tech-invite:${ctx.tenantId}:${inviteId}`,
+    });
+    // F5: jejak pengiriman undangan staf — MessageLog SENT/FAILED langsung
+    // (bukan QUEUED: pesan sudah dikirim, flusher tak boleh mengirim ulang).
+    const { traceDocumentSend } = await import("@/lib/services/document-send-trace-service");
+    await traceDocumentSend(
+      { tenantId: ctx.tenantId, kind: "techInvite", toPhone: invite.phone, body: message },
+      res.ok
+        ? { result: "sent", gatewayMessageId: res.messageId ?? null }
+        : res.duplicate
+          ? {
+              // Gateway 409 duplicate = pesan identik sudah diterima.
+              result: "sent",
+              gatewayMessageId: res.messageId ?? null,
+            }
+          : res.deferred
+            ? { result: "held", error: res.error ?? "ditahan sementara" }
+            : { result: "failed", error: res.error ?? "Gagal mengirim WA" },
+    );
     if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", fallback: true };
     return { ok: true, to: invite.phone };
   } catch (err) {

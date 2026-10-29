@@ -577,7 +577,37 @@ export async function sendInvoiceViaWa(
   }
   if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
-  const res = await gatewaySend(tenantId, contact.waPhone, message);
+  const res = await gatewaySend(tenantId, contact.waPhone, message, {
+    idempotencyKey: `aircon:doc-invoice:${tenantId}:${invoiceId}`,
+  });
+  // F5: jejak pengiriman (G28/G30). Baris MessageLog dibuat LANGSUNG setelah
+  // hasil gateway diketahui — status SENT/FAILED, BUKAN QUEUED (kalau QUEUED,
+  // flusher cron mengirim ulang pesan yang sudah terkirim = duplikat ke pelanggan).
+  const { traceDocumentSend } = await import("@/lib/services/document-send-trace-service");
+  await traceDocumentSend(
+    {
+      tenantId,
+      kind: "invoice",
+      toPhone: contact.waPhone,
+      body: message,
+      customerId: inv.customer.id,
+    },
+    res.ok
+      ? {
+          result: "sent",
+          gatewayMessageId: res.messageId ?? null,
+        }
+      : res.duplicate
+        ? {
+            // Gateway 409 duplicate = pesan identik SUDAH pernah diterima;
+            // jangan catat FAILED dan jangan sarankan pengguna kirim ulang.
+            result: "sent",
+            gatewayMessageId: res.messageId ?? null,
+          }
+        : res.deferred
+          ? { result: "held", error: res.error ?? "ditahan sementara" }
+          : { result: "failed", error: res.error ?? "Gagal mengirim WA" },
+  );
   if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
   return { ok: true, to: contact.waPhone };
 }
@@ -650,7 +680,36 @@ export async function sendReceiptViaWa(
   }
   if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
 
-  const res = await gatewaySend(tenantId, contact.waPhone, message);
+  const res = await gatewaySend(tenantId, contact.waPhone, message, {
+    idempotencyKey: `aircon:doc-receipt:${tenantId}:${invoiceId}`,
+  });
+  // F5: jejak pengiriman kwitansi — pola sama dengan tagihan (lihat
+  // sendInvoiceViaWa). SENT/FAILED langsung, bukan QUEUED (anti duplikat).
+  const { traceDocumentSend } = await import("@/lib/services/document-send-trace-service");
+  await traceDocumentSend(
+    {
+      tenantId,
+      kind: "receipt",
+      toPhone: contact.waPhone,
+      body: message,
+      customerId: inv.customer.id,
+    },
+    res.ok
+      ? {
+          result: "sent",
+          gatewayMessageId: res.messageId ?? null,
+        }
+      : res.duplicate
+        ? {
+            // Gateway 409 duplicate = pesan identik SUDAH pernah diterima;
+            // jangan catat FAILED dan jangan sarankan pengguna kirim ulang.
+            result: "sent",
+            gatewayMessageId: res.messageId ?? null,
+          }
+        : res.deferred
+          ? { result: "held", error: res.error ?? "ditahan sementara" }
+          : { result: "failed", error: res.error ?? "Gagal mengirim WA" },
+  );
   if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
   return { ok: true, to: contact.waPhone };
 }
