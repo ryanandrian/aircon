@@ -221,10 +221,8 @@ export async function alertStaleNotificationQueues(
    * membuat email tak pernah terkirim sampai ganti hari.
    */
   const emailDeliveredTarget = `stale-notification-queues-email-delivered:${dayKey}`;
-  let isFirstAlertToday = false;
   try {
     const previous = await prisma.platformAuditLog.findFirst({ where: { target } });
-    isFirstAlertToday = !previous;
     if (!previous) {
       await prisma.platformAuditLog.create({
         data: {
@@ -386,11 +384,8 @@ export async function alertJobFailure(input: JobFailureAlertInput): Promise<JobF
    * (Gejala nyata: 29 Okt 2026, `job-failure:dunning-no-run:-:2026-10-29`.)
    */
   const emailDeliveredTarget = `job-failure-email-delivered:${job}:${stage ?? "-"}:${dayKey}`;
-  /** True bila ini alert PERTAMA untuk job+tahap hari ini (dasar anti-spam jejak). */
-  let isFirstAlertToday = false;
   try {
     const dup = await prisma.platformAuditLog.findFirst({ where: { target: auditTarget } });
-    isFirstAlertToday = !dup;
     if (!dup) {
       await prisma.platformAuditLog.create({
         data: {
