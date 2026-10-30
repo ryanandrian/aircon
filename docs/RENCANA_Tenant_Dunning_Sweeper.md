@@ -87,7 +87,15 @@ pooler, read-only) + log VPS. Jika ada yang diulang di sesi baru, VERIFIKASI ULA
   RepeatReminder, ReviewRequest, Telemetry, UnitCode (*MessageLog & RepeatReminder sudah di daftar hapus).
 - Kenapa belum meledak: hari ini kandidat purge = 0 (tidak ada marked) dan sweeper OFF.
 
-### 1.6 T2 — pesan status (TERKOREKSI, fakta)
+### 1.6 T2 — pesan status (TERPERBAIKI 2026-10-30, lihat bukti di bawah)
+
+> Status: temuan T2 di bawah adalah FAKTA 2026-10-08. Perbaikan jalur pemulihan billing sudah
+> dideploy 2026-10-30 (commit `5e3e398`) dan terverifikasi end-to-end dengan tenant demo
+> Jaya Mandiri (SUSPENDED → bayar perpanjangan → ACTIVE). Rujukan aturan & bukti:
+> `docs/Payment_Dunning_SSOT.md` bagian "Jalur pemulihan tenant terblokir" dan
+> `docs/Security_Model.md` bagian "Pengecualian billing recovery".
+
+**Perilaku SEBELUM perbaikan (fakta 2026-10-08):**
 - `src/lib/auth/access.ts` = **DEAD CODE** (0 import) → pesannya tidak pernah tampil.
 - Aktif: `getServerContext` (`context.ts:60-70`) → status non-usable (SUSPENDED/**CANCELLED**)
   melempar: "Akun usaha dinonaktifkan karena **tunggakan langganan**. Hubungi pemilik usaha."
@@ -100,6 +108,13 @@ pooler, read-only) + log VPS. Jika ada yang diulang di sesi baru, VERIFIKASI ULA
   dan `/app/langganan` **tidak pernah membaca** param `status` (0 searchParams).
 - Admin bisa set CANCELLED tanpa tunggakan (`status-changer.tsx:21`) → pesan "karena
   tunggakan" menyesatkan + saran "hubungi pemilik usaha" tidak menyelesaikan apa-apa.
+- Akibat fatal: jalur bayar ikut terblokir, padahal `activateSubscription` sudah siap
+  menyembuhkan → tenant tak bisa menyelesaikan tunggakannya sendiri.
+
+**Perilaku SESUDAH perbaikan (fakta 2026-10-30):**
+- Copy SUSPENDED mengarahkan ke halaman Langganan (bukan "hubungi pemilik usaha").
+- `/app/langganan` memakai `getBillingRecoveryContext()`; operasional tetap memakai
+  `getServerContext()` dan tetap tertutup. Lihat SSOT + Security_Model untuk aturannya.
 
 ### 1.7 T1 — teks onboarding (fakta)
 - `src/app/onboarding/page.tsx:66`: "…langsung bisa dipakai. **Gratis coba 14 hari.**"
