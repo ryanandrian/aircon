@@ -40,7 +40,10 @@ vi.mock("@/lib/prisma", () => {
         update: vi.fn(),
       },
       // F5: jejak pengiriman manual (document-send-trace-service)
-      messageLog: { create: vi.fn(async () => ({ id: "ml-trace" })) },
+      messageLog: {
+        create: vi.fn(async () => ({ id: "ml-trace" })),
+        findFirst: vi.fn(async () => null),
+      },
     },
   };
 });

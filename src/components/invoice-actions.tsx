@@ -3,6 +3,14 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Icon } from "@/components/icons";
 import { actionSendInvoiceWa } from "@/app/app/faktur/actions";
 import { actionTechSendInvoiceWa } from "@/app/t/faktur/actions";
@@ -26,6 +34,8 @@ export function InvoiceActions({
   docUrl?: string | null;
 }) {
   const [pending, start] = useTransition();
+  const [resendConfirm, setResendConfirm] = useState(false);
+  const [resendMode, setResendMode] = useState(false);
   const [sent, setSent] = useState(false);
   // F3: fallback utk tenant TRIAL/BASIC (plan-locked) — server mengirim balik
   // tautan wa.me (aplikasi WA milik pengirim) → tombol "Buka WhatsApp" muncul.
@@ -53,21 +63,29 @@ export function InvoiceActions({
     }
   }
 
-  function sendWa() {
+  async function sendWa(resend = false) {
+    const resendId = resend ? crypto.randomUUID() : undefined;
+    setResendMode(resend);
     start(async () => {
+      const options = resendId ? { resendId } : {};
       const res = variant === "admin"
-        ? await actionSendInvoiceWa(invoiceId)
-        : await actionTechSendInvoiceWa(invoiceId);
+        ? await actionSendInvoiceWa(invoiceId, options)
+        : await actionTechSendInvoiceWa(invoiceId, options);
       if (!res.ok) {
-        const fallback = (res as { waMe?: { url: string; message: string } }).waMe;
-        setWaMe(fallback ?? null);
-        toast.error(fallback ? `${res.error} (lihat tombol "Buka WhatsApp")` : res.error);
+        const meta = res as { waMe?: { url: string; message: string }; alreadyProcessed?: boolean };
+        setWaMe(meta.waMe ?? null);
+        if (meta.alreadyProcessed) {
+          setSent(true);
+          toast.info("Permintaan ini sudah pernah diproses. Gateway menahan pengiriman duplikat; status pesan tidak dapat dipastikan dari respons ini.");
+          return;
+        }
+        toast.error(meta.waMe ? `${res.error} (lihat tombol "Buka WhatsApp")` : res.error);
         return;
       }
       setWaMe(null);
-      const to = variant === "admin" ? (res as { to?: string }).to : (res as { data?: { to?: string } }).data?.to;
-      toast.success(to ? `${docLabel} dikirim via WA ke ${to}` : `${docLabel} dikirim via WA`);
       setSent(true);
+      const to = variant === "admin" ? (res as { to?: string }).to : (res as { data?: { to?: string } }).data?.to;
+      toast.success(to ? `${docLabel} diterima gateway untuk dikirim ke ${to}` : `${docLabel} diterima gateway untuk dikirim`);
     });
   }
 
@@ -81,10 +99,39 @@ export function InvoiceActions({
           <Icon.Copy className="h-4 w-4" aria-hidden /> Salin link dokumen
         </Button>
       )}
-      <Button type="button" onClick={sendWa} disabled={pending} className="gap-2">
+      <Button
+        type="button"
+        onClick={() => (sent ? setResendConfirm(true) : sendWa())}
+        disabled={pending}
+        className="gap-2"
+      >
         <Icon.Send className="h-4 w-4" aria-hidden />
-        {pending ? "Mengirim…" : sent ? "Kirim WA lagi" : "Kirim via WA"}
+        {pending ? (resendMode ? "Mengirim ulang…" : "Mengirim…") : sent ? "Kirim WA lagi" : "Kirim via WA"}
       </Button>
+      <Dialog open={resendConfirm} onOpenChange={setResendConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Kirim ulang {docLabel}?</DialogTitle>
+            <DialogDescription>
+              Pelanggan akan menerima pesan WhatsApp yang sama sekali lagi. Pastikan memang ingin mengirim ulang.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setResendConfirm(false)}>
+              Batal
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setResendConfirm(false);
+                sendWa(true);
+              }}
+            >
+              Ya, kirim ulang
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {waMe && (
         <a href={waMe.url} target="_blank" rel="noopener noreferrer">
           <Button type="button" variant="outline" className="gap-2">

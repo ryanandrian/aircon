@@ -6,7 +6,7 @@ import { assertRole, AuthError } from "@/lib/auth/guard";
 import { markInvoicePaid, createInvoiceFromProforma, cancelInvoice, sendInvoiceViaWa, sendReceiptViaWa } from "@/lib/services/invoice-service";
 import { putTenantAsset } from "@/lib/storage/s3";
 
-type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string; waMe?: { url: string; message: string } };
+type Result<T = undefined> = { ok: true; data?: T } | { ok: false; error: string; waMe?: { url: string; message: string }; alreadyProcessed?: boolean; held?: boolean };
 const msg = (e: unknown, fb: string) => (e instanceof Error ? e.message : fb);
 
 /**
@@ -74,22 +74,23 @@ export async function actionInvoiceFromProforma(
  *  WhatsApp"); gateway TIDAK dipanggil utk TRIAL. */
 export async function actionTechSendInvoiceWa(
   invoiceId: string,
-): Promise<Result<{ to?: string }>> {
+  options: { resendId?: string } = {},
+): Promise<Result<{ to?: string; alreadyProcessed?: boolean; held?: boolean }>> {
   try {
     const ctx = await getServerContext();
-    const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
+    const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId, options);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe, alreadyProcessed: res.alreadyProcessed, held: res.held };
     return { ok: true, data: { to: res.to } };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal mengirim WA") };
   }
 }
 /** Kirim KWITANSI (invoice LUNAS) via WA gateway (teknisi). Fallback wa.me utk TRIAL. */
-export async function actionTechSendReceiptWa(invoiceId: string): Promise<Result<{ to?: string }>> {
+export async function actionTechSendReceiptWa(invoiceId: string, options: { resendId?: string } = {}): Promise<Result<{ to?: string; alreadyProcessed?: boolean; held?: boolean }>> {
   try {
     const ctx = await getServerContext();
-    const res = await sendReceiptViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
+    const res = await sendReceiptViaWa(ctx.tenantId, invoiceId, options);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe, alreadyProcessed: res.alreadyProcessed, held: res.held };
     return { ok: true, data: { to: res.to } };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal mengirim WA") };

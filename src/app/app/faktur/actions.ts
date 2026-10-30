@@ -60,12 +60,13 @@ export async function actionCountInvoices(
  *  dikirim balik ke UI utk tombol "Buka WhatsApp" — gateway TIDAK dipanggil. */
 export async function actionSendInvoiceWa(
   invoiceId: string,
-): Promise<{ ok: true; to?: string } | { ok: false; error: string; waMe?: { url: string; message: string } }> {
+  options: { resendId?: string } = {},
+): Promise<{ ok: true; to?: string } | { ok: false; error: string; waMe?: { url: string; message: string }; alreadyProcessed?: boolean; held?: boolean }> {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
-    const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
+    const res = await sendInvoiceViaWa(ctx.tenantId, invoiceId, options);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe, alreadyProcessed: res.alreadyProcessed, held: res.held };
     return { ok: true, to: res.to };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };
@@ -75,12 +76,13 @@ export async function actionSendInvoiceWa(
 /** Kirim KWITANSI (invoice LUNAS) via WA gateway (admin). Fallback wa.me utk TRIAL. */
 export async function actionSendReceiptWa(
   invoiceId: string,
-): Promise<{ ok: true; to?: string } | { ok: false; error: string; waMe?: { url: string; message: string } }> {
+  options: { resendId?: string } = {},
+): Promise<{ ok: true; to?: string } | { ok: false; error: string; waMe?: { url: string; message: string }; alreadyProcessed?: boolean; held?: boolean }> {
   try {
     const ctx = await getServerContext();
     assertRole(ctx.role, ["OWNER", "ADMIN"]);
-    const res = await sendReceiptViaWa(ctx.tenantId, invoiceId);
-    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe };
+    const res = await sendReceiptViaWa(ctx.tenantId, invoiceId, options);
+    if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA", waMe: res.waMe, alreadyProcessed: res.alreadyProcessed, held: res.held };
     return { ok: true, to: res.to };
   } catch (err) {
     return { ok: false, error: toMessage(err, "Gagal mengirim WA.") };
