@@ -30,6 +30,23 @@ Semua akses data melewati **server Next.js** (Server Components, Server Actions,
 - Middleware = gerbang kasar (cek KEBERADAAN cookie di edge runtime); validasi penuh (HMAC, tenant,
   role) di `getServerContext`/`requirePlatformAdmin` (Node runtime).
 
+## Pengecualian billing recovery (dibatasi ketat)
+
+Tenant `SUSPENDED`/`CANCELLED` tetap ditolak `getServerContext()`, sehingga seluruh halaman dan
+aksi operasional tetap tertutup. Ada SATU jalur terpisah untuk membayar:
+
+- `getBillingRecoveryContext()` (`src/lib/auth/context.ts`) mengembalikan konteks + status tenant
+  tanpa meloloskan status non-usable. Fungsinya HANYA membaca status, bukan memberi akses operasional.
+- Satu-satunya konsumennya: halaman dan server action `/app/langganan`.
+- `OWNER` pada `SUSPENDED` boleh membayar (jalur penyembuhan). `CANCELLED` ditolak di UI dan di server.
+- Shell layout untuk tenant terblokir minimal: tanpa sidebar navigasi dan tanpa lonceng notifikasi.
+- Route path ditentukan dari request header `x-pathname` yang diisi middleware, bukan dari query/body
+  klien; hanya `/app/langganan` yang dikecualikan.
+- Guard: `tests/billing-recovery-context.test.ts` + `tests/langganan-payment-recovery.test.ts`
+  memastikan SUSPENDED tetap ditolak `getServerContext()` dan CANCELLED tak bisa bayar.
+
+Jangan menambah konsumen `getBillingRecoveryContext()` tanpa alasan pemulihan billing yang setara.
+
 ## Aturan yang tidak boleh dilanggar
 1. Tidak ada query Prisma tanpa `tenantId` (kecuali tabel global: Device pra-provision, _prisma_migrations).
 2. `tenantId` tidak pernah datang dari body/query yang bisa dimanipulasi user pada jalur ber-auth — selalu dari session.

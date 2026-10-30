@@ -2,6 +2,7 @@
 
 Status: ACTIVE SSOT — iPaymu-only sandbox payment verified; production activation remains a merchant gate
 Last reviewed: 2026-09-18
+Updated: 2026-10-30 — alur pemulihan billing SUSPENDED (jalur bayar tidak lagi terblokir)
 Application: https://airconet.id / https://app.airconet.id
 
 ## Authority and update rule
@@ -25,6 +26,28 @@ Basic is free forever when `nextDueDate` is null. There is no auto-charge; paid 
 dengan SUSPENDED, tapi **bukan karena tunggakan** (pesan blokir dibedakan per status di
 `tenantBlockedMessage`). Belum punya jalur purge otomatis. Usable = TRIAL / ACTIVE /
 PAST_DUE (`isTenantUsable`, `src/lib/billing/gating-pure.ts`).
+
+### Jalur pemulihan tenant terblokir (terverifikasi 2026-10-30)
+
+- `getServerContext()` tetap menolak `SUSPENDED` dan `CANCELLED`; semua halaman/aksi operasional
+  yang memakai konteks ini tetap tertutup. Status tenant tidak diubah untuk memberi akses sementara.
+- Satu-satunya pengecualian UI adalah `/app/langganan`: `getBillingRecoveryContext()` mengembalikan
+  konteks tenant + status tanpa meloloskan akses operasional. Shell recovery minimal tidak menampilkan
+  navigasi operasional atau lonceng notifikasi tenant.
+- `OWNER` pada tenant `SUSPENDED` dapat memulai checkout, melihat harga/kupon, dan melanjutkan order
+  iPaymu yang belum lunas. Aksi server memakai konteks recovery, tetap memeriksa `OWNER`, dan tetap
+  membatasi order ke tenant pemiliknya.
+- `CANCELLED` dapat membuka halaman Langganan untuk melihat alasan/status dan tautan Kontak, tetapi
+  UI maupun server action menolak pembayaran. Keputusan admin bukan tunggakan yang bisa disembuhkan
+  dengan checkout.
+- Login memakai `?error=suspended` / `?error=cancelled` untuk copy berbeda; error tak dikenal tidak
+  ditampilkan mentah. Sesi yang tidak memiliki user tetap mengikuti redirect login/onboarding biasa.
+- Verifikasi nyata: tenant demo Jaya Mandiri diubah ke SUSPENDED; pemilik dapat membuka Langganan,
+  melakukan perpanjangan dengan diskon khusus, pembayaran berhasil, dan tenant kembali ACTIVE.
+  Bukti ini memverifikasi alur pemulihan end-to-end untuk checkout tersebut.
+- Implementasi: `src/lib/auth/context.ts`, `src/lib/auth/guard.ts`, `src/app/app/layout.tsx`,
+  `src/app/app/langganan/page.tsx`, `src/app/app/langganan/actions.ts`, `src/app/login/page.tsx`.
+
 Model berbayar TIDAK memakai masa trial — pembatasan paket gratis = kuota PlanConfig
 (pelanggan & unit AC), dijaga `quota-guard.assertQuota`; field `trialEndsAt` tidak pernah
 dievaluasi mesin manapun (fungsi `isTrialExpired`/`computeTrialEnd` hanya di-re-export).
@@ -73,7 +96,7 @@ Callback:
 | `src/lib/billing/ipaymu-logic.ts` | pure status mapping | Implemented |
 | `src/app/api/billing/ipaymu-webhook/route.ts` | callback parsing, signature validation, domain dispatch | Implemented |
 | `src/lib/services/subscription-service.ts` | Payment persistence and idempotent business effects | Implemented |
-| `src/app/app/langganan/actions.ts` | start/resume provider dispatch | Implemented |
+| `src/app/app/langganan/actions.ts` | start/preview/resume provider dispatch; OWNER-only recovery for SUSPENDED, CANCELLED denied | Implemented |
 | `src/app/app/langganan/plan-cards.tsx` | hosted redirect UI | Implemented |
 | `src/app/app/langganan/resume-pay-button.tsx` | hosted redirect resume UI | Implemented |
 | `src/lib/services/reconcile-service.ts` | iPaymu provider pull reconciliation | Implemented for iPaymu sandbox |
