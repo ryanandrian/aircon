@@ -16,10 +16,14 @@ historis dan tidak boleh dijadikan dasar konfigurasi, implementasi, atau diagnos
 - Profesional (PRO): Rp699.000/bln — + penjadwalan ulang otomatis, teknisi tanpa batas
 - IoT add-on: ~Rp100.000/device/bln
 
-## Status tenant (lifecycle)
-TRIAL → ACTIVE (setelah bayar) → PAST_DUE (periode habis, grace) → SUSPENDED (dihentikan) / CANCELLED.
+## Status tenant (lifecycle) — HISTORIS
+TRIAL → ACTIVE (setelah bayar) → PAST_DUE (periode habis, grace) → SUSPENDED (akses operasional ditangguhkan) / CANCELLED.
 - TRIAL memakai fitur PRO (biar dicoba penuh).
-- isTenantUsable: TRIAL/ACTIVE/PAST_DUE boleh pakai; SUSPENDED/CANCELLED tidak.
+- `isTenantUsable`: TRIAL/ACTIVE/PAST_DUE boleh memakai fitur operasional; SUSPENDED/CANCELLED tidak.
+- **PENTING — pengecualian alur aktif (berlaku sejak 2026-10-30):** SUSPENDED tetap diblokir
+  dari seluruh operasi, tetapi OWNER dapat mengakses `/app/langganan` untuk membayar perpanjangan.
+  CANCELLED tetap tak boleh membayar. Perilaku saat ini dan bukti Jaya Mandiri ada di
+  `docs/Payment_Dunning_SSOT.md`; dokumen ini historis dan bukan sumber kontrak.
 
 ## Alur pembayaran
 1. Owner buka /app/langganan → pilih paket + durasi → startPayment (server action, OWNER only)
@@ -64,7 +68,11 @@ Penagihan langganan Lumite→tenant BERBEDA dari reminder servis tenant→pelang
 Semua parameter CONFIGURABLE via `BillingPolicy` (admin), NO hardcode.
 
 ### State machine tenant
-`TRIAL → ACTIVE (setelah bayar) → PAST_DUE (lewat jatuh tempo, grace) → SUSPENDED (login diblok) → hapus permanen`.
+`TRIAL → ACTIVE (setelah bayar) → PAST_DUE (lewat jatuh tempo, grace) → SUSPENDED (akses operasional diblokir) → hapus permanen`.
+**Koreksi perilaku akses (2026-10-30):** frasa "akses diblokir" di sini tidak berarti pemilik
+kehilangan akses ke seluruh aplikasi. OWNER SUSPENDED tetap boleh masuk ke `/app/langganan`
+untuk membayar perpanjangan; seluruh halaman/aksi operasional tetap diblokir. CANCELLED tidak
+mendapat jalur bayar. Lihat `docs/Payment_Dunning_SSOT.md` (ACTIVE SSOT).
 Bayar kapan pun sebelum purge → kembali ACTIVE (reversible). `activateSubscription` set `nextDueDate` = akhir
 periode yang DIBELI (1/3/12 bln). `isTenantUsable`: TRIAL/ACTIVE/PAST_DUE boleh pakai; SUSPENDED/CANCELLED tidak.
 
@@ -75,7 +83,7 @@ periode yang DIBELI (1/3/12 bln). `isTenantUsable`: TRIAL/ACTIVE/PAST_DUE boleh 
 
 ### Aturan dunning (default world-class, editable admin)
 Berdasar hari keterlambatan `late = hari sejak nextDueDate`:
-- `late > graceDaysBeforeSuspend` (default **7**) → SUSPENDED (login diblok, data MASIH utuh).
+- `late > graceDaysBeforeSuspend` (default **7**) → SUSPENDED (operasi diblokir, data MASIH utuh; pengecualian `/app/langganan` untuk bayar — lihat SSOT aktif).
 - `late > daysBeforeDelete` (default **37**, ≈30 hari setelah suspend) → ditandai hapus (markedForDeletionAt).
 - Selain itu (dalam grace) → PAST_DUE (masih bisa login).
 - Reminder WA dikirim pada hari `dunningReminderDays` (default **"0,3,7,14,30"**), maks 1×/hari.

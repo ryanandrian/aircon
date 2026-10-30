@@ -149,10 +149,16 @@ pooler, read-only) + log VPS. Jika ada yang diulang di sesi baru, VERIFIKASI ULA
 - [x] Test unit 3 kasus (SUSPENDED / CANCELLED / unknown) ditambahkan.
 - Gate: tsc+lint+test+build SEMUA LULUS → deploy `3d661d8` PASS (HTTPS / & /login 200).
 
-CATATAN BELUM DISELESAIKAN (didokumentasikan, bukan dilupakan): 7 action /app
+CATATAN BELUM DISELESAIKAN (status pada dokumen saat ditulis; bukan status kini): 7 action /app
 (pesan, perangkat, alert, faktur, checklist, langganan, laporan) memanggil
 `getServerContext()` TANPA menangkap `AuthError` → error tak tertangkap.
-Ini di luar skop T1/T2 (kualitas error handling), masuk daftar tindak lanjut.
+Ini di luar skop T1/T2 saat dokumen ditulis (kualitas error handling), masuk daftar tindak lanjut.
+
+**PEMBARUAN 2026-10-30:** temuan ini tidak lagi menjadi blocker jalur pembayaran tenant SUSPENDED:
+aksi `/app/langganan` sekarang memakai `getBillingRecoveryContext()`; OWNER bisa memulai/melanjutkan
+pembayaran, CANCELLED ditolak. Tujuh action operasional selain Langganan tetap memakai
+`getServerContext()` dan status non-usable tetap diblokir. Rujuk `docs/Payment_Dunning_SSOT.md`.
+
 
 ### T4 — Impor pelanggan dari template (FIX keamanan alur) — ✅ SELESAI + LIVE (commit `cd702ea`)
 Latar: akan ada tenant yang MELAKUKAN IMPOR PERTAMA KALI memakai template bawaan.
