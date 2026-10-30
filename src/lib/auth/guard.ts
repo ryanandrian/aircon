@@ -3,16 +3,31 @@
  * Pure logic (mudah diuji). Dipakai service layer & route handlers.
  * Lihat docs/Security_Model.md
  */
-import type { Role } from "@prisma/client";
+import type { Role, TenantStatus } from "@prisma/client";
 
 export type AuthErrorCode = "UNAUTHORIZED" | "FORBIDDEN";
 
+/**
+ * Alasan penolakan yang bisa ditindaklanjuti (opsional).
+ * - "NO_SESSION"  : tak ada sesi / user belum terhubung ke usaha → suruh masuk.
+ * - "TENANT_BLOCKED": usaha berstatus tak bisa dipakai → alasan = status tenant itu sendiri
+ *   (SUSPENDED = tunggakan & bisa bayar; CANCELLED = diatur admin, bukan jalur bayar).
+ * Bedakan lewat nilai status, BUKAN lewat mengurai teks pesan.
+ */
+export type AuthErrorReason = "NO_SESSION" | "TENANT_BLOCKED";
+
 export class AuthError extends Error {
   code: AuthErrorCode;
-  constructor(code: AuthErrorCode, message: string) {
+  /** Alasan opsional — memungkinkan pemanggil membedakan jenis kegagalan tanpa mengurai teks pesan. */
+  reason?: AuthErrorReason;
+  /** Status tenant bila reason = "TENANT_BLOCKED". */
+  tenantStatus?: TenantStatus;
+  constructor(code: AuthErrorCode, message: string, reason?: AuthErrorReason, tenantStatus?: TenantStatus) {
     super(message);
     this.name = "AuthError";
     this.code = code;
+    if (reason) this.reason = reason;
+    if (tenantStatus) this.tenantStatus = tenantStatus;
   }
 }
 

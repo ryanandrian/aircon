@@ -11,21 +11,24 @@ import { TenantNotificationBell } from "./tenant-notification-bell";
  * Mobile: hamburger (buka drawer navigasi) + judul. Desktop: sidebar menangani navigasi,
  * hamburger disembunyikan. `back` opsional untuk halaman anak (mis. /app/pekerjaan/baru).
  * `helpKey` opsional → tampilkan tombol Bantuan (?) kontekstual dari sumber help-content.
+ * `minimal` opsional → sembunyikan hamburger & lonceng (dipakai shell billing-recovery,
+ * tempat seluruh menu & notifikasi operasi adalah tautan mati untuk tenant terblokir).
  * Sticky, glass, mobile-first.
  */
-export function AppHeader({ title, back, backLabel = "Kembali", action, helpKey }: {
+export function AppHeader({ title, back, backLabel = "Kembali", action, helpKey, minimal = false }: {
   title: string;
   back?: string;
   backLabel?: string;
   action?: React.ReactNode;
   helpKey?: string;
+  minimal?: boolean;
 }) {
   const helpTopic = helpKey ? getHelpTopic(helpKey) : null;
   return (
     <header className="sticky top-0 z-20 border-b bg-muted/50 backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <MobileNav />
+          {!minimal && <MobileNav />}
           {back && (
             <Link
               href={back}
@@ -39,7 +42,7 @@ export function AppHeader({ title, back, backLabel = "Kembali", action, helpKey 
         </div>
         <div className="flex items-center gap-1.5">
           {action}
-          <TenantNotificationBell />
+          {!minimal && <TenantNotificationBell />}
           <HelpButton topic={helpTopic} />
           <ThemeToggle />
         </div>

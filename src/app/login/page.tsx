@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import { buttonVariants } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { resolveLoginError } from "@/lib/auth/login-error";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,9 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const { next, error } = await searchParams;
+  // Pemetaan murni (src/lib/auth/login-error.ts): kode tak dikenal jatuh ke pesan
+  // umum, jadi nilai mentah dari query tidak pernah dirender.
+  const loginError = resolveLoginError(error);
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
@@ -75,10 +79,22 @@ export default async function LoginPage({
             <p className="mt-1.5 text-sm text-muted-foreground">Masuk dan Kelola usaha servis AC Anda dari satu dashboard</p>
           </div>
 
-          {error && (
-            <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400">
-              Gagal masuk. Silakan coba lagi.
-            </p>
+          {loginError && (
+            <div
+              role="alert"
+              className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-400"
+            >
+              <p className="font-semibold">{loginError.title}</p>
+              <p className="mt-1">{loginError.message}</p>
+              {loginError.actionHref && (
+                <Link
+                  href={loginError.actionHref}
+                  className="mt-3 inline-flex min-h-[40px] items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-medium text-white transition hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
+                >
+                  {loginError.actionLabel}
+                </Link>
+              )}
+            </div>
           )}
 
           <div className="mt-6">

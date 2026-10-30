@@ -1,7 +1,7 @@
 "use server";
 
-import { getServerContext } from "@/lib/auth/context";
-import { assertRole } from "@/lib/auth/guard";
+import { getBillingRecoveryContext } from "@/lib/auth/context";
+import { assertRole, AuthError } from "@/lib/auth/guard";
 import { prisma } from "@/lib/prisma";
 import { startIpaymuPayment, BillingError } from "@/lib/services/subscription-service";
 import { isIpaymuConfigured } from "@/lib/billing/ipaymu-client";
@@ -16,6 +16,29 @@ export type ResumePaymentResult =
   | { ok: true; kind: "paid" }
   | { ok: false; error: string };
 
+/**
+ * Konteks untuk aksi pembayaran.
+ *
+ * Recovery: tenant SUSPENDED (tunggakan) BOLEH membayar — inilah satu-satunya
+ * jalan penyembuhan (activateSubscription mengembalikan status ACTIVE).
+ * CANCELLED = berhenti atas keputusan admin platform, bukan tunggakan → tak ada
+ * tombol bayar; owner diarahkan ke halaman Kontak.
+ * Peran tetap OWNER-only (sudah ada sebelumnya, tak dilonggarkan).
+ */
+async function requirePayableOwner(): Promise<
+  { ok: true; ctx: Awaited<ReturnType<typeof getBillingRecoveryContext>> } | { ok: false; error: string }
+> {
+  const ctx = await getBillingRecoveryContext();
+  assertRole(ctx.role, ["OWNER"]);
+  if (ctx.tenantStatus === "CANCELLED") {
+    return {
+      ok: false,
+      error: "Usaha ini berstatus Berhenti (diatur admin platform), sehingga pembayaran tidak tersedia. Bila ini keliru, hubungi kami lewat halaman Kontak.",
+    };
+  }
+  return { ok: true, ctx };
+}
+
 /** Owner memulai pembayaran langganan. SECURITY: hanya OWNER. */
 export async function startPayment(
   plan: TenantPlan,
@@ -23,8 +46,9 @@ export async function startPayment(
   couponCode?: string,
 ): Promise<StartPaymentResult> {
   try {
-    const ctx = await getServerContext();
-    assertRole(ctx.role, ["OWNER"]);
+    const gate = await requirePayableOwner();
+    if (!gate.ok) return { ok: false, error: gate.error };
+    const ctx = gate.ctx;
 
     const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
     if (!tenant) return { ok: false, error: "Usaha tidak ditemukan." };
@@ -42,6 +66,11 @@ export async function startPayment(
     return { ok: true, redirectUrl: res.redirectUrl };
   } catch (err) {
     if (err instanceof BillingError) {
+      return { ok: false, error: err.message };
+    }
+    // Jangan telan AuthError jadi pesan generik: Owner yang tak berhak / tak ada
+    // sesi harus melihat sebabnya, bukan "Gagal memulai pembayaran".
+    if (err instanceof AuthError) {
       return { ok: false, error: err.message };
     }
     console.error("[startPayment] gagal:", err);
@@ -67,8 +96,9 @@ export async function previewCheckout(
   | { ok: false; error: string }
 > {
   try {
-    const ctx = await getServerContext();
-    assertRole(ctx.role, ["OWNER"]);
+    const gate = await requirePayableOwner();
+    if (!gate.ok) return { ok: false, error: gate.error };
+    const ctx = gate.ctx;
     const months = Math.max(1, periodMonths);
     const { getPlanConfig, getBillingPolicy } = await import("@/lib/billing/config");
     const { getCompanyProfile, effectiveTaxPercent } = await import("@/lib/services/company-service");
@@ -110,6 +140,8 @@ export async function previewCheckout(
       couponCode, recurring, recurringMonths, couponError,
     };
   } catch (err) {
+    if (err instanceof BillingError) return { ok: false, error: err.message };
+    if (err instanceof AuthError) return { ok: false, error: err.message };
     console.error("[previewCheckout] gagal:", err);
     return { ok: false, error: "Gagal memuat rincian harga." };
   }
@@ -122,8 +154,9 @@ export async function previewCheckout(
  */
 export async function resumePayment(orderId: string): Promise<ResumePaymentResult> {
   try {
-    const ctx = await getServerContext();
-    assertRole(ctx.role, ["OWNER"]);
+    const gate = await requirePayableOwner();
+    if (!gate.ok) return { ok: false, error: gate.error };
+    const ctx = gate.ctx;
     const tenant = await prisma.tenant.findUnique({ where: { id: ctx.tenantId } });
     if (!tenant) return { ok: false, error: "Usaha tidak ditemukan." };
 
@@ -141,6 +174,7 @@ export async function resumePayment(orderId: string): Promise<ResumePaymentResul
     return { ok: true, kind: "resume", redirectUrl: fresh.redirectUrl };
   } catch (err) {
     if (err instanceof BillingError) return { ok: false, error: err.message };
+    if (err instanceof AuthError) return { ok: false, error: err.message };
     console.error("[resumePayment] gagal:", err);
     return { ok: false, error: "Gagal melanjutkan pembayaran. Coba lagi." };
   }
