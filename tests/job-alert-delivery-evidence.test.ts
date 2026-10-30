@@ -55,6 +55,12 @@ vi.mock("@/lib/email/smtp", () => ({
 
 import { alertJobFailure, listJobAlerts } from "../src/lib/services/job-alert-service";
 
+/**
+ * Hari alert diuji secara EKSPLISIT (bukan tanggal sistem): default `alertJobFailure`
+ * memakai tanggal UTC saat ini, jadi tes tanpa `dayKey` akan bocor/meletus saat
+ * tengah malam UTC. Pola ini sama dengan pemakaian produksi WIB (kunci harian
+ * dihitung eksplisit oleh pemantau).
+ */
 const DAY = "2026-10-29";
 
 describe("alert kegagalan job — jejak tak boleh hilang, email tak boleh hilang permanen", () => {
@@ -67,7 +73,7 @@ describe("alert kegagalan job — jejak tak boleh hilang, email tak boleh hilang
   });
 
   it("alert pertama hari ini ⇒ jejak audit + email terkirim", async () => {
-    const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     expect(r.audited).toBe(true);
     expect(r.emailed).toBe(1);
     // 2 baris audit: jejak kegagalan + marker "email terkirim".
@@ -79,7 +85,7 @@ describe("alert kegagalan job — jejak tak boleh hilang, email tak boleh hilang
     // Percobaan 1: jejak alert tertulis, email GAGAL ⇒ marker "email terkirim"
     // TIDAK ditulis (kode hanya menulis marker bila SEMUA admin menerima).
     sendEmail.mockResolvedValueOnce({ ok: false, error: "smtp down" });
-    const first = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    const first = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     expect(first.audited).toBe(true);
     expect(first.emailed).toBe(0);
     expect(first.problems.join(" ")).toContain("smtp down");
@@ -94,20 +100,20 @@ describe("alert kegagalan job — jejak tak boleh hilang, email tak boleh hilang
       if (target.startsWith("job-failure-email-delivered:")) return null;
       return { id: "a1" };
     });
-    const second = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    const second = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     expect(second.emailed).toBe(1);
     expect(sendEmail).toHaveBeenCalledTimes(2);
   });
 
   it("email SUDAH terkirim ⇒ percobaan berikutnya tak email lagi (anti-spam)", async () => {
-    await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     // Penanda email-delivered sudah tertulis ⇒ jangan email ulang.
     auditFindFirst.mockImplementation(async ({ where }: { where: { target?: unknown } }) => {
       const target = where.target as string;
       if (target.startsWith("job-failure-email-delivered:")) return { id: "m1" };
       return { id: "a1" };
     });
-    const second = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    const second = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     expect(second.emailed).toBe(0);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     // Jejak audit tetap dianggap ada (operator tetap bisa melihat).
@@ -116,7 +122,7 @@ describe("alert kegagalan job — jejak tak boleh hilang, email tak boleh hilang
 
   it("tak ada admin aktif ⇒ tak ada email dan tak ada error", async () => {
     adminFindMany.mockResolvedValue([]);
-    const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     expect(r.audited).toBe(true);
     expect(r.emailed).toBe(0);
     expect(sendEmail).not.toHaveBeenCalled();
@@ -124,7 +130,7 @@ describe("alert kegagalan job — jejak tak boleh hilang, email tak boleh hilang
 
   it("kedua admin aktif menerima alert", async () => {
     adminFindMany.mockResolvedValue([{ email: "a@example.com" }, { email: "b@example.com" }]);
-    const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down" });
+    const r = await alertJobFailure({ job: "dunning", stage: "purge", error: "db down", dayKey: DAY });
     expect(r.emailed).toBe(2);
   });
 

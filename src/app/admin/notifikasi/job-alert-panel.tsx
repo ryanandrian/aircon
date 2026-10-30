@@ -1,7 +1,13 @@
 "use client";
 
+"use client";
+
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { actionSelfTestJobAlert } from "./actions";
 
 /**
  * Panel jejak alert job (F3).
@@ -37,16 +43,33 @@ function fmt(s: string): string {
 }
 
 export function JobAlertPanel({ rows }: { rows: AlertRow[] }) {
+  const [pending, start] = useTransition();
   return (
     <Card>
       <CardContent className="space-y-3 p-5">
-        <div>
-          <h2 className="text-lg font-semibold">Jejak Alert Cron</h2>
-          <p className="text-sm text-muted-foreground">
-            Catatan kegagalan cron &amp; antrean menua (baca-saja). Alert email hanya
-            dikirim satu kali per job per hari; bila email belum sampai, percobaan
-            berikutnya mengirim ulang.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Jejak Alert Cron</h2>
+            <p className="text-sm text-muted-foreground">
+              Catatan kegagalan cron &amp; antrean menua (baca-saja). Alert email hanya
+              dikirim satu kali per job per hari; bila email belum sampai, percobaan
+              berikutnya mengirim ulang.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const r = await actionSelfTestJobAlert();
+                if (r.ok) toast.success(r.info ?? "Self-test terkirim");
+                else toast.error(r.error ?? "Gagal");
+              })
+            }
+          >
+            Uji Alert Email
+          </Button>
         </div>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">Belum ada alert kegagalan tercatat.</p>

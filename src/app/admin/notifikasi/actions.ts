@@ -13,6 +13,7 @@ import { saveTemplate, resetTemplate } from "@/lib/services/platform-template-se
 import { replayPlatformNotification } from "@/lib/services/platform-notification-admin";
 import { rollbackTemplate } from "@/lib/services/platform-template-service";
 import { isNotifySendEnabled, setNotifySendEnabled, isWaSendEnabled, setWaSendEnabled } from "@/lib/services/infra-config-service";
+import { alertJobFailure } from "@/lib/services/job-alert-service";
 import { runNotificationReconcile, type ReconcileReport } from "@/lib/services/notify-reconcile-service";
 import { revalidatePath } from "next/cache";
 
@@ -106,6 +107,37 @@ export async function actionTestPlatformTemplateEmail(
     return { ok: true, info: `Test email diterima SMTP ke allowlist (${to}); messageId ${sent.messageId ?? "n/a"}` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Gagal test-send" };
+  }
+}
+
+/**
+ * SELF-TEST alert kegagalan job (F3) — admin-only, satu kali.
+ *
+ * Menjalankan JALUR YANG SUDAH ADA (`alertJobFailure`) dengan job sintetis
+ * "self-test", supaya operator membuktikan email alert benar-benar sampai ke
+ * kotak masuk sebelum insiden nyata terjadi. Tanpa rute/tabel/timer baru.
+ *
+ * AMAN: tidak menyentuh tenant/pelanggan/antrean; penerima HANYA admin
+ * platform aktif (pada audit 29 Okt: 2 alamat). Pesan menyatakan jelas ini
+ * self-test, bukan kegagalan nyata. Jejak audit bertanda self-test sehingga
+ * tak tertukar dengan insiden.
+ */
+export async function actionSelfTestJobAlert(): Promise<Result & { emailed?: number }> {
+  try {
+    await requirePlatformAdmin();
+    const r = await alertJobFailure({
+      job: "self-test",
+      stage: "manual",
+      error: "SELF-TEST — bukan kegagalan nyata. Dikirim oleh operator dari Admin → Notifikasi untuk memverifikasi kanal alert email.",
+      details: { selfTest: true, triggeredBy: "admin-action", noTenantImpact: true },
+    });
+    if (r.emailed > 0) {
+      return { ok: true, emailed: r.emailed, info: `Self-test terkirim ke ${r.emailed} admin platform (SMTP menerima). Cek kotak masuk Anda.` };
+    }
+    const detail = r.problems.length ? r.problems.join("; ") : "Tidak ada admin aktif atau SMTP belum dikonfigurasi";
+    return { ok: false, error: `Self-test email gagal: ${detail}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Gagal" };
   }
 }
 
