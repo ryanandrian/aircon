@@ -15,8 +15,14 @@ function isGoogleDriver(): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
   const path = request.nextUrl.pathname;
+
+  // Teruskan pathname sebagai request header agar layout/route bisa tahu halaman
+  // yang sedang dirender tanpa menebak (Next: headers() hanya membaca request header).
+  // Dipakai layout /app untuk membuka SATU pengecualian: /app/langganan saat tenant terblokir.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", path);
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Tentukan keberadaan sesi owner/admin sesuai driver.
   let hasOwnerSession = false;
@@ -37,7 +43,7 @@ export async function middleware(request: NextRequest) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-            response = NextResponse.next({ request });
+            response = NextResponse.next({ request: { headers: requestHeaders } });
             cookiesToSet.forEach(({ name, value, options }) =>
               response.cookies.set(name, value, options),
             );

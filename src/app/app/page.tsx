@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { tryGetServerContext } from "@/lib/auth/context";
+import { getServerContext } from "@/lib/auth/context";
+import { AuthError } from "@/lib/auth/guard";
 import { getAuthIdentity } from "@/lib/auth/auth-identity";
 import { prisma } from "@/lib/prisma";
 import { AppHeader } from "./_components/app-header";
@@ -14,8 +15,13 @@ import type { ComponentType } from "react";
 export const dynamic = "force-dynamic";
 
 export default async function AppDashboard() {
-  const ctx = await tryGetServerContext();
-  if (!ctx) {
+  let ctx;
+  try {
+    ctx = await getServerContext();
+  } catch (err) {
+    if (err instanceof AuthError && err.reason === "TENANT_BLOCKED") {
+      redirect(`/login?next=/app&error=${err.tenantStatus?.toLowerCase() ?? "blocked"}`);
+    }
     const identity = await getAuthIdentity();
     if (!identity || (!identity.email && !identity.phone)) redirect("/login?next=/app");
     redirect("/onboarding");

@@ -1,6 +1,9 @@
-import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { tryGetServerContext } from "@/lib/auth/context";
+import { headers } from "next/headers";
+import type { ReactNode } from "react";
+import { getBillingRecoveryContext, type BillingRecoveryContext } from "@/lib/auth/context";
+import { AuthError } from "@/lib/auth/guard";
+import { isTenantUsable } from "@/lib/billing/gating-pure";
 import { prisma } from "@/lib/prisma";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { TenantLogo } from "@/components/tenant-logo";
@@ -11,9 +14,46 @@ import { SidebarMenuScroll } from "./_components/sidebar-menu-scroll";
 import { TenantIdentityProvider } from "./_components/tenant-identity-context";
 import { LogoutButton } from "./logout-button";
 
+/** Satu-satunya halaman yang boleh dibuka tenant tak usable: tempat membayar. */
+const BILLING_RECOVERY_PATH = "/app/langganan";
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const ctx = await tryGetServerContext();
-  if (!ctx) redirect("/login?next=/app");
+  // SATU pemanggilan konteks. Tanpa sesi/user → AuthError NO_SESSION (lihat api.ts
+  // yang memakai reason). Dengan sesi → status tenant ikut dikembalikan, sehingga
+  // layout bisa memutuskan sendiri: layak penuh, atau hanya jalur pembayaran.
+  let ctx: BillingRecoveryContext;
+  try {
+    ctx = await getBillingRecoveryContext();
+  } catch (err) {
+    if (err instanceof AuthError) redirect("/login?next=/app");
+    throw err;
+  }
+
+  // Tenant tak usable: operasi tetap TERTUTUP. Satu-satunya pengecualian
+  // halaman Langganan — tempat membayar, dan jalur satu-satunya penyembuhan.
+  if (!isTenantUsable(ctx.tenantStatus)) {
+    const pathname = (await headers()).get("x-pathname");
+    if (pathname !== BILLING_RECOVERY_PATH) {
+      redirect(`/login?next=/app&error=${ctx.tenantStatus.toLowerCase()}`);
+    }
+    // Shell MINIMAL: tanpa sidebar (semua menu operasi tautan mati) dan tanpa
+    // fab CS. Provider tetap WAJIB — halaman memakai AppHeader → MobileNav,
+    // dan useTenantIdentity() melempar bila provider tak terpasang.
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: ctx.tenantId },
+      select: { name: true, logoUrl: true },
+    });
+    return (
+      <TenantIdentityProvider
+        name={tenant?.name ?? "Aircon"}
+        logoUrl={tenant?.logoUrl ?? null}
+        email={ctx.email}
+      >
+        <div className="min-h-screen bg-background text-foreground">{children}</div>
+      </TenantIdentityProvider>
+    );
+  }
+
   if (ctx.role === "TECHNICIAN") redirect("/t");
 
   const [tenant, platformWa] = await Promise.all([

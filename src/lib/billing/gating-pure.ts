@@ -18,7 +18,7 @@ export function isTenantUsable(status: TenantStatus): boolean {
 export function tenantBlockedMessage(status: TenantStatus): string {
   switch (status) {
     case "SUSPENDED":
-      return "Akun usaha dinonaktifkan karena tunggakan langganan. Hubungi pemilik usaha untuk memperpanjang.";
+      return "Usaha Anda ditangguhkan karena langganan telah jatuh tempo (tunggakan). Aktivitas operasional dibatasi. Pemilik usaha dapat masuk ke halaman Langganan untuk memperpanjang langganan dan mengaktifkan kembali layanan.";
     case "CANCELLED":
       return "Usaha ini berstatus Berhenti (diatur oleh admin platform). Bila menurut Anda ini keliru, hubungi kami lewat halaman Kontak.";
     default:

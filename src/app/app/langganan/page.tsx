@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { tryGetServerContext } from "@/lib/auth/context";
+import { getBillingRecoveryContext } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { getActivePlans, getBillingPolicy, withTax } from "@/lib/billing/config";
 import { getCompanyProfile, effectiveTaxPercent } from "@/lib/services/company-service";
@@ -25,9 +25,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function LanggananPage() {
-  const ctx = await tryGetServerContext();
-  if (!ctx) redirect("/login?next=/app/langganan");
-
+  // Konteks RECOVERY: halaman ini satu-satunya jalan keluar bagi tenant terblokir.
+  // getBillingRecoveryContext() melempar hanya bila tak ada sesi/user/tenant.
+  const ctx = await getBillingRecoveryContext();
+  const tenantStatus = ctx.tenantStatus;
+  const isBlocked = tenantStatus === "SUSPENDED" || tenantStatus === "CANCELLED";
   const isOwner = ctx.role === "OWNER";
   const paymentHistoryCutoff = new Date();
   paymentHistoryCutoff.setDate(paymentHistoryCutoff.getDate() - 90);
@@ -81,7 +83,7 @@ export default async function LanggananPage() {
 
   return (
     <main className="min-h-screen">
-      <AppHeader title="Paket Langganan" helpKey="langganan" />
+      <AppHeader title="Paket Langganan" helpKey="langganan" minimal={isBlocked} />
 
       <div className="mx-auto max-w-4xl space-y-6 px-5 py-6">
         <Card>
@@ -95,11 +97,21 @@ export default async function LanggananPage() {
                 {STATUS_LABEL[tenant.status] ?? tenant.status}
               </Badge>
             </div>
+            {tenantStatus === "SUSPENDED" && (
+              <div role="status" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                Langganan usaha Anda telah jatuh tempo dan layanan operasional ditangguhkan. Selesaikan pembayaran di bawah untuk mengaktifkan kembali layanan.
+              </div>
+            )}
+            {tenantStatus === "CANCELLED" && (
+              <div role="status" className="mt-4 rounded-xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
+                Usaha ini berstatus Berhenti oleh admin platform. Pembayaran tidak tersedia untuk status ini. Jika menurut Anda ini keliru, silakan <Link href="/kontak" className="font-medium text-sky-600 underline">hubungi kami</Link>.
+              </div>
+            )}
             {trialInfo && <p className="mt-3 text-sm text-amber-600 dark:text-amber-400">{trialInfo}</p>}
           </CardContent>
         </Card>
 
-        {!configured && (
+        {!configured && tenantStatus !== "CANCELLED" && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
             Pembayaran online belum diaktifkan. Hubungi tim Aircon untuk berlangganan.
           </div>
@@ -115,7 +127,9 @@ export default async function LanggananPage() {
 
         <PlanCards
           currentPlan={tenant.plan}
-          canPay={configured && isOwner}
+          // CANCELLED = diatur admin → tak ada tombol bayar. Status lain (termasuk
+          // SUSPENDED) boleh membayar: itulah jalur penyembuhan dari dunning.
+          canPay={configured && isOwner && tenantStatus !== "CANCELLED"}
           plans={planViews}
         />
 
@@ -144,8 +158,9 @@ export default async function LanggananPage() {
                         }>
                           {paid ? "Lunas" : p.status === "PENDING" ? "Menunggu" : p.status === "EXPIRED" ? "Kedaluwarsa" : p.status === "FAILED" ? "Gagal" : p.status}
                         </Badge>
-                        {/* Lanjutkan/ulangi bayar utk transaksi belum lunas (OWNER). */}
-                        {!paid && isOwner && configured && p.status !== "REFUNDED" && (
+                        {/* Lanjutkan/ulangi bayar utk transaksi belum lunas (OWNER).
+                            CANCELLED = diatur admin → tombol bayar disembunyikan. */}
+                        {!paid && isOwner && configured && tenantStatus !== "CANCELLED" && p.status !== "REFUNDED" && (
                           <ResumePayButton orderId={p.orderId} label={p.status === "PENDING" ? "Bayar Sekarang" : "Ulangi"} />
                         )}
                         <Link href={`/app/langganan/faktur/${p.id}`} className={buttonVariants({ variant: "ghost", size: "xs", className: "text-sky-600 dark:text-sky-400" })}>

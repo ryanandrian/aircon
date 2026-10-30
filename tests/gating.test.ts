@@ -31,10 +31,13 @@ describe("tenant lifecycle", () => {
     expect(isTrialExpired(null)).toBe(false);
   });
 
-  it("pesan blokir: SUSPENDED menyebut tunggakan & perpanjang", () => {
+  it("pesan blokir: SUSPENDED menyebut tunggakan & mengarahkan ke Langganan", () => {
     const m = tenantBlockedMessage("SUSPENDED");
     expect(m).toContain("tunggakan");
     expect(m).toContain("memperpanjang");
+    // Wajib menuju jalur PENYEMBUHAN (bukan "hubungi pemilik usaha" yang melingkar).
+    expect(m).toContain("halaman Langganan");
+    expect(m).not.toContain("Hubungi pemilik usaha");
   });
 
   it("pesan blokir: CANCELLED TIDAK menyebut tunggakan/perpanjang", () => {
