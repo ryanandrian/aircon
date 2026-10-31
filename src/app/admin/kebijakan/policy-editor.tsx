@@ -38,8 +38,8 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-lg space-y-4 rounded-xl bg-card p-6 ring-1 ring-foreground/10">
-      <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={onSubmit} className="max-w-lg space-y-4 rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-6">
+      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
         <div>
           <Label htmlFor="taxPercent">Pajak (%)</Label>
           <Input id="taxPercent" type="number" step="0.1" name="taxPercent" defaultValue={initial.taxPercent} className="mt-1" />
@@ -98,7 +98,7 @@ export function PolicyEditor({ initial, updatedBy }: { initial: Initial; updated
             Kecualikan tenant yang pernah bayar
           </label>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
           <div>
             <Label htmlFor="inactivityReminder1Days">Reminder #1 (hari tak aktif)</Label>
             <Input id="inactivityReminder1Days" type="number" name="inactivityReminder1Days" defaultValue={initial.inactivityReminder1Days} className="mt-1" />

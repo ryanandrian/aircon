@@ -44,21 +44,21 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
   }
 
   return (
-    <form onSubmit={onSubmit} className="max-w-2xl space-y-5 rounded-xl bg-card p-6 ring-1 ring-foreground/10">
+    <form onSubmit={onSubmit} className="max-w-2xl space-y-5 rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-6">
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Identitas</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="legalName">Nama badan hukum</Label>
-            <Input id="legalName" name="legalName" defaultValue={initial.legalName} className="mt-1" placeholder="PT Lumite ..." />
+            <Input id="legalName" name="legalName" defaultValue={initial.legalName} className="mt-1 min-h-[44px]" placeholder="PT Lumite ..." />
           </div>
           <div>
             <Label htmlFor="brandName">Nama brand</Label>
-            <Input id="brandName" name="brandName" defaultValue={initial.brandName} className="mt-1" required />
+            <Input id="brandName" name="brandName" defaultValue={initial.brandName} className="mt-1 min-h-[44px]" required />
           </div>
           <div className="sm:col-span-2">
             <Label htmlFor="logoUrl">Logo (URL/path)</Label>
-            <Input id="logoUrl" name="logoUrl" defaultValue={initial.logoUrl} className="mt-1" placeholder="/brand/lumite-logo.png" />
+            <Input id="logoUrl" name="logoUrl" defaultValue={initial.logoUrl} className="mt-1 min-h-[44px]" placeholder="/brand/lumite-logo.png" />
             {initial.logoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={initial.logoUrl} alt="Logo perusahaan" className="mt-2 h-12 w-auto object-contain" />
@@ -66,15 +66,15 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
           </div>
           <div>
             <Label htmlFor="npwp">NPWP</Label>
-            <Input id="npwp" name="npwp" defaultValue={initial.npwp} className="mt-1" />
+            <Input id="npwp" name="npwp" defaultValue={initial.npwp} className="mt-1 min-h-[44px]" />
           </div>
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" defaultValue={initial.email} className="mt-1" />
+            <Input id="email" name="email" type="email" defaultValue={initial.email} className="mt-1 min-h-[44px]" />
           </div>
           <div>
             <Label htmlFor="phone">Telepon</Label>
-            <Input id="phone" name="phone" defaultValue={initial.phone} className="mt-1" />
+            <Input id="phone" name="phone" defaultValue={initial.phone} className="mt-1 min-h-[44px]" />
           </div>
         </div>
       </section>
@@ -92,7 +92,7 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
         </p>
         <div className="max-w-xs">
           <Label htmlFor="taxLabel">Label pajak</Label>
-          <Input id="taxLabel" name="taxLabel" defaultValue={initial.taxLabel} className="mt-1" placeholder="PPN" />
+          <Input id="taxLabel" name="taxLabel" defaultValue={initial.taxLabel} className="mt-1 min-h-[44px]" placeholder="PPN" />
         </div>
       </section>
 
@@ -100,25 +100,25 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
         <h2 className="text-sm font-semibold text-muted-foreground">Alamat</h2>
         <div>
           <Label htmlFor="addressLine">Alamat</Label>
-          <Input id="addressLine" name="addressLine" defaultValue={initial.addressLine} className="mt-1" />
+          <Input id="addressLine" name="addressLine" defaultValue={initial.addressLine} className="mt-1 min-h-[44px]" />
         </div>
         <div className="grid gap-4 sm:grid-cols-4">
           <div className="sm:col-span-2">
             <Label htmlFor="city">Kota</Label>
-            <Input id="city" name="city" defaultValue={initial.city} className="mt-1" />
+            <Input id="city" name="city" defaultValue={initial.city} className="mt-1 min-h-[44px]" />
           </div>
           <div>
             <Label htmlFor="province">Provinsi</Label>
-            <Input id="province" name="province" defaultValue={initial.province} className="mt-1" />
+            <Input id="province" name="province" defaultValue={initial.province} className="mt-1 min-h-[44px]" />
           </div>
           <div>
             <Label htmlFor="postalCode">Kode pos</Label>
-            <Input id="postalCode" name="postalCode" defaultValue={initial.postalCode} className="mt-1" />
+            <Input id="postalCode" name="postalCode" defaultValue={initial.postalCode} className="mt-1 min-h-[44px]" />
           </div>
         </div>
         <div className="max-w-xs">
           <Label htmlFor="countryCode">Kode negara</Label>
-          <Input id="countryCode" name="countryCode" defaultValue={initial.countryCode} className="mt-1" />
+          <Input id="countryCode" name="countryCode" defaultValue={initial.countryCode} className="mt-1 min-h-[44px]" />
         </div>
       </section>
 
@@ -127,11 +127,11 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="checkoutExpiryHours">Masa berlaku link bayar (jam)</Label>
-            <Input id="checkoutExpiryHours" type="number" name="checkoutExpiryHours" defaultValue={initial.checkoutExpiryHours} className="mt-1" min={1} max={720} />
+            <Input id="checkoutExpiryHours" type="number" name="checkoutExpiryHours" defaultValue={initial.checkoutExpiryHours} className="mt-1 min-h-[44px]" min={1} max={720} />
           </div>
           <div>
             <Label htmlFor="finishUrl">URL kembali setelah bayar</Label>
-            <Input id="finishUrl" name="finishUrl" defaultValue={initial.finishUrl} className="mt-1" placeholder="https://..." />
+            <Input id="finishUrl" name="finishUrl" defaultValue={initial.finishUrl} className="mt-1 min-h-[44px]" placeholder="https://..." />
           </div>
         </div>
       </section>
@@ -142,15 +142,15 @@ export function CompanyEditor({ initial, updatedBy }: { initial: Initial; update
         <div className="space-y-4">
           <div>
             <Label htmlFor="invoiceNote">Catatan kaki FAKTUR (tagihan, belum lunas)</Label>
-            <Textarea id="invoiceNote" name="invoiceNote" defaultValue={initial.invoiceNote} className="mt-1" rows={2} maxLength={500} placeholder="mis. Pembayaran melalui tautan/kode yang tersedia…" />
+            <Textarea id="invoiceNote" name="invoiceNote" defaultValue={initial.invoiceNote} className="mt-1 min-h-[44px]" rows={2} maxLength={500} placeholder="mis. Pembayaran melalui tautan/kode yang tersedia…" />
           </div>
           <div>
             <Label htmlFor="receiptNote">Catatan kaki KWITANSI (bukti terima, lunas)</Label>
-            <Textarea id="receiptNote" name="receiptNote" defaultValue={initial.receiptNote} className="mt-1" rows={2} maxLength={500} placeholder="mis. Bukti penerimaan pembayaran yang sah…" />
+            <Textarea id="receiptNote" name="receiptNote" defaultValue={initial.receiptNote} className="mt-1 min-h-[44px]" rows={2} maxLength={500} placeholder="mis. Bukti penerimaan pembayaran yang sah…" />
           </div>
           <div>
             <Label htmlFor="paymentFeeNote">Penjelasan biaya layanan channel (bila dibebankan ke pelanggan)</Label>
-            <Textarea id="paymentFeeNote" name="paymentFeeNote" defaultValue={initial.paymentFeeNote} className="mt-1" rows={2} maxLength={500} placeholder="mis. Biaya layanan pembayaran dibayarkan pelanggan langsung kepada penyedia…" />
+            <Textarea id="paymentFeeNote" name="paymentFeeNote" defaultValue={initial.paymentFeeNote} className="mt-1 min-h-[44px]" rows={2} maxLength={500} placeholder="mis. Biaya layanan pembayaran dibayarkan pelanggan langsung kepada penyedia…" />
           </div>
         </div>
       </section>

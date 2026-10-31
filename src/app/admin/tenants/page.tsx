@@ -48,13 +48,13 @@ export default async function TenantsPage({
         <p className="text-sm text-muted-foreground">Kelola langganan seluruh usaha pelanggan.</p>
       </header>
 
-      <form method="get" className="flex flex-wrap items-center gap-3">
+      <form method="get" className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Input
           type="search"
           name="search"
           defaultValue={search ?? ""}
           placeholder="Cari nama, slug, atau telepon…"
-          className="h-9 w-64"
+          className="h-11 w-full min-w-0 sm:h-9 sm:w-64"
         />
         <select
           name="status"

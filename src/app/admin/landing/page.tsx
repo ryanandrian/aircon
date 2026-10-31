@@ -16,8 +16,8 @@ export default async function AdminLandingPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <header>
+    <div className="min-w-0 space-y-6">
+      <header className="min-w-0">
         <h1 className="text-2xl font-semibold text-foreground">Landing Page</h1>
         <p className="text-sm text-muted-foreground">Kelola teks, gambar, testimoni, dan bagian yang tampil di halaman depan — tanpa developer.</p>
       </header>

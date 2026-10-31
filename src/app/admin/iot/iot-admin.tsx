@@ -42,7 +42,7 @@ export function ProductEditor({
       <Input id={`name-${id}`} name="name" defaultValue={initial.name} className="mt-1" required />
       <Label htmlFor={`description-${id}`} className="mt-2 text-xs text-muted-foreground">Deskripsi</Label>
       <Input id={`description-${id}`} name="description" defaultValue={initial.description} className="mt-1" />
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      <div className="mt-2 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
         <div>
           <Label htmlFor={`priceUnit-${id}`} className="text-xs text-muted-foreground">Harga (Rp)</Label>
           <Input id={`priceUnit-${id}`} type="number" name="priceUnit" defaultValue={initial.priceUnit} className="mt-1" min={0} />
@@ -62,9 +62,10 @@ export function ProductEditor({
 }
 
 export function OrderRow({
-  id, orderNo, qty, total, status, trackingNote,
+  id, orderNo, qty, total, status, trackingNote, compact = false,
 }: {
   id: string; orderNo: string; qty: number; total: string; status: IotOrderStatus; trackingNote: string;
+  compact?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [st, setSt] = useState<IotOrderStatus>(status);
@@ -79,20 +80,38 @@ export function OrderRow({
     });
   }
 
-  return (
-    <tr>
+  return compact ? (
+    <article className="min-w-0 rounded-xl border bg-card p-3">
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <span className="min-w-0 break-all font-mono text-xs text-foreground">{orderNo}</span>
+        <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs">{st}</span>
+      </div>
+      <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dt className="text-muted-foreground">Qty</dt><dd className="text-right">{qty}</dd>
+        <dt className="text-muted-foreground">Total</dt><dd className="text-right tabular-nums">{total}</dd>
+      </dl>
+      <label htmlFor={`tracking-${id}`} className="mt-3 block text-xs text-muted-foreground">Catatan / nomor resi</label>
+      <Input id={`tracking-${id}`} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan/resi" className="mt-1 min-h-[44px] min-w-0" />
+      <Button type="button" onClick={save} disabled={pending} variant="secondary" className="mt-2 min-h-[44px] w-full">
+        {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+        {pending ? "Menyimpan…" : "Simpan"}
+      </Button>
+      {saved && <span role="status" className="mt-2 block text-sm text-emerald-600">Tersimpan</span>}
+    </article>
+  ) : (
+  <tr>
       <td className="px-4 py-3 font-mono text-xs text-foreground">{orderNo}</td>
       <td className="px-4 py-3 text-foreground">{qty}</td>
       <td className="px-4 py-3 text-foreground">{total}</td>
       <td className="px-4 py-3">
-        <select value={st} onChange={(e) => setSt(e.target.value as IotOrderStatus)} className="rounded-lg border border-input bg-transparent px-2 py-1 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+        <select value={st} onChange={(e) => setSt(e.target.value as IotOrderStatus)} className="min-h-[44px] rounded-lg border border-input bg-transparent px-2 py-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
           {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan/resi" className="h-7 w-32 text-xs" />
-          <Button type="button" onClick={save} disabled={pending} variant="secondary" size="sm">
+          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Catatan/resi" className="min-h-[44px] w-36 text-xs" />
+          <Button type="button" onClick={save} disabled={pending} variant="secondary" size="sm" className="min-h-[44px]">
             {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
             {pending ? "…" : "Simpan"}
           </Button>

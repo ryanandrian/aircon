@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export default function AdminPanduanPage() {
   const groups = groupHelpTopics("admin");
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="min-w-0 space-y-6">
+      <div className="min-w-0">
         <h1 className="text-xl font-bold text-foreground">Panduan Admin</h1>
         <p className="text-sm text-muted-foreground">
           Panduan lengkap tiap menu panel administrasi. Ketuk topik untuk melihat langkah-langkahnya.

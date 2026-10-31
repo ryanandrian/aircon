@@ -54,10 +54,10 @@ export default async function TenantDetailPage({
         </Link>
       </div>
 
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-foreground">{tenant.name}</h1>
+      <header className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="min-w-0 break-words text-xl font-semibold text-foreground sm:text-2xl">{tenant.name}</h1>
             <TenantStatusBadge status={tenant.status} />
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${HEALTH_STYLE[health]}`}
@@ -72,9 +72,9 @@ export default async function TenantDetailPage({
       </header>
 
       <Card>
-        <CardContent className="p-5">
-          <h2 className="mb-4 text-lg font-medium text-foreground">Langganan</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <CardContent className="p-3 sm:p-5">
+          <h2 className="mb-4 text-base font-medium text-foreground sm:text-lg">Langganan</h2>
+          <div className="grid grid-cols-1 gap-4 min-[360px]:grid-cols-2 md:grid-cols-4">
             <Field label="Paket" value={tenant.plan} />
             <Field label="Periode Berakhir" value={fmtDate(tenant.currentPeriodEnd)} />
             <Field label="Bergabung" value={fmtDate(tenant.createdAt)} />
@@ -99,8 +99,8 @@ export default async function TenantDetailPage({
       </Card>
 
       <Card className="p-0">
-        <div className="border-b px-5 py-4">
-          <h2 className="text-lg font-medium text-foreground">Riwayat Pembayaran</h2>
+        <div className="border-b px-4 py-4 sm:px-5">
+          <h2 className="text-base font-medium text-foreground sm:text-lg">Riwayat Pembayaran</h2>
         </div>
         {tenant.payments.length === 0 ? (
           <EmptyState
@@ -110,32 +110,47 @@ export default async function TenantDetailPage({
             desc="Riwayat transaksi langganan usaha ini akan muncul di sini setelah ada pembayaran."
           />
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Order ID</th>
-                <th className="px-5 py-3 font-medium">Paket</th>
-                <th className="px-5 py-3 font-medium text-right">Jumlah</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Dibayar</th>
-                <th className="px-5 py-3 font-medium">Dibuat</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <div className="space-y-3 p-3 sm:hidden">
               {tenant.payments.map((p) => (
-                <tr key={p.id} className="border-b last:border-0">
-                  <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{p.orderId}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{p.plan}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-foreground">{formatIDR(p.amount)}</td>
-                  <td className="px-5 py-3">
+                <article key={p.id} className="min-w-0 rounded-xl border bg-card p-3">
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <span className="min-w-0 break-all font-mono text-xs text-muted-foreground">{p.orderId}</span>
                     <PaymentStatusBadge status={p.status} />
-                  </td>
-                  <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.paidAt)}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.createdAt)}</td>
-                </tr>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+                    <dt className="text-muted-foreground">Paket</dt><dd className="min-w-0 break-words text-right">{p.plan}</dd>
+                    <dt className="text-muted-foreground">Jumlah</dt><dd className="min-w-0 break-words text-right font-medium tabular-nums">{formatIDR(p.amount)}</dd>
+                    <dt className="text-muted-foreground">Dibayar</dt><dd className="text-right text-muted-foreground">{fmtDate(p.paidAt)}</dd>
+                    <dt className="text-muted-foreground">Dibuat</dt><dd className="text-right text-muted-foreground">{fmtDate(p.createdAt)}</dd>
+                  </dl>
+                </article>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full min-w-[680px] text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="px-5 py-3 font-medium">Order ID</th><th className="px-5 py-3 font-medium">Paket</th>
+                    <th className="px-5 py-3 text-right font-medium">Jumlah</th><th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Dibayar</th><th className="px-5 py-3 font-medium">Dibuat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tenant.payments.map((p) => (
+                    <tr key={p.id} className="border-b last:border-0">
+                      <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{p.orderId}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{p.plan}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-foreground">{formatIDR(p.amount)}</td>
+                      <td className="px-5 py-3"><PaymentStatusBadge status={p.status} /></td>
+                      <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.paidAt)}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
     </div>

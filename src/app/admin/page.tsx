@@ -58,9 +58,9 @@ export default async function AdminDashboardPage() {
       </section>
 
       <Card className="p-0">
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <h2 className="text-lg font-medium text-foreground">Pembayaran Terbaru</h2>
-          <Link href="/admin/tenants" className="text-sm font-medium text-sky-600 hover:underline">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-4 sm:px-5">
+          <h2 className="text-base font-medium text-foreground sm:text-lg">Pembayaran Terbaru</h2>
+          <Link href="/admin/tenants" className="shrink-0 text-sm font-medium text-sky-600 hover:underline">
             Lihat semua usaha →
           </Link>
         </div>
@@ -72,39 +72,60 @@ export default async function AdminDashboardPage() {
             desc="Transaksi langganan dari seluruh usaha akan muncul di sini begitu ada pembayaran masuk."
           />
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-5 py-3 font-medium">Usaha</th>
-                <th className="px-5 py-3 font-medium">Order ID</th>
-                <th className="px-5 py-3 font-medium">Paket</th>
-                <th className="px-5 py-3 font-medium text-right">Jumlah</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Tanggal</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <div className="space-y-3 p-3 sm:hidden">
               {stats.recentPayments.map((p) => (
-                <tr key={p.id} className="border-b last:border-0">
-                  <td className="px-5 py-3">
-                    <Link
-                      href={`/admin/tenants/${p.tenant.id}`}
-                      className="font-medium text-foreground hover:text-sky-600"
-                    >
+                <article key={p.id} className="min-w-0 rounded-xl border bg-card p-3">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <Link href={`/admin/tenants/${p.tenant.id}`} className="min-w-0 break-words font-medium text-foreground hover:text-sky-600">
                       {p.tenant.name}
                     </Link>
-                  </td>
-                  <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{p.orderId}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{p.plan}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-foreground">{formatIDR(p.amount)}</td>
-                  <td className="px-5 py-3">
                     <PaymentStatusBadge status={p.status} />
-                  </td>
-                  <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.paidAt ?? p.createdAt)}</td>
-                </tr>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+                    <dt className="text-muted-foreground">Order</dt>
+                    <dd className="min-w-0 break-all text-right font-mono text-xs text-muted-foreground">{p.orderId}</dd>
+                    <dt className="text-muted-foreground">Paket</dt>
+                    <dd className="min-w-0 break-words text-right text-muted-foreground">{p.plan}</dd>
+                    <dt className="text-muted-foreground">Jumlah</dt>
+                    <dd className="min-w-0 break-words text-right font-medium tabular-nums text-foreground">{formatIDR(p.amount)}</dd>
+                    <dt className="text-muted-foreground">Tanggal</dt>
+                    <dd className="text-right text-muted-foreground">{fmtDate(p.paidAt ?? p.createdAt)}</dd>
+                  </dl>
+                </article>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full min-w-[680px] text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="px-5 py-3 font-medium">Usaha</th>
+                    <th className="px-5 py-3 font-medium">Order ID</th>
+                    <th className="px-5 py-3 font-medium">Paket</th>
+                    <th className="px-5 py-3 text-right font-medium">Jumlah</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Tanggal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.recentPayments.map((p) => (
+                    <tr key={p.id} className="border-b last:border-0">
+                      <td className="px-5 py-3">
+                        <Link href={`/admin/tenants/${p.tenant.id}`} className="font-medium text-foreground hover:text-sky-600">
+                          {p.tenant.name}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-3 font-mono text-xs text-muted-foreground">{p.orderId}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{p.plan}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-foreground">{formatIDR(p.amount)}</td>
+                      <td className="px-5 py-3"><PaymentStatusBadge status={p.status} /></td>
+                      <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.paidAt ?? p.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
     </div>

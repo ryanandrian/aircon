@@ -44,7 +44,7 @@ export function PreviewManager({ items }: { items: P[] }) {
 
   const editForm = (p: P | null) => (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-3 sm:p-6">
         <form onSubmit={onSubmit} className="space-y-4">
           <input type="hidden" name="id" defaultValue={p?.id ?? ""} />
           <div className="grid gap-4 sm:grid-cols-2">

@@ -48,7 +48,30 @@ export default async function AdminIotPage() {
       <section className="space-y-4">
         <h2 className="text-lg font-bold text-foreground">Pesanan Perangkat</h2>
         <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-          <table className="w-full text-sm">
+          <div className="space-y-3 p-3 sm:hidden">
+            {orders.map((o) => (
+              <OrderRow
+                key={o.id}
+                id={o.id}
+                orderNo={o.orderNo}
+                qty={o.quantity}
+                total={rupiah(o.total)}
+                status={o.status}
+                trackingNote={o.trackingNote ?? ""}
+                compact
+              />
+            ))}
+            {orders.length === 0 && (
+              <EmptyState
+                variant="bare"
+                icon={Icon.Package}
+                title="Belum ada pesanan"
+                desc="Pesanan perangkat dari seluruh usaha akan muncul di sini untuk diproses."
+              />
+            )}
+          </div>
+          <div className="hidden overflow-x-auto sm:block">
+          <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">No. Pesanan</th>
@@ -82,6 +105,7 @@ export default async function AdminIotPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </div>

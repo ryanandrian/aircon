@@ -43,7 +43,7 @@ export function ImageUpload({ name, label, scope, defaultUrl }: { name: string; 
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-foreground">{label}</label>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt="preview" className="h-14 w-14 rounded-lg border object-cover" />
@@ -59,15 +59,15 @@ export function ImageUpload({ name, label, scope, defaultUrl }: { name: string; 
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); }}
               disabled={busy}
             />
-            <span className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
+            <span className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border bg-card px-3 text-sm font-medium hover:bg-muted">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               {busy ? "Mengunggah…" : "Pilih gambar"}
             </span>
           </label>
         </div>
       </div>
-      <Input name={name} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="atau tempel URL gambar…" className="text-xs" />
-      {url && <Button type="button" variant="ghost" size="sm" onClick={() => setUrl("")}>Hapus gambar</Button>}
+      <Input name={name} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="atau tempel URL gambar…" className="min-h-[44px] w-full min-w-0 text-xs" />
+      {url && <Button type="button" variant="ghost" size="sm" onClick={() => setUrl("")} className="min-h-[44px] w-full sm:w-auto">Hapus gambar</Button>}
     </div>
   );
 }

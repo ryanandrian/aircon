@@ -65,8 +65,8 @@ export default async function LoginPage({
       </aside>
 
       {/* KANAN — form masuk */}
-      <div className="relative flex items-center justify-center bg-muted/40 p-6">
-        <div className="absolute right-4 top-4"><ThemeToggle /></div>
+      <div className="relative flex min-w-0 items-center justify-center bg-muted/40 p-3 sm:p-6">
+        <div className="absolute right-3 top-3 sm:right-4 sm:top-4"><ThemeToggle /></div>
 
         <div className="w-full max-w-sm">
           {/* Logo (hanya tampil di mobile, karena panel kiri tersembunyi) */}

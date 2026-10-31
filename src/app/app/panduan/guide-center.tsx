@@ -32,7 +32,7 @@ export function GuideCenter({ groups }: { groups: { group: string; topics: HelpT
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="🔍 Cari panduan… (mis. 'pengingat', 'faktur', 'WhatsApp')"
-        className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-sky-500/40"
+        className="min-h-[44px] w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-sky-500/40"
       />
 
       {filtered.length === 0 && (
@@ -51,18 +51,18 @@ export function GuideCenter({ groups }: { groups: { group: string; topics: HelpT
                 <div key={t.key} className="overflow-hidden rounded-xl border bg-card">
                   <button
                     onClick={() => setOpenKey(isOpen ? null : t.key)}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-muted/50"
+                    className="flex min-w-0 w-full items-start justify-between gap-3 px-3 py-3 text-left transition hover:bg-muted/50 sm:px-4"
                     aria-expanded={isOpen}
                   >
-                    <div>
-                      <div className="text-sm font-bold text-foreground">{t.title}</div>
-                      <div className="text-xs text-muted-foreground">{t.whatIsIt}</div>
+                    <div className="min-w-0">
+                      <div className="break-words text-sm font-bold text-foreground">{t.title}</div>
+                      <div className="break-words text-xs text-muted-foreground">{t.whatIsIt}</div>
                     </div>
                     <span className={`shrink-0 text-muted-foreground transition ${isOpen ? "rotate-90" : ""}`}>›</span>
                   </button>
 
                   {isOpen && (
-                    <div className="space-y-5 border-t px-4 py-4">
+                    <div className="space-y-5 border-t px-3 py-4 sm:px-4">
                       <section>
                         <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-600 dark:text-sky-400">
                           <ListChecks className="h-4 w-4" /> Cara pakai
@@ -88,7 +88,7 @@ export function GuideCenter({ groups }: { groups: { group: string; topics: HelpT
                           </div>
                           <div className="space-y-2">
                             {t.faqs.map((f, i) => (
-                              <div key={i} className="rounded-xl border bg-muted/40 p-3 text-sm">
+                              <div key={i} className="min-w-0 rounded-xl border bg-muted/40 p-3 text-sm">
                                 <div className="font-semibold text-foreground">{f.q}</div>
                                 <div className="mt-1 text-foreground/70">{f.a}</div>
                               </div>

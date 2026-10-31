@@ -74,7 +74,7 @@ export function AdminTeamManager({
   return (
     <div className="space-y-6">
       {/* Form tambah */}
-      <form onSubmit={onAdd} className="rounded-2xl border bg-card p-5">
+      <form onSubmit={onAdd} className="min-w-0 rounded-2xl border bg-card p-3 sm:p-5">
         <h2 className="font-semibold text-foreground">Tambah Admin Platform</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Masukkan email Google yang akan diberi akses panel admin Lumite.
@@ -98,14 +98,14 @@ export function AdminTeamManager({
 
       {/* Daftar admin */}
       <div className="rounded-2xl border bg-card">
-        <div className="border-b px-5 py-3 text-sm font-semibold text-foreground">
+        <div className="border-b px-3 py-3 text-sm font-semibold text-foreground sm:px-5">
           Daftar Admin ({activeCount} aktif)
         </div>
         <ul className="divide-y">
           {rows.map((row) => (
-            <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <li key={row.id} className="flex flex-col items-stretch justify-between gap-3 px-3 py-4 sm:flex-row sm:items-center sm:px-5">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="font-medium text-foreground">{row.name}</span>
                   {row.isSelf && (
                     <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">

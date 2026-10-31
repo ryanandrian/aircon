@@ -53,7 +53,7 @@ export function StatusChanger({
         onValueChange={(v) => setValue(v as TenantStatus)}
         disabled={pending}
       >
-        <SelectTrigger className="min-h-[40px] w-44">
+        <SelectTrigger className="min-h-[44px] w-44 max-w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -69,7 +69,7 @@ export function StatusChanger({
         onClick={submit}
         disabled={!dirty || pending}
         aria-busy={pending}
-        className="bg-sky-500 text-white hover:bg-sky-600"
+        className="min-h-[44px] bg-sky-500 text-white hover:bg-sky-600"
       >
         {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
         {pending ? "Menyimpan…" : "Ubah Status"}

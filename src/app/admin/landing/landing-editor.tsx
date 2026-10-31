@@ -40,7 +40,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
     <form onSubmit={onSubmit} className="space-y-6">
       {/* Gambar brand */}
       <Card>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-4 p-3 sm:p-6">
           <h2 className="text-lg font-semibold">Gambar Brand</h2>
           <div className="grid gap-5 sm:grid-cols-3">
             <ImageUpload name="logoUrl" label="Logo" scope="landing" defaultUrl={s("logoUrl")} />
@@ -52,7 +52,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
 
       {/* Hero */}
       <Card>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-4 p-3 sm:p-6">
           <h2 className="text-lg font-semibold">Bagian Hero</h2>
           <div className="space-y-1.5"><Label htmlFor="heroBadge">Badge</Label><Input id="heroBadge" name="heroBadge" defaultValue={s("heroBadge")} /></div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -70,7 +70,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
 
       {/* Cara kerja + CTA + footer */}
       <Card>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-4 p-3 sm:p-6">
           <h2 className="text-lg font-semibold">Judul Bagian &amp; Penutup</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5"><Label htmlFor="howTitle">Judul &quot;Cara kerja&quot;</Label><Input id="howTitle" name="howTitle" defaultValue={s("howTitle")} /></div>
@@ -91,7 +91,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
 
       {/* Kontak CS & Tier Full Custom */}
       <Card>
-        <CardContent className="space-y-4 p-6">
+        <CardContent className="space-y-4 p-3 sm:p-6">
           <h2 className="text-lg font-semibold">Kontak CS &amp; Tier Full Custom</h2>
           <div className="space-y-1.5">
             <Label htmlFor="csWhatsapp">Nomor WhatsApp Customer Service (default: 6285286424691)</Label>
@@ -105,7 +105,7 @@ export function LandingEditor({ initial }: { initial: Content }) {
 
       {/* Toggle section */}
       <Card>
-        <CardContent className="space-y-3 p-6">
+        <CardContent className="space-y-3 p-3 sm:p-6">
           <h2 className="text-lg font-semibold">Tampilkan / Sembunyikan Bagian</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             <Toggle name="showRoi" label="Bar ROI" defaultChecked={b("showRoi")} />

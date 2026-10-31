@@ -37,7 +37,7 @@ export function PlanEditor({ plan, initial }: { plan: TenantPlan; initial: Initi
 
   return (
     <Card>
-      <CardContent className="p-5">
+      <CardContent className="p-3 sm:p-5">
         <form onSubmit={onSubmit}>
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-foreground">{plan}</h2>
@@ -55,7 +55,7 @@ export function PlanEditor({ plan, initial }: { plan: TenantPlan; initial: Initi
               <Label className="text-xs text-muted-foreground">Tagline</Label>
               <Input name="tagline" defaultValue={initial.tagline} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Harga/bulan (Rp)</Label>
                 <Input type="number" name="priceMonthly" defaultValue={initial.priceMonthly} min={0} />

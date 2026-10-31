@@ -25,20 +25,20 @@ export default async function AgentDashboard() {
 
   return (
     <main className="min-h-screen bg-muted/40">
-      <header className="sticky top-0 z-10 border-b bg-background/80 px-5 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <div>
-            <div className="text-sm font-semibold text-foreground">{d.agent.companyName}</div>
+      <header className="sticky top-0 z-10 border-b bg-background/80 px-3 py-3 backdrop-blur sm:px-5">
+        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="break-words text-sm font-semibold text-foreground">{d.agent.companyName}</div>
             <div className="text-xs text-muted-foreground">Portal Agen · Aircon</div>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/agen/reseller" className={buttonVariants({ className: "bg-sky-500 text-white hover:bg-sky-600" })}>Reseller</Link>
-            <form action={actionPartnerLogout}><SubmitButton variant="outline" pendingLabel="Keluar…">Keluar</SubmitButton></form>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
+            <Link href="/agen/reseller" className={buttonVariants({ className: "min-h-[44px] flex-1 bg-sky-500 text-white hover:bg-sky-600 sm:flex-none" })}>Reseller</Link>
+            <form action={actionPartnerLogout} className="flex-1 sm:flex-none"><SubmitButton className="min-h-[44px] w-full" variant="outline" pendingLabel="Keluar…">Keluar</SubmitButton></form>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-4xl space-y-6 p-5">
+      <div className="mx-auto max-w-4xl space-y-6 p-3 sm:p-5">
         {/* Statistik */}
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat label="Pelanggan Bawaan" value={String(d.stats.tenantCount)} />
@@ -54,7 +54,7 @@ export default async function AgentDashboard() {
             <p className="mt-1 text-xs text-muted-foreground">Bagikan agar pelanggan tercatat sebagai bawaan Anda (komisi otomatis).</p>
             <div className="mt-3 space-y-2">
               {d.agent.code && (
-                <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 p-3">
+                <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-muted/50 p-3">
                   <div>
                     <div className="text-xs text-muted-foreground">Kode agen (isi saat pelanggan daftar)</div>
                     <div className="font-bold text-foreground">{d.agent.code}</div>
@@ -63,7 +63,7 @@ export default async function AgentDashboard() {
                 </div>
               )}
               {d.agent.code && (
-                <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/50 p-3">
+                <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl bg-muted/50 p-3">
                   <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">Tautan daftar langsung</div>
                     <div className="truncate text-sm text-foreground">…/onboarding?ref={d.agent.code}</div>
@@ -101,7 +101,7 @@ export default async function AgentDashboard() {
             ) : (
               <div className="mt-3 divide-y divide-border">
                 {d.tenants.map((t, i) => (
-                  <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+                  <div key={i} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5 text-sm">
                     <div>
                       <div className="font-medium text-foreground">{t.name}</div>
                       <div className="text-xs text-muted-foreground">{t.viaReseller ? `via ${t.viaReseller}` : "langsung"} · {new Date(t.since).toLocaleDateString("id-ID")}</div>
@@ -128,9 +128,9 @@ export default async function AgentDashboard() {
             ) : (
               <div className="mt-3 divide-y divide-border">
                 {d.payouts.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+                  <div key={i} className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5 text-sm">
                     <span className="text-muted-foreground">{new Date(p.period).toLocaleDateString("id-ID", { month: "long", year: "numeric" })}</span>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className="font-semibold tabular-nums text-foreground">{rupiah(p.net)}</span>
                       <span className={`rounded-full px-2 py-0.5 text-xs ${p.status === "PAID" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"}`}>{p.status === "PAID" ? "Lunas" : "Proses"}</span>
                     </div>
@@ -149,7 +149,7 @@ export default async function AgentDashboard() {
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className={`rounded-2xl border p-4 ${accent ? "border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30" : "bg-card"}`}>
+    <div className={`min-w-0 rounded-2xl border p-3 sm:p-4 ${accent ? "border-sky-200 bg-sky-50 dark:border-sky-900/40 dark:bg-sky-950/30" : "bg-card"}`}>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 text-lg font-bold tabular-nums text-foreground">{value}</div>
     </div>

@@ -44,7 +44,7 @@ export function TestimonialManager({ items }: { items: T[] }) {
 
   const editForm = (t: T | null) => (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-3 sm:p-6">
         <form onSubmit={onSubmit} className="space-y-4">
           <input type="hidden" name="id" defaultValue={t?.id ?? ""} />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -69,10 +69,10 @@ export function TestimonialManager({ items }: { items: T[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Testimoni Pelanggan</h2>
         {!adding && !editing && (
-          <Button size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Tambah</Button>
+          <Button className="min-h-[44px] w-full sm:w-auto" size="sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" /> Tambah</Button>
         )}
       </div>
 
@@ -92,7 +92,7 @@ export function TestimonialManager({ items }: { items: T[] }) {
           <div className="space-y-2">
             {items.map((t) => (
               <Card key={t.id}>
-                <CardContent className="flex items-center gap-3 p-4">
+                <CardContent className="flex flex-wrap items-center gap-3 p-3 sm:p-4">
                   {t.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={t.photoUrl} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
@@ -100,7 +100,7 @@ export function TestimonialManager({ items }: { items: T[] }) {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500 font-bold text-white">{t.name.charAt(0).toUpperCase()}</div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span className="truncate font-medium text-foreground">{t.name}</span>
                       {!t.published && <Badge variant="secondary">Tersembunyi</Badge>}
                     </div>

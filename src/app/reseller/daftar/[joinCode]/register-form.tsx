@@ -18,9 +18,9 @@ export function RegisterForm({ joinCode, agentName }: { joinCode: string; agentN
 
   if (ok) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
+      <main className="flex min-h-screen items-center justify-center bg-muted/40 p-3 sm:p-6">
         <Card className="w-full max-w-sm rounded-3xl border-emerald-200 text-center shadow-lg">
-          <CardContent className="p-8">
+          <CardContent className="p-4 sm:p-8">
             <div className="flex justify-center text-emerald-500"><Icon.Success className="h-10 w-10" aria-hidden /></div>
             <h1 className="mt-3 text-xl font-bold text-foreground">Pendaftaran Terkirim</h1>
             <p className="mt-2 text-sm text-muted-foreground">Menunggu persetujuan <b>{agentName}</b>. Setelah disetujui, Anda dapat tautan untuk membuat PIN &amp; masuk portal reseller.</p>
@@ -31,10 +31,10 @@ export function RegisterForm({ joinCode, agentName }: { joinCode: string; agentN
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
+    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-3 sm:p-6">
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <Card className="w-full max-w-md rounded-3xl shadow-lg">
-        <CardContent className="p-8">
+        <CardContent className="p-4 sm:p-8">
           <div className="flex flex-col items-center text-center">
             <Image src="/brand/aircon-logo.png" alt="Aircon" width={48} height={48} className="h-12 w-12 object-contain" priority />
             <h1 className="mt-3 text-xl font-bold text-foreground">Daftar Reseller</h1>
@@ -45,7 +45,7 @@ export function RegisterForm({ joinCode, agentName }: { joinCode: string; agentN
             <div className="space-y-1.5"><Label htmlFor="name">Nama Lengkap*</Label><Input id="name" name="name" required className="min-h-[46px]" /></div>
             <div className="space-y-1.5"><Label htmlFor="email">Email*</Label><Input id="email" name="email" type="email" required className="min-h-[46px]" /></div>
             <div className="space-y-1.5"><Label htmlFor="phone">No. WhatsApp</Label><Input id="phone" name="phone" className="min-h-[46px]" /></div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
               <div className="space-y-1.5"><Label htmlFor="bankName">Nama Bank</Label><Input id="bankName" name="bankName" placeholder="BCA" className="min-h-[46px]" /></div>
               <div className="space-y-1.5"><Label htmlFor="bankAccount">No. Rekening</Label><Input id="bankAccount" name="bankAccount" className="min-h-[46px]" /></div>
             </div>

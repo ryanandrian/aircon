@@ -12,7 +12,7 @@ export function CopyButton({ text, full }: { text: string; full?: boolean }) {
     setCopied(true); setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <Button type="button" variant="outline" size="sm" onClick={copy} className="shrink-0">
+    <Button type="button" variant="outline" size="sm" onClick={copy} className="min-h-[44px] shrink-0">
       {copied ? <><Icon.Check className="h-3.5 w-3.5" aria-hidden /> Tersalin</> : "Salin"}
     </Button>
   );

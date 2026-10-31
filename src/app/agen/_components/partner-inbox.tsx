@@ -32,7 +32,7 @@ export function PartnerInbox({ items }: { items: PartnerInboxItem[] }) {
             <li
               key={n.id}
               className={
-                "rounded-xl bg-card p-4 ring-1 " +
+                "min-w-0 rounded-xl bg-card p-3 ring-1 sm:p-4 " +
                 (n.readAt ? "ring-foreground/5 opacity-70" : "ring-foreground/15")
               }
             >

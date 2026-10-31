@@ -15,17 +15,19 @@ interface ResellerView {
   commissionType: string; commissionValue: number; bankMasked: string | null;
 }
 
-const selectCls = "mt-1 min-h-[40px] w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+const selectCls = "mt-1 min-h-[44px] w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 function PlanRuleFields() {
-  return <div className="sm:col-span-3 grid gap-2 rounded-lg border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
+  return (
+  <div className="sm:col-span-3 grid gap-2 rounded-lg border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900/40 dark:bg-sky-950/20">
     <div className="text-xs font-semibold text-foreground">Rate canonical per paket</div>
     {(["TRIAL", "PROFESSIONAL", "BUSINESS"] as const).map((plan) => <div key={plan} className="grid gap-2 sm:grid-cols-3">
       <div className="self-center text-xs text-foreground">{plan === "TRIAL" ? "Basic" : plan === "PROFESSIONAL" ? "Professional" : "Business"}</div>
       <select name={`${plan}_commissionType`} className={selectCls} defaultValue="FLAT_IDR"><option value="FLAT_IDR">Rupiah / bulan</option><option value="PERCENT">Persen</option></select>
-      <Input name={`${plan}_commissionValue`} type="number" min="0" step="0.01" required className="min-h-[40px]" defaultValue="0" />
+      <Input name={`${plan}_commissionValue`} type="number" min="0" step="0.01" required className="min-h-[44px]" defaultValue="0" />
     </div>)}
-  </div>;
+  </div>
+  );
 }
 
 export function ResellerManager({ joinCode, resellers }: { joinCode: string | null; resellers: ResellerView[] }) {
@@ -57,7 +59,7 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
       {msg && <p className="rounded-xl bg-muted px-4 py-3 text-sm text-foreground">{msg}</p>}
 
       {joinCode && (
-        <section className="flex items-center justify-between gap-2 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
+        <section className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-4">
           <div className="min-w-0">
             <div className="text-xs text-muted-foreground">Tautan rekrut reseller (bagikan)</div>
             <div className="truncate text-sm text-foreground">…/reseller/daftar/{joinCode}</div>
@@ -67,7 +69,7 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
       )}
 
       {/* Menunggu persetujuan */}
-      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
+      <section className="rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-5">
         <h2 className="text-sm font-semibold text-muted-foreground">Menunggu Persetujuan ({pendingList.length})</h2>
         {pendingList.length === 0 ? (
           <EmptyState
@@ -89,15 +91,15 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
                     </select>
                   </label>
                   <label className="text-xs text-foreground">Nilai fallback legacy
-                    <Input name="commissionValue" type="number" min="0" step="0.01" required className="mt-1 min-h-[40px]" placeholder="mis. 25000" />
+                    <Input name="commissionValue" type="number" min="0" step="0.01" required className="mt-1 min-h-[44px]" placeholder="mis. 25000" />
                   </label>
                   <PlanRuleFields />
-                  <div className="flex items-end gap-2">
-                    <Button type="submit" disabled={pending} className="min-h-[40px] flex-1 bg-sky-500 text-white hover:bg-sky-600">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <Button type="submit" disabled={pending} className="min-h-[44px] w-full bg-sky-500 text-white hover:bg-sky-600 sm:flex-1">
                       {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
                       Setujui
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => reject(r.id)} className="min-h-[40px]">Tolak</Button>
+                    <Button type="button" variant="outline" onClick={() => reject(r.id)} className="min-h-[44px] w-full sm:w-auto">Tolak</Button>
                   </div>
                 </div>
               </form>
@@ -107,8 +109,8 @@ export function ResellerManager({ joinCode, resellers }: { joinCode: string | nu
       </section>
 
       {/* Reseller aktif + export */}
-      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-        <div className="flex items-center justify-between">
+      <section className="rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-muted-foreground">Reseller Aktif ({activeList.length})</h2>
           {activeList.length > 0 && (
             <a href="/api/agen/reseller-export" className={buttonVariants({ variant: "outline", size: "sm", className: "gap-1.5" })}>

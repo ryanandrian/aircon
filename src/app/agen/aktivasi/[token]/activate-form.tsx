@@ -14,10 +14,10 @@ export function ActivateForm({ kind, token, title }: { kind: "agent" | "reseller
   const err = state && "ok" in state && state.ok === false ? state.error : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
+    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-3 sm:p-6">
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <Card className="w-full max-w-sm rounded-3xl shadow-lg">
-        <CardContent className="p-8">
+        <CardContent className="p-4 sm:p-8">
           <div className="flex flex-col items-center text-center">
             <Image src="/brand/aircon-logo.png" alt="Aircon" width={48} height={48} className="h-12 w-12 object-contain" priority />
             <h1 className="mt-3 text-xl font-bold text-foreground">{title}</h1>

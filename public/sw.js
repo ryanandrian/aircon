@@ -3,6 +3,7 @@
  * Cakupan "/" — dikirim dari public/ (Next menyalin apa adanya).
  * Kontrak payload dari server (push-notification-service.ts):
  *   JSON { title: string, body: string, url: string, tag: string|null }
+ * Tidak menyimpan request/response atau data aplikasi dalam cache.
  */
 
 self.addEventListener("install", (event) => {

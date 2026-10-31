@@ -26,7 +26,7 @@ const TAX_LABEL: Record<PartnerTaxStatus, string> = {
   PERORANGAN: "Perorangan (2,5%)", PKP: "PKP (2% + PPN faktur)",
 };
 
-const selectCls = "mt-1 min-h-[42px] w-full rounded-xl border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+const selectCls = "mt-1 min-h-[44px] w-full rounded-xl border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 const PLAN_LABEL: Record<string, string> = { TRIAL: "Basic", PROFESSIONAL: "Professional", BUSINESS: "Business" };
 
@@ -105,39 +105,39 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
       )}
 
       {/* Agen */}
-      <section className="rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-        <div className="flex items-center justify-between">
+      <section className="rounded-xl bg-card p-3 ring-1 ring-foreground/10 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold text-foreground">Agen ({agents.length})</h2>
-          <Button type="button" onClick={() => setShowForm((s) => !s)} className="bg-sky-500 text-white hover:bg-sky-600">
+          <Button type="button" onClick={() => setShowForm((s) => !s)} className="min-h-[44px] w-full bg-sky-500 text-white hover:bg-sky-600 sm:w-auto">
             {showForm ? "Tutup" : "+ Agen Baru"}
           </Button>
         </div>
 
         {showForm && (
-          <form action={createAgent} className="mt-4 grid gap-3 rounded-xl border bg-muted/40 p-4 sm:grid-cols-2">
-            <label className="text-sm text-foreground">Nama Perusahaan/Agen*<Input name="companyName" required className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">Nama PIC<Input name="picName" className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">Email PIC*<Input name="picEmail" type="email" required className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">No. HP PIC<Input name="picPhone" className="mt-1 min-h-[42px]" /></label>
+          <form action={createAgent} className="mt-4 grid gap-3 rounded-xl border bg-muted/40 p-3 sm:grid-cols-2 sm:p-4">
+            <label className="text-sm text-foreground">Nama Perusahaan/Agen*<Input name="companyName" required className="mt-1 min-h-[44px]" /></label>
+            <label className="text-sm text-foreground">Nama PIC<Input name="picName" className="mt-1 min-h-[44px]" /></label>
+            <label className="text-sm text-foreground">Email PIC*<Input name="picEmail" type="email" required className="mt-1 min-h-[44px]" /></label>
+            <label className="text-sm text-foreground">No. HP PIC<Input name="picPhone" className="mt-1 min-h-[44px]" /></label>
             <label className="text-sm text-foreground">Tipe Komisi (fallback legacy)
               <select name="commissionType" className={selectCls} defaultValue="PERCENT">
                 <option value="PERCENT">Persen (%)</option>
                 <option value="FLAT_IDR">Rupiah tetap / bulan</option>
               </select>
             </label>
-            <label className="text-sm text-foreground">Nilai Komisi (fallback legacy)<Input name="commissionValue" type="number" step="0.01" min="0" required className="mt-1 min-h-[42px]" placeholder="mis. 20 atau 50000" /></label>
+            <label className="text-sm text-foreground">Nilai Komisi (fallback legacy)<Input name="commissionValue" type="number" step="0.01" min="0" required className="mt-1 min-h-[44px]" placeholder="mis. 20 atau 50000" /></label>
             <PlanRuleFields />
             <label className="text-sm text-foreground">Status Pajak
               <select name="taxStatus" className={selectCls} defaultValue="BADAN_NPWP">
                 {Object.entries(TAX_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </label>
-            <label className="text-sm text-foreground">NPWP<Input name="npwp" className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">Nama Bank<Input name="bankName" className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">No. Rekening (terenkripsi)<Input name="bankAccount" className="mt-1 min-h-[42px]" /></label>
-            <label className="text-sm text-foreground">Atas Nama<Input name="bankHolder" className="mt-1 min-h-[42px]" /></label>
+            <label className="text-sm text-foreground">NPWP<Input name="npwp" className="mt-1 min-h-[44px]" /></label>
+            <label className="text-sm text-foreground">Nama Bank<Input name="bankName" className="mt-1 min-h-[44px]" /></label>
+            <label className="text-sm text-foreground">No. Rekening (terenkripsi)<Input name="bankAccount" className="mt-1 min-h-[44px]" /></label>
+            <label className="text-sm text-foreground">Atas Nama<Input name="bankHolder" className="mt-1 min-h-[44px]" /></label>
             <div className="sm:col-span-2">
-              <Button type="submit" disabled={pending} className="min-h-[42px] bg-sky-500 px-5 text-white hover:bg-sky-600">
+              <Button type="submit" disabled={pending} className="min-h-[44px] w-full bg-sky-500 px-5 text-white hover:bg-sky-600 sm:w-auto">
                 {pending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
                 {pending ? "Menyimpan…" : "Buat Agen"}
               </Button>
@@ -199,7 +199,7 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
                       <option value="PERCENT">Persen</option><option value="FLAT_IDR">Rupiah</option>
                     </select>
                   </label>
-                  <label className="text-xs text-foreground">Nilai fallback<Input name="commissionValue" type="number" step="0.01" defaultValue={a.commissionValue} className="mt-1 min-h-[42px]" /></label>
+                  <label className="text-xs text-foreground">Nilai fallback<Input name="commissionValue" type="number" step="0.01" defaultValue={a.commissionValue} className="mt-1 min-h-[44px]" /></label>
                   <div className="sm:col-span-4"><PlanRuleFields rules={a.planCommissions} /></div>
                   <label className="text-xs text-foreground">Status
                     <select name="status" defaultValue={a.status} className={selectCls}>

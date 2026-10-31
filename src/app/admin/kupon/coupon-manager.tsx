@@ -39,7 +39,7 @@ export function CouponManager({ initialRows }: { initialRows: Row[] }) {
   return (
     <div className="space-y-5">
       {!creating && !editing && (
-        <Button onClick={() => setCreating(true)}>+ Buat Kupon</Button>
+        <Button className="min-h-[44px] w-full sm:w-auto" onClick={() => setCreating(true)}>+ Buat Kupon</Button>
       )}
 
       {(creating || editing) && (
@@ -54,9 +54,9 @@ export function CouponManager({ initialRows }: { initialRows: Row[] }) {
         {rows.length === 0 && <p className="text-sm text-muted-foreground">Belum ada kupon.</p>}
         {rows.map((c) => (
           <Card key={c.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="font-bold text-foreground">{c.code}</span>
                   <Badge variant="outline">{typeLabel(c.type, c.value)}</Badge>
                   {c.recurring && <Badge variant="secondary">Recurring{c.recurringMonths == null ? " ∞" : ` ${c.recurringMonths}×`}</Badge>}
@@ -68,9 +68,9 @@ export function CouponManager({ initialRows }: { initialRows: Row[] }) {
                   {c.validUntil ? ` · s/d ${c.validUntil}` : ""}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <ToggleBtn id={c.id} active={c.active} onToggled={(a) => setRows((rs) => rs.map((r) => r.id === c.id ? { ...r, active: a } : r))} />
-                <Button size="sm" variant="outline" onClick={() => { setCreating(false); setEditing(c); }}>Edit</Button>
+                <Button className="min-h-[44px] w-full sm:w-auto" size="sm" variant="outline" onClick={() => { setCreating(false); setEditing(c); }}>Edit</Button>
               </div>
             </CardContent>
           </Card>
@@ -83,7 +83,7 @@ export function CouponManager({ initialRows }: { initialRows: Row[] }) {
 function ToggleBtn({ id, active, onToggled }: { id: string; active: boolean; onToggled: (a: boolean) => void }) {
   const [pending, start] = useTransition();
   return (
-    <Button size="sm" variant={active ? "outline" : "default"} disabled={pending}
+    <Button className="min-h-[44px] w-full" size="sm" variant={active ? "outline" : "default"} disabled={pending}
       onClick={() => start(async () => {
         const res = await actionToggleCoupon(id, !active);
         if (res.ok) { onToggled(!active); toast.success(active ? "Dinonaktifkan" : "Diaktifkan"); }

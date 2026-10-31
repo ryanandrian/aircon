@@ -23,7 +23,7 @@ const NAV = [
   { href: "/admin/panduan", label: "Panduan Admin", icon: BookOpen },
 ];
 
-export function AdminNav() {
+export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <nav className="flex flex-col gap-1">
@@ -34,8 +34,9 @@ export function AdminNav() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm font-medium transition ${
+            className={`flex min-h-[44px] items-center gap-2.5 rounded-2xl px-3 py-2 text-sm font-medium transition ${
               active
                 ? "bg-sky-500 text-white shadow-sm shadow-sky-500/20"
                 : "text-muted-foreground hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-sky-950/40 dark:hover:text-sky-300"
