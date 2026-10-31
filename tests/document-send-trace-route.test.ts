@@ -18,6 +18,11 @@ vi.mock("@/lib/prisma", () => {
     planConfigs: new Map<string, { autoReminder: boolean }>(),
     invoice: null as any,
   };
+  const txMock = {
+    $queryRaw: vi.fn(async () => [{ id: "inv-1" }]),
+    messageLog: { findFirst: vi.fn(async () => null), create: messageLogCreate },
+    invoice: { findFirst: vi.fn(async () => state.invoice) },
+  };
   return {
     __state: state,
     prisma: {
@@ -28,6 +33,10 @@ vi.mock("@/lib/prisma", () => {
         create: messageLogCreate,
         findFirst: vi.fn(async () => null),
       },
+      // Prisma asli (dipakai produksi) menyediakan $transaction untuk mengunci baris
+      // Invoice (FOR UPDATE) demi menutup race klik ganda. Mock: tx = db tiruan.
+      $transaction: vi.fn(async (fn: any) => fn(txMock)),
+      $queryRaw: vi.fn(async () => []),
     },
   };
 });
@@ -85,7 +94,7 @@ describe("invoice WhatsApp manual send", () => {
     const r = await sendInvoiceViaWa("t-pro", "inv-1");
     expect(r.ok).toBe(false);
     expect(r.alreadyProcessed).toBe(true);
-    expect(r.error).toMatch(/tidak dikirim ulang/);
+    expect(r.error).toMatch(/sudah diproses oleh gateway/);
     expect(gatewaySendMock).toHaveBeenCalledTimes(1);
     expect(messageLogCreate).not.toHaveBeenCalled();
   });

@@ -555,7 +555,8 @@ export async function sendInvoiceViaWa(
   if (inv.status === "CANCELLED") return { ok: false, error: "Dokumen sudah dibatalkan" };
 
   const contact = await resolveBillingContact(tenantId, inv.customer.id);
-  if (!contact.waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
+  const waPhone = contact.waPhone;
+  if (!waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
@@ -585,7 +586,7 @@ export async function sendInvoiceViaWa(
     return {
       ok: false,
       error: "Paket Anda belum memiliki WhatsApp otomatis. Buka WhatsApp Anda untuk mengirim dokumen ini.",
-      waMe: { url: waMeLink(contact.waPhone, message), message },
+      waMe: { url: waMeLink(waPhone, message), message },
     };
   }
   if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
@@ -598,7 +599,7 @@ export async function sendInvoiceViaWa(
         channel: "WA",
         direction: "OUTBOUND",
         templateKey: "invoice_wa",
-        toPhone: contact.waPhone,
+        toPhone: waPhone,
         body: { contains: inv.number },
         status: { in: ["QUEUED", "SENDING", "SENT", "DELIVERED", "READ", "READ_CONFIRMED", "READ_UNOBSERVED", "UNKNOWN"] },
       },
@@ -613,48 +614,60 @@ export async function sendInvoiceViaWa(
       };
     }
   }
-
-  const res = await gatewaySend(tenantId, contact.waPhone, message, {
-    // Klik biasa stabil/idempoten: double-click dan retry jaringan tak membuat
-    // pesan kedua. Aksi resend eksplisit mendapat identity baru; setelah first
-    // successful resend UI kembali memakai base key supaya retry resend itu
-    // juga dedup terhadap permintaan yang sama.
-    idempotencyKey: options.resendId
-      ? `aircon:doc-invoice:${tenantId}:${invoiceId}:resend:${options.resendId}`
-      : `aircon:doc-invoice:${tenantId}:${invoiceId}`,
+  if (!options.resendId) {
+    // Serial per-document operations in the tenant DB, then send under a stable
+    // business key. This closes the read-then-send race between concurrent clicks.
+    const txnOutcome = await prisma.$transaction(async (tx) => {
+      const lockRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "tenantId" = ${tenantId} FOR UPDATE
+      `;
+      if (!lockRows.length) return { kind: "notfound" as const };
+      const existing = await tx.messageLog.findFirst({
+        where: {
+          tenantId,
+          customerId: inv.customer.id,
+          channel: "WA",
+          direction: "OUTBOUND",
+          templateKey: "invoice_wa",
+          toPhone: waPhone,
+          body: { contains: inv.number },
+          status: { in: ["QUEUED", "SENDING", "SENT", "DELIVERED", "READ", "READ_CONFIRMED", "READ_UNOBSERVED", "UNKNOWN"] },
+        },
+        select: { id: true, status: true },
+      });
+      if (existing) return { kind: "existing" as const, status: existing.status };
+      const result = await gatewaySend(tenantId, waPhone, message, { idempotencyKey: `aircon:doc-invoice:${tenantId}:${invoiceId}` });
+      return { kind: "sent" as const, result };
+    });
+    if (txnOutcome.kind === "notfound") return { ok: false, error: "Dokumen tidak ditemukan" };
+    if (txnOutcome.kind === "existing") return { ok: false, alreadyProcessed: true, error: `Invoice ini sudah memiliki permintaan WA (${txnOutcome.status}); gunakan Kirim WA lagi jika ingin mengirim salinan baru.` };
+    const result = txnOutcome.result;
+    if (!result.duplicate) {
+      const { traceDocumentSend } = await import("@/lib/services/document-send-trace-service");
+      await traceDocumentSend({ tenantId, kind: "invoice", toPhone: contact.waPhone ?? null, body: message, customerId: inv.customer.id },
+        result.ok ? { result: "sent", gatewayMessageId: result.messageId ?? null }
+          : result.deferred ? { result: "held", error: result.error ?? "ditahan sementara" }
+          : { result: "failed", error: result.error ?? "Gagal mengirim WA" });
+    }
+    if (result.duplicate) return { ok: false, alreadyProcessed: true, error: "Permintaan invoice ini sudah diproses oleh gateway; status pengiriman harus diperiksa sebelum mencoba lagi." };
+    if (result.deferred) return { ok: false, held: true, error: result.error ?? "Pengiriman ditahan gateway sementara." };
+    if (!result.ok) return { ok: false, error: result.error ?? "Gagal mengirim WA" };
+    return { ok: true, to: waPhone };
+  }
+  const resendResult = await gatewaySend(tenantId, waPhone, message, {
+    idempotencyKey: `aircon:doc-invoice:${tenantId}:${invoiceId}:resend:${options.resendId}`,
   });
-  // F5: jejak pengiriman (G28/G30). Baris MessageLog dibuat LANGSUNG setelah
-  // hasil gateway diketahui — status SENT/FAILED, BUKAN QUEUED (kalau QUEUED,
-  // flusher cron mengirim ulang pesan yang sudah terkirim = duplikat ke pelanggan).
-  if (!res.duplicate) {
+  if (!resendResult.duplicate) {
     const { traceDocumentSend } = await import("@/lib/services/document-send-trace-service");
-    await traceDocumentSend(
-      {
-        tenantId,
-        kind: "invoice",
-        toPhone: contact.waPhone,
-        body: message,
-        customerId: inv.customer.id,
-      },
-      res.ok
-        ? { result: "sent", gatewayMessageId: res.messageId ?? null }
-        : res.deferred
-          ? { result: "held", error: res.error ?? "ditahan sementara" }
-          : { result: "failed", error: res.error ?? "Gagal mengirim WA" },
-    );
+    await traceDocumentSend({ tenantId, kind: "invoice", toPhone: contact.waPhone ?? null, body: message, customerId: inv.customer.id },
+    resendResult.ok ? { result: "sent", gatewayMessageId: resendResult.messageId ?? null }
+        : resendResult.deferred ? { result: "held", error: resendResult.error ?? "ditahan sementara" }
+        : { result: "failed", error: resendResult.error ?? "Gagal mengirim WA" });
   }
-  if (res.duplicate) {
-    // Gateway menolak sebagai DUPLIKAT: permintaan identik sudah diterima
-    // sebelumnya (retry/double-click). BUKAN kiriman baru, BUKAN kegagalan.
-    return {
-      ok: false,
-      alreadyProcessed: true,
-      error: "Dokumen ini baru saja diproses untuk dikirim — tidak dikirim ulang agar tidak dobel. Jika memang perlu kirim ulang, gunakan tombol Kirim Ulang.",
-    };
-  }
-  if (res.deferred) return { ok: false, held: true, error: res.error ?? "Pengiriman ditahan gateway sementara." };
-  if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
-  return { ok: true, to: contact.waPhone };
+  if (resendResult.duplicate) return { ok: false, alreadyProcessed: true, error: "Kirim ulang ini sudah diproses gateway; tidak dibuat duplikat." };
+  if (resendResult.deferred) return { ok: false, held: true, error: resendResult.error ?? "Pengiriman ditahan gateway sementara." };
+  if (!resendResult.ok) return { ok: false, error: resendResult.error ?? "Gagal mengirim WA" };
+  return { ok: true, to: waPhone };
 }
 
 /** Bangun teks KWITANSI (bukti terima) untuk WA. */
@@ -702,7 +715,8 @@ export async function sendReceiptViaWa(
   if (inv.status !== "PAID") return { ok: false, error: "Kwitansi hanya untuk invoice yang sudah LUNAS" };
 
   const contact = await resolveBillingContact(tenantId, inv.customer.id);
-  if (!contact.waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
+  const waPhone = contact.waPhone;
+  if (!waPhone) return { ok: false, error: "Nomor WA tujuan kosong. Lengkapi HP pelanggan/PIC keuangan." };
 
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { name: true } });
   // Payload dipakai BERSAMA (gateway & fallback) — tanpa duplikasi.
@@ -720,7 +734,7 @@ export async function sendReceiptViaWa(
     return {
       ok: false,
       error: "Paket Anda belum memiliki WhatsApp otomatis. Buka WhatsApp Anda untuk mengirim kwitansi ini.",
-      waMe: { url: waMeLink(contact.waPhone, message), message },
+      waMe: { url: waMeLink(waPhone, message), message },
     };
   }
   if (!(await isGatewayConfigured())) return { ok: false, error: "Gateway WA belum tersambung. Hubungkan WhatsApp di Pengaturan." };
@@ -733,7 +747,7 @@ export async function sendReceiptViaWa(
         channel: "WA",
         direction: "OUTBOUND",
         templateKey: "receipt_wa",
-        toPhone: contact.waPhone,
+        toPhone: waPhone,
         body: { contains: receiptNumber(inv.number) },
         status: { in: ["QUEUED", "SENDING", "SENT", "DELIVERED", "READ", "READ_CONFIRMED", "READ_UNOBSERVED", "UNKNOWN"] },
       },
@@ -749,7 +763,7 @@ export async function sendReceiptViaWa(
     }
   }
 
-  const res = await gatewaySend(tenantId, contact.waPhone, message, {
+  const res = await gatewaySend(tenantId, waPhone, message, {
     idempotencyKey: options.resendId
       ? `aircon:doc-receipt:${tenantId}:${invoiceId}:resend:${options.resendId}`
       : `aircon:doc-receipt:${tenantId}:${invoiceId}`,
@@ -762,7 +776,7 @@ export async function sendReceiptViaWa(
       {
         tenantId,
         kind: "receipt",
-        toPhone: contact.waPhone,
+        toPhone: waPhone,
         body: message,
         customerId: inv.customer.id,
       },
@@ -782,6 +796,6 @@ export async function sendReceiptViaWa(
   }
   if (res.deferred) return { ok: false, held: true, error: res.error ?? "Pengiriman ditahan gateway sementara." };
   if (!res.ok) return { ok: false, error: res.error ?? "Gagal mengirim WA" };
-  return { ok: true, to: contact.waPhone };
+  return { ok: true, to: waPhone };
 }
 

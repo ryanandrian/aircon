@@ -22,6 +22,11 @@ vi.mock("@/lib/prisma", () => {
     planConfigs: new Map<string, { autoReminder: boolean }>(),
     invoice: null as any,
   };
+  const txMock = {
+    $queryRaw: vi.fn(async () => [{ id: "inv-1" }]),
+    messageLog: { findFirst: vi.fn(async () => null), create: vi.fn(async () => ({ id: "ml-trace" })) },
+    invoice: { findFirst: vi.fn(async () => state.invoice) },
+  };
   return {
     __state: state,
     prisma: {
@@ -44,6 +49,10 @@ vi.mock("@/lib/prisma", () => {
         create: vi.fn(async () => ({ id: "ml-trace" })),
         findFirst: vi.fn(async () => null),
       },
+      // Prisma asli (produksi) menyediakan $transaction utk kunci baris Invoice
+      // (FOR UPDATE) demi menutup race klik ganda. Mock: tx = db tiruan.
+      $transaction: vi.fn(async (fn: any) => fn(txMock)),
+      $queryRaw: vi.fn(async () => []),
     },
   };
 });

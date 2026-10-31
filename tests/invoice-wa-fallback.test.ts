@@ -23,6 +23,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/prisma", () => {
   const state = { plan: "PROFESSIONAL", planConfigs: new Map(), invoice: null as any };
+  const txMock = {
+    $queryRaw: vi.fn(async () => [{ id: "inv-1" }]),
+    messageLog: { findFirst: vi.fn(async () => null), create: vi.fn(async () => ({ id: "ml-trace" })) },
+    invoice: { findFirst: vi.fn(async () => state.invoice) },
+  };
   return {
     __state: state,
     prisma: {
@@ -34,6 +39,10 @@ vi.mock("@/lib/prisma", () => {
         create: vi.fn(async () => ({ id: "ml-trace" })),
         findFirst: vi.fn(async () => null),
       },
+      // Prisma asli (produksi) menyediakan $transaction utk kunci baris Invoice
+      // (FOR UPDATE) demi menutup race klik ganda. Mock: tx = db tiruan.
+      $transaction: vi.fn(async (fn: any) => fn(txMock)),
+      $queryRaw: vi.fn(async () => []),
     },
   };
 });
