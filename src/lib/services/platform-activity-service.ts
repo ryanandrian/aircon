@@ -34,6 +34,13 @@ export const ACTIVITY_PERIOD_OPTIONS: { value: ActivityPeriod; label: string }[]
   { value: "90d", label: "90 Hari Terakhir" },
 ];
 
+/** Filter status aktivitas (label deskriptif, bukan penilaian kinerja). */
+export const ACTIVITY_LEVEL_OPTIONS: { value: ActivityLevel; label: string }[] = [
+  { value: "JOBS", label: "Ada pekerjaan" },
+  { value: "OTHER", label: "Aktivitas lain" },
+  { value: "NONE", label: "Belum tercatat" },
+];
+
 export interface TenantActivityRow {
   tenantId: string;
   tenantName: string;
@@ -80,10 +87,19 @@ export interface TenantActivityReport {
   };
 }
 
+/** Parameter filter laporan. */
+export interface TenantActivityFilters {
+  /** Batasi hanya tingkat aktivitas tertentu (bisa lebih dari satu). */
+  levels?: ActivityLevel[];
+  /** Cari berdasarkan nama usaha (case-insensitive). */
+  search?: string;
+}
+
 /** Hitung aktivitas per tenant untuk satu periode (read-only). */
 export async function getTenantActivityReport(
   period: ActivityPeriod = "30d",
   now = new Date(),
+  filters: TenantActivityFilters = {},
 ): Promise<TenantActivityReport> {
   const days = PERIOD_DAYS[period] ?? PERIOD_DAYS["30d"];
   const since = new Date(now.getTime() - days * 86_400_000);
@@ -97,7 +113,6 @@ export async function getTenantActivityReport(
       plan: true,
       status: true,
       timezone: true,
-      _count: { select: { jobs: true } },
     },
   });
 
@@ -187,7 +202,7 @@ export async function getTenantActivityReport(
   `);
   const lastActivityMap = new Map(lastActivity.map((r) => [r.tenantId, r.lastActivityAt]));
 
-  const rows: TenantActivityRow[] = tenants.map((t) => {
+  const allRows: TenantActivityRow[] = tenants.map((t) => {
     const jobs = jobsMap.get(t.id) ?? 0;
     const jobsCompleted = completedMap.get(t.id) ?? 0;
     const customers = customersMap.get(t.id) ?? 0;
@@ -215,6 +230,16 @@ export async function getTenantActivityReport(
     };
   });
 
+  // FilterApplied: Batasi baris sesuai filter (level & pencarian nama).
+  const search = filters.search?.trim().toLowerCase();
+  const rows = allRows.filter((r) => {
+    if (filters.levels && filters.levels.length > 0 && !filters.levels.includes(r.level)) return false;
+    if (search && !r.tenantName.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // Total dihitung dari SELURUH tenant (bukan hanya hasil filter) — supaya
+  // kartu ringkasan tetap menunjukkan gambaran platform saat tabel disaring.
   return {
     period,
     periodDays: days,
@@ -222,14 +247,14 @@ export async function getTenantActivityReport(
     until: now,
     rows,
     totals: {
-      tenants: rows.length,
-      tenantsWithJobs: rows.filter((r) => r.level === "JOBS").length,
-      tenantsWithOtherActivity: rows.filter((r) => r.level === "OTHER").length,
-      tenantsWithNoActivity: rows.filter((r) => r.level === "NONE").length,
-      jobs: rows.reduce((s, r) => s + r.jobs, 0),
-      jobsCompleted: rows.reduce((s, r) => s + r.jobsCompleted, 0),
-      customers: rows.reduce((s, r) => s + r.customers, 0),
-      invoices: rows.reduce((s, r) => s + r.invoices, 0),
+      tenants: allRows.length,
+      tenantsWithJobs: allRows.filter((r) => r.level === "JOBS").length,
+      tenantsWithOtherActivity: allRows.filter((r) => r.level === "OTHER").length,
+      tenantsWithNoActivity: allRows.filter((r) => r.level === "NONE").length,
+      jobs: allRows.reduce((s, r) => s + r.jobs, 0),
+      jobsCompleted: allRows.reduce((s, r) => s + r.jobsCompleted, 0),
+      customers: allRows.reduce((s, r) => s + r.customers, 0),
+      invoices: allRows.reduce((s, r) => s + r.invoices, 0),
     },
   };
 }

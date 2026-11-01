@@ -71,7 +71,8 @@ export default async function TenantsPage({
         <select
           name="status"
           defaultValue={sp.status ?? ""}
-          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          aria-label="Filter status"
+          className="h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 sm:h-9 sm:w-auto"
         >
           {STATUS_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -83,7 +84,7 @@ export default async function TenantsPage({
           name="source"
           defaultValue={sp.source ?? ""}
           aria-label="Filter sumber"
-          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+          className="h-11 w-full min-w-0 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 sm:h-9 sm:w-auto"
         >
           {SOURCE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -91,7 +92,7 @@ export default async function TenantsPage({
             </option>
           ))}
         </select>
-        <SubmitButton className="h-9 bg-sky-500 px-4 text-white hover:bg-sky-600" pendingLabel="Menerapkan…">
+        <SubmitButton className="h-11 w-full shrink-0 bg-sky-500 px-4 text-white hover:bg-sky-600 sm:h-9 sm:w-auto" pendingLabel="Menerapkan…">
           Terapkan
         </SubmitButton>
       </form>

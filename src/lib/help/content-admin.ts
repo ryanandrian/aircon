@@ -33,20 +33,45 @@ export const ADMIN_TOPICS: HelpTopic[] = [
   },
 
   {
+    key: "admin-aktivitas",
+    title: "Aktivitas Usaha",
+    icon: "Chart",
+    group: "Administrasi Platform",
+    audience: "admin",
+    order: 1,
+    whatIsIt:
+      "Laporan aktivitas bisnis tiap usaha: berapa pekerjaan dibuat & selesai, pelanggan baru, unit AC baru, invoice terbit, pekerjaan yang masih berjalan, dan kapan terakhir aktif. Berguna untuk melihat usaha mana yang benar-benar bekerja tanpa membuka tiap dashboard satu per satu.",
+    steps: [
+      "Pilih periode: 7 hari, 30 hari, atau 90 hari terakhir.",
+      "Baca kartu ringkasan: usaha dipantau, usaha dengan pekerjaan, total pekerjaan, invoice terbit.",
+      "Urutkan sudah otomatis — usaha paling aktif di atas.",
+      "Ketuk nama usaha untuk membuka detailnya di Daftar Usaha.",
+    ],
+    tips: [
+      "Angka dihitung dari data nyata di database (pekerjaan, pelanggan, unit AC, invoice) — bukan estimasi.",
+      "Label sengaja deskriptif ('Ada pekerjaan' / 'Aktivitas lain' / 'Belum tercatat'), bukan penilaian kinerja — tak ada ambang 'aktif' yang ditetapkan.",
+      "Kolom 'Pekerjaan berjalan' = pekerjaan yang belum selesai dan belum dibatalkan (bisa job lama yang menggantung).",
+    ],
+  },
+  {
     key: "admin-tenants",
     title: "Daftar Usaha (Tenant)",
     icon: "Building2",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 1,
+    order: 2,
     whatIsIt:
-      "Daftar semua usaha (tenant) yang memakai Aircon. Pantau status langganan, plan, dan buka detail tiap tenant.",
+      "Daftar semua usaha (tenant) yang memakai Aircon. Pantau status langganan, plan, sumber asal usaha (bawaan agen/reseller), dan buka detail tiap tenant.",
     steps: [
       "Telusuri daftar usaha beserta status dan paketnya.",
-      "Ketuk sebuah usaha untuk melihat detail: pemilik, langganan, pembayaran.",
-      "Gunakan detail tenant untuk memantau kesehatan akun pelanggan.",
+      "Lihat kolom 'Agen / Reseller' untuk tahu asal usaha: badge 'Agen' (bawaan agen langsung) atau 'Reseller' (bawaan reseller) — kolom kosong bila usaha daftar sendiri tanpa kode.",
+      "Saring sumber dengan dropdown 'Semua Sumber' (Tanpa Bawaan / Bawaan Agen / Bawaan Reseller).",
+      "Ketuk sebuah usaha untuk melihat detail: pemilik, langganan, pembayaran, dan card 'Sumber'.",
     ],
-    tips: ["Status SUSPENDED/CANCELLED menandakan tenant menunggak atau berhenti."],
+    tips: [
+      "Status SUSPENDED/CANCELLED menandakan tenant menunggak atau berhenti.",
+      "Sumber (bawaan) dicatat permanen saat usaha mendaftar memakai kode agen/reseller — tak bisa diubah belakangan.",
+    ],
   },
   {
     key: "admin-paket",
@@ -54,7 +79,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "CreditCard",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 2,
+    order: 3,
     whatIsIt:
       "Atur paket langganan yang dijual (mis. Professional, Business): harga, kuota, dan status aktif. Sumber tunggal harga di landing & penagihan.",
     steps: [
@@ -70,7 +95,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Ticket",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 3,
+    order: 4,
     whatIsIt:
       "Buat & kelola kupon diskon langganan: persen, potongan tetap, atau harga tetap (override). Bisa sekali pakai atau berulang.",
     steps: [
@@ -90,7 +115,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Scale",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 4,
+    order: 5,
     whatIsIt:
       "Atur aturan penagihan: pajak, masa tenggang sebelum suspend/hapus, jadwal reminder, dan ambang sweeper akun tidak aktif. Paket Basic gratis selamanya; tidak ada masa trial.",
     steps: [
@@ -111,7 +136,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Landmark",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 5,
+    order: 6,
     whatIsIt:
       "Identitas perusahaan penyedia (Lumite) yang tampil di faktur/kwitansi ke tenant: nama legal, NPWP, PKP, alamat, logo, plus catatan kaki dokumen keuangan.",
     steps: [
@@ -131,7 +156,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Cpu",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 6,
+    order: 7,
     whatIsIt:
       "Kelola katalog produk IoT yang dijual ke tenant beserta harga, dan pantau pesanan perangkat dari tenant.",
     steps: [
@@ -146,14 +171,19 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Handshake",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 7,
+    order: 8,
     whatIsIt:
       "Kelola program keagenan/reseller: mitra yang membawa tenant baru dan komisi mereka.",
     steps: [
       "Kelola daftar agen/mitra.",
       "Pantau komisi yang timbul dari pembayaran tenant yang mereka bawa.",
+      "Buka panel 'Tenant Bawaan' pada tiap agen untuk melihat tenant mana yang dibawa, apakah lewat reseller atau langsung dari agen, nilai paket aktifnya, serta komisi agen dan komisi reseller per tenant.",
+      "Rincian per reseller di dalam panel yang sama menampilkan jumlah tenant, total nilai paket, dan komisi per reseller.",
     ],
-    tips: ["Komisi dihitung otomatis dari pembayaran tenant setelah diskon (bukan termasuk pajak/fee)."],
+    tips: [
+      "Komisi dihitung otomatis dari pembayaran tenant setelah diskon (bukan termasuk pajak/fee).",
+      "Pembagian 'bawaan langsung' vs 'lewat reseller' memakai data atribusi yang tercatat saat tenant mendaftar dengan kode.",
+    ],
   },
   {
     key: "admin-infra",
@@ -161,7 +191,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Server",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 8,
+    order: 9,
     whatIsIt:
       "Atur koneksi ke WhatsApp Gateway dan broker MQTT (IoT): URL, kunci, dan jeda anti-spam. Menentukan jalannya pengingat & IoT.",
     steps: [
@@ -179,7 +209,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Bell",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 9,
+    order: 10,
     whatIsIt:
       "Satu tempat semua template notifikasi platform (Aircon → tenant): sambutan, tagihan jatuh tempo, WA terputus, keamanan, dan pesan pengingat ke pelanggan. Copy diedit di sini, aturan paket & penerima tetap di kode.",
     steps: [
@@ -198,7 +228,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "Globe",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 10,
+    order: 11,
     whatIsIt:
       "Kelola konten halaman depan publik (marketing): teks, testimoni, dan elemen yang tampil ke calon pelanggan.",
     steps: [
@@ -213,7 +243,7 @@ export const ADMIN_TOPICS: HelpTopic[] = [
     icon: "LayoutDashboard",
     group: "Administrasi Platform",
     audience: "admin",
-    order: 0,
+    order: 12,
     whatIsIt:
       "Dasbor platform: metrik lintas tenant (jumlah usaha, pendapatan, langganan aktif) untuk memantau kesehatan bisnis Aircon secara keseluruhan.",
     steps: [

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  ACTIVITY_LEVEL_OPTIONS,
+  ACTIVITY_PERIOD_OPTIONS,
+} from "../src/lib/services/platform-activity-service";
+import {
   activityLabel,
   activityLevel,
   activitySummary,
@@ -46,5 +50,21 @@ describe("activitySummary", () => {
 
   it("menyebut kosong sebagai tidak tercatat, bukan dormant", () => {
     expect(activitySummary(zero)).toBe("Tidak ada sinyal aktivitas tercatat");
+  });
+});
+
+describe("opsi filter laporan (harus lengkap & konsisten)", () => {
+  it("3 opsi periode (7/30/90 hari)", () => {
+    expect(ACTIVITY_PERIOD_OPTIONS.map((o) => o.value)).toEqual(["7d", "30d", "90d"]);
+    expect(ACTIVITY_PERIOD_OPTIONS.every((o) => o.label.length > 0)).toBe(true);
+  });
+
+  it("3 opsi status aktivitas, label unique & sinkron dengan activityLabel", () => {
+    expect(ACTIVITY_LEVEL_OPTIONS.map((o) => o.value)).toEqual(["JOBS", "OTHER", "NONE"]);
+    const labels = ACTIVITY_LEVEL_OPTIONS.map((o) => o.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    for (const o of ACTIVITY_LEVEL_OPTIONS) {
+      expect(o.label).toBe(activityLabel(o.value));
+    }
   });
 });
