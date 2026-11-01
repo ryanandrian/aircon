@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Building2, CreditCard, Scale, Landmark, Cpu, Handshake, Server, Globe, Bell, Ticket, BookOpen, ShieldCheck,
+  LayoutDashboard, Building2, CreditCard, Scale, Landmark, Cpu, Handshake, Server, Globe, Bell, Ticket, BookOpen, ShieldCheck, BarChart3,
 } from "lucide-react";
 
 const NAV = [
   { href: "/admin", label: "Ringkasan", icon: LayoutDashboard, exact: true },
+  { href: "/admin/aktivitas", label: "Aktivitas Usaha", icon: BarChart3 },
   { href: "/admin/tenants", label: "Daftar Usaha", icon: Building2 },
   { href: "/admin/notifikasi", label: "Notifikasi Platform", icon: Bell },
   { href: "/admin/landing", label: "Landing Page", icon: Globe },
