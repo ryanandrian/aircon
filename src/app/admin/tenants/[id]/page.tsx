@@ -4,6 +4,7 @@ import { getTenantDetail } from "@/lib/services/platform-service";
 import { formatIDR } from "@/lib/billing/plans";
 import { tenantHealth } from "@/lib/services/platform-format";
 import { TenantStatusBadge, PaymentStatusBadge } from "../../status-badge";
+import { AttributionBadge } from "../../attribution-badge";
 import { StatusChanger } from "./status-changer";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -70,6 +71,43 @@ export default async function TenantDetailPage({
           </p>
         </div>
       </header>
+
+      <Card>
+        <CardContent className="p-3 sm:p-5">
+          <h2 className="mb-4 text-base font-medium text-foreground sm:text-lg">Sumber</h2>
+          {tenant.attribution ? (
+            <div className="grid grid-cols-1 gap-4 min-[360px]:grid-cols-3">
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Bawaan</div>
+                <div className="mt-1">
+                  <AttributionBadge
+                    attribution={{
+                      agentId: tenant.attribution.agentId,
+                      agentName: tenant.attribution.agent.companyName,
+                      resellerId: tenant.attribution.resellerId,
+                      resellerName: tenant.attribution.reseller?.name ?? null,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {tenant.attribution.resellerId ? "Reseller" : "Agen"}
+                </div>
+                <div className="mt-0.5 break-words text-sm font-medium text-foreground">
+                  {tenant.attribution.reseller?.name ?? tenant.attribution.agent.companyName}
+                </div>
+              </div>
+              <Field label="Kode Partner" value={tenant.attribution.code} />
+              <Field label="Masuk via" value={fmtDate(tenant.attribution.lockedAt)} />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Usaha ini masuk sendiri tanpa kode agen atau reseller.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-3 sm:p-5">

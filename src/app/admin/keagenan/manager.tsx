@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { actionCreateAgent, actionUpdateAgent, actionBuildPayouts, actionMarkPaid, actionIssueAgentToken } from "./actions";
 import { Icon } from "@/components/icons";
+import { attributionSummary } from "@/lib/partner/attribution";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/empty-state";
@@ -15,6 +17,14 @@ interface AgentView {
   commissionType: CommissionType; commissionValue: number; taxStatus: PartnerTaxStatus;
   planCommissions: Array<{ plan: string; commissionType: CommissionType; commissionValue: number }>;
   code: string | null; joinCode: string | null; resellerCount: number; tenantCount: number; commissionThisMonth: number;
+  tenants: AgentTenantView[];
+}
+interface AgentTenantView {
+  tenantId: string; name: string; plan: string; status: string;
+  planAmountMonthly: number;
+  commissionAgentIdr: number; commissionResellerIdr: number; commissionGrossIdr: number; commissionEntries: number;
+  viaResellerId: string | null; viaResellerName: string | null; viaResellerStatus: string | null;
+  code: string; since: Date;
 }
 interface PayoutView {
   id: string; agentName: string; period: string; gross: number; tax: number; net: number; status: PayoutStatus;
@@ -98,6 +108,47 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
 
+  // Rincian per agen: tenant bawaan langsung vs lewat reseller + nilai paket aktif.
+  const agentRows = agents.map((a) => {
+    const direct = a.tenants.filter((t) => !t.viaResellerId);
+    const viaReseller = a.tenants.filter((t) => t.viaResellerId);
+    const directValue = direct.reduce((s, t) => s + t.planAmountMonthly, 0);
+    const resellerValue = viaReseller.reduce((s, t) => s + t.planAmountMonthly, 0);
+    const directCommission = direct.reduce((s, t) => s + t.commissionAgentIdr, 0);
+    const resellerCommission = viaReseller.reduce((s, t) => s + t.commissionAgentIdr, 0);
+    const byReseller = new Map<string, { id: string; name: string; status: string | null; count: number; value: number; commission: number }>();
+    for (const t of viaReseller) {
+      const key = t.viaResellerId!;
+      const prev = byReseller.get(key) ?? { id: key, name: t.viaResellerName ?? "—", status: t.viaResellerStatus, count: 0, value: 0, commission: 0 };
+      prev.count += 1;
+      prev.value += t.planAmountMonthly;
+      prev.commission += t.commissionAgentIdr;
+      byReseller.set(key, prev);
+    }
+    return {
+      agent: a,
+      direct,
+      viaReseller,
+      directValue,
+      resellerValue,
+      directCommission,
+      resellerCommission,
+      resellers: [...byReseller.values()].sort((x, y) => y.value - x.value),
+    };
+  });
+
+  /** Sumber tenant untuk satu baris (konsisten dengan label Daftar Usaha). */
+  const sourceOf = (
+    t: { viaResellerId: string | null; viaResellerName: string | null },
+    agentName: string,
+  ) =>
+    attributionSummary({
+      agentId: "",
+      agentName,
+      resellerId: t.viaResellerId,
+      resellerName: t.viaResellerName,
+    });
+
   return (
     <div className="space-y-6">
       {msg && (
@@ -153,7 +204,7 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
               title="Belum ada agen"
               desc="Rekrut mitra pemasaran dan buat agen baru lewat tombol di atas untuk memperluas jangkauan penjualan."
             />
-          ) : agents.map((a) => (
+          ) : agentRows.map(({ agent: a, direct, viaReseller, directValue, resellerValue, directCommission, resellerCommission, resellers }) => (
             <div key={a.id} className="rounded-xl border p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
@@ -190,6 +241,131 @@ export function KeagenanManager({ agents, payouts }: { agents: AgentView[]; payo
                 <Button type="button" size="sm" onClick={() => inviteAgent(a.id)} disabled={pending} className="border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:border-sky-900/40 dark:bg-sky-950/40 dark:text-sky-300">
                   Undang login portal
                 </Button>
+              </div>
+
+              {/* Laporan rincian: tenant bawaan agen ini — langsung vs lewat reseller + nilai paket aktif. */}
+              <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">Tenant Bawaan ({a.tenantCount})</h3>
+                  <span className="text-xs text-muted-foreground">
+                    Total nilai paket aktif {rupiah(directValue + resellerValue)}
+                  </span>
+                </div>
+
+                <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border bg-card p-3">
+                    <dt className="text-xs text-muted-foreground">Bawaan langsung (tanpa reseller)</dt>
+                    <dd className="mt-1 text-lg font-bold tabular-nums text-foreground">{direct.length}</dd>
+                    <dd className="text-xs text-muted-foreground">Nilai paket {rupiah(directValue)}</dd>
+                    <dd className="mt-1 text-xs font-medium tabular-nums text-foreground">Komisi agen {rupiah(directCommission)}</dd>
+                  </div>
+                  <div className="rounded-lg border bg-card p-3">
+                    <dt className="text-xs text-muted-foreground">Bawaan lewat reseller</dt>
+                    <dd className="mt-1 text-lg font-bold tabular-nums text-foreground">{viaReseller.length}</dd>
+                    <dd className="text-xs text-muted-foreground">Nilai paket {rupiah(resellerValue)}</dd>
+                    <dd className="mt-1 text-xs font-medium tabular-nums text-foreground">Komisi agen {rupiah(resellerCommission)}</dd>
+                  </div>
+                </dl>
+
+                {resellers.length > 0 && (
+                  <div className="mt-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Per reseller</h4>
+                    <ul className="mt-2 space-y-1.5">
+                      {resellers.map((r) => (
+                        <li key={r.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2">
+                          <span className="min-w-0 break-words text-sm font-medium text-foreground">{r.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {r.count} tenant · paket {rupiah(r.value)} · komisi {rupiah(r.commission)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {a.tenants.length > 0 && (
+                  <div className="mt-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Detail tenant</h4>
+                    {/* Mobile: kartu */}
+                    <div className="mt-2 space-y-2 sm:hidden">
+                      {a.tenants.map((t) => (
+                        <article key={t.tenantId} className="min-w-0 rounded-lg border bg-card p-3">
+                          <div className="flex min-w-0 items-start justify-between gap-2">
+                            <Link href={`/admin/tenants/${t.tenantId}`} className="min-w-0 break-words text-sm font-medium text-foreground hover:text-sky-600">
+                              {t.name}
+                            </Link>
+                            <span className="shrink-0 text-xs text-muted-foreground">{PLAN_LABEL[t.plan] ?? t.plan}</span>
+                          </div>
+                          <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+                            <dt className="text-muted-foreground">Sumber</dt>
+                            <dd className="min-w-0 break-words text-right text-foreground">
+                              {sourceOf(t, a.companyName)}
+                            </dd>
+                            <dt className="text-muted-foreground">Nilai paket</dt>
+                            <dd className="text-right font-medium tabular-nums text-foreground">{rupiah(t.planAmountMonthly)}</dd>
+                            <dt className="text-muted-foreground">Komisi agen</dt>
+                            <dd className="text-right font-medium tabular-nums text-foreground">{rupiah(t.commissionAgentIdr)}</dd>
+                            {t.viaResellerId && (
+                              <>
+                                <dt className="text-muted-foreground">Komisi reseller</dt>
+                                <dd className="text-right font-medium tabular-nums text-foreground">{rupiah(t.commissionResellerIdr)}</dd>
+                              </>
+                            )}
+                            <dt className="text-muted-foreground">Status</dt>
+                            <dd className="text-right text-foreground">{t.status}</dd>
+                            <dt className="text-muted-foreground">Kode</dt>
+                            <dd className="text-right font-mono text-muted-foreground">{t.code}</dd>
+                          </dl>
+                        </article>
+                      ))}
+                    </div>
+                    {/* Desktop: tabel */}
+                    <div className="mt-2 hidden overflow-x-auto sm:block">
+                      <table className="w-full min-w-[640px] text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                            <th className="px-3 py-2 font-medium">Usaha</th>
+                            <th className="px-3 py-2 font-medium">Paket</th>
+                            <th className="px-3 py-2 font-medium">Status</th>
+                            <th className="px-3 py-2 font-medium">Sumber</th>
+                            <th className="px-3 py-2 font-medium text-right">Nilai paket</th>
+                            <th className="px-3 py-2 font-medium text-right">Komisi agen</th>
+                            <th className="px-3 py-2 font-medium text-right">Komisi reseller</th>
+                            <th className="px-3 py-2 font-medium">Kode</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {a.tenants.map((t) => (
+                            <tr key={t.tenantId} className="border-b last:border-0">
+                              <td className="max-w-[220px] px-3 py-2">
+                                <Link href={`/admin/tenants/${t.tenantId}`} className="block break-words font-medium text-foreground hover:text-sky-600">
+                                  {t.name}
+                                </Link>
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">{PLAN_LABEL[t.plan] ?? t.plan}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{t.status}</td>
+                              <td className="max-w-[200px] px-3 py-2">
+                                <span className="block break-words text-foreground">
+                                  {sourceOf(t, a.companyName)}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right font-medium tabular-nums text-foreground">{rupiah(t.planAmountMonthly)}</td>
+                              <td className="px-3 py-2 text-right font-medium tabular-nums text-foreground">{rupiah(t.commissionAgentIdr)}</td>
+                              <td className="px-3 py-2 text-right font-medium tabular-nums text-foreground">
+                                {t.viaResellerId ? rupiah(t.commissionResellerIdr) : "—"}
+                              </td>
+                              <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{t.code}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {a.tenants.length === 0 && (
+                  <p className="mt-3 text-xs text-muted-foreground">Belum ada tenant yang masuk lewat kode agen ini.</p>
+                )}
               </div>
 
               {editId === a.id && (

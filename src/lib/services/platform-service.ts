@@ -5,6 +5,8 @@
  * (layout admin + tiap server action). Jangan panggil dari konteks tenant biasa.
  */
 import { prisma } from "@/lib/prisma";
+import { getPlanPriceMap, planAmountFromMap } from "@/lib/billing/config";
+import type { AttributionInput, AttributionKind } from "@/lib/partner/attribution";
 import type { TenantStatus, TenantPlan } from "@prisma/client";
 
 const VALID_STATUSES: readonly TenantStatus[] = [
@@ -27,6 +29,19 @@ export interface TenantSummary {
   createdAt: Date;
   userCount: number;
   jobCount: number;
+  /** Sumber tenant (bawaan). null = daftar sendiri tanpa kode agen/reseller. */
+  attribution: TenantAttributionSummary | null;
+}
+
+/**
+ * Ringkasan atribusi tenant untuk laporan Admin Platform.
+ * Bentuknya mengikuti `AttributionInput` (SSOT di `lib/partner/attribution.ts`).
+ */
+export interface TenantAttributionSummary extends AttributionInput {
+  code: string;
+  lockedAt: Date;
+  /** Nilai paket bulanan aktif saat atribusi (IDR, snapshot subscription). */
+  planAmountMonthly: number;
 }
 
 export interface ListTenantsParams {
@@ -34,6 +49,8 @@ export interface ListTenantsParams {
   status?: TenantStatus;
   cursor?: string;
   limit?: number;
+  /** Filter sumber (bawaan): NONE = tanpa bawaan, AGENT = agen langsung, RESELLER = lewat reseller. */
+  source?: AttributionKind;
 }
 
 export interface ListTenantsResult {
@@ -56,6 +73,13 @@ export async function listTenants(params: ListTenantsParams = {}): Promise<ListT
   const tenants = await prisma.tenant.findMany({
     where: {
       ...(params.status ? { status: params.status } : {}),
+      ...(params.source
+        ? params.source === "NONE"
+          ? { attribution: { is: null } }
+          : params.source === "RESELLER"
+            ? { attribution: { is: { resellerId: { not: null } } } }
+            : { attribution: { is: { resellerId: null } } }
+        : {}),
       ...(search
         ? {
             OR: [
@@ -80,26 +104,56 @@ export async function listTenants(params: ListTenantsParams = {}): Promise<ListT
       currentPeriodEnd: true,
       createdAt: true,
       _count: { select: { users: true, jobs: true } },
+      attribution: {
+        select: {
+          agentId: true,
+          resellerId: true,
+          code: true,
+          lockedAt: true,
+          agent: { select: { companyName: true } },
+          reseller: { select: { name: true } },
+        },
+      },
+      subscription: { select: { amountMonthly: true } },
     },
   });
 
   const hasMore = tenants.length > limit;
   const page = hasMore ? tenants.slice(0, limit) : tenants;
+  // Peta harga paket diambil SEKALI — hindari query per tenant (N+1).
+  const priceMap = await getPlanPriceMap();
+
+  const items = page.map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    phone: t.phone,
+    plan: t.plan,
+    status: t.status,
+    trialEndsAt: t.trialEndsAt,
+    currentPeriodEnd: t.currentPeriodEnd,
+    createdAt: t.createdAt,
+    userCount: t._count.users,
+    jobCount: t._count.jobs,
+    attribution: t.attribution
+      ? {
+          agentId: t.attribution.agentId,
+          agentName: t.attribution.agent.companyName,
+          resellerId: t.attribution.resellerId,
+          resellerName: t.attribution.reseller?.name ?? null,
+          code: t.attribution.code,
+          lockedAt: t.attribution.lockedAt,
+          planAmountMonthly: planAmountFromMap(
+            t.plan,
+            t.subscription?.amountMonthly,
+            priceMap,
+          ),
+        }
+      : null,
+  }));
 
   return {
-    items: page.map((t) => ({
-      id: t.id,
-      name: t.name,
-      slug: t.slug,
-      phone: t.phone,
-      plan: t.plan,
-      status: t.status,
-      trialEndsAt: t.trialEndsAt,
-      currentPeriodEnd: t.currentPeriodEnd,
-      createdAt: t.createdAt,
-      userCount: t._count.users,
-      jobCount: t._count.jobs,
-    })),
+    items,
     nextCursor: hasMore ? page[page.length - 1].id : null,
   };
 }
@@ -117,6 +171,16 @@ export async function getTenantDetail(tenantId: string) {
       payments: {
         orderBy: { createdAt: "desc" },
         take: 10,
+      },
+      attribution: {
+        select: {
+          agentId: true,
+          resellerId: true,
+          code: true,
+          lockedAt: true,
+          agent: { select: { companyName: true } },
+          reseller: { select: { name: true } },
+        },
       },
       _count: { select: { users: true, jobs: true, customers: true } },
     },

@@ -4,6 +4,7 @@
  * Adaptasi mesinviral: rate agen milik admin (§1c), gerbang pencairan owner (§1d).
  */
 import { prisma } from "@/lib/prisma";
+import { getPlanPriceMap, planAmountFromMap } from "@/lib/billing/config";
 import { encryptSecret, maskAccount } from "@/lib/partner/vault-crypto";
 import { normalizeCode, computeTaxWithholding, netPayout } from "@/lib/partner/commission-logic";
 import type { CommissionType, PartnerTaxStatus, PartnerStatus, TenantPlan } from "@prisma/client";
@@ -152,9 +153,11 @@ export async function listAgents() {
   const agents = await prisma.agent.findMany({ orderBy: { createdAt: "desc" }, include: { planCommissions: true } });
   const period = new Date();
   const periodStart = new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth(), 1));
+  // Peta harga paket diambil SEKALI — hindari query per tenant (N+1).
+  const priceMap = await getPlanPriceMap();
 
   return Promise.all(agents.map(async (a) => {
-    const [resellerCount, tenantCount, accrued, code] = await Promise.all([
+    const [resellerCount, tenantCount, accrued, code, attributed, ledgers] = await Promise.all([
       prisma.reseller.count({ where: { agentId: a.id } }),
       prisma.tenantAttribution.count({ where: { agentId: a.id } }),
       prisma.commissionLedger.aggregate({
@@ -162,7 +165,83 @@ export async function listAgents() {
         _sum: { agentAmountIdr: true },
       }),
       prisma.partnerCode.findFirst({ where: { agentId: a.id, ownerKind: "agent" }, select: { code: true } }),
+      // Rincian tenant bawaan agen ini: dari reseller mana + nilai paket aktif.
+      prisma.tenantAttribution.findMany({
+        where: { agentId: a.id },
+        orderBy: { lockedAt: "desc" },
+        select: {
+          tenantId: true,
+          resellerId: true,
+          code: true,
+          lockedAt: true,
+          tenant: { select: { name: true, plan: true, status: true, subscription: { select: { amountMonthly: true } } } },
+          reseller: { select: { id: true, name: true, status: true } },
+        },
+      }),
+      // Komisi/insentif yang tercatat untuk tenant-tenan agen ini.
+      // Status REVERSED TIDAK dihitung (baris asal sudah dibalik oleh baris
+      // REVERSAL bernilai negatif) — sama seperti aturan di buildMonthlyPayouts.
+      prisma.commissionLedger.findMany({
+        where: {
+          agentId: a.id,
+          status: { in: ["ACCRUED", "APPROVED", "PAID"] },
+          entryKind: { in: ["ACCRUAL", "REVERSAL"] },
+        },
+        select: {
+          tenantId: true,
+          plan: true,
+          grossIdr: true,
+          monthsPaid: true,
+          agentAmountIdr: true,
+          resellerAmountIdr: true,
+          agentRateType: true,
+          agentRateValue: true,
+        },
+      }),
     ]);
+    // Rekap komisi per tenant (akrual + reversal, sudah dinormalisasi tanda).
+    const commissionByTenant = new Map<
+      string,
+      { grossIdr: number; agentAmountIdr: number; resellerAmountIdr: number; entries: number }
+    >();
+    for (const l of ledgers) {
+      const prev = commissionByTenant.get(l.tenantId) ?? {
+        grossIdr: 0,
+        agentAmountIdr: 0,
+        resellerAmountIdr: 0,
+        entries: 0,
+      };
+      prev.grossIdr += l.grossIdr;
+      prev.agentAmountIdr += l.agentAmountIdr;
+      prev.resellerAmountIdr += l.resellerAmountIdr;
+      prev.entries += 1;
+      commissionByTenant.set(l.tenantId, prev);
+    }
+
+    const tenants = attributed.map((t) => ({
+      tenantId: t.tenantId,
+      name: t.tenant.name,
+      plan: t.tenant.plan,
+      status: t.tenant.status,
+      // Nilai paket bulanan aktif: snapshot subscription, fallback ke harga paket.
+      planAmountMonthly: planAmountFromMap(
+        t.tenant.plan,
+        t.tenant.subscription?.amountMonthly,
+        priceMap,
+      ),
+      // Rekap komisi agen untuk tenant ini (nilai yang sudah tercatat di ledger).
+      commissionAgentIdr: commissionByTenant.get(t.tenantId)?.agentAmountIdr ?? 0,
+      // Rekap komisi reseller (kewajiban agen kepada reseller).
+      commissionResellerIdr: commissionByTenant.get(t.tenantId)?.resellerAmountIdr ?? 0,
+      // Settlement bruto yang menjadi basis komisi.
+      commissionGrossIdr: commissionByTenant.get(t.tenantId)?.grossIdr ?? 0,
+      commissionEntries: commissionByTenant.get(t.tenantId)?.entries ?? 0,
+      viaResellerId: t.resellerId,
+      viaResellerName: t.reseller?.name ?? null,
+      viaResellerStatus: t.reseller?.status ?? null,
+      code: t.code,
+      since: t.lockedAt,
+    }));
     return {
       id: a.id,
       companyName: a.companyName,
@@ -178,6 +257,7 @@ export async function listAgents() {
       resellerCount,
       tenantCount,
       commissionThisMonth: accrued._sum.agentAmountIdr ?? 0,
+      tenants,
     };
   }));
 }
