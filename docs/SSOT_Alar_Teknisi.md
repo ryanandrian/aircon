@@ -559,3 +559,76 @@ BELUM DIKONFIRMASI PEMILIK (deploy ADA, uji pasca-refresh belum masuk):
 - Kinerja backlog pada tenant real skala besar belum diukur (daftar dibatasi 50,
   count query terpisah).
 
+## BAGIAN 4 — "CLOSING MACET" (SESI ZOMBIE): SUDAH DIPERBAIKI & LIVE
+```
+LAPORAN PEMILIK (2026-11-07): "di aplikasi teknisinya tidak bisa diselesaikan closing.
+SEBELUMNYA sudah dibatalkan, dibuat pekerjaan baru, dan dicoba teknisi lain, tetap
+tidak bisa closing." Tenant: PT Ase Dwimitra Mandiri (Bapak Ranggi).
+
+GEJALA SERVER (bukan UI): "Pekerjaan tidak dapat diselesaikan dari status COMPLETED."
+  → closeWorkSession menolak job berstatus terminal (COMPLETED/CANCELLED).
+  → UI salah label: "Checklist belum lengkap. Pekerjaan tidak dapat diselesaikan
+    dari status COMPLETED." (prefix checklist dipakai untuk SEMUA error).
+
+AKAR (bukti DB live + kode, bukan asumsi):
+  1. closeWorkSession menolak job terminal.
+  2. Setelah sesi ditutup, /t/kerja/[customerId] SELALU memanggil openWorkSession.
+     Bila tak ada sesi OPEN → sistem membuat SESI OPEN BARU yang masih tertaut
+     job yang sama — job itu sudah COMPLETED. ("zombie")
+  3. Sesi zombie itu "menahan" pelanggan: opening dari penugasan baru mem-bind
+     job terminal; cancel job tak membersihkan sesi; ganti teknisi tak mengubah apa pun.
+  4. Pemicu: actionCloseWorkSession memanggil revalidatePath("/t") → render ulang
+     halaman kerja → openWorkSession → sesi OPEN baru (jarak ~2 detik).
+
+DATA PRODUKSI (probe read-only pra-perbaikan): 38 sesi OPEN tertaut job terminal
+  di 3 tenant — PT Ase 31, Jaya Mandiri 3, AC Depok Jaya 4. 37 tanpa WorkItem.
+
+PERBAIKAN KODE (release c6eb890bc94ad64c6389e2b88b4f09efd28bb75b, LIVE):
+  - openWorkSession: job terminal dari URL DITOLAK (pesan jelas, arahkan ke
+    penugasan aktif).
+  - openWorkSession: sesi OPEN tertaut job terminal diLEPAS (jobId = NULL) —
+    bukan ditutup, WorkItem TIDAK dihapus → tak ada data hilang, laporan kinerja
+    tetap sama (sesi OPEN tak dihitung). Sesi lalu bisa ditutup lagi (invoice
+    terbit normal) atau diarahkan ke job aktif baru.
+  - transitionJob(CANCELLED): sesi OPEN tertaut dilepas dari job yang dibatalkan.
+  - /t/kerja/[customerId]: job COMPLETED/CANCELLED → redirect ke faktur yang
+    sudah terbit (atau daftar pekerjaan), bukan membuka sesi yang tak bisa ditutup.
+  - actionCloseWorkSession: revalidatePath("/t", "page") + path faktur (sebelumnya
+    revalidatePath("/t") memicu render ulang halaman kerja → thats sumber
+    lahirnya zombie).
+  - UI: "Checklist belum lengkap." hanya untuk gap checklist; error server
+    ditampilkan apa adanya.
+  - BUKAN alur baru: semuanya pada fungsi & halaman yang sudah ada.
+
+PERBAIKAN DATA (scripts/repair-zombie-work-sessions.cjs, idempotent):
+  - Backup logis pra-perbaikan: /tmp/aircon-backup/pre-zombie-fix-20261107T0330Z
+    (64 tabel, 2.660 baris).
+  - 38 sesi zombie → jobId = NULL (tak ada WorkItem/Invoice dihapus).
+  - 1 WorkItem duplikat baris invoice (Bapak Julian, "Bongkar-Pasang AC"
+    Rp650.000 = baris INV/2026/0004) dihapus (0 anak ChecklistResult) supaya tak
+    bisa ditagih dua kali.
+  - 2 WorkItem pekerjaan nyata yang BELUM tertagih TIDAK dihapus (dibiarkan
+    agar bisa ditagih lewat alur aplikasi):
+      · AC Depok Jaya / Wisnu — "CUCI SERVIS 0.5 PK" Rp150.000 (item dibuat
+        27 Okt, sesi masih OPEN; job-nya COMPLETED tanpa invoice)
+      · PT Ase / Ibu Feby — "Cuci AC (Jakarta, Bogor)" Rp100.000 (23 Okt)
+  - VERIFIKASI PASCA-PERBAIKAN: sesi OPEN tertaut job terminal = 0; total
+    Invoice = 90 (tak berubah); job CANCELLED dengan sesi OPEN = 0.
+
+BUKTI LIVE: release c6eb890 (source-sha cocok, systemctl aircon-app active,
+  / → 200, /login → 200); bundle live memuat string fix ("Pekerjaan sudah
+  selesai atau dibatalkan", "jobId:null", redirect "/t/faktur/").
+
+MASIH TERBUKA (butuh keputusan/uji pemilik):
+  - 2 pekerjaan nyata di atas belum tertagih → butuh penugasan/faktur (akun
+    admin/owner) ATAU teknisi menutup sesi itu lagi (kini sesi-nya bebas).
+  - 1 job COMPLETED tanpa invoice (Wisnu, job cmugulint001xitiuo17mthka,
+    completed 25 Sep 2026) — apakah perlu tagihan susulan atau write-off.
+  - Uji manual pemilik: buka /t/kerja/<pelanggan> untuk Bapak Ranggi & Ibu Feby,
+    pastikan tombol "Tutup & Buat Invoice" aktif dan tak ada error COMPLETED.
+  - Sisa item 7 Nov pada Uncle: WorkItem Rp85.000 dari screenshot TIDAK ada
+    di DB (0 WorkItem dibuat di seluruh tenant antara 6 Nov 21:00Z–7 Nov 02:00Z).
+    Aset Uncle juga di-soft-delete 7 Nov 04:55 WIB (3 aset). Sumber perubahan
+    itu belum terverifikasi (bukan oleh kode closing) — perlu log audit/admin.
+```
+
