@@ -15,6 +15,38 @@ import {
 import { collectChecklistGaps, type ChecklistItemDef } from "@/lib/domain/checklist-validation";
 import { computeNextServiceDate, REPEAT_DEFAULTS } from "@/lib/domain/money-loop";
 import { isOwnedPhotoUrl } from "@/lib/storage/s3";
+import type { JobStatus } from "@prisma/client";
+
+const TERMINAL_JOB: JobStatus[] = ["COMPLETED", "CANCELLED"];
+
+/**
+ * Lepaskan sesi OPEN dari job yang sudah terminal (COMPLETED/CANCELLED).
+ *
+ * Akar bug: sesi OPEN yang tertaut job terminal tak bisa ditutup (guard closeWorkSession
+ * menolak status terminal) → teknisi tak bisa "Tutup & Buat Tagihan" untuk pelanggan itu,
+ * meski sudah dibatalkan / dibuatkan pekerjaan baru / ganti teknisi.
+ *
+ * Sesi TIDAK ditutup & WorkItem TIDAK dihapus: item lama tetap bisa ditagih (sesi jadi
+ * tanpa job → closeWorkSession tetap menerbitkan invoice). Data tak hilang, laporan
+ * kinerja tak berubah (sesi OPEN tak dihitungperformanya).
+ */
+async function detachSessionFromTerminalJob(
+  tenantId: string,
+  sessionId: string,
+  linkedJobId: string | null,
+): Promise<boolean> {
+  if (!linkedJobId) return false;
+  const job = await prisma.jobOrder.findFirst({
+    where: { id: linkedJobId, tenantId },
+    select: { status: true },
+  });
+  if (!job || !TERMINAL_JOB.includes(job.status)) return false;
+  await prisma.workSession.updateMany({
+    where: { id: sessionId, tenantId, status: "OPEN" },
+    data: { jobId: null },
+  });
+  return true;
+}
 
 /** Buka (atau ambil) sesi kerja OPEN untuk pelanggan. Idempoten: 1 sesi OPEN per pelanggan. */
 export async function openWorkSession(
@@ -28,10 +60,17 @@ export async function openWorkSession(
   if (jobId) {
     const job = await prisma.jobOrder.findFirst({
       where: { id: jobId, tenantId },
-      select: { id: true, customerId: true },
+      select: { id: true, customerId: true, status: true },
     });
     if (!job || job.customerId !== customerId) {
       throw new ServiceError("NOT_FOUND", "Pekerjaan tidak ditemukan atau bukan milik pelanggan ini");
+    }
+    // Job terminal tak bisa dicatat lagi — penugasan aktif lain yang harus dipakai.
+    if (TERMINAL_JOB.includes(job.status)) {
+      throw new ServiceError(
+        "CONFLICT",
+        "Pekerjaan sudah selesai atau dibatalkan. Buka penugasan aktif dari daftar pekerjaan.",
+      );
     }
   }
 
@@ -39,7 +78,17 @@ export async function openWorkSession(
     where: { tenantId, customerId, status: "OPEN" }, select: { id: true, jobId: true },
   });
   if (existing) {
-    // B1 fix: bila sesi OPEN lama belum tertaut job & sekarang dibuka dari sebuah job, taut-kan.
+    // Sesi yang tertaut job terminal → lepas (bukan ditutup: WorkItem & nilai kerja tetap utuh).
+    const wasZombie = await detachSessionFromTerminalJob(tenantId, existing.id, existing.jobId);
+    if (wasZombie) {
+      // Sesi kini bebas: arahkan ke job aktif yang diminta, atau biarkan tanpa job
+      // (teknisi bisa tetap menutup → invoice terbit untuk pekerjaan yang tertunda).
+      if (jobId) {
+        await prisma.workSession.update({ where: { id: existing.id }, data: { jobId } });
+      }
+      return existing.id;
+    }
+    // B1 fix: sesi OPEN lama belum tertaut job & sekarang dibuka dari sebuah job, taut-kan.
     if (jobId && !existing.jobId) {
       await prisma.workSession.update({ where: { id: existing.id }, data: { jobId } });
     }

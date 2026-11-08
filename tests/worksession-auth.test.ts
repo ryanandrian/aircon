@@ -16,11 +16,17 @@ const store: any = {};
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     customer: { findFirst: vi.fn(async () => store.customer) },
-    jobOrder: { findFirst: vi.fn(async () => store.job) },
+    jobOrder: {
+      findFirst: vi.fn(async ({ where }: { where: { id?: string } }) => {
+        if (where.id && store.job && where.id !== store.job.id) return null;
+        return store.job;
+      }),
+    },
     workSession: {
       findFirst: vi.fn(async () => store.existing ?? null),
       create: vi.fn(async ({ data }: any) => { store.created = data; return { id: "ws-new" }; }),
       update: vi.fn(async ({ where, data }: any) => { store.updated = { where, data }; return { id: where.id }; }),
+      updateMany: vi.fn(async ({ where, data }: any) => { store.detached = { where, data }; return { count: 1 }; }),
     },
   },
 }));
@@ -32,7 +38,7 @@ beforeEach(() => {
   store.updated = null;
   store.existing = null;
   store.customer = { id: "cust-1" };
-  store.job = { id: "job-1", customerId: "cust-1" };
+  store.job = { id: "job-1", customerId: "cust-1", status: "IN_PROGRESS" };
 });
 
 describe("openWorkSession — tautan jobId diverifikasi (tenant + customer)", () => {

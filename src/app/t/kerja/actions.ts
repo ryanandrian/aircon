@@ -206,7 +206,8 @@ export async function actionCloseWorkSession(workSessionId: string): Promise<Res
   try {
     const ctx = await getServerContext();
     const r = await closeWorkSession(ctx.tenantId, workSessionId, ctx.userId);
-    revalidatePath("/t");
+    revalidatePath("/t", "page");
+    revalidatePath(`/t/faktur/${r.invoiceId}`);
     return { ok: true, data: r };
   } catch (e) {
     return { ok: false, error: msg(e, "Gagal menutup sesi") };

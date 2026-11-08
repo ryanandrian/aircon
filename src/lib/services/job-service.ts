@@ -78,6 +78,15 @@ export async function transitionJob(input: TransitionInput) {
 
     const updated = await tx.jobOrder.update({ where: { id: job.id }, data });
 
+    // Batalkan pekerjaan → lepaskan sesi OPEN tertaut (bukan tutup: WorkItem & nilai
+    // kerja tetap utuh agar bisa ditagih bila kerjaan benar-benar dikerjakan).
+    if (toStatus === "CANCELLED") {
+      await tx.workSession.updateMany({
+        where: { tenantId, jobId: job.id, status: "OPEN" },
+        data: { jobId: null },
+      });
+    }
+
     await tx.jobProgressEvent.create({
       data: {
         tenantId, jobId: job.id, fromStatus, toStatus, actorId,

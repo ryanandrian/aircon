@@ -25,13 +25,28 @@ export default async function KerjaPage({ params, searchParams }: {
   // B2: muat konteks penugasan (bila dibuka dari job spesifik) untuk prefill unit + banner.
   const jobCtx = job
     ? await prisma.jobOrder.findFirst({
-        where: { id: job, tenantId: ctx.tenantId },
+        where: { id: job, tenantId: ctx.tenantId, customerId },
         select: {
+          status: true,
           assignmentType: true, assetId: true, serviceType: true,
           asset: { select: { brand: true, roomLocation: true } },
         },
       })
     : null;
+
+  // Job tak ditemukan / bukan milik pelanggan ini → arahkan teknisi ke daftar pekerjaan
+  // (bukan halaman server error).
+  if (job && !jobCtx) redirect("/t");
+
+  if (jobCtx && (jobCtx.status === "COMPLETED" || jobCtx.status === "CANCELLED")) {
+    const inv = await prisma.invoice.findFirst({
+      where: { tenantId: ctx.tenantId, jobId: job, customerId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (inv) redirect(`/t/faktur/${inv.id}`);
+    redirect("/t");
+  }
 
   const wsId = await openWorkSession(ctx.tenantId, customerId, ctx.userId, job);
   const [ws, catalogRows, assetRows] = await Promise.all([
