@@ -619,6 +619,22 @@ BUKTI LIVE: release c6eb890 (source-sha cocok, systemctl aircon-app active,
   / → 200, /login → 200); bundle live memuat string fix ("Pekerjaan sudah
   selesai atau dibatalkan", "jobId:null", redirect "/t/faktur/").
 
+UJI FUNGSIONAL PADA DATA PRODUKSI (transaksi ROLLBACK, data tak berubah):
+  7/7 PASS —
+    1. sesi OPEN + job COMPLETED → DILEPAS (jobId NULL), status tetap OPEN
+    2. sesi OPEN + job CANCELLED → DILEPAS
+    3. sesi OPEN + job AKTIF → TIDAK dilepas (regresi normal aman)
+    4. WorkItem tetap utuh setelah detach (tak ada data hilang)
+    5. produksi: sesi OPEN tertaut job terminal = 0
+    6. jumlah Invoice/WorkSession/WorkItem tak berubah (90/130/163)
+    7. 2 sesi OPEN bebas + item → siap ditutup (2 pekerjaan nyata tertunda)
+  Skrip uji menyisipkan baris sementara lalu ROLLBACK; 0 baris sementara tersisa.
+
+CATATAN: "Checklist belum lengkap." TIDAK penyebab kegagalan closing untuk kasus
+  ini — checklist sudah lulus; server menolak karena job tertaut sudah COMPLETED.
+  Prefix checklist dulu dipasang untuk SEMUA error close (work-session.tsx),
+  kini hanya untuk gap checklist yang sesungguhnya.
+
 MASIH TERBUKA (butuh keputusan/uji pemilik):
   - 2 pekerjaan nyata di atas belum tertagih → butuh penugasan/faktur (akun
     admin/owner) ATAU teknisi menutup sesi itu lagi (kini sesi-nya bebas).
